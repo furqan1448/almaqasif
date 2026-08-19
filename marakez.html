@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دخول المراكز - وحدة المقاصف</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== شاشة الدخول ===================== -->
+<div id="loginScreen" class="center-wrap">
+  <div class="login-card">
+    <h1>دخول المراكز</h1>
+    <p class="sub">وحدة المقاصف - جمعية فرقان</p>
+
+    <label>اسم المركز</label>
+    <select id="centerSelect"><option value="">جاري التحميل...</option></select>
+
+    <label>كلمة المرور</label>
+    <input type="password" id="centerPassword" placeholder="أدخلي كلمة المرور">
+
+    <button class="btn" id="loginBtn" onclick="doLogin()">دخول</button>
+    <div class="error-msg" id="loginError"></div>
+  </div>
+  <a href="index.html" class="back-link" style="display:block;text-align:center;margin-top:16px;">⟵ الرجوع للصفحة الرئيسية</a>
+</div>
+
+<!-- ===================== لوحة المركز (بعد الدخول) ===================== -->
+<div id="dashScreen" class="hidden">
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span> وحدة المقاصف</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="user-chip">🏪 <span id="centerNameChip"></span></div>
+      <button class="logout" onclick="logout()">خروج</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- الشاشة الرئيسية: الأيقونات -->
+    <div id="homeView">
+      <h2 style="color:var(--maroon);">مرحباً بك</h2>
+      <div class="icon-grid">
+        <div class="icon-btn" onclick="showView('salesView')">
+          <div class="ic">💰</div>
+          <span class="label">سجل البيع اليومي</span>
+        </div>
+        <div class="icon-btn" onclick="openNoticeForm('استلام')">
+          <div class="ic">📥</div>
+          <span class="label">إشعار استلام</span>
+        </div>
+        <div class="icon-btn" onclick="openNoticeForm('تسليم')">
+          <div class="ic">📤</div>
+          <span class="label">إشعار تسليم</span>
+        </div>
+        <div class="icon-btn" onclick="showView('noticesView')">
+          <div class="ic">🗂️</div>
+          <span class="label">إشعاراتي</span>
+          <div class="badge hidden" id="pendingBadge">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- سجل البيع اليومي -->
+    <div id="salesView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">إضافة مبلغ بيع اليوم</h3>
+        <label>التاريخ</label>
+        <input type="date" id="saleDate">
+        <label>المبلغ (ريال)</label>
+        <input type="number" id="saleAmount" placeholder="0.00" step="0.01">
+        <button class="btn" onclick="submitSale()">حفظ المبلغ</button>
+        <div class="success-msg" id="saleSuccess">تم تسجيل المبلغ بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">سجل المبيعات</h3>
+        <table class="log-table" id="salesTable">
+          <thead><tr><th>التاريخ</th><th>الوقت</th><th>المبلغ</th><th></th></tr></thead>
+          <tbody id="salesTbody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
+          <tfoot><tr><td colspan="2">الإجمالي</td><td id="salesTotal">0</td><td></td></tr></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- نموذج الإشعار (استلام/تسليم) -->
+    <div id="noticeFormView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);" id="noticeFormTitle">إشعار</h3>
+
+        <label>المبلغ (ريال)</label>
+        <input type="number" id="noticeAmount" placeholder="0.00" step="0.01">
+
+        <label>التوقيع</label>
+        <div class="sig-wrap"><canvas id="sigPad" class="sig-pad"></canvas></div>
+        <div class="sig-actions">
+          <button onclick="clearSig()">مسح التوقيع</button>
+        </div>
+
+        <button class="btn" onclick="previewNotice()" style="margin-top:20px;">معاينة الإشعار</button>
+      </div>
+
+      <div class="card hidden" id="noticePreviewCard">
+        <h3 style="margin-top:0;color:var(--maroon);">معاينة الإشعار</h3>
+        <img id="noticePreviewImg" class="notice-preview">
+        <button class="btn" id="sendNoticeBtn" onclick="sendNotice()">إرسال إلى إدارة وحدة المقاصف</button>
+        <div class="success-msg" id="noticeSuccess">تم الإرسال بنجاح، بانتظار توقيع الإدارة ✅</div>
+        <div class="error-msg" id="noticeError"></div>
+      </div>
+    </div>
+
+    <!-- إشعاراتي -->
+    <div id="noticesView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">إشعاراتي</h3>
+        <div id="noticesList">جاري التحميل...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- قالب مخفي لتركيب صورة الإشعار -->
+<canvas id="noticeCanvas" width="900" height="560" style="display:none;"></canvas>
+
+<script src="config.js"></script>
+<script>
+let currentCenter = sessionStorage.getItem('maqasif_center') || '';
+let currentNoticeType = '';
+let currentNoticeDataUrl = '';
+
+document.getElementById('saleDate').value = todayStr();
+
+if (currentCenter) { showDashboard(); }
+
+/* -------- تحميل قائمة المراكز -------- */
+callApi('getCenters').then(function (r) {
+  const sel = document.getElementById('centerSelect');
+  sel.innerHTML = '<option value="">اختاري المركز</option>';
+  (r.centers || []).forEach(function (c) {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+}).catch(function () {
+  document.getElementById('centerSelect').innerHTML = '<option value="">تعذر تحميل المراكز</option>';
+});
+
+/* -------- تسجيل الدخول -------- */
+function doLogin() {
+  const center = document.getElementById('centerSelect').value;
+  const password = document.getElementById('centerPassword').value;
+  const errBox = document.getElementById('loginError');
+  errBox.style.display = 'none';
+
+  if (!center || !password) {
+    errBox.textContent = 'أكملي اسم المركز وكلمة المرور';
+    errBox.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+
+  callApi('loginCenter', { center: center, password: password }).then(function (r) {
+    btn.disabled = false; btn.textContent = 'دخول';
+    if (!r.ok) {
+      errBox.textContent = r.error || 'خطأ في تسجيل الدخول';
+      errBox.style.display = 'block';
+      return;
+    }
+    currentCenter = r.center;
+    sessionStorage.setItem('maqasif_center', currentCenter);
+    showDashboard();
+  }).catch(function () {
+    btn.disabled = false; btn.textContent = 'دخول';
+    errBox.textContent = 'تعذر الاتصال بالخادم';
+    errBox.style.display = 'block';
+  });
+}
+
+function logout() {
+  sessionStorage.removeItem('maqasif_center');
+  currentCenter = '';
+  document.getElementById('dashScreen').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+}
+
+function showDashboard() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('dashScreen').classList.remove('hidden');
+  document.getElementById('centerNameChip').textContent = currentCenter;
+  showView('homeView');
+  refreshPendingBadge();
+}
+
+function showView(id) {
+  ['homeView', 'salesView', 'noticeFormView', 'noticesView'].forEach(function (v) {
+    document.getElementById(v).classList.toggle('hidden', v !== id);
+  });
+  if (id === 'salesView') loadSales();
+  if (id === 'noticesView') loadNotices();
+  if (id === 'homeView') refreshPendingBadge();
+}
+
+/* -------- سجل البيع اليومي -------- */
+function submitSale() {
+  const date = document.getElementById('saleDate').value;
+  const amount = document.getElementById('saleAmount').value;
+  if (!date || !amount) return;
+  callApi('recordSale', { center: currentCenter, date: date, time: nowTimeStr(), amount: amount }).then(function (r) {
+    if (r.ok) {
+      document.getElementById('saleAmount').value = '';
+      const s = document.getElementById('saleSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+      loadSales();
+    }
+  });
+}
+
+function loadSales() {
+  const tbody = document.getElementById('salesTbody');
+  tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
+  callApi('getSales', { center: currentCenter }).then(function (r) {
+    if (!r.ok || !r.sales.length) {
+      tbody.innerHTML = '<tr><td colspan="4">لا يوجد سجل بعد</td></tr>';
+      document.getElementById('salesTotal').textContent = '0';
+      return;
+    }
+    tbody.innerHTML = '';
+    r.sales.forEach(function (s) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + s['التاريخ'] + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td>' +
+        '<td><a href="#" onclick="editSale(' + s._row + ', ' + Number(s['المبلغ']) + '); return false;" style="font-size:0.85rem;">✏️</a></td>';
+      tbody.appendChild(tr);
+    });
+    document.getElementById('salesTotal').textContent = r.total.toFixed(2);
+  });
+}
+
+function editSale(row, currentAmount) {
+  const newVal = prompt('تعديل المبلغ:', currentAmount);
+  if (newVal === null) return;
+  const num = parseFloat(newVal);
+  if (isNaN(num)) { alert('قيمة غير صحيحة'); return; }
+  callApi('updateSale', { row: row, amount: num }).then(function (r) {
+    if (r.ok) loadSales();
+  });
+}
+
+/* -------- لوحة التوقيع -------- */
+let sigPadHandle = null;
+function clearSig() {
+  if (sigPadHandle) sigPadHandle.clear();
+}
+
+/* -------- نموذج الإشعار -------- */
+function openNoticeForm(type) {
+  currentNoticeType = type;
+  document.getElementById('noticeFormTitle').textContent = 'إشعار ' + type;
+  document.getElementById('noticeAmount').value = '';
+  document.getElementById('noticePreviewCard').classList.add('hidden');
+  document.getElementById('noticeSuccess').style.display = 'none';
+  document.getElementById('noticeError').style.display = 'none';
+  document.getElementById('sendNoticeBtn').classList.remove('hidden');
+  showView('noticeFormView');
+  setTimeout(function () { sigPadHandle = initSignaturePad('sigPad'); }, 50);
+}
+
+function previewNotice() {
+  const amount = document.getElementById('noticeAmount').value;
+  const errBox = document.getElementById('noticeError');
+  errBox.style.display = 'none';
+  if (!amount) { errBox.textContent = 'أدخلي المبلغ'; errBox.style.display = 'block'; return; }
+
+  const sigCanvas = document.getElementById('sigPad');
+  const sigDataUrl = sigCanvas.toDataURL('image/png');
+
+  generateNoticeImage(currentNoticeType, currentCenter, amount, sigDataUrl, '', '').then(function (dataUrl) {
+    currentNoticeDataUrl = dataUrl;
+    document.getElementById('noticePreviewImg').src = currentNoticeDataUrl;
+    document.getElementById('noticePreviewCard').classList.remove('hidden');
+    document.getElementById('noticePreviewCard').scrollIntoView({ behavior: 'smooth' });
+  });
+}
+
+// دوال توليد صورة الإشعار وتوقيع اللمس موجودة في config.js (مشتركة مع صفحة الإدارة)
+
+function sendNotice() {
+  const amount = document.getElementById('noticeAmount').value;
+  const sigCanvas = document.getElementById('sigPad');
+  const sigDataUrl = sigCanvas.toDataURL('image/png');
+  const btn = document.getElementById('sendNoticeBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+
+  callApi('submitNotice', {
+    type: currentNoticeType,
+    center: currentCenter,
+    amount: amount,
+    signature: sigDataUrl,
+    noticeImage: currentNoticeDataUrl
+  }).then(function (r) {
+    btn.disabled = false; btn.textContent = 'إرسال إلى إدارة وحدة المقاصف';
+    if (r.ok) {
+      document.getElementById('noticeSuccess').style.display = 'block';
+      btn.classList.add('hidden');
+      refreshPendingBadge();
+    } else {
+      const e = document.getElementById('noticeError');
+      e.textContent = r.error || 'حدث خطأ أثناء الإرسال';
+      e.style.display = 'block';
+    }
+  });
+}
+
+/* -------- إشعاراتي -------- */
+function loadNotices() {
+  const box = document.getElementById('noticesList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getCenterNotices', { center: currentCenter }).then(function (r) {
+    if (!r.ok || !r.notices.length) { box.innerHTML = 'لا توجد إشعارات بعد'; return; }
+    box.innerHTML = '';
+    r.notices.forEach(function (n) {
+      const done = n['الحالة'] === 'تم التوقيع';
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div>' +
+          '<div>إشعار ' + n['النوع'] + ' - ' + Number(n['المبلغ']).toFixed(2) + ' ريال</div>' +
+          '<div class="meta">' + n['تاريخ الإرسال'] + '</div>' +
+        '</div>' +
+        '<div style="text-align:left;">' +
+          '<span class="status-pill ' + (done ? 'done' : 'pending') + '">' + (done ? 'تم التوقيع ✅' : 'بانتظار الإدارة') + '</span>' +
+          (done && n['رابط صورة الإشعار الموقع'] ? '<br><a href="' + n['رابط صورة الإشعار الموقع'] + '" target="_blank" style="font-size:0.8rem;">عرض الإشعار الموقع</a>' : '') +
+        '</div>';
+      box.appendChild(div);
+    });
+  });
+}
+
+function refreshPendingBadge() {
+  callApi('getCenterNotices', { center: currentCenter }).then(function (r) {
+    if (!r.ok) return;
+    const pendingCount = r.notices.filter(function (n) { return n['الحالة'] !== 'تم التوقيع'; }).length;
+    const badge = document.getElementById('pendingBadge');
+    if (pendingCount > 0) { badge.textContent = pendingCount; badge.classList.remove('hidden'); }
+    else { badge.classList.add('hidden'); }
+  });
+}
+</script>
+</body>
+</html>

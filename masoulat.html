@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مسؤولات المقاصف</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== شاشة الدخول ===================== -->
+<div id="loginScreen" class="center-wrap">
+  <div class="login-card">
+    <h1>دخول مسؤولات المقاصف</h1>
+    <p class="sub">وحدة المقاصف - جمعية فرقان</p>
+
+    <label>الاسم أو البريد الإلكتروني</label>
+    <input type="text" id="username" placeholder="اكتبي اسمك أو بريدك">
+
+    <label>كلمة المرور</label>
+    <input type="password" id="password" placeholder="أدخلي كلمة المرور">
+
+    <button class="btn" id="loginBtn" onclick="doLogin()">دخول</button>
+    <div class="error-msg" id="loginError"></div>
+  </div>
+  <a href="index.html" class="back-link" style="display:block;text-align:center;margin-top:16px;">⟵ الرجوع للصفحة الرئيسية</a>
+</div>
+
+<!-- ===================== اللوحة ===================== -->
+<div id="dashScreen" class="hidden">
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span> مسؤولات المقاصف</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="user-chip">🧕 <span id="nameChip"></span></div>
+      <button class="logout" onclick="logout()">خروج</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- حضور الاجتماع -->
+    <div class="card">
+      <h3 style="margin-top:0;color:var(--maroon);">📋 حضور الاجتماع</h3>
+      <p id="attendanceInfo" style="color:#8a7d76;font-size:0.9rem;">جاري التحميل...</p>
+      <div class="checkline" id="attendanceCheckWrap">
+        <input type="checkbox" id="attendanceCheck" onclick="return false;">
+        <label for="attendanceCheck" style="margin:0;font-weight:500;">أؤكد حضوري للاجتماع اليوم (<span id="todayDateText"></span>)</label>
+      </div>
+      <button class="btn" id="attendanceBtn" onclick="markAttendance()">تسجيل الحضور</button>
+      <div class="success-msg" id="attendanceSuccess">تم تسجيل حضورك ✅</div>
+    </div>
+
+    <!-- التعهد السنوي -->
+    <div class="card">
+      <h3 style="margin-top:0;color:var(--maroon);">📜 التعهد السنوي</h3>
+      <div id="pledgeAlreadySigned" class="hidden">
+        <div class="success-msg" style="display:block;">تم توقيع التعهد بتاريخ <span id="pledgeDate"></span> ✅</div>
+      </div>
+      <div id="pledgeFormWrap">
+        <div class="pledge-box" id="pledgeText">
+          أنا الموقّعة أدناه أتعهد ببذل الجهد والأمانة في أداء مهامي المتعلقة بمقصف مركز التحفيظ،
+          والالتزام بتوثيق المبيعات والمبالغ المستلمة والمسلَّمة بدقة وشفافية، والمحافظة على أموال
+          المقصف وممتلكاته، والتعاون مع إدارة وحدة المقاصف في جمعية فرقان لتحفيظ القرآن الكريم.
+        </div>
+        <div class="checkline">
+          <input type="checkbox" id="pledgeCheck">
+          <label for="pledgeCheck" style="margin:0;font-weight:500;">أوافق وأتعهد بما ورد أعلاه</label>
+        </div>
+        <button class="btn gold" id="pledgeBtn" onclick="signPledge()">توقيع التعهد</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+let currentName = sessionStorage.getItem('maqasif_masoula') || '';
+
+document.getElementById('todayDateText').textContent = new Date().toLocaleDateString('ar-SA');
+
+if (currentName) showDashboard();
+
+function doLogin() {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  const errBox = document.getElementById('loginError');
+  errBox.style.display = 'none';
+
+  if (!username || !password) {
+    errBox.textContent = 'أكملي الاسم/البريد وكلمة المرور';
+    errBox.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+
+  callApi('loginMasoula', { username: username, password: password }).then(function (r) {
+    btn.disabled = false; btn.textContent = 'دخول';
+    if (!r.ok) {
+      errBox.textContent = r.error || 'خطأ في تسجيل الدخول';
+      errBox.style.display = 'block';
+      return;
+    }
+    currentName = r.name;
+    sessionStorage.setItem('maqasif_masoula', currentName);
+    showDashboard();
+  }).catch(function () {
+    btn.disabled = false; btn.textContent = 'دخول';
+    errBox.textContent = 'تعذر الاتصال بالخادم';
+    errBox.style.display = 'block';
+  });
+}
+
+function logout() {
+  sessionStorage.removeItem('maqasif_masoula');
+  currentName = '';
+  document.getElementById('dashScreen').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+}
+
+function showDashboard() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('dashScreen').classList.remove('hidden');
+  document.getElementById('nameChip').textContent = currentName;
+  loadAttendance();
+  loadPledge();
+}
+
+function loadAttendance() {
+  callApi('getAttendance', { name: currentName }).then(function (r) {
+    const today = todayStr();
+    const attendedToday = (r.records || []).some(function (rec) { return rec['التاريخ'] === today; });
+    const info = document.getElementById('attendanceInfo');
+    const btn = document.getElementById('attendanceBtn');
+    if (attendedToday) {
+      info.textContent = 'تم تسجيل حضورك لهذا اليوم بالفعل ✅';
+      document.getElementById('attendanceCheck').checked = true;
+      btn.disabled = true;
+      btn.textContent = 'تم التسجيل';
+    } else {
+      info.textContent = 'حددي المربع أدناه ثم اضغطي "تسجيل الحضور"';
+      btn.disabled = false;
+      btn.textContent = 'تسجيل الحضور';
+    }
+  });
+}
+
+function markAttendance() {
+  const check = document.getElementById('attendanceCheck');
+  check.checked = true;
+  const btn = document.getElementById('attendanceBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  callApi('recordAttendance', { name: currentName }).then(function (r) {
+    if (r.ok) {
+      document.getElementById('attendanceSuccess').style.display = 'block';
+      btn.textContent = 'تم التسجيل';
+      loadAttendance();
+    } else {
+      btn.disabled = false; btn.textContent = 'تسجيل الحضور';
+    }
+  });
+}
+
+function loadPledge() {
+  callApi('getPledge', { name: currentName }).then(function (r) {
+    if (r.ok && r.pledge) {
+      document.getElementById('pledgeAlreadySigned').classList.remove('hidden');
+      document.getElementById('pledgeFormWrap').classList.add('hidden');
+      document.getElementById('pledgeDate').textContent = r.pledge['تاريخ التوقيع'];
+    }
+  });
+}
+
+function signPledge() {
+  const checked = document.getElementById('pledgeCheck').checked;
+  if (!checked) { alert('لازم تحددي "أوافق وأتعهد" أولاً'); return; }
+  const btn = document.getElementById('pledgeBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  callApi('signPledge', { name: currentName, pledgeText: document.getElementById('pledgeText').textContent.trim() }).then(function (r) {
+    btn.disabled = false; btn.textContent = 'توقيع التعهد';
+    if (r.ok) loadPledge();
+  });
+}
+</script>
+</body>
+</html>
