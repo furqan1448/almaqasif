@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbzbm37KU0bqiChGNXxgjgDmVA4QYzaqnqfLYPqF_QsbMiYVbWpfeyK47f_s-KVSWv8S/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzithcCaR1pno74WwAzj_qfhvs9fMyrA67aDaqdFTWBxA_vI3nes3XnzOlkyLKKFdWK/exec";
 
 async function callApi(action, data) {
   const payload = Object.assign({ action: action }, data || {});
@@ -18,6 +18,28 @@ function todayStr() {
 function nowTimeStr() {
   const d = new Date();
   return d.toTimeString().slice(0, 5);
+}
+
+/* -------- تصدير جداول البيانات إلى ملف Excel --------
+   data: مصفوفة كائنات (كل كائن = صف، مفاتيحه هي أسماء الأعمدة)
+   filename: اسم الملف بدون امتداد
+   sheetName: اسم الورقة داخل ملف الإكسل (اختياري)
+   يمكن فتح الملف الناتج مباشرة في Excel، أو استيراده في Google Sheets
+   من قائمة File > Import داخل شيتس. */
+function exportToExcel(data, filename, sheetName) {
+  if (!data || !data.length) {
+    alert('لا يوجد بيانات لتصديرها');
+    return;
+  }
+  if (typeof XLSX === 'undefined') {
+    alert('تعذر تحميل مكتبة التصدير، تأكدي من الاتصال بالإنترنت وحاولي مرة أخرى');
+    return;
+  }
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  wb.Workbook = { Views: [{ RTL: true }] };
+  XLSX.utils.book_append_sheet(wb, ws, sheetName || 'بيانات');
+  XLSX.writeFile(wb, filename + '.xlsx');
 }
 
 /* -------- توليد صورة الإشعار (مشتركة بين صفحة المراكز والإدارة) --------
@@ -53,9 +75,9 @@ async function generateNoticeImage(type, center, amount, sigDataUrl, adminSigDat
   ctx.direction = 'rtl';
   ctx.textAlign = 'center';
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 30px Tajawal, sans-serif';
+  ctx.font = 'bold 30px Almarai, sans-serif';
   ctx.fillText('جمعية فرقان لتحفيظ القرآن الكريم', W / 2, 48);
-  ctx.font = '20px Tajawal, sans-serif';
+  ctx.font = '20px Almarai, sans-serif';
   ctx.fillStyle = '#e8dcc8';
   ctx.fillText('وحدة المقاصف', W / 2, 82);
 
@@ -69,17 +91,17 @@ async function generateNoticeImage(type, center, amount, sigDataUrl, adminSigDat
 
   ctx.textAlign = 'right';
   ctx.fillStyle = '#2b2321';
-  ctx.font = '24px Tajawal, sans-serif';
+  ctx.font = '24px Almarai, sans-serif';
   const rx = W - 90;
   ctx.fillText('المركز: ' + center, rx, 240);
   ctx.fillText('المبلغ: ' + Number(amount).toFixed(2) + ' ريال', rx, 285);
   ctx.fillText('التاريخ: ' + new Date().toLocaleDateString('ar-SA'), rx, 330);
 
   ctx.textAlign = 'center';
-  ctx.font = '18px Tajawal, sans-serif';
+  ctx.font = '18px Almarai, sans-serif';
   ctx.fillStyle = '#8a7d76';
   ctx.fillText('توقيع المركز', W * 0.28, 380);
-  ctx.fillText(adminLabel || 'توقيع إدارة وحدة المقاصف', W * 0.72, 380);
+  ctx.fillText(adminLabel || 'اطلاع إدارة وحدة المقاصف', W * 0.72, 380);
 
   if (sigImg) ctx.drawImage(sigImg, W * 0.28 - 130, 395, 260, 90);
   if (adminImg) ctx.drawImage(adminImg, W * 0.72 - 130, 395, 260, 90);
@@ -91,7 +113,7 @@ async function generateNoticeImage(type, center, amount, sigDataUrl, adminSigDat
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#8a7d76';
-  ctx.font = '16px Tajawal, sans-serif';
+  ctx.font = '16px Almarai, sans-serif';
   ctx.fillText('تم إنشاء هذا الإشعار آلياً عبر نظام وحدة المقاصف', W / 2, H - 20);
 
   return canvas.toDataURL('image/png');

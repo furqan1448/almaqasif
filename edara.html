@@ -33,50 +33,130 @@
     <button class="logout" onclick="logout()">خروج</button>
   </div>
 
+  <div class="admin-tabs">
+    <button class="tab-btn active" data-tab="noticesTab" onclick="showAdminTab('noticesTab')">📥 الإشعارات</button>
+    <button class="tab-btn" data-tab="salesTab" onclick="showAdminTab('salesTab')">💰 المبيعات</button>
+    <button class="tab-btn" data-tab="returnsTab" onclick="showAdminTab('returnsTab')">↩️ المرتجعات</button>
+    <button class="tab-btn" data-tab="invoicesTab" onclick="showAdminTab('invoicesTab')">🧾 الفواتير</button>
+    <button class="tab-btn" data-tab="statsTab" onclick="showAdminTab('statsTab')">📊 الإحصائيات</button>
+  </div>
+
   <div class="wrap">
-    <!-- تنبيه الإشعارات الجديدة -->
-    <div class="card" id="alertCard" style="display:none;border-right:5px solid var(--pending);">
-      <strong style="color:var(--pending);">🔔 يوجد <span id="alertCount">0</span> إشعار بانتظار التوقيع</strong>
+
+    <!-- ===== تبويب: الإشعارات ===== -->
+    <div id="noticesTab" class="admin-tab-panel">
+      <div class="card" id="alertCard" style="display:none;border-right:5px solid var(--pending);">
+        <strong style="color:var(--pending);">🔔 يوجد <span id="alertCount">0</span> إشعار بانتظار الاطلاع</strong>
+      </div>
+
+      <div id="listView">
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--maroon);">📥 إشعارات بانتظار الاطلاع</h3>
+          <div id="pendingList">جاري التحميل...</div>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--maroon);">✅ إشعارات تم الاطلاع عليها</h3>
+          <div id="doneList">جاري التحميل...</div>
+        </div>
+      </div>
+
+      <div id="detailView" class="hidden">
+        <a class="back-link" onclick="backToList()">⟵ رجوع للقائمة</a>
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--maroon);">معاينة الإشعار المستلم من المركز</h3>
+          <img id="detailNoticeImg" class="notice-preview">
+        </div>
+
+        <div class="card" id="signCard">
+          <h3 style="margin-top:0;color:var(--maroon);">توقيع الاطلاع</h3>
+          <div class="sig-wrap"><canvas id="adminSigPad" class="sig-pad"></canvas></div>
+          <div class="sig-actions"><button onclick="clearAdminSig()">مسح التوقيع</button></div>
+          <button class="btn" onclick="signAndSend()" style="margin-top:18px;">تم الاطلاع - إرسال للمركز</button>
+          <div class="error-msg" id="adminError"></div>
+        </div>
+
+        <div class="card hidden" id="alreadySignedCard">
+          <div class="success-msg" style="display:block;">تم الاطلاع على هذا الإشعار ✅</div>
+          <img id="signedNoticeImg" class="notice-preview">
+        </div>
+      </div>
     </div>
 
-    <!-- قائمة الإشعارات -->
-    <div id="listView">
+    <!-- ===== تبويب: المبيعات ===== -->
+    <div id="salesTab" class="admin-tab-panel hidden">
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">📥 إشعارات بانتظار التوقيع</h3>
-        <div id="pendingList">جاري التحميل...</div>
-      </div>
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">✅ إشعارات تم توقيعها مؤخراً</h3>
-        <div id="doneList">جاري التحميل...</div>
+        <h3 style="margin-top:0;color:var(--maroon);">💰 سجل البيع اليومي لكل مركز</h3>
+        <div class="select-row">
+          <div>
+            <label>اختاري المركز</label>
+            <select id="salesCenterSelect" onchange="loadCenterSales()"><option value="">جاري التحميل...</option></select>
+          </div>
+        </div>
+        <table class="log-table" id="salesTable">
+          <thead><tr><th>التاريخ</th><th>الوقت</th><th>المبلغ</th></tr></thead>
+          <tbody id="salesTbody"><tr><td colspan="3">اختاري مركز</td></tr></tbody>
+          <tfoot><tr><td colspan="2">الإجمالي</td><td id="salesTotal">0</td></tr></tfoot>
+        </table>
+        <button class="btn outline" onclick="exportCurrentSales()">⬇️ تصدير Excel</button>
       </div>
     </div>
 
-    <!-- تفاصيل + توقيع -->
-    <div id="detailView" class="hidden">
-      <a class="back-link" onclick="backToList()">⟵ رجوع للقائمة</a>
+    <!-- ===== تبويب: المرتجعات ===== -->
+    <div id="returnsTab" class="admin-tab-panel hidden">
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">معاينة الإشعار المستلم من المركز</h3>
-        <img id="detailNoticeImg" class="notice-preview">
-      </div>
-
-      <div class="card" id="signCard">
-        <h3 style="margin-top:0;color:var(--maroon);">توقيع الإدارة</h3>
-        <div class="sig-wrap"><canvas id="adminSigPad" class="sig-pad"></canvas></div>
-        <div class="sig-actions"><button onclick="clearAdminSig()">مسح التوقيع</button></div>
-        <button class="btn" onclick="signAndSend()" style="margin-top:18px;">تم التوقيع - إرسال للمركز</button>
-        <div class="error-msg" id="adminError"></div>
-      </div>
-
-      <div class="card hidden" id="alreadySignedCard">
-        <div class="success-msg" style="display:block;">تم التوقيع على هذا الإشعار ✅</div>
-        <img id="signedNoticeImg" class="notice-preview">
+        <h3 style="margin-top:0;color:var(--maroon);">↩️ البضائع المرتجعة لكل مركز</h3>
+        <div class="select-row">
+          <div>
+            <label>اختاري المركز</label>
+            <select id="returnsCenterSelect" onchange="loadCenterReturns()"><option value="">جاري التحميل...</option></select>
+          </div>
+        </div>
+        <table class="log-table" id="returnsTable">
+          <thead><tr><th>التاريخ</th><th>الصنف</th><th>الكمية</th><th>القيمة</th></tr></thead>
+          <tbody id="returnsTbody"><tr><td colspan="4">اختاري مركز</td></tr></tbody>
+          <tfoot><tr><td colspan="3">إجمالي المرتجعات</td><td id="returnsTotal">0</td></tr></tfoot>
+        </table>
+        <button class="btn outline" onclick="exportCurrentReturns()">⬇️ تصدير Excel</button>
       </div>
     </div>
+
+    <!-- ===== تبويب: الفواتير ===== -->
+    <div id="invoicesTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">🧾 بيان الفواتير لكل مركز</h3>
+        <div class="select-row">
+          <div>
+            <label>اختاري المركز</label>
+            <select id="invoicesCenterSelect" onchange="loadCenterInvoices()"><option value="">جاري التحميل...</option></select>
+          </div>
+        </div>
+        <table class="log-table" id="invoicesTable">
+          <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>المبلغ الإجمالي</th><th>الربح</th></tr></thead>
+          <tbody id="invoicesTbody"><tr><td colspan="4">اختاري مركز</td></tr></tbody>
+          <tfoot><tr><td colspan="2">الإجمالي</td><td id="invoicesTotalAmount">0</td><td id="invoicesTotalProfit">0</td></tr></tfoot>
+        </table>
+        <button class="btn outline" onclick="exportCurrentInvoices()">⬇️ تصدير Excel</button>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: الإحصائيات ===== -->
+    <div id="statsTab" class="admin-tab-panel hidden">
+      <div class="stat-hero">
+        <div class="label">إجمالي إيرادات المقاصف</div>
+        <div class="amount" id="totalRevenueVal">0 ريال</div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">ترتيب المراكز حسب الإيرادات</h3>
+        <div id="chartWrap">جاري التحميل...</div>
+      </div>
+    </div>
+
   </div>
 </div>
 
 <canvas id="noticeCanvas" width="900" height="560" style="display:none;"></canvas>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="config.js"></script>
 <script>
 // ⚠️ عدّلي كلمة مرور الإدارة هنا
@@ -86,6 +166,10 @@ let isLoggedIn = sessionStorage.getItem('maqasif_admin') === 'yes';
 let allPending = [];
 let currentNotice = null;
 let adminSigHandle = null;
+let currentSales = [];
+let currentReturns = [];
+let currentInvoices = [];
+let centersListCache = [];
 
 if (isLoggedIn) showDashboard();
 
@@ -111,8 +195,41 @@ function showDashboard() {
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('dashScreen').classList.remove('hidden');
   loadPending();
+  loadCentersDropdowns();
 }
 
+/* -------- التبويبات -------- */
+function showAdminTab(tabId) {
+  document.querySelectorAll('.admin-tab-panel').forEach(function (el) {
+    el.classList.toggle('hidden', el.id !== tabId);
+  });
+  document.querySelectorAll('.tab-btn').forEach(function (btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+  });
+  if (tabId === 'statsTab') loadStats();
+}
+
+/* -------- تحميل قوائم المراكز في كل القوائم المنسدلة -------- */
+function loadCentersDropdowns() {
+  callApi('getCenters').then(function (r) {
+    centersListCache = r.centers || [];
+    fillCenterSelect('salesCenterSelect');
+    fillCenterSelect('returnsCenterSelect');
+    fillCenterSelect('invoicesCenterSelect');
+  });
+}
+
+function fillCenterSelect(id) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = '<option value="">اختاري المركز</option>';
+  centersListCache.forEach(function (c) {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+}
+
+/* -------- الإشعارات -------- */
 function loadPending() {
   callApi('getPendingNotices').then(function (r) {
     allPending = r.notices || [];
@@ -126,7 +243,7 @@ function loadPending() {
 
     const list = document.getElementById('pendingList');
     if (!allPending.length) {
-      list.innerHTML = '<p style="color:#8a7d76;">لا توجد إشعارات بانتظار التوقيع 🎉</p>';
+      list.innerHTML = '<p style="color:#8a7d76;">لا توجد إشعارات بانتظار الاطلاع 🎉</p>';
     } else {
       list.innerHTML = '';
       allPending.forEach(function (n) {
@@ -139,13 +256,12 @@ function loadPending() {
             '<div><strong>' + n['اسم المركز'] + '</strong> - إشعار ' + n['النوع'] + '</div>' +
             '<div class="meta">' + Number(n['المبلغ']).toFixed(2) + ' ريال · ' + n['تاريخ الإرسال'] + '</div>' +
           '</div>' +
-          '<span class="status-pill pending">بانتظار التوقيع</span>';
+          '<span class="status-pill pending">بانتظار الاطلاع</span>';
         list.appendChild(div);
       });
     }
   });
 
-  // آخر الإشعارات الموقعة (اختياري، من نفس القائمة الكاملة لو احتجناها لاحقاً)
   document.getElementById('doneList').innerHTML = '<p style="color:#8a7d76;font-size:0.85rem;">راجعي سجل الإشعارات كامل من صفحة "إشعاراتي" الخاصة بكل مركز، أو من شيت "الإشعارات" مباشرة.</p>';
 }
 
@@ -181,7 +297,7 @@ function signAndSend() {
   let composedImgResult = '';
   generateNoticeImage(
     currentNotice['النوع'], currentNotice['اسم المركز'], currentNotice['المبلغ'],
-    currentNotice['بيانات توقيع المركز'], sigDataUrl, 'تم التوقيع ✓'
+    currentNotice['بيانات توقيع المركز'], sigDataUrl, 'تم الاطلاع ✓'
   ).then(function (composedImg) {
     composedImgResult = composedImg;
     return callApi('adminSignNotice', {
@@ -190,15 +306,135 @@ function signAndSend() {
       signedNoticeImage: composedImg
     });
   }).then(function (r) {
-    btn.disabled = false; btn.textContent = 'تم التوقيع - إرسال للمركز';
+    btn.disabled = false; btn.textContent = 'تم الاطلاع - إرسال للمركز';
     if (r.ok) {
       document.getElementById('signCard').classList.add('hidden');
       document.getElementById('alreadySignedCard').classList.remove('hidden');
       document.getElementById('signedNoticeImg').src = composedImgResult;
     } else {
-      errBox.textContent = r.error || 'حدث خطأ أثناء التوقيع';
+      errBox.textContent = r.error || 'حدث خطأ أثناء الاطلاع';
       errBox.style.display = 'block';
     }
+  });
+}
+
+/* -------- المبيعات لكل مركز -------- */
+function loadCenterSales() {
+  const center = document.getElementById('salesCenterSelect').value;
+  const tbody = document.getElementById('salesTbody');
+  if (!center) { tbody.innerHTML = '<tr><td colspan="3">اختاري مركز</td></tr>'; currentSales = []; return; }
+  tbody.innerHTML = '<tr><td colspan="3">جاري التحميل...</td></tr>';
+  callApi('getSales', { center: center }).then(function (r) {
+    currentSales = r.sales || [];
+    if (!r.ok || !currentSales.length) {
+      tbody.innerHTML = '<tr><td colspan="3">لا يوجد سجل بعد</td></tr>';
+      document.getElementById('salesTotal').textContent = '0';
+      return;
+    }
+    tbody.innerHTML = '';
+    currentSales.forEach(function (s) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + s['التاريخ'] + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td>';
+      tbody.appendChild(tr);
+    });
+    document.getElementById('salesTotal').textContent = r.total.toFixed(2);
+  });
+}
+
+function exportCurrentSales() {
+  const center = document.getElementById('salesCenterSelect').value;
+  if (!center || !currentSales.length) { alert('اختاري مركز فيه سجل مبيعات أولاً'); return; }
+  const rows = currentSales.map(function (s) {
+    return { 'التاريخ': s['التاريخ'], 'الوقت': s['الوقت'] || '', 'المبلغ': Number(s['المبلغ']) };
+  });
+  exportToExcel(rows, 'مبيعات-' + center, 'المبيعات');
+}
+
+/* -------- المرتجعات لكل مركز -------- */
+function loadCenterReturns() {
+  const center = document.getElementById('returnsCenterSelect').value;
+  const tbody = document.getElementById('returnsTbody');
+  if (!center) { tbody.innerHTML = '<tr><td colspan="4">اختاري مركز</td></tr>'; currentReturns = []; return; }
+  tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
+  callApi('getReturns', { center: center }).then(function (r) {
+    currentReturns = r.returns || [];
+    if (!r.ok || !currentReturns.length) {
+      tbody.innerHTML = '<tr><td colspan="4">لا توجد مرتجعات بعد</td></tr>';
+      document.getElementById('returnsTotal').textContent = '0';
+      return;
+    }
+    tbody.innerHTML = '';
+    currentReturns.forEach(function (rt) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + rt['التاريخ'] + '</td><td>' + (rt['وصف الصنف'] || '') + '</td><td>' + (rt['الكمية'] || 0) + '</td><td>' + Number(rt['القيمة']).toFixed(2) + '</td>';
+      tbody.appendChild(tr);
+    });
+    document.getElementById('returnsTotal').textContent = r.total.toFixed(2);
+  });
+}
+
+function exportCurrentReturns() {
+  const center = document.getElementById('returnsCenterSelect').value;
+  if (!center || !currentReturns.length) { alert('اختاري مركز فيه سجل مرتجعات أولاً'); return; }
+  const rows = currentReturns.map(function (rt) {
+    return { 'التاريخ': rt['التاريخ'], 'الصنف': rt['وصف الصنف'] || '', 'الكمية': rt['الكمية'] || 0, 'القيمة': Number(rt['القيمة']) };
+  });
+  exportToExcel(rows, 'مرتجعات-' + center, 'المرتجعات');
+}
+
+/* -------- الفواتير لكل مركز -------- */
+function loadCenterInvoices() {
+  const center = document.getElementById('invoicesCenterSelect').value;
+  const tbody = document.getElementById('invoicesTbody');
+  if (!center) { tbody.innerHTML = '<tr><td colspan="4">اختاري مركز</td></tr>'; currentInvoices = []; return; }
+  tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
+  callApi('getInvoices', { center: center }).then(function (r) {
+    currentInvoices = r.invoices || [];
+    if (!r.ok || !currentInvoices.length) {
+      tbody.innerHTML = '<tr><td colspan="4">لا توجد فواتير بعد</td></tr>';
+      document.getElementById('invoicesTotalAmount').textContent = '0';
+      document.getElementById('invoicesTotalProfit').textContent = '0';
+      return;
+    }
+    tbody.innerHTML = '';
+    currentInvoices.forEach(function (inv) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + inv['التاريخ'] + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td>';
+      tbody.appendChild(tr);
+    });
+    document.getElementById('invoicesTotalAmount').textContent = r.totalAmount.toFixed(2);
+    document.getElementById('invoicesTotalProfit').textContent = r.totalProfit.toFixed(2);
+  });
+}
+
+function exportCurrentInvoices() {
+  const center = document.getElementById('invoicesCenterSelect').value;
+  if (!center || !currentInvoices.length) { alert('اختاري مركز فيه فواتير أولاً'); return; }
+  const rows = currentInvoices.map(function (inv) {
+    return { 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'التاريخ': inv['التاريخ'], 'المبلغ الإجمالي': Number(inv['المبلغ الإجمالي']), 'الربح': Number(inv['الربح']) };
+  });
+  exportToExcel(rows, 'فواتير-' + center, 'الفواتير');
+}
+
+/* -------- الإحصائيات -------- */
+function loadStats() {
+  const wrap = document.getElementById('chartWrap');
+  wrap.innerHTML = 'جاري التحميل...';
+  callApi('getStats').then(function (r) {
+    if (!r.ok) { wrap.innerHTML = 'تعذر تحميل الإحصائيات'; return; }
+    document.getElementById('totalRevenueVal').textContent = r.totalRevenue.toFixed(2) + ' ريال';
+    if (!r.centers.length) { wrap.innerHTML = '<p style="color:#8a7d76;">لا توجد بيانات مبيعات بعد</p>'; return; }
+    const max = r.centers[0].total || 1;
+    wrap.innerHTML = '';
+    r.centers.forEach(function (c, idx) {
+      const pct = Math.max(4, Math.round((c.total / max) * 100));
+      const row = document.createElement('div');
+      row.className = 'bar-row';
+      row.innerHTML =
+        '<div class="bar-head"><span><span class="rank">#' + (idx + 1) + '</span>' + c.center + '</span><span>' + c.total.toFixed(2) + ' ريال</span></div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;"></div></div>';
+      wrap.appendChild(row);
+    });
   });
 }
 </script>

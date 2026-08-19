@@ -53,6 +53,14 @@
           <div class="ic">📤</div>
           <span class="label">إشعار تسليم</span>
         </div>
+        <div class="icon-btn" onclick="showView('invoicesView')">
+          <div class="ic">🧾</div>
+          <span class="label">بيان الفواتير</span>
+        </div>
+        <div class="icon-btn" onclick="showView('returnsView')">
+          <div class="ic">↩️</div>
+          <span class="label">البضائع المرتجعة</span>
+        </div>
         <div class="icon-btn" onclick="showView('noticesView')">
           <div class="ic">🗂️</div>
           <span class="label">إشعاراتي</span>
@@ -81,6 +89,61 @@
           <tbody id="salesTbody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
           <tfoot><tr><td colspan="2">الإجمالي</td><td id="salesTotal">0</td><td></td></tr></tfoot>
         </table>
+        <button class="btn outline" onclick="exportSalesReport()">⬇️ حفظ تقرير Excel</button>
+      </div>
+    </div>
+
+    <!-- بيان الفواتير -->
+    <div id="invoicesView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">إضافة فاتورة</h3>
+        <label>رقم الفاتورة</label>
+        <input type="text" id="invoiceNumber" placeholder="مثال: 1024">
+        <label>التاريخ</label>
+        <input type="date" id="invoiceDate">
+        <label>المبلغ الإجمالي (ريال)</label>
+        <input type="number" id="invoiceTotal" placeholder="0.00" step="0.01">
+        <label>ربح الفاتورة (ريال)</label>
+        <input type="number" id="invoiceProfit" placeholder="0.00" step="0.01">
+        <button class="btn" onclick="submitInvoice()">حفظ الفاتورة</button>
+        <div class="success-msg" id="invoiceSuccess">تم حفظ الفاتورة بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">سجل الفواتير</h3>
+        <table class="log-table" id="invoicesTable">
+          <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>الإجمالي</th><th>الربح</th></tr></thead>
+          <tbody id="invoicesTbody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
+          <tfoot><tr><td>الإجمالي</td><td></td><td id="invoicesTotalAmount">0</td><td id="invoicesTotalProfit">0</td></tr></tfoot>
+        </table>
+        <button class="btn outline" onclick="exportInvoicesReport()">⬇️ حفظ تقرير Excel</button>
+      </div>
+    </div>
+
+    <!-- البضائع المرتجعة -->
+    <div id="returnsView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">تسجيل بضاعة مرتجعة</h3>
+        <label>وصف الصنف</label>
+        <input type="text" id="returnDesc" placeholder="مثال: عصير برتقال">
+        <label>الكمية</label>
+        <input type="number" id="returnQty" placeholder="0" step="1">
+        <label>القيمة (ريال)</label>
+        <input type="number" id="returnValue" placeholder="0.00" step="0.01">
+        <button class="btn" onclick="submitReturn()">حفظ المرتجع</button>
+        <div class="success-msg" id="returnSuccess">تم تسجيل المرتجع بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">سجل المرتجعات</h3>
+        <table class="log-table" id="returnsTable">
+          <thead><tr><th>التاريخ</th><th>الصنف</th><th>الكمية</th><th>القيمة</th></tr></thead>
+          <tbody id="returnsTbody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
+          <tfoot><tr><td colspan="3">إجمالي المرتجعات</td><td id="returnsTotal">0</td></tr></tfoot>
+        </table>
+        <button class="btn outline" onclick="exportReturnsReport()">⬇️ حفظ تقرير Excel</button>
       </div>
     </div>
 
@@ -106,7 +169,7 @@
         <h3 style="margin-top:0;color:var(--maroon);">معاينة الإشعار</h3>
         <img id="noticePreviewImg" class="notice-preview">
         <button class="btn" id="sendNoticeBtn" onclick="sendNotice()">إرسال إلى إدارة وحدة المقاصف</button>
-        <div class="success-msg" id="noticeSuccess">تم الإرسال بنجاح، بانتظار توقيع الإدارة ✅</div>
+        <div class="success-msg" id="noticeSuccess">تم الإرسال بنجاح، بانتظار الاطلاع من الإدارة ✅</div>
         <div class="error-msg" id="noticeError"></div>
       </div>
     </div>
@@ -117,6 +180,7 @@
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">إشعاراتي</h3>
         <div id="noticesList">جاري التحميل...</div>
+        <button class="btn outline" onclick="exportNoticesReport()">⬇️ حفظ تقرير Excel</button>
       </div>
     </div>
   </div>
@@ -125,13 +189,19 @@
 <!-- قالب مخفي لتركيب صورة الإشعار -->
 <canvas id="noticeCanvas" width="900" height="560" style="display:none;"></canvas>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="config.js"></script>
 <script>
 let currentCenter = sessionStorage.getItem('maqasif_center') || '';
 let currentNoticeType = '';
 let currentNoticeDataUrl = '';
+let currentSalesData = [];
+let currentInvoicesData = [];
+let currentReturnsData = [];
+let currentNoticesData = [];
 
 document.getElementById('saleDate').value = todayStr();
+document.getElementById('invoiceDate').value = todayStr();
 
 if (currentCenter) { showDashboard(); }
 
@@ -197,11 +267,13 @@ function showDashboard() {
 }
 
 function showView(id) {
-  ['homeView', 'salesView', 'noticeFormView', 'noticesView'].forEach(function (v) {
+  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView'].forEach(function (v) {
     document.getElementById(v).classList.toggle('hidden', v !== id);
   });
   if (id === 'salesView') loadSales();
   if (id === 'noticesView') loadNotices();
+  if (id === 'invoicesView') loadInvoices();
+  if (id === 'returnsView') loadReturns();
   if (id === 'homeView') refreshPendingBadge();
 }
 
@@ -225,13 +297,14 @@ function loadSales() {
   const tbody = document.getElementById('salesTbody');
   tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
   callApi('getSales', { center: currentCenter }).then(function (r) {
-    if (!r.ok || !r.sales.length) {
+    currentSalesData = r.sales || [];
+    if (!r.ok || !currentSalesData.length) {
       tbody.innerHTML = '<tr><td colspan="4">لا يوجد سجل بعد</td></tr>';
       document.getElementById('salesTotal').textContent = '0';
       return;
     }
     tbody.innerHTML = '';
-    r.sales.forEach(function (s) {
+    currentSalesData.forEach(function (s) {
       const tr = document.createElement('tr');
       tr.innerHTML = '<td>' + s['التاريخ'] + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td>' +
         '<td><a href="#" onclick="editSale(' + s._row + ', ' + Number(s['المبلغ']) + '); return false;" style="font-size:0.85rem;">✏️</a></td>';
@@ -249,6 +322,117 @@ function editSale(row, currentAmount) {
   callApi('updateSale', { row: row, amount: num }).then(function (r) {
     if (r.ok) loadSales();
   });
+}
+
+function exportSalesReport() {
+  if (!currentSalesData.length) { alert('لا يوجد سجل مبيعات لتصديره'); return; }
+  const rows = currentSalesData.map(function (s) {
+    return { 'التاريخ': s['التاريخ'], 'الوقت': s['الوقت'] || '', 'المبلغ': Number(s['المبلغ']) };
+  });
+  exportToExcel(rows, 'مبيعات-' + currentCenter, 'المبيعات');
+}
+
+/* -------- بيان الفواتير -------- */
+function submitInvoice() {
+  const invoiceNumber = document.getElementById('invoiceNumber').value.trim();
+  const date = document.getElementById('invoiceDate').value;
+  const totalAmount = document.getElementById('invoiceTotal').value;
+  const profit = document.getElementById('invoiceProfit').value;
+  if (!invoiceNumber || !date || !totalAmount) { alert('أكملي رقم الفاتورة والتاريخ والمبلغ الإجمالي'); return; }
+  callApi('recordInvoice', {
+    center: currentCenter, invoiceNumber: invoiceNumber, date: date,
+    totalAmount: totalAmount, profit: profit || 0
+  }).then(function (r) {
+    if (r.ok) {
+      document.getElementById('invoiceNumber').value = '';
+      document.getElementById('invoiceTotal').value = '';
+      document.getElementById('invoiceProfit').value = '';
+      const s = document.getElementById('invoiceSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+      loadInvoices();
+    }
+  });
+}
+
+function loadInvoices() {
+  const tbody = document.getElementById('invoicesTbody');
+  tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
+  callApi('getInvoices', { center: currentCenter }).then(function (r) {
+    currentInvoicesData = r.invoices || [];
+    if (!r.ok || !currentInvoicesData.length) {
+      tbody.innerHTML = '<tr><td colspan="4">لا توجد فواتير بعد</td></tr>';
+      document.getElementById('invoicesTotalAmount').textContent = '0';
+      document.getElementById('invoicesTotalProfit').textContent = '0';
+      return;
+    }
+    tbody.innerHTML = '';
+    currentInvoicesData.forEach(function (inv) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + inv['التاريخ'] + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td>';
+      tbody.appendChild(tr);
+    });
+    document.getElementById('invoicesTotalAmount').textContent = r.totalAmount.toFixed(2);
+    document.getElementById('invoicesTotalProfit').textContent = r.totalProfit.toFixed(2);
+  });
+}
+
+function exportInvoicesReport() {
+  if (!currentInvoicesData.length) { alert('لا توجد فواتير لتصديرها'); return; }
+  const rows = currentInvoicesData.map(function (inv) {
+    return { 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'التاريخ': inv['التاريخ'], 'المبلغ الإجمالي': Number(inv['المبلغ الإجمالي']), 'الربح': Number(inv['الربح']) };
+  });
+  exportToExcel(rows, 'فواتير-' + currentCenter, 'الفواتير');
+}
+
+/* -------- البضائع المرتجعة -------- */
+function submitReturn() {
+  const description = document.getElementById('returnDesc').value.trim();
+  const quantity = document.getElementById('returnQty').value;
+  const value = document.getElementById('returnValue').value;
+  if (!description || !value) { alert('أكملي وصف الصنف والقيمة'); return; }
+  callApi('recordReturn', {
+    center: currentCenter, date: todayStr(), description: description,
+    quantity: quantity || 0, value: value
+  }).then(function (r) {
+    if (r.ok) {
+      document.getElementById('returnDesc').value = '';
+      document.getElementById('returnQty').value = '';
+      document.getElementById('returnValue').value = '';
+      const s = document.getElementById('returnSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+      loadReturns();
+    }
+  });
+}
+
+function loadReturns() {
+  const tbody = document.getElementById('returnsTbody');
+  tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
+  callApi('getReturns', { center: currentCenter }).then(function (r) {
+    currentReturnsData = r.returns || [];
+    if (!r.ok || !currentReturnsData.length) {
+      tbody.innerHTML = '<tr><td colspan="4">لا توجد مرتجعات بعد</td></tr>';
+      document.getElementById('returnsTotal').textContent = '0';
+      return;
+    }
+    tbody.innerHTML = '';
+    currentReturnsData.forEach(function (rt) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + rt['التاريخ'] + '</td><td>' + (rt['وصف الصنف'] || '') + '</td><td>' + (rt['الكمية'] || 0) + '</td><td>' + Number(rt['القيمة']).toFixed(2) + '</td>';
+      tbody.appendChild(tr);
+    });
+    document.getElementById('returnsTotal').textContent = r.total.toFixed(2);
+  });
+}
+
+function exportReturnsReport() {
+  if (!currentReturnsData.length) { alert('لا توجد مرتجعات لتصديرها'); return; }
+  const rows = currentReturnsData.map(function (rt) {
+    return { 'التاريخ': rt['التاريخ'], 'الصنف': rt['وصف الصنف'] || '', 'الكمية': rt['الكمية'] || 0, 'القيمة': Number(rt['القيمة']) };
+  });
+  exportToExcel(rows, 'مرتجعات-' + currentCenter, 'المرتجعات');
 }
 
 /* -------- لوحة التوقيع -------- */
@@ -321,10 +505,11 @@ function loadNotices() {
   const box = document.getElementById('noticesList');
   box.innerHTML = 'جاري التحميل...';
   callApi('getCenterNotices', { center: currentCenter }).then(function (r) {
-    if (!r.ok || !r.notices.length) { box.innerHTML = 'لا توجد إشعارات بعد'; return; }
+    currentNoticesData = r.notices || [];
+    if (!r.ok || !currentNoticesData.length) { box.innerHTML = 'لا توجد إشعارات بعد'; return; }
     box.innerHTML = '';
-    r.notices.forEach(function (n) {
-      const done = n['الحالة'] === 'تم التوقيع';
+    currentNoticesData.forEach(function (n) {
+      const done = n['الحالة'] === 'تم الاطلاع';
       const div = document.createElement('div');
       div.className = 'notice-item';
       div.innerHTML =
@@ -333,18 +518,29 @@ function loadNotices() {
           '<div class="meta">' + n['تاريخ الإرسال'] + '</div>' +
         '</div>' +
         '<div style="text-align:left;">' +
-          '<span class="status-pill ' + (done ? 'done' : 'pending') + '">' + (done ? 'تم التوقيع ✅' : 'بانتظار الإدارة') + '</span>' +
-          (done && n['رابط صورة الإشعار الموقع'] ? '<br><a href="' + n['رابط صورة الإشعار الموقع'] + '" target="_blank" style="font-size:0.8rem;">عرض الإشعار الموقع</a>' : '') +
+          '<span class="status-pill ' + (done ? 'done' : 'pending') + '">' + (done ? 'تم الاطلاع ✅' : 'بانتظار الاطلاع') + '</span>' +
+          (done && n['رابط صورة الإشعار الموقع'] ? '<br><a href="' + n['رابط صورة الإشعار الموقع'] + '" target="_blank" style="font-size:0.8rem;">عرض الإشعار</a>' : '') +
         '</div>';
       box.appendChild(div);
     });
   });
 }
 
+function exportNoticesReport() {
+  if (!currentNoticesData.length) { alert('لا توجد إشعارات لتصديرها'); return; }
+  const rows = currentNoticesData.map(function (n) {
+    return {
+      'النوع': n['النوع'], 'المبلغ': Number(n['المبلغ']), 'تاريخ الإرسال': n['تاريخ الإرسال'],
+      'الحالة': n['الحالة'] === 'تم الاطلاع' ? 'تم الاطلاع' : 'بانتظار الاطلاع'
+    };
+  });
+  exportToExcel(rows, 'إشعاراتي-' + currentCenter, 'الإشعارات');
+}
+
 function refreshPendingBadge() {
   callApi('getCenterNotices', { center: currentCenter }).then(function (r) {
     if (!r.ok) return;
-    const pendingCount = r.notices.filter(function (n) { return n['الحالة'] !== 'تم التوقيع'; }).length;
+    const pendingCount = r.notices.filter(function (n) { return n['الحالة'] !== 'تم الاطلاع'; }).length;
     const badge = document.getElementById('pendingBadge');
     if (pendingCount > 0) { badge.textContent = pendingCount; badge.classList.remove('hidden'); }
     else { badge.classList.add('hidden'); }
