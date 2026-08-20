@@ -219,32 +219,7 @@ canvas.sig-pad { width: 100%; height: 160px; display: block; touch-action: none;
 .notice-item:last-child { border-bottom: none; }
 .notice-item .meta { font-size: 0.82rem; color: #8a7d76; margin-top: 2px; }
 
-.back-link { display: inline-block; margin-bottom: 14px; color: var(--maroon); text-decoration: none; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
-.back-link:hover { text-decoration: underline; }
-
-/* -------- أزرار التصدير (Excel / PDF) -------- */
-.export-row { display: flex; gap: 10px; margin-top: 10px; }
-.export-row button.btn { margin-top: 0; }
-
-/* -------- إجراءات صف بالجدول (تعديل/حذف) -------- */
-.row-actions { display: flex; gap: 10px; justify-content: center; }
-.row-actions a { font-size: 0.9rem; cursor: pointer; text-decoration: none; }
-
-/* -------- قائمة حضور تختارها الإدارة -------- */
-.attendance-checklist { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-.attendance-checklist label {
-  display: flex; align-items: center; gap: 10px;
-  font-weight: 500; color: var(--ink); margin: 0;
-  background: var(--cream); border: 1px solid var(--gold-light);
-  border-radius: 10px; padding: 10px 14px; cursor: pointer;
-}
-.attendance-checklist input { width: 18px; height: 18px; }
-
-.pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.pill-row .pill {
-  background: var(--gold-light); color: var(--maroon-dark);
-  border-radius: 999px; padding: 5px 14px; font-size: 0.8rem; font-weight: 700;
-}
+.back-link { display: inline-block; margin-bottom: 14px; color: var(--maroon); text-decoration: none; font-weight: 700; font-size: 0.9rem; }
 
 .role-grid { display: grid; gap: 16px; margin-top: 30px; }
 .role-card {

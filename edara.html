@@ -38,7 +38,6 @@
     <button class="tab-btn" data-tab="salesTab" onclick="showAdminTab('salesTab')">💰 المبيعات</button>
     <button class="tab-btn" data-tab="returnsTab" onclick="showAdminTab('returnsTab')">↩️ المرتجعات</button>
     <button class="tab-btn" data-tab="invoicesTab" onclick="showAdminTab('invoicesTab')">🧾 الفواتير</button>
-    <button class="tab-btn" data-tab="attendanceTab" onclick="showAdminTab('attendanceTab')">👥 الحضور</button>
     <button class="tab-btn" data-tab="statsTab" onclick="showAdminTab('statsTab')">📊 الإحصائيات</button>
   </div>
 
@@ -70,8 +69,6 @@
 
         <div class="card" id="signCard">
           <h3 style="margin-top:0;color:var(--maroon);">توقيع الاطلاع</h3>
-          <label>اسم المستلمة</label>
-          <input type="text" id="receiverName" placeholder="اكتبي اسمك">
           <div class="sig-wrap"><canvas id="adminSigPad" class="sig-pad"></canvas></div>
           <div class="sig-actions"><button onclick="clearAdminSig()">مسح التوقيع</button></div>
           <button class="btn" onclick="signAndSend()" style="margin-top:18px;">تم الاطلاع - إرسال للمركز</button>
@@ -100,10 +97,7 @@
           <tbody id="salesTbody"><tr><td colspan="3">اختاري مركز</td></tr></tbody>
           <tfoot><tr><td colspan="2">الإجمالي</td><td id="salesTotal">0</td></tr></tfoot>
         </table>
-        <div class="export-row">
-          <button class="btn outline" onclick="exportCurrentSales()">⬇️ Excel</button>
-          <button class="btn outline" onclick="printCurrentSales()">🖨️ PDF</button>
-        </div>
+        <button class="btn outline" onclick="exportCurrentSales()">⬇️ تصدير Excel</button>
       </div>
     </div>
 
@@ -122,10 +116,7 @@
           <tbody id="returnsTbody"><tr><td colspan="4">اختاري مركز</td></tr></tbody>
           <tfoot><tr><td colspan="3">إجمالي المرتجعات</td><td id="returnsTotal">0</td></tr></tfoot>
         </table>
-        <div class="export-row">
-          <button class="btn outline" onclick="exportCurrentReturns()">⬇️ Excel</button>
-          <button class="btn outline" onclick="printCurrentReturns()">🖨️ PDF</button>
-        </div>
+        <button class="btn outline" onclick="exportCurrentReturns()">⬇️ تصدير Excel</button>
       </div>
     </div>
 
@@ -144,22 +135,7 @@
           <tbody id="invoicesTbody"><tr><td colspan="4">اختاري مركز</td></tr></tbody>
           <tfoot><tr><td colspan="2">الإجمالي</td><td id="invoicesTotalAmount">0</td><td id="invoicesTotalProfit">0</td></tr></tfoot>
         </table>
-        <div class="export-row">
-          <button class="btn outline" onclick="exportCurrentInvoices()">⬇️ Excel</button>
-          <button class="btn outline" onclick="printCurrentInvoices()">🖨️ PDF</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== تبويب: الحضور ===== -->
-    <div id="attendanceTab" class="admin-tab-panel hidden">
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">👥 تسجيل حضور اجتماع المسؤولات</h3>
-        <label>تاريخ الاجتماع</label>
-        <input type="date" id="attendanceDate" onchange="loadAttendanceChecklist()">
-        <div class="attendance-checklist" id="attendanceChecklist">جاري التحميل...</div>
-        <button class="btn" onclick="saveAttendance()" style="margin-top:16px;">حفظ الحضور</button>
-        <div class="success-msg" id="attendanceSaveSuccess">تم حفظ الحضور بنجاح ✅</div>
+        <button class="btn outline" onclick="exportCurrentInvoices()">⬇️ تصدير Excel</button>
       </div>
     </div>
 
@@ -231,7 +207,6 @@ function showAdminTab(tabId) {
     btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
   });
   if (tabId === 'statsTab') loadStats();
-  if (tabId === 'attendanceTab') loadAttendanceChecklist();
 }
 
 /* -------- تحميل قوائم المراكز في كل القوائم المنسدلة -------- */
@@ -293,7 +268,6 @@ function loadPending() {
 function openDetail(notice) {
   currentNotice = notice;
   document.getElementById('detailNoticeImg').src = notice['رابط صورة الإشعار'];
-  document.getElementById('receiverName').value = '';
   document.getElementById('signCard').classList.remove('hidden');
   document.getElementById('alreadySignedCard').classList.add('hidden');
   document.getElementById('listView').classList.add('hidden');
@@ -314,8 +288,6 @@ function clearAdminSig() {
 function signAndSend() {
   const errBox = document.getElementById('adminError');
   errBox.style.display = 'none';
-  const receiverName = document.getElementById('receiverName').value.trim();
-  if (!receiverName) { errBox.textContent = 'أدخلي اسم المستلمة'; errBox.style.display = 'block'; return; }
   const sigCanvas = document.getElementById('adminSigPad');
   const sigDataUrl = sigCanvas.toDataURL('image/png');
 
@@ -325,15 +297,13 @@ function signAndSend() {
   let composedImgResult = '';
   generateNoticeImage(
     currentNotice['النوع'], currentNotice['اسم المركز'], currentNotice['المبلغ'],
-    currentNotice['بيانات توقيع المركز'], sigDataUrl, 'توقيع المستلمة',
-    currentNotice['اسم المسلّمة'], receiverName
+    currentNotice['بيانات توقيع المركز'], sigDataUrl, 'تم الاطلاع ✓'
   ).then(function (composedImg) {
     composedImgResult = composedImg;
     return callApi('adminSignNotice', {
       id: currentNotice['معرف'],
       signature: sigDataUrl,
-      signedNoticeImage: composedImg,
-      receiverName: receiverName
+      signedNoticeImage: composedImg
     });
   }).then(function (r) {
     btn.disabled = false; btn.textContent = 'تم الاطلاع - إرسال للمركز';
@@ -380,17 +350,6 @@ function exportCurrentSales() {
   exportToExcel(rows, 'مبيعات-' + center, 'المبيعات');
 }
 
-function printCurrentSales() {
-  const center = document.getElementById('salesCenterSelect').value;
-  if (!center || !currentSales.length) { alert('اختاري مركز فيه سجل مبيعات أولاً'); return; }
-  const rows = currentSales.map(function (s) {
-    return { date: s['التاريخ'], time: s['الوقت'] || '', amount: Number(s['المبلغ']).toFixed(2) };
-  });
-  printReport('سجل المبيعات', center, [
-    { key: 'date', label: 'التاريخ' }, { key: 'time', label: 'الوقت' }, { key: 'amount', label: 'المبلغ' }
-  ], rows);
-}
-
 /* -------- المرتجعات لكل مركز -------- */
 function loadCenterReturns() {
   const center = document.getElementById('returnsCenterSelect').value;
@@ -421,18 +380,6 @@ function exportCurrentReturns() {
     return { 'التاريخ': rt['التاريخ'], 'الصنف': rt['وصف الصنف'] || '', 'الكمية': rt['الكمية'] || 0, 'القيمة': Number(rt['القيمة']) };
   });
   exportToExcel(rows, 'مرتجعات-' + center, 'المرتجعات');
-}
-
-function printCurrentReturns() {
-  const center = document.getElementById('returnsCenterSelect').value;
-  if (!center || !currentReturns.length) { alert('اختاري مركز فيه سجل مرتجعات أولاً'); return; }
-  const rows = currentReturns.map(function (rt) {
-    return { date: rt['التاريخ'], item: rt['وصف الصنف'] || '', qty: rt['الكمية'] || 0, value: Number(rt['القيمة']).toFixed(2) };
-  });
-  printReport('البضائع المرتجعة', center, [
-    { key: 'date', label: 'التاريخ' }, { key: 'item', label: 'الصنف' },
-    { key: 'qty', label: 'الكمية' }, { key: 'value', label: 'القيمة' }
-  ], rows);
 }
 
 /* -------- الفواتير لكل مركز -------- */
@@ -467,63 +414,6 @@ function exportCurrentInvoices() {
     return { 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'التاريخ': inv['التاريخ'], 'المبلغ الإجمالي': Number(inv['المبلغ الإجمالي']), 'الربح': Number(inv['الربح']) };
   });
   exportToExcel(rows, 'فواتير-' + center, 'الفواتير');
-}
-
-function printCurrentInvoices() {
-  const center = document.getElementById('invoicesCenterSelect').value;
-  if (!center || !currentInvoices.length) { alert('اختاري مركز فيه فواتير أولاً'); return; }
-  const rows = currentInvoices.map(function (inv) {
-    return { num: inv['رقم الفاتورة'] || '', date: inv['التاريخ'], total: Number(inv['المبلغ الإجمالي']).toFixed(2), profit: Number(inv['الربح']).toFixed(2) };
-  });
-  printReport('بيان الفواتير', center, [
-    { key: 'num', label: 'رقم الفاتورة' }, { key: 'date', label: 'التاريخ' },
-    { key: 'total', label: 'المبلغ الإجمالي' }, { key: 'profit', label: 'الربح' }
-  ], rows);
-}
-
-/* -------- الحضور -------- */
-document.getElementById('attendanceDate') && (document.getElementById('attendanceDate').value = todayStr());
-let masoulatListCache = [];
-
-function loadAttendanceChecklist() {
-  const wrap = document.getElementById('attendanceChecklist');
-  wrap.innerHTML = 'جاري التحميل...';
-  const date = document.getElementById('attendanceDate').value;
-
-  Promise.all([
-    masoulatListCache.length ? Promise.resolve({ ok: true, masoulat: masoulatListCache }) : callApi('getMasoulat'),
-    callApi('getAttendanceForDate', { date: date })
-  ]).then(function (results) {
-    const masoulatRes = results[0];
-    const attRes = results[1];
-    masoulatListCache = masoulatRes.masoulat || [];
-    const presentNames = (attRes.names || []);
-
-    if (!masoulatListCache.length) {
-      wrap.innerHTML = '<p style="color:#8a7d76;">لا توجد مسؤولات مسجّلات بشيت "المسؤولات" بعد</p>';
-      return;
-    }
-    wrap.innerHTML = '';
-    masoulatListCache.forEach(function (name) {
-      const checked = presentNames.indexOf(name) !== -1;
-      const label = document.createElement('label');
-      label.innerHTML = '<input type="checkbox" value="' + name + '" ' + (checked ? 'checked' : '') + '> ' + name;
-      wrap.appendChild(label);
-    });
-  });
-}
-
-function saveAttendance() {
-  const date = document.getElementById('attendanceDate').value;
-  if (!date) { alert('اختاري تاريخ الاجتماع'); return; }
-  const checked = Array.from(document.querySelectorAll('#attendanceChecklist input:checked')).map(function (el) { return el.value; });
-  callApi('recordAttendanceBulk', { date: date, names: JSON.stringify(checked) }).then(function (r) {
-    if (r.ok) {
-      const s = document.getElementById('attendanceSaveSuccess');
-      s.style.display = 'block';
-      setTimeout(function () { s.style.display = 'none'; }, 2500);
-    }
-  });
 }
 
 /* -------- الإحصائيات -------- */
