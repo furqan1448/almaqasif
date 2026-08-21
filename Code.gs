@@ -84,7 +84,7 @@ function sheet_(name) {
 }
 
 /* ------------------- تخزين مؤقت (Cache) لتسريع القراءة ------------------- */
-const CACHE_SECONDS = 45;           // شيتات متغيّرة (مبيعات، إشعارات، فواتير، مرتجعات، حضور...)
+const CACHE_SECONDS = 90;           // شيتات متغيّرة (مبيعات، إشعارات، فواتير، مرتجعات، حضور...)
 const CACHE_SECONDS_LONG = 300;     // شيتات شبه ثابتة (المراكز، المسؤولات) - 5 دقائق فقط (كانت 6 ساعات)
 
 function getCache_() {
@@ -269,9 +269,10 @@ function recordSale_(p) {
 }
 
 function getSales_(p) {
-  const rows = sheetToObjects_('المبيعات').filter(function (r) {
+  const all = sheetToObjects_('المبيعات');
+  const rows = p.center ? all.filter(function (r) {
     return String(r['اسم المركز']).trim() === String(p.center).trim();
-  });
+  }) : all;
   const total = rows.reduce(function (sum, r) { return sum + (Number(r['المبلغ']) || 0); }, 0);
   return { ok: true, sales: rows, total: total };
 }
@@ -303,9 +304,10 @@ function recordReturn_(p) {
 }
 
 function getReturns_(p) {
-  const rows = sheetToObjects_('المرتجعات').filter(function (r) {
+  const all = sheetToObjects_('المرتجعات');
+  const rows = p.center ? all.filter(function (r) {
     return String(r['اسم المركز']).trim() === String(p.center).trim();
-  });
+  }) : all;
   const total = rows.reduce(function (sum, r) { return sum + (Number(r['القيمة']) || 0); }, 0);
   return { ok: true, returns: rows, total: total };
 }
@@ -338,9 +340,10 @@ function recordInvoice_(p) {
 }
 
 function getInvoices_(p) {
-  const rows = sheetToObjects_('الفواتير').filter(function (r) {
+  const all = sheetToObjects_('الفواتير');
+  const rows = p.center ? all.filter(function (r) {
     return String(r['اسم المركز']).trim() === String(p.center).trim();
-  });
+  }) : all;
   const totalAmount = rows.reduce(function (sum, r) { return sum + (Number(r['المبلغ الإجمالي']) || 0); }, 0);
   const totalProfit = rows.reduce(function (sum, r) { return sum + (Number(r['الربح']) || 0); }, 0);
   return { ok: true, invoices: rows, totalAmount: totalAmount, totalProfit: totalProfit };
@@ -441,13 +444,13 @@ function submitNotice_(p) {
   const now = new Date();
   const dateStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
 
-  const signatureUrl = saveImage_(p.signature, 'توقيع-مركز-' + id);
+  // نحفظ صورة الإشعار الكاملة بس (فيها التوقيع أصلاً) - توفير وقت بعدم رفع صورتين لكل إشعار
   const noticeImageUrl = saveImage_(p.noticeImage, 'إشعار-' + id);
 
   // معرف، النوع، اسم المركز، اسم المسلّمة، المبلغ، تاريخ الإرسال، رابط توقيع المركز،
   // رابط صورة الإشعار، الحالة، رابط توقيع الإدارة، رابط صورة الإشعار الموقع،
   // تاريخ توقيع الإدارة، اسم المستلمة، بيانات توقيع المركز
-  sh.appendRow([id, p.type, p.center, p.senderName || '', p.amount, dateStr, signatureUrl, noticeImageUrl,
+  sh.appendRow([id, p.type, p.center, p.senderName || '', p.amount, dateStr, '', noticeImageUrl,
     'بانتظار الاطلاع', '', '', '', '', p.signature || '']);
   invalidateCache_('الإشعارات');
 
@@ -499,11 +502,11 @@ function adminSignNotice_(p) {
   const now = new Date();
   const dateStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
 
-  const adminSigUrl = saveImage_(p.signature, 'توقيع-إدارة-' + p.id);
+  // نحفظ الصورة النهائية الموقعة بس (فيها توقيع المركز + توقيع الإدارة سوا) - توفير وقت
   const signedImageUrl = saveImage_(p.signedNoticeImage, 'إشعار-موقع-' + p.id);
 
   const row = target._row;
-  sh.getRange(row, 10).setValue(adminSigUrl);          // رابط توقيع الإدارة
+  sh.getRange(row, 10).setValue('');                   // رابط توقيع الإدارة (لم يعد يُحفظ لوحده)
   sh.getRange(row, 11).setValue(signedImageUrl);       // رابط صورة الإشعار الموقع
   sh.getRange(row, 12).setValue(dateStr);              // تاريخ توقيع الإدارة
   sh.getRange(row, 13).setValue(p.receiverName || ''); // اسم المستلمة

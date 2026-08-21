@@ -196,7 +196,19 @@ table.log-table th, table.log-table td { padding: 10px 8px; text-align: center; 
 table.log-table th { background: var(--gold-light); color: var(--maroon-dark); font-weight: 700; }
 table.log-table tfoot td { font-weight: 900; color: var(--maroon); background: #fbf3ec; }
 
-/* -------- توقيع -------- */
+/* -------- تبديل وضع التوقيع: رسم / رفع صورة -------- */
+.sig-mode-toggle { display: flex; gap: 8px; margin-top: 6px; }
+.sig-mode-btn {
+  flex: 1; padding: 8px; border-radius: 8px; border: 1.5px solid var(--gold-light);
+  background: #fff; color: var(--maroon-dark); font-family: 'Tajawal'; font-size: 0.85rem; cursor: pointer;
+}
+.sig-mode-btn.active { background: var(--maroon); color: #fff; border-color: var(--maroon); }
+.sig-upload-wrap {
+  border: 2px dashed var(--gold); border-radius: 12px; background: #fff; margin-top: 6px;
+  padding: 16px; text-align: center;
+}
+.sig-upload-wrap input[type=file] { width: 100%; font-family: 'Tajawal'; font-size: 0.85rem; }
+.sig-upload-preview { max-width: 100%; max-height: 140px; margin-top: 10px; border-radius: 8px; border: 1px solid var(--gold-light); }
 .sig-wrap {
   border: 2px dashed var(--gold);
   border-radius: 12px;

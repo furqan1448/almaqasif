@@ -72,7 +72,15 @@
           <h3 style="margin-top:0;color:var(--maroon);">توقيع الاطلاع</h3>
           <label>اسم المستلمة</label>
           <input type="text" id="receiverName" placeholder="اكتبي اسمك">
-          <div class="sig-wrap"><canvas id="adminSigPad" class="sig-pad"></canvas></div>
+          <div class="sig-mode-toggle">
+            <button type="button" class="sig-mode-btn active" data-sigtoggle="adminSigPad" data-mode="draw" onclick="setSigMode('adminSigPad','draw')">✍️ رسم التوقيع</button>
+            <button type="button" class="sig-mode-btn" data-sigtoggle="adminSigPad" data-mode="upload" onclick="setSigMode('adminSigPad','upload')">📎 رفع صورة توقيع</button>
+          </div>
+          <div class="sig-wrap" id="adminSigPad_drawWrap"><canvas id="adminSigPad" class="sig-pad"></canvas></div>
+          <div class="sig-upload-wrap hidden" id="adminSigPad_uploadWrap">
+            <input type="file" accept="image/*" id="adminSigPad_file">
+            <img id="adminSigPad_preview" class="sig-upload-preview hidden">
+          </div>
           <div class="sig-actions"><button onclick="clearAdminSig()">مسح التوقيع</button></div>
           <button class="btn" onclick="signAndSend()" style="margin-top:18px;">تم الاطلاع - إرسال للمركز</button>
           <div class="error-msg" id="adminError"></div>
@@ -96,9 +104,9 @@
           </div>
         </div>
         <table class="log-table" id="salesTable">
-          <thead><tr><th>التاريخ</th><th>الوقت</th><th>المبلغ</th></tr></thead>
-          <tbody id="salesTbody"><tr><td colspan="3">اختاري مركز</td></tr></tbody>
-          <tfoot><tr><td colspan="2">الإجمالي</td><td id="salesTotal">0</td></tr></tfoot>
+          <thead><tr><th>المركز</th><th>التاريخ</th><th>الوقت</th><th>المبلغ</th></tr></thead>
+          <tbody id="salesTbody"><tr><td colspan="4">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
+          <tfoot><tr><td colspan="3">الإجمالي</td><td id="salesTotal">0</td></tr></tfoot>
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportCurrentSales()">⬇️ Excel</button>
@@ -118,9 +126,9 @@
           </div>
         </div>
         <table class="log-table" id="returnsTable">
-          <thead><tr><th>التاريخ</th><th>الصنف</th><th>الكمية</th><th>القيمة</th></tr></thead>
-          <tbody id="returnsTbody"><tr><td colspan="4">اختاري مركز</td></tr></tbody>
-          <tfoot><tr><td colspan="3">إجمالي المرتجعات</td><td id="returnsTotal">0</td></tr></tfoot>
+          <thead><tr><th>المركز</th><th>التاريخ</th><th>الصنف</th><th>الكمية</th><th>القيمة</th></tr></thead>
+          <tbody id="returnsTbody"><tr><td colspan="5">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
+          <tfoot><tr><td colspan="4">إجمالي المرتجعات</td><td id="returnsTotal">0</td></tr></tfoot>
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportCurrentReturns()">⬇️ Excel</button>
@@ -140,9 +148,9 @@
           </div>
         </div>
         <table class="log-table" id="invoicesTable">
-          <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>المبلغ الإجمالي</th><th>الربح</th></tr></thead>
-          <tbody id="invoicesTbody"><tr><td colspan="4">اختاري مركز</td></tr></tbody>
-          <tfoot><tr><td colspan="2">الإجمالي</td><td id="invoicesTotalAmount">0</td><td id="invoicesTotalProfit">0</td></tr></tfoot>
+          <thead><tr><th>المركز</th><th>رقم الفاتورة</th><th>التاريخ</th><th>المبلغ الإجمالي</th><th>الربح</th></tr></thead>
+          <tbody id="invoicesTbody"><tr><td colspan="5">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
+          <tfoot><tr><td colspan="3">الإجمالي</td><td id="invoicesTotalAmount">0</td><td id="invoicesTotalProfit">0</td></tr></tfoot>
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportCurrentInvoices()">⬇️ Excel</button>
@@ -232,6 +240,9 @@ function showAdminTab(tabId) {
   });
   if (tabId === 'statsTab') loadStats();
   if (tabId === 'attendanceTab') loadAttendanceChecklist();
+  if (tabId === 'salesTab') loadCenterSales();
+  if (tabId === 'returnsTab') loadCenterReturns();
+  if (tabId === 'invoicesTab') loadCenterInvoices();
 }
 
 /* -------- تحميل قوائم المراكز في كل القوائم المنسدلة -------- */
@@ -246,7 +257,7 @@ function loadCentersDropdowns() {
 
 function fillCenterSelect(id) {
   const sel = document.getElementById(id);
-  sel.innerHTML = '<option value="">اختاري المركز</option>';
+  sel.innerHTML = '<option value="">🏬 عرض جميع المراكز</option>';
   centersListCache.forEach(function (c) {
     const opt = document.createElement('option');
     opt.value = c; opt.textContent = c;
@@ -298,7 +309,8 @@ function openDetail(notice) {
   document.getElementById('alreadySignedCard').classList.add('hidden');
   document.getElementById('listView').classList.add('hidden');
   document.getElementById('detailView').classList.remove('hidden');
-  setTimeout(function () { adminSigHandle = initSignaturePad('adminSigPad'); }, 50);
+  setSigMode('adminSigPad', 'draw');
+  setTimeout(function () { setupSignatureWidget('adminSigPad'); }, 50);
 }
 
 function backToList() {
@@ -308,7 +320,7 @@ function backToList() {
 }
 
 function clearAdminSig() {
-  if (adminSigHandle) adminSigHandle.clear();
+  clearSignatureWidget('adminSigPad');
 }
 
 function signAndSend() {
@@ -316,8 +328,7 @@ function signAndSend() {
   errBox.style.display = 'none';
   const receiverName = document.getElementById('receiverName').value.trim();
   if (!receiverName) { errBox.textContent = 'أدخلي اسم المستلمة'; errBox.style.display = 'block'; return; }
-  const sigCanvas = document.getElementById('adminSigPad');
-  const sigDataUrl = sigCanvas.toDataURL('image/png');
+  const sigDataUrl = getSignatureDataUrl('adminSigPad');
 
   const btn = event.target;
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
@@ -352,19 +363,18 @@ function signAndSend() {
 function loadCenterSales() {
   const center = document.getElementById('salesCenterSelect').value;
   const tbody = document.getElementById('salesTbody');
-  if (!center) { tbody.innerHTML = '<tr><td colspan="3">اختاري مركز</td></tr>'; currentSales = []; return; }
-  tbody.innerHTML = '<tr><td colspan="3">جاري التحميل...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
   callApi('getSales', { center: center }).then(function (r) {
     currentSales = r.sales || [];
     if (!r.ok || !currentSales.length) {
-      tbody.innerHTML = '<tr><td colspan="3">لا يوجد سجل بعد</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4">لا يوجد سجل بعد</td></tr>';
       document.getElementById('salesTotal').textContent = '0';
       return;
     }
     tbody.innerHTML = '';
     currentSales.forEach(function (s) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + s['التاريخ'] + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td>';
+      tr.innerHTML = '<td>' + (s['اسم المركز'] || '') + '</td><td>' + s['التاريخ'] + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td>';
       tbody.appendChild(tr);
     });
     document.getElementById('salesTotal').textContent = r.total.toFixed(2);
@@ -373,21 +383,21 @@ function loadCenterSales() {
 
 function exportCurrentSales() {
   const center = document.getElementById('salesCenterSelect').value;
-  if (!center || !currentSales.length) { alert('اختاري مركز فيه سجل مبيعات أولاً'); return; }
+  if (!currentSales.length) { alert('لا يوجد سجل مبيعات لتصديره'); return; }
   const rows = currentSales.map(function (s) {
-    return { 'التاريخ': s['التاريخ'], 'الوقت': s['الوقت'] || '', 'المبلغ': Number(s['المبلغ']) };
+    return { 'المركز': s['اسم المركز'] || '', 'التاريخ': s['التاريخ'], 'الوقت': s['الوقت'] || '', 'المبلغ': Number(s['المبلغ']) };
   });
-  exportToExcel(rows, 'مبيعات-' + center, 'المبيعات');
+  exportToExcel(rows, 'مبيعات-' + (center || 'كل-المراكز'), 'المبيعات');
 }
 
 function printCurrentSales() {
   const center = document.getElementById('salesCenterSelect').value;
-  if (!center || !currentSales.length) { alert('اختاري مركز فيه سجل مبيعات أولاً'); return; }
+  if (!currentSales.length) { alert('لا يوجد سجل مبيعات لطباعته'); return; }
   const rows = currentSales.map(function (s) {
-    return { date: s['التاريخ'], time: s['الوقت'] || '', amount: Number(s['المبلغ']).toFixed(2) };
+    return { center: s['اسم المركز'] || '', date: s['التاريخ'], time: s['الوقت'] || '', amount: Number(s['المبلغ']).toFixed(2) };
   });
-  printReport('سجل المبيعات', center, [
-    { key: 'date', label: 'التاريخ' }, { key: 'time', label: 'الوقت' }, { key: 'amount', label: 'المبلغ' }
+  printReport('سجل المبيعات', center || 'كل المراكز', [
+    { key: 'center', label: 'المركز' }, { key: 'date', label: 'التاريخ' }, { key: 'time', label: 'الوقت' }, { key: 'amount', label: 'المبلغ' }
   ], rows);
 }
 
@@ -395,19 +405,18 @@ function printCurrentSales() {
 function loadCenterReturns() {
   const center = document.getElementById('returnsCenterSelect').value;
   const tbody = document.getElementById('returnsTbody');
-  if (!center) { tbody.innerHTML = '<tr><td colspan="4">اختاري مركز</td></tr>'; currentReturns = []; return; }
-  tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5">جاري التحميل...</td></tr>';
   callApi('getReturns', { center: center }).then(function (r) {
     currentReturns = r.returns || [];
     if (!r.ok || !currentReturns.length) {
-      tbody.innerHTML = '<tr><td colspan="4">لا توجد مرتجعات بعد</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5">لا توجد مرتجعات بعد</td></tr>';
       document.getElementById('returnsTotal').textContent = '0';
       return;
     }
     tbody.innerHTML = '';
     currentReturns.forEach(function (rt) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + rt['التاريخ'] + '</td><td>' + (rt['وصف الصنف'] || '') + '</td><td>' + (rt['الكمية'] || 0) + '</td><td>' + Number(rt['القيمة']).toFixed(2) + '</td>';
+      tr.innerHTML = '<td>' + (rt['اسم المركز'] || '') + '</td><td>' + rt['التاريخ'] + '</td><td>' + (rt['وصف الصنف'] || '') + '</td><td>' + (rt['الكمية'] || 0) + '</td><td>' + Number(rt['القيمة']).toFixed(2) + '</td>';
       tbody.appendChild(tr);
     });
     document.getElementById('returnsTotal').textContent = r.total.toFixed(2);
@@ -416,21 +425,21 @@ function loadCenterReturns() {
 
 function exportCurrentReturns() {
   const center = document.getElementById('returnsCenterSelect').value;
-  if (!center || !currentReturns.length) { alert('اختاري مركز فيه سجل مرتجعات أولاً'); return; }
+  if (!currentReturns.length) { alert('لا يوجد سجل مرتجعات لتصديره'); return; }
   const rows = currentReturns.map(function (rt) {
-    return { 'التاريخ': rt['التاريخ'], 'الصنف': rt['وصف الصنف'] || '', 'الكمية': rt['الكمية'] || 0, 'القيمة': Number(rt['القيمة']) };
+    return { 'المركز': rt['اسم المركز'] || '', 'التاريخ': rt['التاريخ'], 'الصنف': rt['وصف الصنف'] || '', 'الكمية': rt['الكمية'] || 0, 'القيمة': Number(rt['القيمة']) };
   });
-  exportToExcel(rows, 'مرتجعات-' + center, 'المرتجعات');
+  exportToExcel(rows, 'مرتجعات-' + (center || 'كل-المراكز'), 'المرتجعات');
 }
 
 function printCurrentReturns() {
   const center = document.getElementById('returnsCenterSelect').value;
-  if (!center || !currentReturns.length) { alert('اختاري مركز فيه سجل مرتجعات أولاً'); return; }
+  if (!currentReturns.length) { alert('لا يوجد سجل مرتجعات لطباعته'); return; }
   const rows = currentReturns.map(function (rt) {
-    return { date: rt['التاريخ'], item: rt['وصف الصنف'] || '', qty: rt['الكمية'] || 0, value: Number(rt['القيمة']).toFixed(2) };
+    return { center: rt['اسم المركز'] || '', date: rt['التاريخ'], item: rt['وصف الصنف'] || '', qty: rt['الكمية'] || 0, value: Number(rt['القيمة']).toFixed(2) };
   });
-  printReport('البضائع المرتجعة', center, [
-    { key: 'date', label: 'التاريخ' }, { key: 'item', label: 'الصنف' },
+  printReport('البضائع المرتجعة', center || 'كل المراكز', [
+    { key: 'center', label: 'المركز' }, { key: 'date', label: 'التاريخ' }, { key: 'item', label: 'الصنف' },
     { key: 'qty', label: 'الكمية' }, { key: 'value', label: 'القيمة' }
   ], rows);
 }
@@ -439,12 +448,11 @@ function printCurrentReturns() {
 function loadCenterInvoices() {
   const center = document.getElementById('invoicesCenterSelect').value;
   const tbody = document.getElementById('invoicesTbody');
-  if (!center) { tbody.innerHTML = '<tr><td colspan="4">اختاري مركز</td></tr>'; currentInvoices = []; return; }
-  tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5">جاري التحميل...</td></tr>';
   callApi('getInvoices', { center: center }).then(function (r) {
     currentInvoices = r.invoices || [];
     if (!r.ok || !currentInvoices.length) {
-      tbody.innerHTML = '<tr><td colspan="4">لا توجد فواتير بعد</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5">لا توجد فواتير بعد</td></tr>';
       document.getElementById('invoicesTotalAmount').textContent = '0';
       document.getElementById('invoicesTotalProfit').textContent = '0';
       return;
@@ -452,7 +460,7 @@ function loadCenterInvoices() {
     tbody.innerHTML = '';
     currentInvoices.forEach(function (inv) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + inv['التاريخ'] + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td>';
+      tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + inv['التاريخ'] + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td>';
       tbody.appendChild(tr);
     });
     document.getElementById('invoicesTotalAmount').textContent = r.totalAmount.toFixed(2);
@@ -462,21 +470,21 @@ function loadCenterInvoices() {
 
 function exportCurrentInvoices() {
   const center = document.getElementById('invoicesCenterSelect').value;
-  if (!center || !currentInvoices.length) { alert('اختاري مركز فيه فواتير أولاً'); return; }
+  if (!currentInvoices.length) { alert('لا يوجد فواتير لتصديرها'); return; }
   const rows = currentInvoices.map(function (inv) {
-    return { 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'التاريخ': inv['التاريخ'], 'المبلغ الإجمالي': Number(inv['المبلغ الإجمالي']), 'الربح': Number(inv['الربح']) };
+    return { 'المركز': inv['اسم المركز'] || '', 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'التاريخ': inv['التاريخ'], 'المبلغ الإجمالي': Number(inv['المبلغ الإجمالي']), 'الربح': Number(inv['الربح']) };
   });
-  exportToExcel(rows, 'فواتير-' + center, 'الفواتير');
+  exportToExcel(rows, 'فواتير-' + (center || 'كل-المراكز'), 'الفواتير');
 }
 
 function printCurrentInvoices() {
   const center = document.getElementById('invoicesCenterSelect').value;
-  if (!center || !currentInvoices.length) { alert('اختاري مركز فيه فواتير أولاً'); return; }
+  if (!currentInvoices.length) { alert('لا يوجد فواتير لطباعتها'); return; }
   const rows = currentInvoices.map(function (inv) {
-    return { num: inv['رقم الفاتورة'] || '', date: inv['التاريخ'], total: Number(inv['المبلغ الإجمالي']).toFixed(2), profit: Number(inv['الربح']).toFixed(2) };
+    return { center: inv['اسم المركز'] || '', num: inv['رقم الفاتورة'] || '', date: inv['التاريخ'], total: Number(inv['المبلغ الإجمالي']).toFixed(2), profit: Number(inv['الربح']).toFixed(2) };
   });
-  printReport('بيان الفواتير', center, [
-    { key: 'num', label: 'رقم الفاتورة' }, { key: 'date', label: 'التاريخ' },
+  printReport('بيان الفواتير', center || 'كل المراكز', [
+    { key: 'center', label: 'المركز' }, { key: 'num', label: 'رقم الفاتورة' }, { key: 'date', label: 'التاريخ' },
     { key: 'total', label: 'المبلغ الإجمالي' }, { key: 'profit', label: 'الربح' }
   ], rows);
 }

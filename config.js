@@ -1,5 +1,6 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbyTSuwPaWDiLaf496tt6E0Sczc5_AnHi8boQrfkUXxi16r0ji4zqEjDoXjW72eO0I4u/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbylRUghiL3sPSLOVV2RvVEvlfX9P7rRt6IfpG3FUNFRHcQQmm2IfMM_-fMSyNmqc6qk/exec";
+
 async function callApi(action, data) {
   const payload = Object.assign({ action: action }, data || {});
   const res = await fetch(API_URL, {
@@ -194,4 +195,58 @@ function initSignaturePad(canvasId) {
   canvas.addEventListener('touchend', end);
 
   return { clear: function () { ctx.clearRect(0, 0, canvas.width, canvas.height); } };
+}
+
+/* -------- توقيع بخيارين: رسم بالإصبع أو رفع صورة جاهزة --------
+   يتطلب وجود عنصرين بجانب الـ canvas بنفس الـ id: id_file (input file) و id_preview (img) و id_drawWrap و id_uploadWrap */
+const _sigWidgets = {};
+
+function setupSignatureWidget(id) {
+  _sigWidgets[id] = { mode: 'draw', uploadDataUrl: null, pad: initSignaturePad(id) };
+  const fileInput = document.getElementById(id + '_file');
+  if (fileInput) {
+    fileInput.addEventListener('change', function (e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (ev) {
+        _sigWidgets[id].uploadDataUrl = ev.target.result;
+        const img = document.getElementById(id + '_preview');
+        img.src = ev.target.result;
+        img.classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  return _sigWidgets[id];
+}
+
+function setSigMode(id, mode) {
+  if (!_sigWidgets[id]) return;
+  _sigWidgets[id].mode = mode;
+  const drawWrap = document.getElementById(id + '_drawWrap');
+  const uploadWrap = document.getElementById(id + '_uploadWrap');
+  if (drawWrap) drawWrap.classList.toggle('hidden', mode !== 'draw');
+  if (uploadWrap) uploadWrap.classList.toggle('hidden', mode !== 'upload');
+  document.querySelectorAll('[data-sigtoggle="' + id + '"]').forEach(function (btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
+  });
+}
+
+function clearSignatureWidget(id) {
+  const w = _sigWidgets[id];
+  if (!w) return;
+  if (w.pad) w.pad.clear();
+  w.uploadDataUrl = null;
+  const img = document.getElementById(id + '_preview');
+  if (img) { img.src = ''; img.classList.add('hidden'); }
+  const inp = document.getElementById(id + '_file');
+  if (inp) inp.value = '';
+}
+
+function getSignatureDataUrl(id) {
+  const w = _sigWidgets[id];
+  if (w && w.mode === 'upload') return w.uploadDataUrl || '';
+  const canvas = document.getElementById(id);
+  return canvas ? canvas.toDataURL('image/png') : '';
 }
