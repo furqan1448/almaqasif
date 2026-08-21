@@ -89,7 +89,10 @@
           <tbody id="salesTbody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
           <tfoot><tr><td colspan="2">الإجمالي</td><td id="salesTotal">0</td><td></td></tr></tfoot>
         </table>
-        <button class="btn outline" onclick="exportSalesReport()">⬇️ حفظ تقرير Excel</button>
+        <div class="export-row">
+          <button class="btn outline" onclick="exportSalesReport()">⬇️ Excel</button>
+          <button class="btn outline" onclick="printSalesReport()">🖨️ PDF</button>
+        </div>
       </div>
     </div>
 
@@ -97,7 +100,7 @@
     <div id="invoicesView" class="hidden">
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">إضافة فاتورة</h3>
+        <h3 style="margin-top:0;color:var(--maroon);" id="invoiceFormTitle">إضافة فاتورة</h3>
         <label>رقم الفاتورة</label>
         <input type="text" id="invoiceNumber" placeholder="مثال: 1024">
         <label>التاريخ</label>
@@ -106,18 +109,22 @@
         <input type="number" id="invoiceTotal" placeholder="0.00" step="0.01">
         <label>ربح الفاتورة (ريال)</label>
         <input type="number" id="invoiceProfit" placeholder="0.00" step="0.01">
-        <button class="btn" onclick="submitInvoice()">حفظ الفاتورة</button>
+        <button class="btn" id="invoiceSubmitBtn" onclick="submitInvoice()">حفظ الفاتورة</button>
+        <button class="btn secondary hidden" id="invoiceCancelEditBtn" onclick="cancelEditInvoice()">إلغاء التعديل</button>
         <div class="success-msg" id="invoiceSuccess">تم حفظ الفاتورة بنجاح ✅</div>
       </div>
 
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">سجل الفواتير</h3>
         <table class="log-table" id="invoicesTable">
-          <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>الإجمالي</th><th>الربح</th></tr></thead>
-          <tbody id="invoicesTbody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
-          <tfoot><tr><td>الإجمالي</td><td></td><td id="invoicesTotalAmount">0</td><td id="invoicesTotalProfit">0</td></tr></tfoot>
+          <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>الإجمالي</th><th>الربح</th><th></th></tr></thead>
+          <tbody id="invoicesTbody"><tr><td colspan="5">جاري التحميل...</td></tr></tbody>
+          <tfoot><tr><td>الإجمالي</td><td></td><td id="invoicesTotalAmount">0</td><td id="invoicesTotalProfit">0</td><td></td></tr></tfoot>
         </table>
-        <button class="btn outline" onclick="exportInvoicesReport()">⬇️ حفظ تقرير Excel</button>
+        <div class="export-row">
+          <button class="btn outline" onclick="exportInvoicesReport()">⬇️ Excel</button>
+          <button class="btn outline" onclick="printInvoicesReport()">🖨️ PDF</button>
+        </div>
       </div>
     </div>
 
@@ -143,7 +150,10 @@
           <tbody id="returnsTbody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
           <tfoot><tr><td colspan="3">إجمالي المرتجعات</td><td id="returnsTotal">0</td></tr></tfoot>
         </table>
-        <button class="btn outline" onclick="exportReturnsReport()">⬇️ حفظ تقرير Excel</button>
+        <div class="export-row">
+          <button class="btn outline" onclick="exportReturnsReport()">⬇️ Excel</button>
+          <button class="btn outline" onclick="printReturnsReport()">🖨️ PDF</button>
+        </div>
       </div>
     </div>
 
@@ -152,6 +162,9 @@
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);" id="noticeFormTitle">إشعار</h3>
+
+        <label>اسم المسلّمة</label>
+        <input type="text" id="senderName" placeholder="اكتبي اسمك">
 
         <label>المبلغ (ريال)</label>
         <input type="number" id="noticeAmount" placeholder="0.00" step="0.01">
@@ -180,7 +193,10 @@
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">إشعاراتي</h3>
         <div id="noticesList">جاري التحميل...</div>
-        <button class="btn outline" onclick="exportNoticesReport()">⬇️ حفظ تقرير Excel</button>
+        <div class="export-row">
+          <button class="btn outline" onclick="exportNoticesReport()">⬇️ Excel</button>
+          <button class="btn outline" onclick="printNoticesReport()">🖨️ PDF</button>
+        </div>
       </div>
     </div>
   </div>
@@ -332,13 +348,35 @@ function exportSalesReport() {
   exportToExcel(rows, 'مبيعات-' + currentCenter, 'المبيعات');
 }
 
+function printSalesReport() {
+  const rows = currentSalesData.map(function (s) {
+    return { date: s['التاريخ'], time: s['الوقت'] || '', amount: Number(s['المبلغ']).toFixed(2) };
+  });
+  printReport('سجل المبيعات', currentCenter, [
+    { key: 'date', label: 'التاريخ' }, { key: 'time', label: 'الوقت' }, { key: 'amount', label: 'المبلغ' }
+  ], rows);
+}
+
 /* -------- بيان الفواتير -------- */
+let editingInvoiceRow = null;
+
 function submitInvoice() {
   const invoiceNumber = document.getElementById('invoiceNumber').value.trim();
   const date = document.getElementById('invoiceDate').value;
   const totalAmount = document.getElementById('invoiceTotal').value;
   const profit = document.getElementById('invoiceProfit').value;
   if (!invoiceNumber || !date || !totalAmount) { alert('أكملي رقم الفاتورة والتاريخ والمبلغ الإجمالي'); return; }
+
+  if (editingInvoiceRow) {
+    callApi('updateInvoice', {
+      row: editingInvoiceRow, invoiceNumber: invoiceNumber, date: date,
+      totalAmount: totalAmount, profit: profit || 0
+    }).then(function (r) {
+      if (r.ok) { cancelEditInvoice(); loadInvoices(); }
+    });
+    return;
+  }
+
   callApi('recordInvoice', {
     center: currentCenter, invoiceNumber: invoiceNumber, date: date,
     totalAmount: totalAmount, profit: profit || 0
@@ -355,13 +393,45 @@ function submitInvoice() {
   });
 }
 
+function editInvoice(row) {
+  const inv = currentInvoicesData.find(function (i) { return i._row === row; });
+  if (!inv) return;
+  editingInvoiceRow = row;
+  document.getElementById('invoiceNumber').value = inv['رقم الفاتورة'] || '';
+  document.getElementById('invoiceDate').value = inv['التاريخ'] || todayStr();
+  document.getElementById('invoiceTotal').value = Number(inv['المبلغ الإجمالي']);
+  document.getElementById('invoiceProfit').value = Number(inv['الربح']);
+  document.getElementById('invoiceFormTitle').textContent = 'تعديل فاتورة رقم ' + (inv['رقم الفاتورة'] || '');
+  document.getElementById('invoiceSubmitBtn').textContent = 'حفظ التعديل';
+  document.getElementById('invoiceCancelEditBtn').classList.remove('hidden');
+  document.getElementById('invoiceNumber').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelEditInvoice() {
+  editingInvoiceRow = null;
+  document.getElementById('invoiceNumber').value = '';
+  document.getElementById('invoiceDate').value = todayStr();
+  document.getElementById('invoiceTotal').value = '';
+  document.getElementById('invoiceProfit').value = '';
+  document.getElementById('invoiceFormTitle').textContent = 'إضافة فاتورة';
+  document.getElementById('invoiceSubmitBtn').textContent = 'حفظ الفاتورة';
+  document.getElementById('invoiceCancelEditBtn').classList.add('hidden');
+}
+
+function deleteInvoiceRow(row) {
+  if (!confirm('متأكدة تبين تحذفين هذي الفاتورة؟')) return;
+  callApi('deleteInvoice', { row: row }).then(function (r) {
+    if (r.ok) loadInvoices();
+  });
+}
+
 function loadInvoices() {
   const tbody = document.getElementById('invoicesTbody');
-  tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5">جاري التحميل...</td></tr>';
   callApi('getInvoices', { center: currentCenter }).then(function (r) {
     currentInvoicesData = r.invoices || [];
     if (!r.ok || !currentInvoicesData.length) {
-      tbody.innerHTML = '<tr><td colspan="4">لا توجد فواتير بعد</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5">لا توجد فواتير بعد</td></tr>';
       document.getElementById('invoicesTotalAmount').textContent = '0';
       document.getElementById('invoicesTotalProfit').textContent = '0';
       return;
@@ -369,7 +439,8 @@ function loadInvoices() {
     tbody.innerHTML = '';
     currentInvoicesData.forEach(function (inv) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + inv['التاريخ'] + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td>';
+      tr.innerHTML = '<td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + inv['التاريخ'] + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td>' +
+        '<td><div class="row-actions"><a onclick="editInvoice(' + inv._row + ')">✏️</a><a onclick="deleteInvoiceRow(' + inv._row + ')">🗑️</a></div></td>';
       tbody.appendChild(tr);
     });
     document.getElementById('invoicesTotalAmount').textContent = r.totalAmount.toFixed(2);
@@ -383,6 +454,16 @@ function exportInvoicesReport() {
     return { 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'التاريخ': inv['التاريخ'], 'المبلغ الإجمالي': Number(inv['المبلغ الإجمالي']), 'الربح': Number(inv['الربح']) };
   });
   exportToExcel(rows, 'فواتير-' + currentCenter, 'الفواتير');
+}
+
+function printInvoicesReport() {
+  const rows = currentInvoicesData.map(function (inv) {
+    return { num: inv['رقم الفاتورة'] || '', date: inv['التاريخ'], total: Number(inv['المبلغ الإجمالي']).toFixed(2), profit: Number(inv['الربح']).toFixed(2) };
+  });
+  printReport('بيان الفواتير', currentCenter, [
+    { key: 'num', label: 'رقم الفاتورة' }, { key: 'date', label: 'التاريخ' },
+    { key: 'total', label: 'المبلغ الإجمالي' }, { key: 'profit', label: 'الربح' }
+  ], rows);
 }
 
 /* -------- البضائع المرتجعة -------- */
@@ -435,6 +516,16 @@ function exportReturnsReport() {
   exportToExcel(rows, 'مرتجعات-' + currentCenter, 'المرتجعات');
 }
 
+function printReturnsReport() {
+  const rows = currentReturnsData.map(function (rt) {
+    return { date: rt['التاريخ'], item: rt['وصف الصنف'] || '', qty: rt['الكمية'] || 0, value: Number(rt['القيمة']).toFixed(2) };
+  });
+  printReport('البضائع المرتجعة', currentCenter, [
+    { key: 'date', label: 'التاريخ' }, { key: 'item', label: 'الصنف' },
+    { key: 'qty', label: 'الكمية' }, { key: 'value', label: 'القيمة' }
+  ], rows);
+}
+
 /* -------- لوحة التوقيع -------- */
 let sigPadHandle = null;
 function clearSig() {
@@ -445,6 +536,7 @@ function clearSig() {
 function openNoticeForm(type) {
   currentNoticeType = type;
   document.getElementById('noticeFormTitle').textContent = 'إشعار ' + type;
+  document.getElementById('senderName').value = '';
   document.getElementById('noticeAmount').value = '';
   document.getElementById('noticePreviewCard').classList.add('hidden');
   document.getElementById('noticeSuccess').style.display = 'none';
@@ -455,15 +547,17 @@ function openNoticeForm(type) {
 }
 
 function previewNotice() {
+  const senderName = document.getElementById('senderName').value.trim();
   const amount = document.getElementById('noticeAmount').value;
   const errBox = document.getElementById('noticeError');
   errBox.style.display = 'none';
+  if (!senderName) { errBox.textContent = 'أدخلي اسم المسلّمة'; errBox.style.display = 'block'; return; }
   if (!amount) { errBox.textContent = 'أدخلي المبلغ'; errBox.style.display = 'block'; return; }
 
   const sigCanvas = document.getElementById('sigPad');
   const sigDataUrl = sigCanvas.toDataURL('image/png');
 
-  generateNoticeImage(currentNoticeType, currentCenter, amount, sigDataUrl, '', '').then(function (dataUrl) {
+  generateNoticeImage(currentNoticeType, currentCenter, amount, sigDataUrl, '', '', senderName, '').then(function (dataUrl) {
     currentNoticeDataUrl = dataUrl;
     document.getElementById('noticePreviewImg').src = currentNoticeDataUrl;
     document.getElementById('noticePreviewCard').classList.remove('hidden');
@@ -474,6 +568,7 @@ function previewNotice() {
 // دوال توليد صورة الإشعار وتوقيع اللمس موجودة في config.js (مشتركة مع صفحة الإدارة)
 
 function sendNotice() {
+  const senderName = document.getElementById('senderName').value.trim();
   const amount = document.getElementById('noticeAmount').value;
   const sigCanvas = document.getElementById('sigPad');
   const sigDataUrl = sigCanvas.toDataURL('image/png');
@@ -483,6 +578,7 @@ function sendNotice() {
   callApi('submitNotice', {
     type: currentNoticeType,
     center: currentCenter,
+    senderName: senderName,
     amount: amount,
     signature: sigDataUrl,
     noticeImage: currentNoticeDataUrl
@@ -515,10 +611,11 @@ function loadNotices() {
       div.innerHTML =
         '<div>' +
           '<div>إشعار ' + n['النوع'] + ' - ' + Number(n['المبلغ']).toFixed(2) + ' ريال</div>' +
-          '<div class="meta">' + n['تاريخ الإرسال'] + '</div>' +
+          '<div class="meta">' + n['تاريخ الإرسال'] + (n['اسم المسلّمة'] ? (' · المسلّمة: ' + n['اسم المسلّمة']) : '') + '</div>' +
         '</div>' +
         '<div style="text-align:left;">' +
           '<span class="status-pill ' + (done ? 'done' : 'pending') + '">' + (done ? 'تم الاطلاع ✅' : 'بانتظار الاطلاع') + '</span>' +
+          (done && n['اسم المستلمة'] ? '<div class="meta">المستلمة: ' + n['اسم المستلمة'] + '</div>' : '') +
           (done && n['رابط صورة الإشعار الموقع'] ? '<br><a href="' + n['رابط صورة الإشعار الموقع'] + '" target="_blank" style="font-size:0.8rem;">عرض الإشعار</a>' : '') +
         '</div>';
       box.appendChild(div);
@@ -530,11 +627,25 @@ function exportNoticesReport() {
   if (!currentNoticesData.length) { alert('لا توجد إشعارات لتصديرها'); return; }
   const rows = currentNoticesData.map(function (n) {
     return {
-      'النوع': n['النوع'], 'المبلغ': Number(n['المبلغ']), 'تاريخ الإرسال': n['تاريخ الإرسال'],
-      'الحالة': n['الحالة'] === 'تم الاطلاع' ? 'تم الاطلاع' : 'بانتظار الاطلاع'
+      'النوع': n['النوع'], 'اسم المسلّمة': n['اسم المسلّمة'] || '', 'المبلغ': Number(n['المبلغ']), 'تاريخ الإرسال': n['تاريخ الإرسال'],
+      'اسم المستلمة': n['اسم المستلمة'] || '', 'الحالة': n['الحالة'] === 'تم الاطلاع' ? 'تم الاطلاع' : 'بانتظار الاطلاع'
     };
   });
   exportToExcel(rows, 'إشعاراتي-' + currentCenter, 'الإشعارات');
+}
+
+function printNoticesReport() {
+  const rows = currentNoticesData.map(function (n) {
+    return {
+      type: n['النوع'], sender: n['اسم المسلّمة'] || '', amount: Number(n['المبلغ']).toFixed(2),
+      date: n['تاريخ الإرسال'], receiver: n['اسم المستلمة'] || '',
+      status: n['الحالة'] === 'تم الاطلاع' ? 'تم الاطلاع' : 'بانتظار الاطلاع'
+    };
+  });
+  printReport('إشعارات المركز', currentCenter, [
+    { key: 'type', label: 'النوع' }, { key: 'sender', label: 'المسلّمة' }, { key: 'amount', label: 'المبلغ' },
+    { key: 'date', label: 'التاريخ' }, { key: 'receiver', label: 'المستلمة' }, { key: 'status', label: 'الحالة' }
+  ], rows);
 }
 
 function refreshPendingBadge() {

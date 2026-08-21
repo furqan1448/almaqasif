@@ -42,6 +42,52 @@ function exportToExcel(data, filename, sheetName) {
   XLSX.writeFile(wb, filename + '.xlsx');
 }
 
+/* -------- تصدير/طباعة تقرير كـ PDF --------
+   تفتح نافذة جديدة بتنسيق مرتب وتشغّل حوار الطباعة تلقائياً؛
+   المستخدمة تقدر تختار "حفظ كـ PDF" من نافذة الطباعة نفسها (يعمل على الجوال وسطح المكتب).
+   columns: مصفوفة [{key, label}], rows: مصفوفة كائنات بيانات */
+function printReport(title, subtitle, columns, rows) {
+  if (!rows || !rows.length) {
+    alert('لا يوجد بيانات لطباعتها');
+    return;
+  }
+  const win = window.open('', '_blank');
+  if (!win) {
+    alert('يرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع عشان تقدري تطبعي التقرير');
+    return;
+  }
+  let html = '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">';
+  html += '<title>' + title + '</title>';
+  html += '<style>';
+  html += '@import url(\'https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Almarai:wght@400;700&display=swap\');';
+  html += 'body{font-family:"Almarai",sans-serif;direction:rtl;padding:28px;color:#2b2321;}';
+  html += 'h1{font-family:"Amiri",serif;color:#8C1A2C;margin:0 0 2px;font-size:1.5rem;}';
+  html += '.sub{color:#8a7d76;margin-bottom:22px;font-size:0.9rem;}';
+  html += 'table{width:100%;border-collapse:collapse;font-size:0.88rem;}';
+  html += 'th,td{border:1px solid #C2AA85;padding:8px 10px;text-align:center;}';
+  html += 'th{background:#e8dcc8;color:#6e1523;}';
+  html += '@media print{ body{padding:10px;} }';
+  html += '</style></head><body>';
+  html += '<h1>جمعية فرقان لتحفيظ القرآن الكريم</h1>';
+  html += '<div class="sub">' + title + (subtitle ? (' - ' + subtitle) : '') + ' &middot; ' + new Date().toLocaleDateString('ar-SA') + '</div>';
+  html += '<table><thead><tr>';
+  columns.forEach(function (c) { html += '<th>' + c.label + '</th>'; });
+  html += '</tr></thead><tbody>';
+  rows.forEach(function (r) {
+    html += '<tr>';
+    columns.forEach(function (c) {
+      const v = r[c.key];
+      html += '<td>' + (v === undefined || v === null ? '' : v) + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  html += '<script>window.onload = function(){ setTimeout(function(){ window.print(); }, 350); };<\/script>';
+  html += '</body></html>';
+  win.document.write(html);
+  win.document.close();
+}
+
 /* -------- توليد صورة الإشعار (مشتركة بين صفحة المراكز والإدارة) --------
    تتطلب وجود عنصر: <canvas id="noticeCanvas" width="900" height="560" style="display:none;"></canvas> */
 
@@ -55,7 +101,7 @@ function loadImage_(src) {
   });
 }
 
-async function generateNoticeImage(type, center, amount, sigDataUrl, adminSigDataUrl, adminLabel) {
+async function generateNoticeImage(type, center, amount, sigDataUrl, adminSigDataUrl, adminLabel, senderName, receiverName) {
   const canvas = document.getElementById('noticeCanvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
@@ -100,8 +146,8 @@ async function generateNoticeImage(type, center, amount, sigDataUrl, adminSigDat
   ctx.textAlign = 'center';
   ctx.font = '18px Almarai, sans-serif';
   ctx.fillStyle = '#8a7d76';
-  ctx.fillText('توقيع المركز', W * 0.28, 380);
-  ctx.fillText(adminLabel || 'اطلاع إدارة وحدة المقاصف', W * 0.72, 380);
+  ctx.fillText('توقيع المسلّمة' + (senderName ? (': ' + senderName) : ''), W * 0.28, 380);
+  ctx.fillText((adminLabel || 'توقيع المستلمة') + (receiverName ? (': ' + receiverName) : ''), W * 0.72, 380);
 
   if (sigImg) ctx.drawImage(sigImg, W * 0.28 - 130, 395, 260, 90);
   if (adminImg) ctx.drawImage(adminImg, W * 0.72 - 130, 395, 260, 90);
