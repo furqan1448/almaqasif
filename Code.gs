@@ -85,7 +85,7 @@ function sheet_(name) {
 
 /* ------------------- تخزين مؤقت (Cache) لتسريع القراءة ------------------- */
 const CACHE_SECONDS = 45;           // شيتات متغيّرة (مبيعات، إشعارات، فواتير، مرتجعات، حضور...)
-const CACHE_SECONDS_LONG = 21600;   // شيتات شبه ثابتة (المراكز، المسؤولات) - 6 ساعات
+const CACHE_SECONDS_LONG = 300;     // شيتات شبه ثابتة (المراكز، المسؤولات) - 5 دقائق فقط (كانت 6 ساعات)
 
 function getCache_() {
   return CacheService.getScriptCache();
@@ -93,6 +93,17 @@ function getCache_() {
 
 function invalidateCache_(name) {
   try { getCache_().remove('sheet_' + name); } catch (e) {}
+}
+
+/* شغّليها يدوياً من قائمة الدوال أعلى المحرر (▶️ Run) في أي وقت بعد ما تعدّلي
+   شيت "المسؤولات" أو "المراكز" يدوياً، عشان التغييرات تنعكس بالموقع فوراً
+   بدون ما تنتظري وقت الكاش. */
+function clearCache() {
+  const cache = getCache_();
+  ['المسؤولات', 'المراكز', 'المبيعات', 'المرتجعات', 'الفواتير', 'الحضور', 'التعهد', 'الإشعارات'].forEach(function (n) {
+    cache.remove('sheet_' + n);
+  });
+  SpreadsheetApp.getUi().alert('تم تفريغ الذاكرة المؤقتة. جربي الدخول بالموقع الحين.');
 }
 
 /* تنسيق التواريخ عند القراءة: قوقل شيتس يحوّل نصوص التاريخ تلقائياً لكائن Date،
@@ -224,13 +235,22 @@ function loginCenter_(p) {
 
 function loginMasoula_(p) {
   const rows = sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG);
-  const found = rows.find(function (r) {
-    const idMatch = String(r['الاسم']).trim() === String(p.username).trim() ||
-      String(r['البريد الإلكتروني']).trim().toLowerCase() === String(p.username).trim().toLowerCase();
-    return idMatch && String(r['كلمة المرور']).trim() === String(p.password).trim();
+  const username = String(p.username || '').trim();
+  const password = String(p.password || '').trim();
+
+  const nameMatch = rows.find(function (r) {
+    return String(r['الاسم']).trim() === username ||
+      String(r['البريد الإلكتروني']).trim().toLowerCase() === username.toLowerCase();
   });
-  if (!found) return { ok: false, error: 'الاسم/البريد أو كلمة المرور غير صحيحة' };
-  return { ok: true, name: found['الاسم'], center: found['اسم المركز'] || '' };
+
+  if (!nameMatch) {
+    return { ok: false, error: 'ما لقينا اسم "' + username + '" بشيت المسؤولات. تأكدي إنه مكتوب بالضبط نفس الشيت (بدون مسافات زايدة).' };
+  }
+  if (String(nameMatch['كلمة المرور']).trim() !== password) {
+    return { ok: false, error: 'الاسم صحيح، بس كلمة المرور مو مطابقة لللي بالشيت لهذا الاسم.' };
+  }
+
+  return { ok: true, name: nameMatch['الاسم'], center: nameMatch['اسم المركز'] || '' };
 }
 
 function getMasoulat_() {
