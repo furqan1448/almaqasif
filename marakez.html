@@ -169,6 +169,21 @@
         <label>المبلغ (ريال)</label>
         <input type="number" id="noticeAmount" placeholder="0.00" step="0.01">
 
+        <div class="select-row">
+          <div>
+            <label>شهر مبيعات المقصف</label>
+            <select id="noticeMonth"></select>
+          </div>
+          <div>
+            <label>الفصل الدراسي</label>
+            <select id="noticeTerm"></select>
+          </div>
+          <div>
+            <label>العام</label>
+            <select id="noticeYear"></select>
+          </div>
+        </div>
+
         <label>التوقيع</label>
         <div class="sig-mode-toggle">
           <button type="button" class="sig-mode-btn active" data-sigtoggle="sigPad" data-mode="draw" onclick="setSigMode('sigPad','draw')">✍️ رسم التوقيع</button>
@@ -211,7 +226,7 @@
 </div>
 
 <!-- قالب مخفي لتركيب صورة الإشعار -->
-<canvas id="noticeCanvas" width="900" height="560" style="display:none;"></canvas>
+<canvas id="noticeCanvas" width="900" height="640" style="display:none;"></canvas>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="config.js"></script>
@@ -545,6 +560,9 @@ function openNoticeForm(type) {
   document.getElementById('noticeFormTitle').textContent = 'إشعار ' + type;
   document.getElementById('senderName').value = '';
   document.getElementById('noticeAmount').value = '';
+  fillSelect('noticeMonth', AR_MONTHS, 'اختاري الشهر');
+  fillSelect('noticeTerm', AR_TERMS, 'اختاري الفصل');
+  fillYearSelect('noticeYear');
   document.getElementById('noticePreviewCard').classList.add('hidden');
   document.getElementById('noticeSuccess').style.display = 'none';
   document.getElementById('noticeError').style.display = 'none';
@@ -557,14 +575,23 @@ function openNoticeForm(type) {
 function previewNotice() {
   const senderName = document.getElementById('senderName').value.trim();
   const amount = document.getElementById('noticeAmount').value;
+  const month = document.getElementById('noticeMonth').value;
+  const term = document.getElementById('noticeTerm').value;
+  const year = document.getElementById('noticeYear').value;
   const errBox = document.getElementById('noticeError');
   errBox.style.display = 'none';
   if (!senderName) { errBox.textContent = 'أدخلي اسم المسلّمة'; errBox.style.display = 'block'; return; }
   if (!amount) { errBox.textContent = 'أدخلي المبلغ'; errBox.style.display = 'block'; return; }
+  if (!month || !term || !year) { errBox.textContent = 'اختاري الشهر والفصل الدراسي والعام'; errBox.style.display = 'block'; return; }
 
   const sigDataUrl = getSignatureDataUrl('sigPad');
+  const today = todayStr();
 
-  generateNoticeImage(currentNoticeType, currentCenter, amount, sigDataUrl, '', '', senderName, '').then(function (dataUrl) {
+  generateNoticeImage({
+    type: currentNoticeType, center: currentCenter, amount: amount, sigDataUrl: sigDataUrl,
+    senderName: senderName, day: dayNameFor(today), date: today,
+    month: month, term: term, year: year
+  }).then(function (dataUrl) {
     currentNoticeDataUrl = dataUrl;
     document.getElementById('noticePreviewImg').src = currentNoticeDataUrl;
     document.getElementById('noticePreviewCard').classList.remove('hidden');
@@ -577,6 +604,9 @@ function previewNotice() {
 function sendNotice() {
   const senderName = document.getElementById('senderName').value.trim();
   const amount = document.getElementById('noticeAmount').value;
+  const month = document.getElementById('noticeMonth').value;
+  const term = document.getElementById('noticeTerm').value;
+  const year = document.getElementById('noticeYear').value;
   const sigDataUrl = getSignatureDataUrl('sigPad');
   const btn = document.getElementById('sendNoticeBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
@@ -586,6 +616,9 @@ function sendNotice() {
     center: currentCenter,
     senderName: senderName,
     amount: amount,
+    month: month,
+    term: term,
+    year: year,
     signature: sigDataUrl,
     noticeImage: currentNoticeDataUrl
   }).then(function (r) {
@@ -617,10 +650,11 @@ function loadNotices() {
       div.innerHTML =
         '<div>' +
           '<div>إشعار ' + n['النوع'] + ' - ' + Number(n['المبلغ']).toFixed(2) + ' ريال</div>' +
-          '<div class="meta">' + n['تاريخ الإرسال'] + (n['اسم المسلّمة'] ? (' · المسلّمة: ' + n['اسم المسلّمة']) : '') + '</div>' +
+          '<div class="meta">' + formatDayDateTime(n['يوم الإرسال'], n['تاريخ الإرسال'], n['وقت الإرسال']) + (n['اسم المسلّمة'] ? (' · المسلّمة: ' + n['اسم المسلّمة']) : '') + '</div>' +
+          (n['الشهر'] ? '<div class="meta">مبيعات شهر ' + n['الشهر'] + ' · الفصل ' + n['الفصل الدراسي'] + ' · ' + n['العام'] + '</div>' : '') +
         '</div>' +
         '<div style="text-align:left;">' +
-          '<span class="status-pill ' + (done ? 'done' : 'pending') + '">' + (done ? 'تم الاطلاع ✅' : 'بانتظار الاطلاع') + '</span>' +
+          '<span class="status-pill ' + (done ? 'done' : 'pending') + '">' + (done ? 'تم الاطلاع' : 'بانتظار الاطلاع') + '</span>' +
           (done && n['اسم المستلمة'] ? '<div class="meta">المستلمة: ' + n['اسم المستلمة'] + '</div>' : '') +
           (done && n['رابط صورة الإشعار الموقع'] ? '<br><a href="' + n['رابط صورة الإشعار الموقع'] + '" target="_blank" style="font-size:0.8rem;">عرض الإشعار</a>' : '') +
         '</div>';
@@ -633,7 +667,9 @@ function exportNoticesReport() {
   if (!currentNoticesData.length) { alert('لا توجد إشعارات لتصديرها'); return; }
   const rows = currentNoticesData.map(function (n) {
     return {
-      'النوع': n['النوع'], 'اسم المسلّمة': n['اسم المسلّمة'] || '', 'المبلغ': Number(n['المبلغ']), 'تاريخ الإرسال': n['تاريخ الإرسال'],
+      'النوع': n['النوع'], 'اسم المسلّمة': n['اسم المسلّمة'] || '', 'المبلغ': Number(n['المبلغ']),
+      'اليوم': n['يوم الإرسال'] || '', 'التاريخ': n['تاريخ الإرسال'], 'الوقت': n['وقت الإرسال'] || '',
+      'الشهر': n['الشهر'] || '', 'الفصل الدراسي': n['الفصل الدراسي'] || '', 'العام': n['العام'] || '',
       'اسم المستلمة': n['اسم المستلمة'] || '', 'الحالة': n['الحالة'] === 'تم الاطلاع' ? 'تم الاطلاع' : 'بانتظار الاطلاع'
     };
   });
@@ -644,13 +680,14 @@ function printNoticesReport() {
   const rows = currentNoticesData.map(function (n) {
     return {
       type: n['النوع'], sender: n['اسم المسلّمة'] || '', amount: Number(n['المبلغ']).toFixed(2),
-      date: n['تاريخ الإرسال'], receiver: n['اسم المستلمة'] || '',
+      day: n['يوم الإرسال'] || '', date: n['تاريخ الإرسال'], time: n['وقت الإرسال'] || '', receiver: n['اسم المستلمة'] || '',
       status: n['الحالة'] === 'تم الاطلاع' ? 'تم الاطلاع' : 'بانتظار الاطلاع'
     };
   });
   printReport('إشعارات المركز', currentCenter, [
     { key: 'type', label: 'النوع' }, { key: 'sender', label: 'المسلّمة' }, { key: 'amount', label: 'المبلغ' },
-    { key: 'date', label: 'التاريخ' }, { key: 'receiver', label: 'المستلمة' }, { key: 'status', label: 'الحالة' }
+    { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'time', label: 'الوقت' },
+    { key: 'receiver', label: 'المستلمة' }, { key: 'status', label: 'الحالة' }
   ], rows);
 }
 
