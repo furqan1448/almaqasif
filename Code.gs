@@ -17,20 +17,29 @@ const FOLDER_NAME = 'مرفقات نظام المقاصف';
 // ⚠️ حطي بريدك الإلكتروني هنا عشان تستلمي إشعار كل ما مركز يرسل إشعار استلام أو تسليم
 const ADMIN_NOTIFY_EMAIL = 'maram1998m3@gmail.com';
 
+// الأعمدة اللي المفروض دايماً تُحفظ وتُقرأ كنص خام (وليست تاريخ/وقت تلقائي من قوقل شيتس)
+// عشان نتفادى مشكلة "الأصفار الزايدة" (مثل 1899-12-30 أو 00:00:00.000Z) اللي تصير
+// لما قوقل شيتس يحوّل نص التاريخ/الوقت تلقائياً إلى كائن Date داخلي.
+const TEXT_COLUMNS_ = ['اليوم', 'التاريخ', 'الوقت', 'تاريخ الإرسال', 'يوم الإرسال', 'وقت الإرسال',
+  'يوم اطلاع الإدارة', 'تاريخ اطلاع الإدارة', 'وقت اطلاع الإدارة', 'تاريخ توقيع الإدارة',
+  'رقم الفاتورة', 'العام'];
+
 function setup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   const sheets = {
     'المسؤولات': ['الاسم', 'البريد الإلكتروني', 'كلمة المرور', 'اسم المركز'],
-    'الحضور': ['الاسم', 'التاريخ', 'الوقت'],
-    'التعهد': ['الاسم', 'نص التعهد', 'تاريخ التوقيع', 'الحالة'],
+    'الحضور': ['الاسم', 'اليوم', 'التاريخ', 'الوقت'],
+    'التعهد': ['الاسم', 'نص التعهد', 'اليوم', 'التاريخ', 'الوقت', 'الحالة'],
     'المراكز': ['اسم المركز', 'كلمة المرور'],
-    'المبيعات': ['معرف', 'اسم المركز', 'التاريخ', 'الوقت', 'المبلغ'],
-    'المرتجعات': ['معرف', 'اسم المركز', 'التاريخ', 'وصف الصنف', 'الكمية', 'القيمة'],
-    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'التاريخ', 'المبلغ الإجمالي', 'الربح'],
-    'الإشعارات': ['معرف', 'النوع', 'اسم المركز', 'اسم المسلّمة', 'المبلغ', 'تاريخ الإرسال',
+    'المبيعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'الوقت', 'المبلغ'],
+    'المرتجعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'وصف الصنف', 'الكمية', 'القيمة'],
+    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح'],
+    'الإشعارات': ['معرف', 'النوع', 'اسم المركز', 'يوم الإرسال', 'تاريخ الإرسال', 'وقت الإرسال',
+      'اسم المسلّمة', 'المبلغ', 'الشهر', 'الفصل الدراسي', 'العام',
       'رابط توقيع المركز', 'رابط صورة الإشعار', 'الحالة',
-      'رابط توقيع الإدارة', 'رابط صورة الإشعار الموقع', 'تاريخ توقيع الإدارة',
+      'رابط توقيع الإدارة', 'رابط صورة الإشعار الموقع',
+      'يوم اطلاع الإدارة', 'تاريخ اطلاع الإدارة', 'وقت اطلاع الإدارة',
       'اسم المستلمة', 'بيانات توقيع المركز']
   };
 
@@ -50,6 +59,15 @@ function setup() {
         }
       });
     }
+
+    // نجبر أعمدة التاريخ/الوقت على تنسيق "نص عادي" حتى لا يحوّلها قوقل شيتس
+    // تلقائياً إلى كائن Date (وهذا هو مصدر "الأصفار الزايدة")
+    const headersNow = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+    headersNow.forEach(function (h, idx) {
+      if (TEXT_COLUMNS_.indexOf(h) !== -1) {
+        sh.getRange(2, idx + 1, Math.max(sh.getMaxRows() - 1, 1), 1).setNumberFormat('@');
+      }
+    });
   });
 
   // شيت مثال - عدليه بأسماء المراكز الحقيقية وكلمات المرور
@@ -59,7 +77,67 @@ function setup() {
     centersSheet.appendRow(['مركز تحفيظ 2', '5678']);
   }
 
-  SpreadsheetApp.getUi().alert('تم إنشاء/تحديث جميع الشيتات بنجاح. تأكدي من تعبئة عمود "اسم المركز" بشيت "المسؤولات" لكل مسؤولة، وتحطي بريدك في ADMIN_NOTIFY_EMAIL أعلى الكود.');
+  SpreadsheetApp.getUi().alert('تم إنشاء/تحديث جميع الشيتات بنجاح. تأكدي من تعبئة عمود "اسم المركز" بشيت "المسؤولات" لكل مسؤولة، وتحطي بريدك في ADMIN_NOTIFY_EMAIL أعلى الكود.\n\nملاحظة: لو كان عندك شيت قديم وفيه بيانات، شغّلي أيضاً دالة fixOldDateColumns من قائمة الدوال فوق المحرر مرة وحدة عشان تصلح صيغة الأعمدة القديمة.');
+}
+
+/* تشغّل مرة وحدة (اختياري) لو عندك شيتات قديمة فيها بيانات تاريخ/وقت محفوظة
+   كـ Date تلقائي من قوقل شيتس، عشان تحوّلها لنص واضح بدون أصفار زايدة. */
+function fixOldDateColumns() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  ['المبيعات', 'المرتجعات', 'الفواتير', 'الحضور', 'التعهد', 'الإشعارات'].forEach(function (name) {
+    const sh = ss.getSheetByName(name);
+    if (!sh || sh.getLastRow() < 2) return;
+    const lastCol = sh.getLastColumn();
+    const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0];
+    const range = sh.getRange(2, 1, sh.getLastRow() - 1, lastCol);
+    const values = range.getValues();
+    headers.forEach(function (h, idx) {
+      if (TEXT_COLUMNS_.indexOf(h) === -1) return;
+      const isTimeCol = (h === 'الوقت' || h === 'وقت الإرسال' || h === 'وقت اطلاع الإدارة');
+      for (let i = 0; i < values.length; i++) {
+        const v = values[i][idx];
+        if (v instanceof Date) {
+          values[i][idx] = isTimeCol
+            ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'HH:mm')
+            : Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        }
+      }
+    });
+    sh.getRange(1, 1, 1, lastCol).setNumberFormat('@'); // احتياط
+    range.setNumberFormat('@');
+    range.setValues(values);
+  });
+  invalidateCache_('المبيعات'); invalidateCache_('المرتجعات'); invalidateCache_('الفواتير');
+  invalidateCache_('الحضور'); invalidateCache_('التعهد'); invalidateCache_('الإشعارات');
+  SpreadsheetApp.getUi().alert('تم تحويل أعمدة التاريخ والوقت القديمة إلى نص واضح بدون أصفار زايدة.');
+}
+
+/* أسماء أيام الأسبوع بالعربي - الأحد أول الأسبوع */
+const AR_DAYS_ = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+function dayName_(d) {
+  return AR_DAYS_[d.getDay()];
+}
+
+/* ترجع اليوم/التاريخ/الوقت الحالي كنص واضح بدون أي أصفار زايدة */
+function nowParts_() {
+  const tz = Session.getScriptTimeZone();
+  const now = new Date();
+  return {
+    day: dayName_(now),
+    date: Utilities.formatDate(now, tz, 'yyyy-MM-dd'),
+    time: Utilities.formatDate(now, tz, 'HH:mm')
+  };
+}
+
+/* ترجع اسم اليوم بالعربي لتاريخ نصي بصيغة yyyy-MM-dd (تُستخدم لو المستخدمة
+   عدّلت التاريخ يدوياً في الواجهة عشان يبقى اسم اليوم مطابق للتاريخ المختار) */
+function dayNameForDateStr_(dateStr) {
+  if (!dateStr) return dayName_(new Date());
+  const parts = String(dateStr).split('-');
+  if (parts.length !== 3) return dayName_(new Date());
+  const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  return dayName_(d);
 }
 
 function getOrCreateFolder_() {
@@ -111,6 +189,9 @@ function clearCache() {
    هذي الدالة تصيغه نص واضح: تاريخ فقط، أو تاريخ ووقت لو فيه وقت فعلي. */
 function formatSheetDate_(d) {
   const tz = Session.getScriptTimeZone();
+  // قيمة وقت فقط (بدون تاريخ حقيقي) يخزّنها قوقل شيتس داخلياً بتاريخ 30 ديسمبر 1899
+  const isTimeOnly = d.getFullYear() === 1899 && d.getMonth() === 11 && d.getDate() === 30;
+  if (isTimeOnly) return Utilities.formatDate(d, tz, 'HH:mm');
   const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0 || d.getSeconds() !== 0;
   return Utilities.formatDate(d, tz, hasTime ? 'yyyy-MM-dd HH:mm' : 'yyyy-MM-dd');
 }
@@ -205,6 +286,7 @@ function handleRequest_(p) {
       case 'submitNotice': return json_(submitNotice_(p));
       case 'getCenterNotices': return json_(getCenterNotices_(p));
       case 'getPendingNotices': return json_(getPendingNotices_());
+      case 'getAllNotices': return json_(getAllNotices_());
       case 'adminSignNotice': return json_(adminSignNotice_(p));
 
       case 'getStats': return json_(getStats_());
@@ -263,7 +345,11 @@ function getMasoulat_() {
 function recordSale_(p) {
   const sh = sheet_('المبيعات');
   const id = Utilities.getUuid();
-  sh.appendRow([id, p.center, p.date, p.time || '', Number(p.amount)]);
+  const now = nowParts_();
+  const date = p.date || now.date;
+  const time = p.time || now.time;
+  const day = dayNameForDateStr_(date);
+  sh.appendRow([id, p.center, day, date, time, Number(p.amount)]);
   invalidateCache_('المبيعات');
   return { ok: true, id: id };
 }
@@ -277,10 +363,22 @@ function getSales_(p) {
   return { ok: true, sales: rows, total: total };
 }
 
+/* ترجع رقم عمود بالاسم (1-indexed) بالبحث عن اسم العمود بصف العناوين */
+function colIndex_(sh, headerName) {
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  const idx = headers.indexOf(headerName);
+  return idx === -1 ? -1 : idx + 1;
+}
+
 function updateSale_(p) {
   const sh = sheet_('المبيعات');
-  sh.getRange(Number(p.row), 5).setValue(Number(p.amount));
-  if (p.date) sh.getRange(Number(p.row), 3).setValue(p.date);
+  const row = Number(p.row);
+  sh.getRange(row, colIndex_(sh, 'المبلغ')).setValue(Number(p.amount));
+  if (p.date) {
+    sh.getRange(row, colIndex_(sh, 'التاريخ')).setValue(p.date);
+    const dayCol = colIndex_(sh, 'اليوم');
+    if (dayCol !== -1) sh.getRange(row, dayCol).setValue(dayNameForDateStr_(p.date));
+  }
   invalidateCache_('المبيعات');
   return { ok: true };
 }
@@ -297,8 +395,9 @@ function deleteSale_(p) {
 function recordReturn_(p) {
   const sh = sheet_('المرتجعات');
   const id = Utilities.getUuid();
-  const date = p.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  sh.appendRow([id, p.center, date, p.description || '', Number(p.quantity) || 0, Number(p.value) || 0]);
+  const date = p.date || nowParts_().date;
+  const day = dayNameForDateStr_(date);
+  sh.appendRow([id, p.center, day, date, p.description || '', Number(p.quantity) || 0, Number(p.value) || 0]);
   invalidateCache_('المرتجعات');
   return { ok: true, id: id };
 }
@@ -314,9 +413,10 @@ function getReturns_(p) {
 
 function updateReturn_(p) {
   const sh = sheet_('المرتجعات');
-  if (p.description !== undefined) sh.getRange(Number(p.row), 4).setValue(p.description);
-  if (p.quantity !== undefined) sh.getRange(Number(p.row), 5).setValue(Number(p.quantity));
-  if (p.value !== undefined) sh.getRange(Number(p.row), 6).setValue(Number(p.value));
+  const row = Number(p.row);
+  if (p.description !== undefined) sh.getRange(row, colIndex_(sh, 'وصف الصنف')).setValue(p.description);
+  if (p.quantity !== undefined) sh.getRange(row, colIndex_(sh, 'الكمية')).setValue(Number(p.quantity));
+  if (p.value !== undefined) sh.getRange(row, colIndex_(sh, 'القيمة')).setValue(Number(p.value));
   invalidateCache_('المرتجعات');
   return { ok: true };
 }
@@ -333,8 +433,9 @@ function deleteReturn_(p) {
 function recordInvoice_(p) {
   const sh = sheet_('الفواتير');
   const id = Utilities.getUuid();
-  const date = p.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  sh.appendRow([id, p.center, p.invoiceNumber || '', date, Number(p.totalAmount) || 0, Number(p.profit) || 0]);
+  const date = p.date || nowParts_().date;
+  const day = dayNameForDateStr_(date);
+  sh.appendRow([id, p.center, p.invoiceNumber || '', day, date, Number(p.totalAmount) || 0, Number(p.profit) || 0]);
   invalidateCache_('الفواتير');
   return { ok: true, id: id };
 }
@@ -351,10 +452,15 @@ function getInvoices_(p) {
 
 function updateInvoice_(p) {
   const sh = sheet_('الفواتير');
-  if (p.invoiceNumber !== undefined) sh.getRange(Number(p.row), 3).setValue(p.invoiceNumber);
-  if (p.date !== undefined && p.date) sh.getRange(Number(p.row), 4).setValue(p.date);
-  if (p.totalAmount !== undefined) sh.getRange(Number(p.row), 5).setValue(Number(p.totalAmount));
-  if (p.profit !== undefined) sh.getRange(Number(p.row), 6).setValue(Number(p.profit));
+  const row = Number(p.row);
+  if (p.invoiceNumber !== undefined) sh.getRange(row, colIndex_(sh, 'رقم الفاتورة')).setValue(p.invoiceNumber);
+  if (p.date !== undefined && p.date) {
+    sh.getRange(row, colIndex_(sh, 'التاريخ')).setValue(p.date);
+    const dayCol = colIndex_(sh, 'اليوم');
+    if (dayCol !== -1) sh.getRange(row, dayCol).setValue(dayNameForDateStr_(p.date));
+  }
+  if (p.totalAmount !== undefined) sh.getRange(row, colIndex_(sh, 'المبلغ الإجمالي')).setValue(Number(p.totalAmount));
+  if (p.profit !== undefined) sh.getRange(row, colIndex_(sh, 'الربح')).setValue(Number(p.profit));
   invalidateCache_('الفواتير');
   return { ok: true };
 }
@@ -371,9 +477,11 @@ function deleteInvoice_(p) {
 // تسجيل حضور اسم واحد (أبقيناها للتوافق مع الاستخدامات القديمة)
 function recordAttendance_(p) {
   const sh = sheet_('الحضور');
-  const date = p.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  const time = p.time || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'HH:mm');
-  sh.appendRow([p.name, date, time]);
+  const now = nowParts_();
+  const date = p.date || now.date;
+  const time = p.time || now.time;
+  const day = dayNameForDateStr_(date);
+  sh.appendRow([p.name, day, date, time]);
   invalidateCache_('الحضور');
   return { ok: true };
 }
@@ -381,8 +489,10 @@ function recordAttendance_(p) {
 // تسجيل حضور عدة مسؤولات دفعة وحدة ليوم معيّن (تُستخدم من لوحة الإدارة)
 function recordAttendanceBulk_(p) {
   const sh = sheet_('الحضور');
-  const date = p.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  const time = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'HH:mm');
+  const now = nowParts_();
+  const date = p.date || now.date;
+  const time = now.time;
+  const day = dayNameForDateStr_(date);
   let names = p.names;
   if (typeof names === 'string') {
     try { names = JSON.parse(names); } catch (e) { names = [names]; }
@@ -397,7 +507,7 @@ function recordAttendanceBulk_(p) {
   let added = 0;
   names.forEach(function (name) {
     if (existingNames.indexOf(name) === -1) {
-      sh.appendRow([name, date, time]);
+      sh.appendRow([name, day, date, time]);
       added++;
     }
   });
@@ -422,8 +532,8 @@ function getAttendance_(p) {
 
 function signPledge_(p) {
   const sh = sheet_('التعهد');
-  const now = new Date();
-  sh.appendRow([p.name, p.pledgeText, Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm'), 'تم التعهد']);
+  const now = nowParts_();
+  sh.appendRow([p.name, p.pledgeText, now.day, now.date, now.time, 'تم التعهد']);
   invalidateCache_('التعهد');
   return { ok: true };
 }
@@ -441,25 +551,26 @@ function getPledge_(p) {
 function submitNotice_(p) {
   const sh = sheet_('الإشعارات');
   const id = Utilities.getUuid();
-  const now = new Date();
-  const dateStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+  const now = nowParts_();
 
   // نحفظ صورة الإشعار الكاملة بس (فيها التوقيع أصلاً) - توفير وقت بعدم رفع صورتين لكل إشعار
   const noticeImageUrl = saveImage_(p.noticeImage, 'إشعار-' + id);
 
-  // معرف، النوع، اسم المركز، اسم المسلّمة، المبلغ، تاريخ الإرسال، رابط توقيع المركز،
-  // رابط صورة الإشعار، الحالة، رابط توقيع الإدارة، رابط صورة الإشعار الموقع،
-  // تاريخ توقيع الإدارة، اسم المستلمة، بيانات توقيع المركز
-  sh.appendRow([id, p.type, p.center, p.senderName || '', p.amount, dateStr, '', noticeImageUrl,
-    'بانتظار الاطلاع', '', '', '', '', p.signature || '']);
+  // معرف، النوع، اسم المركز، يوم الإرسال، تاريخ الإرسال، وقت الإرسال، اسم المسلّمة، المبلغ،
+  // الشهر، الفصل الدراسي، العام، رابط توقيع المركز، رابط صورة الإشعار، الحالة،
+  // رابط توقيع الإدارة، رابط صورة الإشعار الموقع، يوم/تاريخ/وقت اطلاع الإدارة،
+  // اسم المستلمة، بيانات توقيع المركز
+  sh.appendRow([id, p.type, p.center, now.day, now.date, now.time, p.senderName || '', p.amount,
+    p.month || '', p.term || '', p.year || '',
+    '', noticeImageUrl, 'بانتظار الاطلاع', '', '', '', '', '', '', p.signature || '']);
   invalidateCache_('الإشعارات');
 
-  notifyAdminNewNotice_(p.type, p.center, p.amount, dateStr, noticeImageUrl, p.senderName);
+  notifyAdminNewNotice_(p.type, p.center, p.amount, now, noticeImageUrl, p.senderName);
 
   return { ok: true, id: id };
 }
 
-function notifyAdminNewNotice_(type, center, amount, dateStr, noticeImageUrl, senderName) {
+function notifyAdminNewNotice_(type, center, amount, now, noticeImageUrl, senderName) {
   if (!ADMIN_NOTIFY_EMAIL || ADMIN_NOTIFY_EMAIL.indexOf('@example.com') !== -1) return;
   try {
     MailApp.sendEmail({
@@ -469,7 +580,9 @@ function notifyAdminNewNotice_(type, center, amount, dateStr, noticeImageUrl, se
         'وصل إشعار ' + type + ' جديد من مركز "' + center + '".\n' +
         (senderName ? ('اسم المسلّمة: ' + senderName + '\n') : '') +
         'المبلغ: ' + amount + ' ريال\n' +
-        'التاريخ: ' + dateStr + '\n\n' +
+        'اليوم: ' + now.day + '\n' +
+        'التاريخ: ' + now.date + '\n' +
+        'الوقت: ' + now.time + '\n\n' +
         'الرجاء الدخول للوحة إدارة وحدة المقاصف للاطلاع عليه وتوقيعه.\n' +
         (noticeImageUrl ? ('رابط صورة الإشعار: ' + noticeImageUrl + '\n') : '') +
         '\n— نظام وحدة المقاصف، جمعية فرقان لتحفيظ القرآن الكريم'
@@ -493,24 +606,33 @@ function getPendingNotices_() {
   return { ok: true, notices: rows.reverse() };
 }
 
+// ترجع جميع إشعارات الاستلام والتسليم (بانتظار الاطلاع + تم الاطلاع) - تُستخدم بلوحة الإدارة
+function getAllNotices_() {
+  const rows = sheetToObjects_('الإشعارات').slice().reverse();
+  const pending = rows.filter(function (r) { return r['الحالة'] === 'بانتظار الاطلاع'; });
+  const done = rows.filter(function (r) { return r['الحالة'] !== 'بانتظار الاطلاع'; });
+  return { ok: true, pending: pending, done: done, notices: rows };
+}
+
 function adminSignNotice_(p) {
   const sh = sheet_('الإشعارات');
   const rows = sheetToObjects_('الإشعارات');
   const target = rows.find(function (r) { return r['معرف'] === p.id; });
   if (!target) return { ok: false, error: 'الإشعار غير موجود' };
 
-  const now = new Date();
-  const dateStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+  const now = nowParts_();
 
   // نحفظ الصورة النهائية الموقعة بس (فيها توقيع المركز + توقيع الإدارة سوا) - توفير وقت
   const signedImageUrl = saveImage_(p.signedNoticeImage, 'إشعار-موقع-' + p.id);
 
   const row = target._row;
-  sh.getRange(row, 10).setValue('');                   // رابط توقيع الإدارة (لم يعد يُحفظ لوحده)
-  sh.getRange(row, 11).setValue(signedImageUrl);       // رابط صورة الإشعار الموقع
-  sh.getRange(row, 12).setValue(dateStr);              // تاريخ توقيع الإدارة
-  sh.getRange(row, 13).setValue(p.receiverName || ''); // اسم المستلمة
-  sh.getRange(row, 9).setValue('تم الاطلاع');          // الحالة
+  sh.getRange(row, colIndex_(sh, 'رابط توقيع الإدارة')).setValue('');            // لم يعد يُحفظ لوحده
+  sh.getRange(row, colIndex_(sh, 'رابط صورة الإشعار الموقع')).setValue(signedImageUrl);
+  sh.getRange(row, colIndex_(sh, 'يوم اطلاع الإدارة')).setValue(now.day);
+  sh.getRange(row, colIndex_(sh, 'تاريخ اطلاع الإدارة')).setValue(now.date);
+  sh.getRange(row, colIndex_(sh, 'وقت اطلاع الإدارة')).setValue(now.time);
+  sh.getRange(row, colIndex_(sh, 'اسم المستلمة')).setValue(p.receiverName || '');
+  sh.getRange(row, colIndex_(sh, 'الحالة')).setValue('تم الاطلاع');
   invalidateCache_('الإشعارات');
 
   return { ok: true };

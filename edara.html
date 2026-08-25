@@ -34,12 +34,12 @@
   </div>
 
   <div class="admin-tabs">
-    <button class="tab-btn active" data-tab="noticesTab" onclick="showAdminTab('noticesTab')">📥 الإشعارات</button>
-    <button class="tab-btn" data-tab="salesTab" onclick="showAdminTab('salesTab')">💰 المبيعات</button>
-    <button class="tab-btn" data-tab="returnsTab" onclick="showAdminTab('returnsTab')">↩️ المرتجعات</button>
-    <button class="tab-btn" data-tab="invoicesTab" onclick="showAdminTab('invoicesTab')">🧾 الفواتير</button>
-    <button class="tab-btn" data-tab="attendanceTab" onclick="showAdminTab('attendanceTab')">👥 الحضور</button>
-    <button class="tab-btn" data-tab="statsTab" onclick="showAdminTab('statsTab')">📊 الإحصائيات</button>
+    <button class="tab-btn active" data-tab="noticesTab" onclick="showAdminTab('noticesTab')">الإشعارات</button>
+    <button class="tab-btn" data-tab="salesTab" onclick="showAdminTab('salesTab')">المبيعات</button>
+    <button class="tab-btn" data-tab="returnsTab" onclick="showAdminTab('returnsTab')">المرتجعات</button>
+    <button class="tab-btn" data-tab="invoicesTab" onclick="showAdminTab('invoicesTab')">الفواتير</button>
+    <button class="tab-btn" data-tab="attendanceTab" onclick="showAdminTab('attendanceTab')">الحضور</button>
+    <button class="tab-btn" data-tab="statsTab" onclick="showAdminTab('statsTab')">الإحصائيات</button>
   </div>
 
   <div class="wrap">
@@ -47,16 +47,32 @@
     <!-- ===== تبويب: الإشعارات ===== -->
     <div id="noticesTab" class="admin-tab-panel">
       <div class="card" id="alertCard" style="display:none;border-right:5px solid var(--pending);">
-        <strong style="color:var(--pending);">🔔 يوجد <span id="alertCount">0</span> إشعار بانتظار الاطلاع</strong>
+        <strong style="color:var(--pending);">يوجد <span id="alertCount">0</span> إشعار بانتظار الاطلاع</strong>
       </div>
 
       <div id="listView">
         <div class="card">
-          <h3 style="margin-top:0;color:var(--maroon);">📥 إشعارات بانتظار الاطلاع</h3>
+          <div class="select-row">
+            <div>
+              <label>نوع الإشعار</label>
+              <select id="noticeTypeFilter" onchange="renderNoticeLists()">
+                <option value="">الكل (استلام وتسليم)</option>
+                <option value="استلام">استلام</option>
+                <option value="تسليم">تسليم</option>
+              </select>
+            </div>
+            <div>
+              <label>المركز</label>
+              <select id="noticeCenterFilter" onchange="renderNoticeLists()"><option value="">كل المراكز</option></select>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--maroon);">إشعارات بانتظار الاطلاع</h3>
           <div id="pendingList">جاري التحميل...</div>
         </div>
         <div class="card">
-          <h3 style="margin-top:0;color:var(--maroon);">✅ إشعارات تم الاطلاع عليها</h3>
+          <h3 style="margin-top:0;color:var(--maroon);">إشعارات تم الاطلاع عليها</h3>
           <div id="doneList">جاري التحميل...</div>
         </div>
       </div>
@@ -73,8 +89,8 @@
           <label>اسم المستلمة</label>
           <input type="text" id="receiverName" placeholder="اكتبي اسمك">
           <div class="sig-mode-toggle">
-            <button type="button" class="sig-mode-btn active" data-sigtoggle="adminSigPad" data-mode="draw" onclick="setSigMode('adminSigPad','draw')">✍️ رسم التوقيع</button>
-            <button type="button" class="sig-mode-btn" data-sigtoggle="adminSigPad" data-mode="upload" onclick="setSigMode('adminSigPad','upload')">📎 رفع صورة توقيع</button>
+            <button type="button" class="sig-mode-btn active" data-sigtoggle="adminSigPad" data-mode="draw" onclick="setSigMode('adminSigPad','draw')">رسم التوقيع</button>
+            <button type="button" class="sig-mode-btn" data-sigtoggle="adminSigPad" data-mode="upload" onclick="setSigMode('adminSigPad','upload')">رفع صورة توقيع</button>
           </div>
           <div class="sig-wrap" id="adminSigPad_drawWrap"><canvas id="adminSigPad" class="sig-pad"></canvas></div>
           <div class="sig-upload-wrap hidden" id="adminSigPad_uploadWrap">
@@ -87,7 +103,7 @@
         </div>
 
         <div class="card hidden" id="alreadySignedCard">
-          <div class="success-msg" style="display:block;">تم الاطلاع على هذا الإشعار ✅</div>
+          <div class="success-msg" style="display:block;">تم الاطلاع على هذا الإشعار</div>
           <img id="signedNoticeImg" class="notice-preview">
         </div>
       </div>
@@ -96,7 +112,7 @@
     <!-- ===== تبويب: المبيعات ===== -->
     <div id="salesTab" class="admin-tab-panel hidden">
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">💰 سجل البيع اليومي لكل مركز</h3>
+        <h3 style="margin-top:0;color:var(--maroon);">سجل البيع اليومي لكل مركز</h3>
         <div class="select-row">
           <div>
             <label>اختاري المركز</label>
@@ -104,9 +120,9 @@
           </div>
         </div>
         <table class="log-table" id="salesTable">
-          <thead><tr><th>المركز</th><th>التاريخ</th><th>الوقت</th><th>المبلغ</th></tr></thead>
-          <tbody id="salesTbody"><tr><td colspan="4">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
-          <tfoot><tr><td colspan="3">الإجمالي</td><td id="salesTotal">0</td></tr></tfoot>
+          <thead><tr><th>المركز</th><th>اليوم</th><th>التاريخ</th><th>الوقت</th><th>المبلغ</th></tr></thead>
+          <tbody id="salesTbody"><tr><td colspan="5">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
+          <tfoot><tr><td colspan="4">الإجمالي</td><td id="salesTotal">0</td></tr></tfoot>
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportCurrentSales()">⬇️ Excel</button>
@@ -126,9 +142,9 @@
           </div>
         </div>
         <table class="log-table" id="returnsTable">
-          <thead><tr><th>المركز</th><th>التاريخ</th><th>الصنف</th><th>الكمية</th><th>القيمة</th></tr></thead>
-          <tbody id="returnsTbody"><tr><td colspan="5">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
-          <tfoot><tr><td colspan="4">إجمالي المرتجعات</td><td id="returnsTotal">0</td></tr></tfoot>
+          <thead><tr><th>المركز</th><th>اليوم</th><th>التاريخ</th><th>الصنف</th><th>الكمية</th><th>القيمة</th></tr></thead>
+          <tbody id="returnsTbody"><tr><td colspan="6">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
+          <tfoot><tr><td colspan="5">إجمالي المرتجعات</td><td id="returnsTotal">0</td></tr></tfoot>
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportCurrentReturns()">⬇️ Excel</button>
@@ -140,7 +156,7 @@
     <!-- ===== تبويب: الفواتير ===== -->
     <div id="invoicesTab" class="admin-tab-panel hidden">
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">🧾 بيان الفواتير لكل مركز</h3>
+        <h3 style="margin-top:0;color:var(--maroon);">بيان الفواتير لكل مركز</h3>
         <div class="select-row">
           <div>
             <label>اختاري المركز</label>
@@ -148,9 +164,9 @@
           </div>
         </div>
         <table class="log-table" id="invoicesTable">
-          <thead><tr><th>المركز</th><th>رقم الفاتورة</th><th>التاريخ</th><th>المبلغ الإجمالي</th><th>الربح</th></tr></thead>
-          <tbody id="invoicesTbody"><tr><td colspan="5">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
-          <tfoot><tr><td colspan="3">الإجمالي</td><td id="invoicesTotalAmount">0</td><td id="invoicesTotalProfit">0</td></tr></tfoot>
+          <thead><tr><th>المركز</th><th>رقم الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>المبلغ الإجمالي</th><th>الربح</th></tr></thead>
+          <tbody id="invoicesTbody"><tr><td colspan="6">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
+          <tfoot><tr><td colspan="4">الإجمالي</td><td id="invoicesTotalAmount">0</td><td id="invoicesTotalProfit">0</td></tr></tfoot>
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportCurrentInvoices()">⬇️ Excel</button>
@@ -162,7 +178,7 @@
     <!-- ===== تبويب: الحضور ===== -->
     <div id="attendanceTab" class="admin-tab-panel hidden">
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">👥 تسجيل حضور اجتماع المسؤولات</h3>
+        <h3 style="margin-top:0;color:var(--maroon);">تسجيل حضور اجتماع المسؤولات</h3>
         <label>تاريخ الاجتماع</label>
         <input type="date" id="attendanceDate" onchange="loadAttendanceChecklist()">
         <div class="attendance-checklist" id="attendanceChecklist">جاري التحميل...</div>
@@ -186,7 +202,7 @@
   </div>
 </div>
 
-<canvas id="noticeCanvas" width="900" height="560" style="display:none;"></canvas>
+<canvas id="noticeCanvas" width="900" height="640" style="display:none;"></canvas>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="config.js"></script>
@@ -252,12 +268,14 @@ function loadCentersDropdowns() {
     fillCenterSelect('salesCenterSelect');
     fillCenterSelect('returnsCenterSelect');
     fillCenterSelect('invoicesCenterSelect');
+    fillCenterSelect('noticeCenterFilter');
   });
 }
 
 function fillCenterSelect(id) {
   const sel = document.getElementById(id);
-  sel.innerHTML = '<option value="">🏬 عرض جميع المراكز</option>';
+  const placeholder = id === 'noticeCenterFilter' ? 'كل المراكز' : 'عرض جميع المراكز';
+  sel.innerHTML = '<option value="">' + placeholder + '</option>';
   centersListCache.forEach(function (c) {
     const opt = document.createElement('option');
     opt.value = c; opt.textContent = c;
@@ -265,48 +283,90 @@ function fillCenterSelect(id) {
   });
 }
 
-/* -------- الإشعارات -------- */
+/* -------- الإشعارات (تعرض جميع إشعارات الاستلام والتسليم) -------- */
+let allNoticesPending = [];
+let allNoticesDone = [];
+
 function loadPending() {
-  callApi('getPendingNotices').then(function (r) {
-    allPending = r.notices || [];
+  callApi('getAllNotices').then(function (r) {
+    allNoticesPending = r.pending || [];
+    allNoticesDone = r.done || [];
+    allPending = allNoticesPending; // توافق مع بقية الكود
+
     const alertCard = document.getElementById('alertCard');
-    if (allPending.length > 0) {
+    if (allNoticesPending.length > 0) {
       alertCard.style.display = 'block';
-      document.getElementById('alertCount').textContent = allPending.length;
+      document.getElementById('alertCount').textContent = allNoticesPending.length;
     } else {
       alertCard.style.display = 'none';
     }
 
-    const list = document.getElementById('pendingList');
-    if (!allPending.length) {
-      list.innerHTML = '<p style="color:#8a7d76;">لا توجد إشعارات بانتظار الاطلاع 🎉</p>';
-    } else {
-      list.innerHTML = '';
-      allPending.forEach(function (n) {
-        const div = document.createElement('div');
-        div.className = 'notice-item';
-        div.style.cursor = 'pointer';
-        div.onclick = function () { openDetail(n); };
-        div.innerHTML =
-          '<div>' +
-            '<div><strong>' + n['اسم المركز'] + '</strong> - إشعار ' + n['النوع'] + '</div>' +
-            '<div class="meta">' + Number(n['المبلغ']).toFixed(2) + ' ريال · ' + n['تاريخ الإرسال'] + '</div>' +
-          '</div>' +
-          '<span class="status-pill pending">بانتظار الاطلاع</span>';
-        list.appendChild(div);
-      });
-    }
+    renderNoticeLists();
   });
+}
 
-  document.getElementById('doneList').innerHTML = '<p style="color:#8a7d76;font-size:0.85rem;">راجعي سجل الإشعارات كامل من صفحة "إشعاراتي" الخاصة بكل مركز، أو من شيت "الإشعارات" مباشرة.</p>';
+function renderNoticeLists() {
+  const typeFilter = document.getElementById('noticeTypeFilter').value;
+  const centerFilter = document.getElementById('noticeCenterFilter').value;
+
+  function matches(n) {
+    return (!typeFilter || n['النوع'] === typeFilter) &&
+      (!centerFilter || String(n['اسم المركز']).trim() === centerFilter);
+  }
+
+  const pendingFiltered = allNoticesPending.filter(matches);
+  const doneFiltered = allNoticesDone.filter(matches);
+
+  const pendingBox = document.getElementById('pendingList');
+  if (!pendingFiltered.length) {
+    pendingBox.innerHTML = '<p style="color:#8a7d76;">لا توجد إشعارات بانتظار الاطلاع</p>';
+  } else {
+    pendingBox.innerHTML = '';
+    pendingFiltered.forEach(function (n) {
+      pendingBox.appendChild(buildNoticeRow_(n, true));
+    });
+  }
+
+  const doneBox = document.getElementById('doneList');
+  if (!doneFiltered.length) {
+    doneBox.innerHTML = '<p style="color:#8a7d76;">لا توجد إشعارات تم الاطلاع عليها بعد</p>';
+  } else {
+    doneBox.innerHTML = '';
+    doneFiltered.forEach(function (n) {
+      doneBox.appendChild(buildNoticeRow_(n, false));
+    });
+  }
+}
+
+function buildNoticeRow_(n, isPending) {
+  const div = document.createElement('div');
+  div.className = 'notice-item';
+  div.style.cursor = 'pointer';
+  div.onclick = function () { openDetail(n); };
+  const salesInfo = n['الشهر'] ? ('<div class="meta">مبيعات شهر ' + n['الشهر'] + ' · الفصل ' + n['الفصل الدراسي'] + ' · ' + n['العام'] + '</div>') : '';
+  const timeInfo = isPending
+    ? formatDayDateTime(n['يوم الإرسال'], n['تاريخ الإرسال'], n['وقت الإرسال'])
+    : formatDayDateTime(n['يوم اطلاع الإدارة'], n['تاريخ اطلاع الإدارة'], n['وقت اطلاع الإدارة']);
+  div.innerHTML =
+    '<div>' +
+      '<div><strong>' + n['اسم المركز'] + '</strong> - إشعار ' + n['النوع'] + '</div>' +
+      '<div class="meta">' + Number(n['المبلغ']).toFixed(2) + ' ريال · ' + timeInfo + '</div>' +
+      salesInfo +
+    '</div>' +
+    '<span class="status-pill ' + (isPending ? 'pending' : 'done') + '">' + (isPending ? 'بانتظار الاطلاع' : 'تم الاطلاع') + '</span>';
+  return div;
 }
 
 function openDetail(notice) {
   currentNotice = notice;
-  document.getElementById('detailNoticeImg').src = notice['رابط صورة الإشعار'];
+  document.getElementById('detailNoticeImg').src = notice['رابط صورة الإشعار الموقع'] || notice['رابط صورة الإشعار'];
   document.getElementById('receiverName').value = '';
-  document.getElementById('signCard').classList.remove('hidden');
-  document.getElementById('alreadySignedCard').classList.add('hidden');
+  const isPending = notice['الحالة'] === 'بانتظار الاطلاع';
+  document.getElementById('signCard').classList.toggle('hidden', !isPending);
+  document.getElementById('alreadySignedCard').classList.toggle('hidden', isPending);
+  if (!isPending) {
+    document.getElementById('signedNoticeImg').src = notice['رابط صورة الإشعار الموقع'] || notice['رابط صورة الإشعار'];
+  }
   document.getElementById('listView').classList.add('hidden');
   document.getElementById('detailView').classList.remove('hidden');
   setSigMode('adminSigPad', 'draw');
@@ -334,11 +394,13 @@ function signAndSend() {
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
 
   let composedImgResult = '';
-  generateNoticeImage(
-    currentNotice['النوع'], currentNotice['اسم المركز'], currentNotice['المبلغ'],
-    currentNotice['بيانات توقيع المركز'], sigDataUrl, 'توقيع المستلمة',
-    currentNotice['اسم المسلّمة'], receiverName
-  ).then(function (composedImg) {
+  generateNoticeImage({
+    type: currentNotice['النوع'], center: currentNotice['اسم المركز'], amount: currentNotice['المبلغ'],
+    sigDataUrl: currentNotice['بيانات توقيع المركز'], adminSigDataUrl: sigDataUrl, adminLabel: 'توقيع المستلمة',
+    senderName: currentNotice['اسم المسلّمة'], receiverName: receiverName,
+    day: currentNotice['يوم الإرسال'], date: currentNotice['تاريخ الإرسال'],
+    month: currentNotice['الشهر'], term: currentNotice['الفصل الدراسي'], year: currentNotice['العام']
+  }).then(function (composedImg) {
     composedImgResult = composedImg;
     return callApi('adminSignNotice', {
       id: currentNotice['معرف'],
@@ -363,18 +425,18 @@ function signAndSend() {
 function loadCenterSales() {
   const center = document.getElementById('salesCenterSelect').value;
   const tbody = document.getElementById('salesTbody');
-  tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5">جاري التحميل...</td></tr>';
   callApi('getSales', { center: center }).then(function (r) {
     currentSales = r.sales || [];
     if (!r.ok || !currentSales.length) {
-      tbody.innerHTML = '<tr><td colspan="4">لا يوجد سجل بعد</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5">لا يوجد سجل بعد</td></tr>';
       document.getElementById('salesTotal').textContent = '0';
       return;
     }
     tbody.innerHTML = '';
     currentSales.forEach(function (s) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (s['اسم المركز'] || '') + '</td><td>' + s['التاريخ'] + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td>';
+      tr.innerHTML = '<td>' + (s['اسم المركز'] || '') + '</td><td>' + (s['اليوم'] || '') + '</td><td>' + s['التاريخ'] + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td>';
       tbody.appendChild(tr);
     });
     document.getElementById('salesTotal').textContent = r.total.toFixed(2);
@@ -385,7 +447,7 @@ function exportCurrentSales() {
   const center = document.getElementById('salesCenterSelect').value;
   if (!currentSales.length) { alert('لا يوجد سجل مبيعات لتصديره'); return; }
   const rows = currentSales.map(function (s) {
-    return { 'المركز': s['اسم المركز'] || '', 'التاريخ': s['التاريخ'], 'الوقت': s['الوقت'] || '', 'المبلغ': Number(s['المبلغ']) };
+    return { 'المركز': s['اسم المركز'] || '', 'اليوم': s['اليوم'] || '', 'التاريخ': s['التاريخ'], 'الوقت': s['الوقت'] || '', 'المبلغ': Number(s['المبلغ']) };
   });
   exportToExcel(rows, 'مبيعات-' + (center || 'كل-المراكز'), 'المبيعات');
 }
@@ -394,10 +456,10 @@ function printCurrentSales() {
   const center = document.getElementById('salesCenterSelect').value;
   if (!currentSales.length) { alert('لا يوجد سجل مبيعات لطباعته'); return; }
   const rows = currentSales.map(function (s) {
-    return { center: s['اسم المركز'] || '', date: s['التاريخ'], time: s['الوقت'] || '', amount: Number(s['المبلغ']).toFixed(2) };
+    return { center: s['اسم المركز'] || '', day: s['اليوم'] || '', date: s['التاريخ'], time: s['الوقت'] || '', amount: Number(s['المبلغ']).toFixed(2) };
   });
   printReport('سجل المبيعات', center || 'كل المراكز', [
-    { key: 'center', label: 'المركز' }, { key: 'date', label: 'التاريخ' }, { key: 'time', label: 'الوقت' }, { key: 'amount', label: 'المبلغ' }
+    { key: 'center', label: 'المركز' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'time', label: 'الوقت' }, { key: 'amount', label: 'المبلغ' }
   ], rows);
 }
 
@@ -405,18 +467,18 @@ function printCurrentSales() {
 function loadCenterReturns() {
   const center = document.getElementById('returnsCenterSelect').value;
   const tbody = document.getElementById('returnsTbody');
-  tbody.innerHTML = '<tr><td colspan="5">جاري التحميل...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6">جاري التحميل...</td></tr>';
   callApi('getReturns', { center: center }).then(function (r) {
     currentReturns = r.returns || [];
     if (!r.ok || !currentReturns.length) {
-      tbody.innerHTML = '<tr><td colspan="5">لا توجد مرتجعات بعد</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6">لا توجد مرتجعات بعد</td></tr>';
       document.getElementById('returnsTotal').textContent = '0';
       return;
     }
     tbody.innerHTML = '';
     currentReturns.forEach(function (rt) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (rt['اسم المركز'] || '') + '</td><td>' + rt['التاريخ'] + '</td><td>' + (rt['وصف الصنف'] || '') + '</td><td>' + (rt['الكمية'] || 0) + '</td><td>' + Number(rt['القيمة']).toFixed(2) + '</td>';
+      tr.innerHTML = '<td>' + (rt['اسم المركز'] || '') + '</td><td>' + (rt['اليوم'] || '') + '</td><td>' + rt['التاريخ'] + '</td><td>' + (rt['وصف الصنف'] || '') + '</td><td>' + (rt['الكمية'] || 0) + '</td><td>' + Number(rt['القيمة']).toFixed(2) + '</td>';
       tbody.appendChild(tr);
     });
     document.getElementById('returnsTotal').textContent = r.total.toFixed(2);
@@ -427,7 +489,7 @@ function exportCurrentReturns() {
   const center = document.getElementById('returnsCenterSelect').value;
   if (!currentReturns.length) { alert('لا يوجد سجل مرتجعات لتصديره'); return; }
   const rows = currentReturns.map(function (rt) {
-    return { 'المركز': rt['اسم المركز'] || '', 'التاريخ': rt['التاريخ'], 'الصنف': rt['وصف الصنف'] || '', 'الكمية': rt['الكمية'] || 0, 'القيمة': Number(rt['القيمة']) };
+    return { 'المركز': rt['اسم المركز'] || '', 'اليوم': rt['اليوم'] || '', 'التاريخ': rt['التاريخ'], 'الصنف': rt['وصف الصنف'] || '', 'الكمية': rt['الكمية'] || 0, 'القيمة': Number(rt['القيمة']) };
   });
   exportToExcel(rows, 'مرتجعات-' + (center || 'كل-المراكز'), 'المرتجعات');
 }
@@ -436,10 +498,10 @@ function printCurrentReturns() {
   const center = document.getElementById('returnsCenterSelect').value;
   if (!currentReturns.length) { alert('لا يوجد سجل مرتجعات لطباعته'); return; }
   const rows = currentReturns.map(function (rt) {
-    return { center: rt['اسم المركز'] || '', date: rt['التاريخ'], item: rt['وصف الصنف'] || '', qty: rt['الكمية'] || 0, value: Number(rt['القيمة']).toFixed(2) };
+    return { center: rt['اسم المركز'] || '', day: rt['اليوم'] || '', date: rt['التاريخ'], item: rt['وصف الصنف'] || '', qty: rt['الكمية'] || 0, value: Number(rt['القيمة']).toFixed(2) };
   });
   printReport('البضائع المرتجعة', center || 'كل المراكز', [
-    { key: 'center', label: 'المركز' }, { key: 'date', label: 'التاريخ' }, { key: 'item', label: 'الصنف' },
+    { key: 'center', label: 'المركز' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'item', label: 'الصنف' },
     { key: 'qty', label: 'الكمية' }, { key: 'value', label: 'القيمة' }
   ], rows);
 }
@@ -448,11 +510,11 @@ function printCurrentReturns() {
 function loadCenterInvoices() {
   const center = document.getElementById('invoicesCenterSelect').value;
   const tbody = document.getElementById('invoicesTbody');
-  tbody.innerHTML = '<tr><td colspan="5">جاري التحميل...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6">جاري التحميل...</td></tr>';
   callApi('getInvoices', { center: center }).then(function (r) {
     currentInvoices = r.invoices || [];
     if (!r.ok || !currentInvoices.length) {
-      tbody.innerHTML = '<tr><td colspan="5">لا توجد فواتير بعد</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6">لا توجد فواتير بعد</td></tr>';
       document.getElementById('invoicesTotalAmount').textContent = '0';
       document.getElementById('invoicesTotalProfit').textContent = '0';
       return;
@@ -460,7 +522,7 @@ function loadCenterInvoices() {
     tbody.innerHTML = '';
     currentInvoices.forEach(function (inv) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + inv['التاريخ'] + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td>';
+      tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + inv['التاريخ'] + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td>';
       tbody.appendChild(tr);
     });
     document.getElementById('invoicesTotalAmount').textContent = r.totalAmount.toFixed(2);
@@ -472,7 +534,7 @@ function exportCurrentInvoices() {
   const center = document.getElementById('invoicesCenterSelect').value;
   if (!currentInvoices.length) { alert('لا يوجد فواتير لتصديرها'); return; }
   const rows = currentInvoices.map(function (inv) {
-    return { 'المركز': inv['اسم المركز'] || '', 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'التاريخ': inv['التاريخ'], 'المبلغ الإجمالي': Number(inv['المبلغ الإجمالي']), 'الربح': Number(inv['الربح']) };
+    return { 'المركز': inv['اسم المركز'] || '', 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'المبلغ الإجمالي': Number(inv['المبلغ الإجمالي']), 'الربح': Number(inv['الربح']) };
   });
   exportToExcel(rows, 'فواتير-' + (center || 'كل-المراكز'), 'الفواتير');
 }
@@ -481,10 +543,10 @@ function printCurrentInvoices() {
   const center = document.getElementById('invoicesCenterSelect').value;
   if (!currentInvoices.length) { alert('لا يوجد فواتير لطباعتها'); return; }
   const rows = currentInvoices.map(function (inv) {
-    return { center: inv['اسم المركز'] || '', num: inv['رقم الفاتورة'] || '', date: inv['التاريخ'], total: Number(inv['المبلغ الإجمالي']).toFixed(2), profit: Number(inv['الربح']).toFixed(2) };
+    return { center: inv['اسم المركز'] || '', num: inv['رقم الفاتورة'] || '', day: inv['اليوم'] || '', date: inv['التاريخ'], total: Number(inv['المبلغ الإجمالي']).toFixed(2), profit: Number(inv['الربح']).toFixed(2) };
   });
   printReport('بيان الفواتير', center || 'كل المراكز', [
-    { key: 'center', label: 'المركز' }, { key: 'num', label: 'رقم الفاتورة' }, { key: 'date', label: 'التاريخ' },
+    { key: 'center', label: 'المركز' }, { key: 'num', label: 'رقم الفاتورة' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' },
     { key: 'total', label: 'المبلغ الإجمالي' }, { key: 'profit', label: 'الربح' }
   ], rows);
 }

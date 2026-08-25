@@ -12,12 +12,80 @@ async function callApi(action, data) {
 
 function todayStr() {
   const d = new Date();
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
 }
 
 function nowTimeStr() {
   const d = new Date();
-  return d.toTimeString().slice(0, 5);
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return h + ':' + m;
+}
+
+/* أسماء أيام الأسبوع بالعربي (الأحد أول الأسبوع) */
+const AR_DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+/* اسم اليوم بالعربي لتاريخ نصي بصيغة yyyy-MM-dd (أو لليوم الحالي لو ما فيه) */
+function dayNameFor(dateStr) {
+  let d;
+  if (dateStr) {
+    const parts = String(dateStr).split('-');
+    d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  } else {
+    d = new Date();
+  }
+  return AR_DAYS[d.getDay()];
+}
+
+/* الأشهر الميلادية بالعربي - تُستخدم بقائمة "شهر مبيعات المقصف" بالإشعارات */
+const AR_MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+
+/* الفصول الدراسية */
+const AR_TERMS = ['الأول', 'الثاني', 'الثالث'];
+
+/* تنسيق موحّد لعرض يوم/تاريخ/وقت بدون أي أصفار زايدة، مع توافق مع
+   السجلات القديمة اللي ما فيها عمود "اليوم" أصلاً */
+function formatDayDateTime(day, date, time) {
+  const parts = [];
+  if (day) parts.push('يوم ' + day);
+  if (date) parts.push(date);
+  if (time) parts.push(time);
+  return parts.join(' · ');
+}
+
+/* تعبئة قائمة منسدلة (select) بمصفوفة قيم نصية */
+function fillSelect(selectId, values, placeholder) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  sel.innerHTML = '';
+  if (placeholder) {
+    const opt = document.createElement('option');
+    opt.value = ''; opt.textContent = placeholder;
+    sel.appendChild(opt);
+  }
+  values.forEach(function (v) {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v;
+    sel.appendChild(opt);
+  });
+}
+
+/* تعبئة قائمة السنوات (الهجرية/الميلادية حسب رغبتها) بنطاق حول السنة الحالية */
+function fillYearSelect(selectId, span) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const currentYear = new Date().getFullYear();
+  sel.innerHTML = '';
+  for (let y = currentYear - (span || 1); y <= currentYear + 1; y++) {
+    const opt = document.createElement('option');
+    opt.value = String(y); opt.textContent = String(y);
+    if (y === currentYear) opt.selected = true;
+    sel.appendChild(opt);
+  }
 }
 
 /* -------- تصدير جداول البيانات إلى ملف Excel --------
@@ -101,12 +169,16 @@ function loadImage_(src) {
   });
 }
 
-async function generateNoticeImage(type, center, amount, sigDataUrl, adminSigDataUrl, adminLabel, senderName, receiverName) {
+/* opts: { type, center, amount, sigDataUrl, adminSigDataUrl, adminLabel, senderName,
+   receiverName, day, date, time, month, term, year } */
+async function generateNoticeImage(opts) {
   const canvas = document.getElementById('noticeCanvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
 
-  const [sigImg, adminImg] = await Promise.all([loadImage_(sigDataUrl), loadImage_(adminSigDataUrl)]);
+  const [sigImg, adminImg] = await Promise.all([
+    loadImage_(opts.sigDataUrl), loadImage_(opts.adminSigDataUrl)
+  ]);
 
   ctx.clearRect(0, 0, W, H);
   ctx.fillStyle = '#FBF8F3';
@@ -129,40 +201,76 @@ async function generateNoticeImage(type, center, amount, sigDataUrl, adminSigDat
 
   ctx.fillStyle = '#8C1A2C';
   ctx.font = 'bold 34px Amiri, serif';
-  ctx.fillText('إشعار ' + type, W / 2, 175);
+  ctx.fillText('إشعار ' + opts.type, W / 2, 172);
 
   ctx.strokeStyle = '#C2AA85';
   ctx.lineWidth = 3;
-  ctx.strokeRect(40, 130, W - 80, H - 300);
+  ctx.strokeRect(40, 128, W - 80, H - 298);
 
   ctx.textAlign = 'right';
   ctx.fillStyle = '#2b2321';
-  ctx.font = '24px Almarai, sans-serif';
   const rx = W - 90;
-  ctx.fillText('المركز: ' + center, rx, 240);
-  ctx.fillText('المبلغ: ' + Number(amount).toFixed(2) + ' ريال', rx, 285);
-  ctx.fillText('التاريخ: ' + new Date().toLocaleDateString('ar-SA'), rx, 330);
+
+  // اليوم / التاريخ
+  ctx.font = '22px Almarai, sans-serif';
+  ctx.fillText('اليوم: ' + (opts.day || ''), rx, 215);
+  ctx.fillText('التاريخ: ' + (opts.date || ''), rx, 248);
+
+  // جملة الاستلام/التسليم من/إلى المركز
+  const verb = opts.type === 'تسليم' ? 'سلّمنا مركز' : 'استلمنا من مركز';
+  ctx.font = 'bold 23px Almarai, sans-serif';
+  ctx.fillStyle = '#8C1A2C';
+  ctx.fillText(verb + ': ' + (opts.center || ''), rx, 288);
+
+  // جملة قيمة مبيعات المقصف لشهر .... للفصل الدراسي .... لعام ....
+  ctx.font = '20px Almarai, sans-serif';
+  ctx.fillStyle = '#2b2321';
+  const salesLine = 'وذلك قيمة مبيعات المقصف لشهر ' + (opts.month || '.......') +
+    ' للفصل الدراسي ' + (opts.term || '.......') + ' لعام ' + (opts.year || '.......');
+  wrapText_(ctx, salesLine, rx, 322, W - 160, 26);
+
+  ctx.font = 'bold 22px Almarai, sans-serif';
+  ctx.fillStyle = '#8C1A2C';
+  ctx.fillText('المبلغ: ' + Number(opts.amount || 0).toFixed(2) + ' ريال', rx, 375);
 
   ctx.textAlign = 'center';
   ctx.font = '18px Almarai, sans-serif';
   ctx.fillStyle = '#8a7d76';
-  ctx.fillText('توقيع المسلّمة' + (senderName ? (': ' + senderName) : ''), W * 0.28, 380);
-  ctx.fillText((adminLabel || 'توقيع المستلمة') + (receiverName ? (': ' + receiverName) : ''), W * 0.72, 380);
+  ctx.fillText('توقيع المسلّمة' + (opts.senderName ? (': ' + opts.senderName) : ''), W * 0.28, 415);
+  ctx.fillText((opts.adminLabel || 'توقيع المستلمة') + (opts.receiverName ? (': ' + opts.receiverName) : ''), W * 0.72, 415);
 
-  if (sigImg) ctx.drawImage(sigImg, W * 0.28 - 130, 395, 260, 90);
-  if (adminImg) ctx.drawImage(adminImg, W * 0.72 - 130, 395, 260, 90);
+  if (sigImg) ctx.drawImage(sigImg, W * 0.28 - 130, 425, 260, 85);
+  if (adminImg) ctx.drawImage(adminImg, W * 0.72 - 130, 425, 260, 85);
 
   ctx.strokeStyle = '#e8dcc8';
   ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(60, 500); ctx.lineTo(W * 0.28 + 130, 500); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(W * 0.72 - 130, 500); ctx.lineTo(W - 60, 500); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(60, 522); ctx.lineTo(W * 0.28 + 130, 522); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W * 0.72 - 130, 522); ctx.lineTo(W - 60, 522); ctx.stroke();
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#8a7d76';
   ctx.font = '16px Almarai, sans-serif';
-  ctx.fillText('تم إنشاء هذا الإشعار آلياً عبر نظام وحدة المقاصف', W / 2, H - 20);
+  ctx.fillText('تم إنشاء هذا الإشعار آلياً عبر نظام وحدة المقاصف', W / 2, H - 16);
 
   return canvas.toDataURL('image/png');
+}
+
+/* تفاف نص طويل على أكثر من سطر داخل الكانفاس (لدعم جملة "قيمة مبيعات المقصف...") */
+function wrapText_(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ');
+  let line = '';
+  const lines = [];
+  words.forEach(function (word) {
+    const test = line ? (line + ' ' + word) : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  });
+  if (line) lines.push(line);
+  lines.forEach(function (l, i) { ctx.fillText(l, x, y + i * lineHeight); });
 }
 
 /* -------- لوحة توقيع بالإصبع/الفأرة -------- */
