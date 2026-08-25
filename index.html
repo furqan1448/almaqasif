@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>نظام وحدة المقاصف</title>
 <link rel="stylesheet" href="style.css">
+<script src="logo-config.js"></script>
 </head>
 <body>
   <div class="topbar">
-    <div class="brand"><span class="dot"></span> وحدة المقاصف - جمعية فرقان</div>
+    <div class="brand"><span class="dot" id="brandDot"></span><img class="logo-img hidden" id="brandLogo" alt="شعار فرقان"> وحدة المقاصف - جمعية فرقان</div>
   </div>
 
   <div class="wrap" style="max-width:480px;">
@@ -49,5 +50,14 @@
       </a>
     </div>
   </div>
+  <script>
+    var url = (typeof FURQAN_LOGO_URL !== 'undefined') ? FURQAN_LOGO_URL : '';
+    var img = document.getElementById('brandLogo');
+    var dot = document.getElementById('brandDot');
+    if (url && img) {
+      img.src = url;
+      img.onload = function () { img.classList.remove('hidden'); if (dot) dot.classList.add('hidden'); };
+    }
+  </script>
 </body>
 </html>

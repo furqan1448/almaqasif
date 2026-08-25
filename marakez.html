@@ -29,7 +29,7 @@
 <!-- ===================== لوحة المركز (بعد الدخول) ===================== -->
 <div id="dashScreen" class="hidden">
   <div class="topbar">
-    <div class="brand"><span class="dot"></span> وحدة المقاصف</div>
+    <div class="brand"><span class="dot" id="brandDot"></span><img class="logo-img hidden" id="brandLogo" alt="شعار فرقان"> وحدة المقاصف</div>
     <div style="display:flex;align-items:center;gap:10px;">
       <div class="user-chip"><span id="centerNameChip"></span></div>
       <button class="logout" onclick="logout()">خروج</button>
@@ -169,11 +169,10 @@
         <label>المبلغ (ريال)</label>
         <input type="number" id="noticeAmount" placeholder="0.00" step="0.01">
 
+        <label>أشهر مبيعات المقصف (تقدرين تختارين أكثر من شهر)</label>
+        <div class="month-chips" id="noticeMonthChips"></div>
+
         <div class="select-row">
-          <div>
-            <label>شهر مبيعات المقصف</label>
-            <select id="noticeMonth"></select>
-          </div>
           <div>
             <label>الفصل الدراسي</label>
             <select id="noticeTerm"></select>
@@ -229,6 +228,7 @@
 <canvas id="noticeCanvas" width="900" height="640" style="display:none;"></canvas>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="logo-config.js"></script>
 <script src="config.js"></script>
 <script>
 let currentCenter = sessionStorage.getItem('maqasif_center') || '';
@@ -345,7 +345,7 @@ function loadSales() {
     tbody.innerHTML = '';
     currentSalesData.forEach(function (s) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (s['اليوم'] || '') + '</td><td>' + s['التاريخ'] + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td>' +
+      tr.innerHTML = '<td>' + (s['اليوم'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td>' +
         '<td><a href="#" onclick="editSale(' + s._row + ', ' + Number(s['المبلغ']) + '); return false;" style="font-size:0.85rem;">تعديل</a></td>';
       tbody.appendChild(tr);
     });
@@ -373,7 +373,7 @@ function exportSalesReport() {
 
 function printSalesReport() {
   const rows = currentSalesData.map(function (s) {
-    return { day: s['اليوم'] || '', date: s['التاريخ'], time: s['الوقت'] || '', amount: Number(s['المبلغ']).toFixed(2) };
+    return { day: s['اليوم'] || '', date: toHijriStr(s['التاريخ']), time: s['الوقت'] || '', amount: Number(s['المبلغ']).toFixed(2) };
   });
   printReport('سجل المبيعات', currentCenter, [
     { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'time', label: 'الوقت' }, { key: 'amount', label: 'المبلغ' }
@@ -462,7 +462,7 @@ function loadInvoices() {
     tbody.innerHTML = '';
     currentInvoicesData.forEach(function (inv) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + inv['التاريخ'] + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td>' +
+      tr.innerHTML = '<td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td>' +
         '<td><div class="row-actions"><a onclick="editInvoice(' + inv._row + ')">تعديل</a><a onclick="deleteInvoiceRow(' + inv._row + ')">حذف</a></div></td>';
       tbody.appendChild(tr);
     });
@@ -481,7 +481,7 @@ function exportInvoicesReport() {
 
 function printInvoicesReport() {
   const rows = currentInvoicesData.map(function (inv) {
-    return { num: inv['رقم الفاتورة'] || '', day: inv['اليوم'] || '', date: inv['التاريخ'], total: Number(inv['المبلغ الإجمالي']).toFixed(2), profit: Number(inv['الربح']).toFixed(2) };
+    return { num: inv['رقم الفاتورة'] || '', day: inv['اليوم'] || '', date: toHijriStr(inv['التاريخ']), total: Number(inv['المبلغ الإجمالي']).toFixed(2), profit: Number(inv['الربح']).toFixed(2) };
   });
   printReport('بيان الفواتير', currentCenter, [
     { key: 'num', label: 'رقم الفاتورة' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' },
@@ -524,7 +524,7 @@ function loadReturns() {
     tbody.innerHTML = '';
     currentReturnsData.forEach(function (rt) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (rt['اليوم'] || '') + '</td><td>' + rt['التاريخ'] + '</td><td>' + (rt['وصف الصنف'] || '') + '</td><td>' + (rt['الكمية'] || 0) + '</td><td>' + Number(rt['القيمة']).toFixed(2) + '</td>';
+      tr.innerHTML = '<td>' + (rt['اليوم'] || '') + '</td><td>' + toHijriStr(rt['التاريخ']) + '</td><td>' + (rt['وصف الصنف'] || '') + '</td><td>' + (rt['الكمية'] || 0) + '</td><td>' + Number(rt['القيمة']).toFixed(2) + '</td>';
       tbody.appendChild(tr);
     });
     document.getElementById('returnsTotal').textContent = r.total.toFixed(2);
@@ -541,7 +541,7 @@ function exportReturnsReport() {
 
 function printReturnsReport() {
   const rows = currentReturnsData.map(function (rt) {
-    return { day: rt['اليوم'] || '', date: rt['التاريخ'], item: rt['وصف الصنف'] || '', qty: rt['الكمية'] || 0, value: Number(rt['القيمة']).toFixed(2) };
+    return { day: rt['اليوم'] || '', date: toHijriStr(rt['التاريخ']), item: rt['وصف الصنف'] || '', qty: rt['الكمية'] || 0, value: Number(rt['القيمة']).toFixed(2) };
   });
   printReport('البضائع المرتجعة', currentCenter, [
     { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'item', label: 'الصنف' },
@@ -560,7 +560,7 @@ function openNoticeForm(type) {
   document.getElementById('noticeFormTitle').textContent = 'إشعار ' + type;
   document.getElementById('senderName').value = '';
   document.getElementById('noticeAmount').value = '';
-  fillSelect('noticeMonth', AR_MONTHS, 'اختاري الشهر');
+  renderMonthChips('noticeMonthChips');
   fillSelect('noticeTerm', AR_TERMS, 'اختاري الفصل');
   fillYearSelect('noticeYear');
   document.getElementById('noticePreviewCard').classList.add('hidden');
@@ -575,14 +575,14 @@ function openNoticeForm(type) {
 function previewNotice() {
   const senderName = document.getElementById('senderName').value.trim();
   const amount = document.getElementById('noticeAmount').value;
-  const month = document.getElementById('noticeMonth').value;
+  const months = getSelectedMonths('noticeMonthChips');
   const term = document.getElementById('noticeTerm').value;
   const year = document.getElementById('noticeYear').value;
   const errBox = document.getElementById('noticeError');
   errBox.style.display = 'none';
   if (!senderName) { errBox.textContent = 'أدخلي اسم المسلّمة'; errBox.style.display = 'block'; return; }
   if (!amount) { errBox.textContent = 'أدخلي المبلغ'; errBox.style.display = 'block'; return; }
-  if (!month || !term || !year) { errBox.textContent = 'اختاري الشهر والفصل الدراسي والعام'; errBox.style.display = 'block'; return; }
+  if (!months.length || !term || !year) { errBox.textContent = 'اختاري شهر واحد أو أكثر، والفصل الدراسي، والعام'; errBox.style.display = 'block'; return; }
 
   const sigDataUrl = getSignatureDataUrl('sigPad');
   const today = todayStr();
@@ -590,7 +590,7 @@ function previewNotice() {
   generateNoticeImage({
     type: currentNoticeType, center: currentCenter, amount: amount, sigDataUrl: sigDataUrl,
     senderName: senderName, day: dayNameFor(today), date: today,
-    month: month, term: term, year: year
+    months: months, term: term, year: year
   }).then(function (dataUrl) {
     currentNoticeDataUrl = dataUrl;
     document.getElementById('noticePreviewImg').src = currentNoticeDataUrl;
@@ -604,7 +604,7 @@ function previewNotice() {
 function sendNotice() {
   const senderName = document.getElementById('senderName').value.trim();
   const amount = document.getElementById('noticeAmount').value;
-  const month = document.getElementById('noticeMonth').value;
+  const months = getSelectedMonths('noticeMonthChips');
   const term = document.getElementById('noticeTerm').value;
   const year = document.getElementById('noticeYear').value;
   const sigDataUrl = getSignatureDataUrl('sigPad');
@@ -616,7 +616,7 @@ function sendNotice() {
     center: currentCenter,
     senderName: senderName,
     amount: amount,
-    month: month,
+    month: months.join('، '),
     term: term,
     year: year,
     signature: sigDataUrl,
@@ -651,7 +651,7 @@ function loadNotices() {
         '<div>' +
           '<div>إشعار ' + n['النوع'] + ' - ' + Number(n['المبلغ']).toFixed(2) + ' ريال</div>' +
           '<div class="meta">' + formatDayDateTime(n['يوم الإرسال'], n['تاريخ الإرسال'], n['وقت الإرسال']) + (n['اسم المسلّمة'] ? (' · المسلّمة: ' + n['اسم المسلّمة']) : '') + '</div>' +
-          (n['الشهر'] ? '<div class="meta">مبيعات شهر ' + n['الشهر'] + ' · الفصل ' + n['الفصل الدراسي'] + ' · ' + n['العام'] + '</div>' : '') +
+          (n['الشهر'] ? '<div class="meta">مبيعات ' + n['الشهر'] + ' · الفصل ' + n['الفصل الدراسي'] + ' · ' + n['العام'] + '</div>' : '') +
         '</div>' +
         '<div style="text-align:left;">' +
           '<span class="status-pill ' + (done ? 'done' : 'pending') + '">' + (done ? 'تم الاطلاع' : 'بانتظار الاطلاع') + '</span>' +
@@ -680,7 +680,7 @@ function printNoticesReport() {
   const rows = currentNoticesData.map(function (n) {
     return {
       type: n['النوع'], sender: n['اسم المسلّمة'] || '', amount: Number(n['المبلغ']).toFixed(2),
-      day: n['يوم الإرسال'] || '', date: n['تاريخ الإرسال'], time: n['وقت الإرسال'] || '', receiver: n['اسم المستلمة'] || '',
+      day: n['يوم الإرسال'] || '', date: toHijriStr(n['تاريخ الإرسال']), time: n['وقت الإرسال'] || '', receiver: n['اسم المستلمة'] || '',
       status: n['الحالة'] === 'تم الاطلاع' ? 'تم الاطلاع' : 'بانتظار الاطلاع'
     };
   });

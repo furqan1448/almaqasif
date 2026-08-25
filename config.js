@@ -47,14 +47,72 @@ const AR_MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ما
 /* الفصول الدراسية */
 const AR_TERMS = ['الأول', 'الثاني', 'الثالث'];
 
-/* تنسيق موحّد لعرض يوم/تاريخ/وقت بدون أي أصفار زايدة، مع توافق مع
-   السجلات القديمة اللي ما فيها عمود "اليوم" أصلاً */
+/* -------- تطبيق شعار فرقان بأعلى الصفحة (لو تم ضبط FURQAN_LOGO_URL بملف logo-config.js) -------- */
+function applyBrandLogo() {
+  const url = (typeof FURQAN_LOGO_URL !== 'undefined') ? FURQAN_LOGO_URL : '';
+  const img = document.getElementById('brandLogo');
+  const dot = document.getElementById('brandDot');
+  if (!url || !img) return;
+  img.src = url;
+  img.onload = function () {
+    img.classList.remove('hidden');
+    if (dot) dot.classList.add('hidden');
+  };
+}
+document.addEventListener('DOMContentLoaded', applyBrandLogo);
+function toHijriStr(dateStr) {
+  if (!dateStr) return '';
+  const datePart = String(dateStr).split(' ')[0];
+  const parts = datePart.split('-');
+  let d;
+  if (parts.length === 3) {
+    d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  } else {
+    d = new Date(dateStr);
+  }
+  if (isNaN(d.getTime())) return dateStr;
+  try {
+    return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' }).format(d) + ' هـ';
+  } catch (e) {
+    return dateStr;
+  }
+}
+
+/* تنسيق موحّد لعرض يوم/تاريخ هجري (وميلادي بين قوسين)/وقت بدون أي أصفار زايدة */
 function formatDayDateTime(day, date, time) {
   const parts = [];
   if (day) parts.push('يوم ' + day);
-  if (date) parts.push(date);
+  if (date) parts.push(toHijriStr(date) + ' (' + date + ')');
   if (time) parts.push(time);
   return parts.join(' · ');
+}
+
+/* -------- اختيار أكثر من شهر لإشعارات المبيعات (شرائح قابلة للتبديل) -------- */
+function renderMonthChips(containerId) {
+  const box = document.getElementById(containerId);
+  if (!box) return;
+  box.innerHTML = '';
+  box.dataset.selected = '';
+  AR_MONTHS.forEach(function (m) {
+    const chip = document.createElement('div');
+    chip.className = 'month-chip';
+    chip.textContent = m;
+    chip.onclick = function () { chip.classList.toggle('selected'); };
+    box.appendChild(chip);
+  });
+}
+
+function getSelectedMonths(containerId) {
+  const box = document.getElementById(containerId);
+  if (!box) return [];
+  return Array.from(box.querySelectorAll('.month-chip.selected')).map(function (c) { return c.textContent; });
+}
+
+/* صياغة جملة الأشهر: "لشهر يناير" أو "لأشهر يناير وفبراير" */
+function monthsPhrase(months) {
+  if (!months || !months.length) return 'لشهر .......';
+  if (months.length === 1) return 'لشهر ' + months[0];
+  return 'لأشهر ' + months.join('، ');
 }
 
 /* تعبئة قائمة منسدلة (select) بمصفوفة قيم نصية */
@@ -134,10 +192,16 @@ function printReport(title, subtitle, columns, rows) {
   html += 'table{width:100%;border-collapse:collapse;font-size:0.88rem;}';
   html += 'th,td{border:1px solid #C2AA85;padding:8px 10px;text-align:center;}';
   html += 'th{background:#e8dcc8;color:#6e1523;}';
+  html += '.report-head{display:flex;align-items:center;gap:14px;margin-bottom:6px;}';
+  html += '.report-head img{width:56px;height:56px;border-radius:50%;object-fit:cover;}';
   html += '@media print{ body{padding:10px;} }';
   html += '</style></head><body>';
-  html += '<h1>جمعية فرقان لتحفيظ القرآن الكريم</h1>';
-  html += '<div class="sub">' + title + (subtitle ? (' - ' + subtitle) : '') + ' &middot; ' + new Date().toLocaleDateString('ar-SA') + '</div>';
+  const logoUrl = (typeof FURQAN_LOGO_URL !== 'undefined') ? FURQAN_LOGO_URL : '';
+  html += '<div class="report-head">';
+  if (logoUrl) html += '<img src="' + logoUrl + '" alt="شعار فرقان">';
+  html += '<h1 style="margin:0;">جمعية فرقان لتحفيظ القرآن الكريم</h1>';
+  html += '</div>';
+  html += '<div class="sub">' + title + (subtitle ? (' - ' + subtitle) : '') + ' &middot; ' + toHijriStr(todayStr()) + '</div>';
   html += '<table><thead><tr>';
   columns.forEach(function (c) { html += '<th>' + c.label + '</th>'; });
   html += '</tr></thead><tbody>';
@@ -163,6 +227,9 @@ function loadImage_(src) {
   return new Promise(function (resolve) {
     if (!src) { resolve(null); return; }
     const img = new Image();
+    // يسمح بتحميل الشعار من رابط خارجي (قوقل درايف مثلاً) بدون ما "يلوّث" الكانفاس
+    // ويمنعنا لاحقاً من تصدير الصورة بـ toDataURL()
+    img.crossOrigin = 'anonymous';
     img.onload = function () { resolve(img); };
     img.onerror = function () { resolve(null); };
     img.src = src;
@@ -176,8 +243,9 @@ async function generateNoticeImage(opts) {
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
 
-  const [sigImg, adminImg] = await Promise.all([
-    loadImage_(opts.sigDataUrl), loadImage_(opts.adminSigDataUrl)
+  const [sigImg, adminImg, logoImg] = await Promise.all([
+    loadImage_(opts.sigDataUrl), loadImage_(opts.adminSigDataUrl),
+    loadImage_(typeof FURQAN_LOGO_URL !== 'undefined' ? FURQAN_LOGO_URL : '')
   ]);
 
   ctx.clearRect(0, 0, W, H);
@@ -199,6 +267,19 @@ async function generateNoticeImage(opts) {
   ctx.fillStyle = '#e8dcc8';
   ctx.fillText('وحدة المقاصف', W / 2, 82);
 
+  if (logoImg) {
+    const logoSize = 68;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(W - 78, 55, logoSize / 2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.clip();
+    ctx.drawImage(logoImg, W - 78 - logoSize / 2, 55 - logoSize / 2, logoSize, logoSize);
+    ctx.restore();
+  }
+
   ctx.fillStyle = '#8C1A2C';
   ctx.font = 'bold 34px Amiri, serif';
   ctx.fillText('إشعار ' + opts.type, W / 2, 172);
@@ -211,10 +292,11 @@ async function generateNoticeImage(opts) {
   ctx.fillStyle = '#2b2321';
   const rx = W - 90;
 
-  // اليوم / التاريخ
+  // اليوم / التاريخ (هجري وميلادي)
   ctx.font = '22px Almarai, sans-serif';
   ctx.fillText('اليوم: ' + (opts.day || ''), rx, 215);
-  ctx.fillText('التاريخ: ' + (opts.date || ''), rx, 248);
+  const hijri = opts.date ? toHijriStr(opts.date) : '';
+  ctx.fillText('التاريخ: ' + hijri + (opts.date ? (' (' + opts.date + ')') : ''), rx, 248);
 
   // جملة الاستلام/التسليم من/إلى المركز
   const verb = opts.type === 'تسليم' ? 'سلّمنا مركز' : 'استلمنا من مركز';
@@ -222,10 +304,10 @@ async function generateNoticeImage(opts) {
   ctx.fillStyle = '#8C1A2C';
   ctx.fillText(verb + ': ' + (opts.center || ''), rx, 288);
 
-  // جملة قيمة مبيعات المقصف لشهر .... للفصل الدراسي .... لعام ....
+  // جملة قيمة مبيعات المقصف لشهر/أشهر .... للفصل الدراسي .... لعام ....
   ctx.font = '20px Almarai, sans-serif';
   ctx.fillStyle = '#2b2321';
-  const salesLine = 'وذلك قيمة مبيعات المقصف لشهر ' + (opts.month || '.......') +
+  const salesLine = 'وذلك قيمة مبيعات المقصف ' + monthsPhrase(opts.months) +
     ' للفصل الدراسي ' + (opts.term || '.......') + ' لعام ' + (opts.year || '.......');
   wrapText_(ctx, salesLine, rx, 322, W - 160, 26);
 

@@ -54,6 +54,10 @@ h1, h2, h3, .display {
   background: var(--gold);
   box-shadow: 0 0 0 4px rgba(194,170,133,0.35);
 }
+.topbar .brand .logo-img {
+  width: 34px; height: 34px; border-radius: 50%;
+  object-fit: cover; background: #fff; box-shadow: 0 0 0 3px rgba(194,170,133,0.35);
+}
 .topbar .user-chip {
   background: rgba(255,255,255,0.12);
   border: 1px solid rgba(255,255,255,0.25);
@@ -311,6 +315,15 @@ canvas.sig-pad { width: 100%; height: 160px; display: block; touch-action: none;
 .select-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 6px; }
 .select-row > div { flex: 1; min-width: 180px; }
 .select-row label { margin-top: 0; }
+
+.month-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 4px; }
+.month-chip {
+  padding: 6px 14px; border-radius: 999px; border: 1.5px solid var(--gold-light);
+  background: #fff; color: var(--ink); font-size: 0.85rem; cursor: pointer; user-select: none;
+  transition: all .12s;
+}
+.month-chip:hover { border-color: var(--gold); }
+.month-chip.selected { background: var(--maroon); border-color: var(--maroon); color: #fff; font-weight: 700; }
 
 /* -------- بطاقات الإحصائيات -------- */
 .stat-hero {

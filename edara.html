@@ -29,7 +29,7 @@
 <!-- ===================== اللوحة ===================== -->
 <div id="dashScreen" class="hidden">
   <div class="topbar">
-    <div class="brand"><span class="dot"></span> إدارة وحدة المقاصف</div>
+    <div class="brand"><span class="dot" id="brandDot"></span><img class="logo-img hidden" id="brandLogo" alt="شعار فرقان"> إدارة وحدة المقاصف</div>
     <button class="logout" onclick="logout()">خروج</button>
   </div>
 
@@ -205,6 +205,7 @@
 <canvas id="noticeCanvas" width="900" height="640" style="display:none;"></canvas>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="logo-config.js"></script>
 <script src="config.js"></script>
 <script>
 // ⚠️ عدّلي كلمة مرور الإدارة هنا
@@ -343,7 +344,7 @@ function buildNoticeRow_(n, isPending) {
   div.className = 'notice-item';
   div.style.cursor = 'pointer';
   div.onclick = function () { openDetail(n); };
-  const salesInfo = n['الشهر'] ? ('<div class="meta">مبيعات شهر ' + n['الشهر'] + ' · الفصل ' + n['الفصل الدراسي'] + ' · ' + n['العام'] + '</div>') : '';
+  const salesInfo = n['الشهر'] ? ('<div class="meta">مبيعات ' + n['الشهر'] + ' · الفصل ' + n['الفصل الدراسي'] + ' · ' + n['العام'] + '</div>') : '';
   const timeInfo = isPending
     ? formatDayDateTime(n['يوم الإرسال'], n['تاريخ الإرسال'], n['وقت الإرسال'])
     : formatDayDateTime(n['يوم اطلاع الإدارة'], n['تاريخ اطلاع الإدارة'], n['وقت اطلاع الإدارة']);
@@ -399,7 +400,7 @@ function signAndSend() {
     sigDataUrl: currentNotice['بيانات توقيع المركز'], adminSigDataUrl: sigDataUrl, adminLabel: 'توقيع المستلمة',
     senderName: currentNotice['اسم المسلّمة'], receiverName: receiverName,
     day: currentNotice['يوم الإرسال'], date: currentNotice['تاريخ الإرسال'],
-    month: currentNotice['الشهر'], term: currentNotice['الفصل الدراسي'], year: currentNotice['العام']
+    months: (currentNotice['الشهر'] || '').split(/،\s*/).filter(Boolean), term: currentNotice['الفصل الدراسي'], year: currentNotice['العام']
   }).then(function (composedImg) {
     composedImgResult = composedImg;
     return callApi('adminSignNotice', {
@@ -436,7 +437,7 @@ function loadCenterSales() {
     tbody.innerHTML = '';
     currentSales.forEach(function (s) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (s['اسم المركز'] || '') + '</td><td>' + (s['اليوم'] || '') + '</td><td>' + s['التاريخ'] + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td>';
+      tr.innerHTML = '<td>' + (s['اسم المركز'] || '') + '</td><td>' + (s['اليوم'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td>';
       tbody.appendChild(tr);
     });
     document.getElementById('salesTotal').textContent = r.total.toFixed(2);
@@ -456,7 +457,7 @@ function printCurrentSales() {
   const center = document.getElementById('salesCenterSelect').value;
   if (!currentSales.length) { alert('لا يوجد سجل مبيعات لطباعته'); return; }
   const rows = currentSales.map(function (s) {
-    return { center: s['اسم المركز'] || '', day: s['اليوم'] || '', date: s['التاريخ'], time: s['الوقت'] || '', amount: Number(s['المبلغ']).toFixed(2) };
+    return { center: s['اسم المركز'] || '', day: s['اليوم'] || '', date: toHijriStr(s['التاريخ']), time: s['الوقت'] || '', amount: Number(s['المبلغ']).toFixed(2) };
   });
   printReport('سجل المبيعات', center || 'كل المراكز', [
     { key: 'center', label: 'المركز' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'time', label: 'الوقت' }, { key: 'amount', label: 'المبلغ' }
@@ -478,7 +479,7 @@ function loadCenterReturns() {
     tbody.innerHTML = '';
     currentReturns.forEach(function (rt) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (rt['اسم المركز'] || '') + '</td><td>' + (rt['اليوم'] || '') + '</td><td>' + rt['التاريخ'] + '</td><td>' + (rt['وصف الصنف'] || '') + '</td><td>' + (rt['الكمية'] || 0) + '</td><td>' + Number(rt['القيمة']).toFixed(2) + '</td>';
+      tr.innerHTML = '<td>' + (rt['اسم المركز'] || '') + '</td><td>' + (rt['اليوم'] || '') + '</td><td>' + toHijriStr(rt['التاريخ']) + '</td><td>' + (rt['وصف الصنف'] || '') + '</td><td>' + (rt['الكمية'] || 0) + '</td><td>' + Number(rt['القيمة']).toFixed(2) + '</td>';
       tbody.appendChild(tr);
     });
     document.getElementById('returnsTotal').textContent = r.total.toFixed(2);
@@ -498,7 +499,7 @@ function printCurrentReturns() {
   const center = document.getElementById('returnsCenterSelect').value;
   if (!currentReturns.length) { alert('لا يوجد سجل مرتجعات لطباعته'); return; }
   const rows = currentReturns.map(function (rt) {
-    return { center: rt['اسم المركز'] || '', day: rt['اليوم'] || '', date: rt['التاريخ'], item: rt['وصف الصنف'] || '', qty: rt['الكمية'] || 0, value: Number(rt['القيمة']).toFixed(2) };
+    return { center: rt['اسم المركز'] || '', day: rt['اليوم'] || '', date: toHijriStr(rt['التاريخ']), item: rt['وصف الصنف'] || '', qty: rt['الكمية'] || 0, value: Number(rt['القيمة']).toFixed(2) };
   });
   printReport('البضائع المرتجعة', center || 'كل المراكز', [
     { key: 'center', label: 'المركز' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'item', label: 'الصنف' },
@@ -522,7 +523,7 @@ function loadCenterInvoices() {
     tbody.innerHTML = '';
     currentInvoices.forEach(function (inv) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + inv['التاريخ'] + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td>';
+      tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td>';
       tbody.appendChild(tr);
     });
     document.getElementById('invoicesTotalAmount').textContent = r.totalAmount.toFixed(2);
@@ -543,7 +544,7 @@ function printCurrentInvoices() {
   const center = document.getElementById('invoicesCenterSelect').value;
   if (!currentInvoices.length) { alert('لا يوجد فواتير لطباعتها'); return; }
   const rows = currentInvoices.map(function (inv) {
-    return { center: inv['اسم المركز'] || '', num: inv['رقم الفاتورة'] || '', day: inv['اليوم'] || '', date: inv['التاريخ'], total: Number(inv['المبلغ الإجمالي']).toFixed(2), profit: Number(inv['الربح']).toFixed(2) };
+    return { center: inv['اسم المركز'] || '', num: inv['رقم الفاتورة'] || '', day: inv['اليوم'] || '', date: toHijriStr(inv['التاريخ']), total: Number(inv['المبلغ الإجمالي']).toFixed(2), profit: Number(inv['الربح']).toFixed(2) };
   });
   printReport('بيان الفواتير', center || 'كل المراكز', [
     { key: 'center', label: 'المركز' }, { key: 'num', label: 'رقم الفاتورة' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' },
