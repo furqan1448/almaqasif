@@ -154,7 +154,35 @@ function saveImage_(base64Data, fileName) {
   const folder = getOrCreateFolder_();
   const file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  return file.getUrl();
+  // file.getUrl() ترجع رابط صفحة عرض بقوقل درايف، وما تشتغل مباشرة داخل <img src>.
+  // هذا الرابط هو الصيغة الصحيحة لعرض الصورة مباشرة بالمتصفح (وبتاق <img>)
+  return 'https://lh3.googleusercontent.com/d/' + file.getId();
+}
+
+// تشغّل مرة وحدة (اختياري): تصلح روابط الصور القديمة المحفوظة بشيت "الإشعارات"
+// اللي كانت بالصيغة الغلط (drive.google.com/file/d/.../view) وتحوّلها للصيغة الصحيحة
+function fixOldImageUrls() {
+  const sh = sheet_('الإشعارات');
+  if (!sh || sh.getLastRow() < 2) { SpreadsheetApp.getUi().alert('لا يوجد بيانات لتصليحها'); return; }
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  const urlCols = ['رابط صورة الإشعار', 'رابط صورة الإشعار الموقع'];
+  const range = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn());
+  const values = range.getValues();
+  let fixed = 0;
+  headers.forEach(function (h, idx) {
+    if (urlCols.indexOf(h) === -1) return;
+    for (let i = 0; i < values.length; i++) {
+      const v = values[i][idx];
+      const match = /drive\.google\.com\/file\/d\/([^/]+)\//.exec(v);
+      if (match) {
+        values[i][idx] = 'https://lh3.googleusercontent.com/d/' + match[1];
+        fixed++;
+      }
+    }
+  });
+  range.setValues(values);
+  invalidateCache_('الإشعارات');
+  SpreadsheetApp.getUi().alert('تم تصليح ' + fixed + ' رابط صورة قديم.');
 }
 
 function sheet_(name) {

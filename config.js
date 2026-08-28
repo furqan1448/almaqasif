@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbxAnDLZKTulgORYWwpJmYth6ENW9UdiaVt3B98RZsCspw-S_T0Dqo-9u_Ef_dhmk5f8/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbw0pCPaznO4wUB9dlSvWr2GxrbNPZjg-txq81P83nEJoDHaA_SmcV8tlDYPzClKV6fy/exec";
 
 async function callApi(action, data) {
   const payload = Object.assign({ action: action }, data || {});
@@ -40,9 +40,9 @@ function dayNameFor(dateStr) {
   return AR_DAYS[d.getDay()];
 }
 
-/* الأشهر الميلادية بالعربي - تُستخدم بقائمة "شهر مبيعات المقصف" بالإشعارات */
-const AR_MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+/* الأشهر الهجرية - تُستخدم بقائمة "شهر مبيعات المقصف" بالإشعارات */
+const AR_MONTHS = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة',
+  'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
 
 /* الفصول الدراسية */
 const AR_TERMS = ['الأول', 'الثاني', 'الثالث'];
@@ -132,18 +132,88 @@ function fillSelect(selectId, values, placeholder) {
   });
 }
 
-/* تعبئة قائمة السنوات (الهجرية/الميلادية حسب رغبتها) بنطاق حول السنة الحالية */
+/* تعبئة قائمة السنوات الهجرية بنطاق حول السنة الهجرية الحالية */
+function currentHijriYear() {
+  try {
+    const parts = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', { year: 'numeric' }).formatToParts(new Date());
+    return parseInt(parts.find(function (p) { return p.type === 'year'; }).value, 10);
+  } catch (e) {
+    return new Date().getFullYear() - 578; // تقريب احتياطي لو المتصفح ما يدعم التقويم الهجري
+  }
+}
+
 function fillYearSelect(selectId, span) {
   const sel = document.getElementById(selectId);
   if (!sel) return;
-  const currentYear = new Date().getFullYear();
+  const currentYear = currentHijriYear();
   sel.innerHTML = '';
   for (let y = currentYear - (span || 1); y <= currentYear + 1; y++) {
     const opt = document.createElement('option');
-    opt.value = String(y); opt.textContent = String(y);
+    opt.value = String(y) + ' هـ'; opt.textContent = String(y) + ' هـ';
     if (y === currentYear) opt.selected = true;
     sel.appendChild(opt);
   }
+}
+
+/* -------- تحويل الأرقام إلى كتابة عربية (لكتابة المبلغ رقماً وكتابة) -------- */
+function groupToArabicWords_(n) {
+  if (n === 0) return '';
+  const ones = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
+  const teens = ['عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
+  const tens = ['', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
+  const hundreds = ['', 'مئة', 'مئتان', 'ثلاثمئة', 'أربعمئة', 'خمسمئة', 'ستمئة', 'سبعمئة', 'ثمانمئة', 'تسعمئة'];
+  const parts = [];
+  const h = Math.floor(n / 100), rem = n % 100;
+  if (h > 0) parts.push(hundreds[h]);
+  if (rem > 0) {
+    if (rem < 10) parts.push(ones[rem]);
+    else if (rem < 20) parts.push(teens[rem - 10]);
+    else {
+      const t = Math.floor(rem / 10), o = rem % 10;
+      parts.push(o === 0 ? tens[t] : (ones[o] + ' و' + tens[t]));
+    }
+  }
+  return parts.join(' و');
+}
+
+function thousandsToArabicWords_(n) {
+  if (n === 0) return '';
+  if (n === 1) return 'ألف';
+  if (n === 2) return 'ألفان';
+  if (n <= 10) return groupToArabicWords_(n) + ' آلاف';
+  return groupToArabicWords_(n) + ' ألف';
+}
+
+function numberToArabicWords(num) {
+  num = Math.floor(Math.abs(num));
+  if (num === 0) return 'صفر';
+  if (num < 1000) return groupToArabicWords_(num);
+
+  const millions = Math.floor(num / 1000000);
+  const thousands = Math.floor((num % 1000000) / 1000);
+  const remainder = num % 1000;
+
+  const parts = [];
+  if (millions > 0) {
+    if (millions === 1) parts.push('مليون');
+    else if (millions === 2) parts.push('مليونان');
+    else if (millions <= 10) parts.push(groupToArabicWords_(millions) + ' ملايين');
+    else parts.push(groupToArabicWords_(millions) + ' مليون');
+  }
+  if (thousands > 0) parts.push(thousandsToArabicWords_(thousands));
+  if (remainder > 0) parts.push(groupToArabicWords_(remainder));
+
+  return parts.join(' و');
+}
+
+/* المبلغ رقماً وكتابة معاً: "100.00 ريال (مئة ريال سعودي فقط لا غير)" */
+function amountToArabicWords(amount) {
+  amount = Number(amount) || 0;
+  const riyals = Math.floor(amount);
+  const halalas = Math.round((amount - riyals) * 100);
+  let text = numberToArabicWords(riyals) + ' ريال سعودي';
+  if (halalas > 0) text += ' و' + numberToArabicWords(halalas) + ' هللة';
+  return text + ' فقط لا غير';
 }
 
 /* -------- تصدير جداول البيانات إلى ملف Excel --------
@@ -296,7 +366,7 @@ async function generateNoticeImage(opts) {
 
   ctx.strokeStyle = '#C2AA85';
   ctx.lineWidth = 3;
-  ctx.strokeRect(40, 128, W - 80, H - 298);
+  ctx.strokeRect(40, 128, W - 80, 300);
 
   ctx.textAlign = 'right';
   ctx.fillStyle = '#2b2321';
@@ -325,19 +395,23 @@ async function generateNoticeImage(opts) {
   ctx.fillStyle = '#8C1A2C';
   ctx.fillText('المبلغ: ' + Number(opts.amount || 0).toFixed(2) + ' ريال', rx, 375);
 
+  ctx.font = '17px Tajawal, sans-serif';
+  ctx.fillStyle = '#2b2321';
+  wrapText_(ctx, '(' + amountToArabicWords(opts.amount) + ')', rx, 401, W - 160, 23);
+
   ctx.textAlign = 'center';
   ctx.font = '18px Tajawal, sans-serif';
   ctx.fillStyle = '#8a7d76';
-  ctx.fillText('توقيع المسلّمة' + (opts.senderName ? (': ' + opts.senderName) : ''), W * 0.28, 415);
-  ctx.fillText((opts.adminLabel || 'توقيع المستلمة') + (opts.receiverName ? (': ' + opts.receiverName) : ''), W * 0.72, 415);
+  ctx.fillText('توقيع المسلّمة' + (opts.senderName ? (': ' + opts.senderName) : ''), W * 0.28, 448);
+  ctx.fillText((opts.adminLabel || 'توقيع المستلمة') + (opts.receiverName ? (': ' + opts.receiverName) : ''), W * 0.72, 448);
 
-  if (sigImg) ctx.drawImage(sigImg, W * 0.28 - 130, 425, 260, 85);
-  if (adminImg) ctx.drawImage(adminImg, W * 0.72 - 130, 425, 260, 85);
+  if (sigImg) ctx.drawImage(sigImg, W * 0.28 - 130, 458, 260, 85);
+  if (adminImg) ctx.drawImage(adminImg, W * 0.72 - 130, 458, 260, 85);
 
   ctx.strokeStyle = '#e8dcc8';
   ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(60, 522); ctx.lineTo(W * 0.28 + 130, 522); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(W * 0.72 - 130, 522); ctx.lineTo(W - 60, 522); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(60, 555); ctx.lineTo(W * 0.28 + 130, 555); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W * 0.72 - 130, 555); ctx.lineTo(W - 60, 555); ctx.stroke();
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#8a7d76';
