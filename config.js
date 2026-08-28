@@ -185,8 +185,8 @@ function printReport(title, subtitle, columns, rows) {
   let html = '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">';
   html += '<title>' + title + '</title>';
   html += '<style>';
-  html += '@import url(\'https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Almarai:wght@400;700&display=swap\');';
-  html += 'body{font-family:"Almarai",sans-serif;direction:rtl;padding:28px;color:#2b2321;}';
+  html += '@import url(\'https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Tajawal:wght@400;700;800&display=swap\');';
+  html += 'body{font-family:"Tajawal",sans-serif;direction:rtl;padding:28px;color:#2b2321;}';
   html += 'h1{font-family:"Amiri",serif;color:#8C1A2C;margin:0 0 2px;font-size:1.5rem;}';
   html += '.sub{color:#8a7d76;margin-bottom:22px;font-size:0.9rem;}';
   html += 'table{width:100%;border-collapse:collapse;font-size:0.88rem;}';
@@ -243,6 +243,16 @@ async function generateNoticeImage(opts) {
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
 
+  // نتأكد إن خط "Tajawal" (وخط "Amiri" للعناوين) متحمّلين فعلياً بالمتصفح
+  // قبل ما نرسم النص على الكانفاس، وإلا يرجع لخط افتراضي غير واضح
+  try {
+    await Promise.all([
+      document.fonts.load('bold 34px Amiri'),
+      document.fonts.load('20px Tajawal'),
+      document.fonts.load('bold 23px Tajawal')
+    ]);
+  } catch (e) { /* تجاهل - المتصفحات القديمة جداً ما تدعم document.fonts */ }
+
   const [sigImg, adminImg, logoImg] = await Promise.all([
     loadImage_(opts.sigDataUrl), loadImage_(opts.adminSigDataUrl),
     loadImage_(typeof FURQAN_LOGO_URL !== 'undefined' ? FURQAN_LOGO_URL : '')
@@ -261,9 +271,9 @@ async function generateNoticeImage(opts) {
   ctx.direction = 'rtl';
   ctx.textAlign = 'center';
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 30px Almarai, sans-serif';
+  ctx.font = 'bold 30px Tajawal, sans-serif';
   ctx.fillText('جمعية فرقان لتحفيظ القرآن الكريم', W / 2, 48);
-  ctx.font = '20px Almarai, sans-serif';
+  ctx.font = '20px Tajawal, sans-serif';
   ctx.fillStyle = '#e8dcc8';
   ctx.fillText('وحدة المقاصف', W / 2, 82);
 
@@ -293,30 +303,30 @@ async function generateNoticeImage(opts) {
   const rx = W - 90;
 
   // اليوم / التاريخ (هجري وميلادي)
-  ctx.font = '22px Almarai, sans-serif';
+  ctx.font = '22px Tajawal, sans-serif';
   ctx.fillText('اليوم: ' + (opts.day || ''), rx, 215);
   const hijri = opts.date ? toHijriStr(opts.date) : '';
   ctx.fillText('التاريخ: ' + hijri + (opts.date ? (' (' + opts.date + ')') : ''), rx, 248);
 
   // جملة الاستلام/التسليم من/إلى المركز
   const verb = opts.type === 'تسليم' ? 'سلّمنا مركز' : 'استلمنا من مركز';
-  ctx.font = 'bold 23px Almarai, sans-serif';
+  ctx.font = 'bold 23px Tajawal, sans-serif';
   ctx.fillStyle = '#8C1A2C';
   ctx.fillText(verb + ': ' + (opts.center || ''), rx, 288);
 
   // جملة قيمة مبيعات المقصف لشهر/أشهر .... للفصل الدراسي .... لعام ....
-  ctx.font = '20px Almarai, sans-serif';
+  ctx.font = '20px Tajawal, sans-serif';
   ctx.fillStyle = '#2b2321';
   const salesLine = 'وذلك قيمة مبيعات المقصف ' + monthsPhrase(opts.months) +
     ' للفصل الدراسي ' + (opts.term || '.......') + ' لعام ' + (opts.year || '.......');
   wrapText_(ctx, salesLine, rx, 322, W - 160, 26);
 
-  ctx.font = 'bold 22px Almarai, sans-serif';
+  ctx.font = 'bold 22px Tajawal, sans-serif';
   ctx.fillStyle = '#8C1A2C';
   ctx.fillText('المبلغ: ' + Number(opts.amount || 0).toFixed(2) + ' ريال', rx, 375);
 
   ctx.textAlign = 'center';
-  ctx.font = '18px Almarai, sans-serif';
+  ctx.font = '18px Tajawal, sans-serif';
   ctx.fillStyle = '#8a7d76';
   ctx.fillText('توقيع المسلّمة' + (opts.senderName ? (': ' + opts.senderName) : ''), W * 0.28, 415);
   ctx.fillText((opts.adminLabel || 'توقيع المستلمة') + (opts.receiverName ? (': ' + opts.receiverName) : ''), W * 0.72, 415);
@@ -331,7 +341,7 @@ async function generateNoticeImage(opts) {
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#8a7d76';
-  ctx.font = '16px Almarai, sans-serif';
+  ctx.font = '16px Tajawal, sans-serif';
   ctx.fillText('تم إنشاء هذا الإشعار آلياً عبر نظام وحدة المقاصف', W / 2, H - 16);
 
   return canvas.toDataURL('image/png');

@@ -289,7 +289,15 @@ let allNoticesPending = [];
 let allNoticesDone = [];
 
 function loadPending() {
+  document.getElementById('pendingList').innerHTML = 'جاري التحميل...';
+  document.getElementById('doneList').innerHTML = 'جاري التحميل...';
   callApi('getAllNotices').then(function (r) {
+    if (!r.ok) {
+      const msg = '<p style="color:#b8321f;">تعذّر تحميل الإشعارات: ' + (r.error || 'الرجاء التأكد من نشر آخر نسخة من الكود بـ Apps Script (Deploy ← Manage deployments ← New version)') + '</p>';
+      document.getElementById('pendingList').innerHTML = msg;
+      document.getElementById('doneList').innerHTML = msg;
+      return;
+    }
     allNoticesPending = r.pending || [];
     allNoticesDone = r.done || [];
     allPending = allNoticesPending; // توافق مع بقية الكود
@@ -303,6 +311,10 @@ function loadPending() {
     }
 
     renderNoticeLists();
+  }).catch(function (err) {
+    const msg = '<p style="color:#b8321f;">تعذّر الاتصال بالسيرفر: ' + err.message + '</p>';
+    document.getElementById('pendingList').innerHTML = msg;
+    document.getElementById('doneList').innerHTML = msg;
   });
 }
 

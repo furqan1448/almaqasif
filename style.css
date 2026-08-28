@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Almarai:wght@300;400;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;700;800&display=swap');
 
 :root {
   --maroon: #8C1A2C;
@@ -16,12 +16,13 @@
 
 body {
   margin: 0;
-  font-family: 'Almarai', sans-serif;
+  font-family: 'Tajawal', sans-serif;
   background: var(--cream);
   color: var(--ink);
   direction: rtl;
   min-height: 100vh;
   letter-spacing: 0.1px;
+  -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, .display {
@@ -74,7 +75,7 @@ h1, h2, h3, .display {
   color: #fff;
   border-radius: 8px;
   padding: 6px 12px;
-  font-family: 'Almarai';
+  font-family: 'Tajawal';
   font-size: 0.8rem;
   cursor: pointer;
 }
@@ -111,7 +112,7 @@ select, input[type=text], input[type=password], input[type=number], input[type=d
   padding: 12px 14px;
   border-radius: 10px;
   border: 1.5px solid var(--gold-light);
-  font-family: 'Almarai';
+  font-family: 'Tajawal';
   font-size: 0.95rem;
   background: var(--cream);
   color: var(--ink);
@@ -128,7 +129,7 @@ button.btn {
   border: none;
   background: var(--maroon);
   color: #fff;
-  font-family: 'Almarai';
+  font-family: 'Tajawal';
   font-weight: 700;
   font-size: 0.95rem;
   cursor: pointer;
@@ -222,7 +223,7 @@ table.log-table tfoot td { font-weight: 900; color: var(--maroon); background: #
 }
 canvas.sig-pad { width: 100%; height: 160px; display: block; touch-action: none; border-radius: 10px; }
 .sig-actions { display: flex; gap: 10px; margin-top: 8px; }
-.sig-actions button { flex: 1; padding: 9px; border-radius: 8px; border: 1px solid var(--gold-light); background: var(--cream); font-family: 'Almarai'; cursor: pointer; }
+.sig-actions button { flex: 1; padding: 9px; border-radius: 8px; border: 1px solid var(--gold-light); background: var(--cream); font-family: 'Tajawal'; cursor: pointer; }
 
 /* -------- إشعار / بطاقة معاينة -------- */
 .notice-preview { width: 100%; border-radius: 12px; border: 1px solid var(--gold-light); margin-top: 12px; }
@@ -302,7 +303,7 @@ canvas.sig-pad { width: 100%; height: 160px; display: block; touch-action: none;
   color: var(--maroon-dark);
   padding: 10px 16px;
   border-radius: 999px 999px 0 0;
-  font-family: 'Almarai';
+  font-family: 'Tajawal';
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
