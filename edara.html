@@ -488,20 +488,20 @@ function exportCurrentSales() {
   const center = document.getElementById('salesCenterSelect').value;
   if (!currentSales.length) { alert('لا يوجد سجل مبيعات لتصديره'); return; }
   const rows = currentSales.map(function (s) {
-    return { 'المركز': s['اسم المركز'] || '', 'اليوم': s['اليوم'] || '', 'التاريخ': s['التاريخ'], 'الوقت': s['الوقت'] || '', 'المبلغ': Number(s['المبلغ']) };
+    return { 'المركز': s['اسم المركز'] || '', 'اليوم': s['اليوم'] || '', 'التاريخ': toHijriStr(s['التاريخ']), 'المبلغ': Number(s['المبلغ']) };
   });
-  exportToExcel(rows, 'مبيعات-' + (center || 'كل-المراكز'), 'المبيعات');
+  exportToExcel(rows, 'مبيعات-' + (center || 'كل-المراكز'), 'المبيعات', { key: 'المبلغ', label: 'الإجمالي' });
 }
 
 function printCurrentSales() {
   const center = document.getElementById('salesCenterSelect').value;
   if (!currentSales.length) { alert('لا يوجد سجل مبيعات لطباعته'); return; }
   const rows = currentSales.map(function (s) {
-    return { center: s['اسم المركز'] || '', day: s['اليوم'] || '', date: toHijriStr(s['التاريخ']), time: s['الوقت'] || '', amount: Number(s['المبلغ']).toFixed(2) };
+    return { center: s['اسم المركز'] || '', day: s['اليوم'] || '', date: toHijriStr(s['التاريخ']), amount: Number(s['المبلغ']).toFixed(2) };
   });
   printReport('سجل المبيعات', center || 'كل المراكز', [
-    { key: 'center', label: 'المركز' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'time', label: 'الوقت' }, { key: 'amount', label: 'المبلغ' }
-  ], rows);
+    { key: 'center', label: 'المركز' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'amount', label: 'المبلغ' }
+  ], rows, { key: 'amount', label: 'الإجمالي' });
 }
 
 /* -------- المرتجعات لكل مركز -------- */

@@ -443,18 +443,18 @@ function editSale(row, currentAmount) {
 function exportSalesReport() {
   if (!currentSalesData.length) { alert('لا يوجد سجل مبيعات لتصديره'); return; }
   const rows = currentSalesData.map(function (s) {
-    return { 'اليوم': s['اليوم'] || '', 'التاريخ': s['التاريخ'], 'الوقت': s['الوقت'] || '', 'المبلغ': Number(s['المبلغ']) };
+    return { 'اليوم': s['اليوم'] || '', 'التاريخ': toHijriStr(s['التاريخ']), 'المبلغ': Number(s['المبلغ']) };
   });
-  exportToExcel(rows, 'مبيعات-' + currentCenter, 'المبيعات');
+  exportToExcel(rows, 'مبيعات-' + currentCenter, 'المبيعات', { key: 'المبلغ', label: 'الإجمالي' });
 }
 
 function printSalesReport() {
   const rows = currentSalesData.map(function (s) {
-    return { day: s['اليوم'] || '', date: toHijriStr(s['التاريخ']), time: s['الوقت'] || '', amount: Number(s['المبلغ']).toFixed(2) };
+    return { day: s['اليوم'] || '', date: toHijriStr(s['التاريخ']), amount: Number(s['المبلغ']).toFixed(2) };
   });
   printReport('سجل المبيعات', currentCenter, [
-    { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'time', label: 'الوقت' }, { key: 'amount', label: 'المبلغ' }
-  ], rows);
+    { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'amount', label: 'المبلغ' }
+  ], rows, { key: 'amount', label: 'الإجمالي' });
 }
 
 /* -------- بيان الفواتير -------- */

@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbyhE3Dwc54ZiD2hLos81NpsrnYV_Nj6TOysIUL_Vz7PpMgZ1YyyHGPONmSIQsn1jg8T/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbw0pCPaznO4wUB9dlSvWr2GxrbNPZjg-txq81P83nEJoDHaA_SmcV8tlDYPzClKV6fy/exec";
 
 async function callApi(action, data) {
   const payload = Object.assign({ action: action }, data || {});
@@ -72,18 +72,45 @@ function toHijriStr(dateStr) {
   }
   if (isNaN(d.getTime())) return dateStr;
   try {
-    return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' }).format(d) + ' هـ';
+    // ملاحظة: تنسيق ar-SA-u-ca-islamic-umalqura يضيف "هـ" تلقائياً بآخر التاريخ،
+    // فلا نضيفها نحن مرة ثانية (كانت هذي هي مصدر تكرار حرف "هـ")
+    return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' }).format(d);
   } catch (e) {
     return dateStr;
   }
+}
+
+/* نفس التاريخ الميلادي بس بالأرقام والشهور العربية، بدون خط لاتيني */
+function toGregorianArabicStr(dateStr) {
+  if (!dateStr) return '';
+  const datePart = String(dateStr).split(' ')[0];
+  const parts = datePart.split('-');
+  let d;
+  if (parts.length === 3) {
+    d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  } else {
+    d = new Date(dateStr);
+  }
+  if (isNaN(d.getTime())) return dateStr;
+  try {
+    return new Intl.DateTimeFormat('ar-SA', { day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+  } catch (e) {
+    return dateStr;
+  }
+}
+
+/* تحويل أي أرقام لاتينية (0-9) داخل نص لأرقام عربية (٠-٩) */
+function toArabicDigits(value) {
+  const map = { '0': '٠', '1': '١', '2': '٢', '3': '٣', '4': '٤', '5': '٥', '6': '٦', '7': '٧', '8': '٨', '9': '٩' };
+  return String(value).replace(/[0-9]/g, function (d) { return map[d]; });
 }
 
 /* تنسيق موحّد لعرض يوم/تاريخ هجري (وميلادي بين قوسين)/وقت بدون أي أصفار زايدة */
 function formatDayDateTime(day, date, time) {
   const parts = [];
   if (day) parts.push('يوم ' + day);
-  if (date) parts.push(toHijriStr(date) + ' (' + date + ')');
-  if (time) parts.push(time);
+  if (date) parts.push(toHijriStr(date) + ' (' + toGregorianArabicStr(date) + ')');
+  if (time) parts.push(toArabicDigits(time));
   return parts.join(' · ');
 }
 
@@ -149,7 +176,8 @@ function fillYearSelect(selectId, span) {
   sel.innerHTML = '';
   for (let y = currentYear - (span || 1); y <= currentYear + 1; y++) {
     const opt = document.createElement('option');
-    opt.value = String(y) + ' هـ'; opt.textContent = String(y) + ' هـ';
+    const label = toArabicDigits(y) + ' هـ';
+    opt.value = label; opt.textContent = label;
     if (y === currentYear) opt.selected = true;
     sel.appendChild(opt);
   }
@@ -222,7 +250,7 @@ function amountToArabicWords(amount) {
    sheetName: اسم الورقة داخل ملف الإكسل (اختياري)
    يمكن فتح الملف الناتج مباشرة في Excel، أو استيراده في Google Sheets
    من قائمة File > Import داخل شيتس. */
-function exportToExcel(data, filename, sheetName) {
+function exportToExcel(data, filename, sheetName, totals) {
   if (!data || !data.length) {
     alert('لا يوجد بيانات لتصديرها');
     return;
@@ -231,7 +259,17 @@ function exportToExcel(data, filename, sheetName) {
     alert('تعذر تحميل مكتبة التصدير، تأكدي من الاتصال بالإنترنت وحاولي مرة أخرى');
     return;
   }
-  const ws = XLSX.utils.json_to_sheet(data);
+  let rows = data;
+  if (totals && totals.key) {
+    const sum = data.reduce(function (s, r) { return s + (Number(r[totals.key]) || 0); }, 0);
+    const totalRow = {};
+    Object.keys(data[0]).forEach(function (k) { totalRow[k] = ''; });
+    const firstKey = Object.keys(data[0])[0];
+    totalRow[firstKey] = totals.label || 'الإجمالي';
+    totalRow[totals.key] = sum;
+    rows = data.concat([totalRow]);
+  }
+  const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   wb.Workbook = { Views: [{ RTL: true }] };
   XLSX.utils.book_append_sheet(wb, ws, sheetName || 'بيانات');
@@ -242,7 +280,7 @@ function exportToExcel(data, filename, sheetName) {
    تفتح نافذة جديدة بتنسيق مرتب وتشغّل حوار الطباعة تلقائياً؛
    المستخدمة تقدر تختار "حفظ كـ PDF" من نافذة الطباعة نفسها (يعمل على الجوال وسطح المكتب).
    columns: مصفوفة [{key, label}], rows: مصفوفة كائنات بيانات */
-function printReport(title, subtitle, columns, rows) {
+function printReport(title, subtitle, columns, rows, totals) {
   if (!rows || !rows.length) {
     alert('لا يوجد بيانات لطباعتها');
     return;
@@ -283,7 +321,18 @@ function printReport(title, subtitle, columns, rows) {
     });
     html += '</tr>';
   });
-  html += '</tbody></table>';
+  html += '</tbody>';
+  if (totals && totals.key) {
+    const sum = rows.reduce(function (s, r) { return s + (Number(r[totals.key]) || 0); }, 0);
+    html += '<tfoot><tr style="font-weight:800;background:#f5efe3;">';
+    columns.forEach(function (c, idx) {
+      if (idx === 0) html += '<td>' + (totals.label || 'الإجمالي') + '</td>';
+      else if (c.key === totals.key) html += '<td>' + sum.toFixed(2) + '</td>';
+      else html += '<td></td>';
+    });
+    html += '</tr></tfoot>';
+  }
+  html += '</table>';
   html += '<script>window.onload = function(){ setTimeout(function(){ window.print(); }, 350); };<\/script>';
   html += '</body></html>';
   win.document.write(html);
@@ -376,7 +425,8 @@ async function generateNoticeImage(opts) {
   ctx.font = '22px Tajawal, sans-serif';
   ctx.fillText('اليوم: ' + (opts.day || ''), rx, 215);
   const hijri = opts.date ? toHijriStr(opts.date) : '';
-  ctx.fillText('التاريخ: ' + hijri + (opts.date ? (' (' + opts.date + ')') : ''), rx, 248);
+  const greg = opts.date ? toGregorianArabicStr(opts.date) : '';
+  ctx.fillText('التاريخ: ' + hijri + (greg ? (' (' + greg + ')') : ''), rx, 248);
 
   // جملة الاستلام/التسليم من/إلى المركز
   const verb = opts.type === 'تسليم' ? 'سلّمنا مركز' : 'استلمنا من مركز';
@@ -393,7 +443,7 @@ async function generateNoticeImage(opts) {
 
   ctx.font = 'bold 22px Tajawal, sans-serif';
   ctx.fillStyle = '#8C1A2C';
-  ctx.fillText('المبلغ: ' + Number(opts.amount || 0).toFixed(2) + ' ريال', rx, 375);
+  ctx.fillText('المبلغ: ' + toArabicDigits(Number(opts.amount || 0).toFixed(2)) + ' ريال', rx, 375);
 
   ctx.font = '17px Tajawal, sans-serif';
   ctx.fillStyle = '#2b2321';
