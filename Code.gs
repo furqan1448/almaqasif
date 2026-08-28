@@ -291,6 +291,8 @@ function handleRequest_(p) {
 
       case 'getStats': return json_(getStats_());
 
+      case 'debugInfo': return json_(debugInfo_());
+
       default: return json_({ ok: false, error: 'إجراء غير معروف' });
     }
   } catch (err) {
@@ -639,6 +641,23 @@ function adminSignNotice_(p) {
 }
 
 /* ------------------- الإحصائيات (إيرادات المقاصف) ------------------- */
+
+// دالة تشخيص: ترجع اسم/رابط ملف الإكسل اللي متصل فيه هذا الكود فعلياً، مع عدد صفوف كل شيت،
+// تساعد لو صار لخبطة إن الموقع متصل بملف إكسل غير اللي المستخدمة تشوف فيه بياناتها
+function debugInfo_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetNames = ['المسؤولات', 'الحضور', 'التعهد', 'المراكز', 'المبيعات', 'المرتجعات', 'الفواتير', 'الإشعارات'];
+  const sheetsInfo = sheetNames.map(function (name) {
+    const sh = ss.getSheetByName(name);
+    return { name: name, exists: !!sh, rows: sh ? Math.max(sh.getLastRow() - 1, 0) : 0 };
+  });
+  return {
+    ok: true,
+    spreadsheetName: ss.getName(),
+    spreadsheetUrl: ss.getUrl(),
+    sheets: sheetsInfo
+  };
+}
 
 function getStats_() {
   const sales = sheetToObjects_('المبيعات');

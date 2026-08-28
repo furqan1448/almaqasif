@@ -311,10 +311,38 @@ function loadPending() {
     }
 
     renderNoticeLists();
+
+    // تشخيص تلقائي: لو رجعت القائمتين فاضيتين تماماً (لا بانتظار ولا تم)، نطلع
+    // معلومات الملف المتصل فيه الكود فعلاً - عشان تكتشفي فوراً لو كنتِ متصلة بملف إكسل غلط
+    if (!allNoticesPending.length && !allNoticesDone.length) {
+      showConnectedFileDebug_();
+    }
   }).catch(function (err) {
     const msg = '<p style="color:#b8321f;">تعذّر الاتصال بالسيرفر: ' + err.message + '</p>';
     document.getElementById('pendingList').innerHTML = msg;
     document.getElementById('doneList').innerHTML = msg;
+  });
+}
+
+function showConnectedFileDebug_() {
+  const existing = document.getElementById('connDebugBox');
+  if (existing) existing.remove();
+  callApi('debugInfo').then(function (d) {
+    if (!d.ok) return;
+    const noticesSheet = d.sheets.find(function (s) { return s.name === 'الإشعارات'; });
+    const rowsText = noticesSheet ? (noticesSheet.exists ? (noticesSheet.rows + ' صف بيانات') : 'الشيت غير موجود بهذا الملف!') : '';
+    const box = document.createElement('div');
+    box.id = 'connDebugBox';
+    box.className = 'card';
+    box.style.borderRight = '5px solid var(--pending)';
+    box.innerHTML =
+      '<strong style="color:var(--pending);">تنبيه تشخيصي</strong>' +
+      '<p style="margin:8px 0 4px;">الموقع الآن متصل بملف الإكسل التالي:</p>' +
+      '<p style="font-weight:700;">' + d.spreadsheetName + '</p>' +
+      '<p style="font-size:0.85rem;"><a href="' + d.spreadsheetUrl + '" target="_blank">فتح هذا الملف</a></p>' +
+      '<p style="font-size:0.85rem;color:#8a7d76;">شيت "الإشعارات" بهذا الملف فيه: ' + rowsText + '</p>' +
+      '<p style="font-size:0.85rem;color:#8a7d76;">لو هذا مو نفس ملف الإكسل اللي انتِ شايفة فيه الإشعارات المرسلة، فهذا سبب المشكلة: افتحي Apps Script من داخل الملف الصحيح (إضافات ← Apps Script) وأعيدي لصق الأكواد ونشرها من هناك.</p>';
+    document.getElementById('listView').insertBefore(box, document.getElementById('listView').firstChild);
   });
 }
 
