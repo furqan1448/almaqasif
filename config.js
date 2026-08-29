@@ -506,10 +506,13 @@ async function generateNoticeImage(opts) {
     { valueFont: '16.5px Tajawal, sans-serif' });
 
   // سطر: وذلك (السبب) - قيمة المبيعات (استلام) أو مكافأة المتعاونة (تسليم)
-  const reasonLine = opts.type === 'تسليم'
-    ? 'مكافأة لمتعاونة المقصف'
-    : 'قيمة مبيعات المقصف ' + monthsPhrase(opts.months) +
-      ' للفصل الدراسي ' + (opts.term || '.......') + ' لعام ' + (opts.year || '.......');
+  // opts.reason: نص بيان مخصص (مثل "قيمة رسوم حفل تحفيظ الصغار") يلغي البيان الافتراضي - يُستخدم لأنواع إشعارات فرعية جديدة بدون تعديل هذي الدالة
+  const reasonLine = opts.reason
+    ? opts.reason
+    : (opts.type === 'تسليم'
+      ? 'مكافأة لمتعاونة المقصف'
+      : 'قيمة مبيعات المقصف ' + monthsPhrase(opts.months) +
+        ' للفصل الدراسي ' + (opts.term || '.......') + ' لعام ' + (opts.year || '.......'));
   drawDottedField_(ctx, rx, 418, W - 160, 'وذلك:', reasonLine, { valueFont: '16.5px Tajawal, sans-serif' });
 
   ctx.textAlign = 'center';
