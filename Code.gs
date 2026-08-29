@@ -51,11 +51,14 @@ function setup() {
       sh.getRange(1, 1, 1, sheets[name].length).setFontWeight('bold');
       sh.setRightToLeft(true);
     } else {
-      // إذا كان الشيت موجود من قبل بأعمدة أقل (تحديث نظام قديم)، نضيف الأعمدة الناقصة بآخر الصف
-      const existingHeaders = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+      // إذا كان الشيت موجود من قبل بأعمدة أقل (تحديث نظام قديم)، نضيف الأعمدة الناقصة بآخر الصف.
+      // نتجاهل المسافات الزائدة بالمقارنة (نفس سبب مشكلة "اليوم ما ينكتب") حتى ما ينضاف
+      // عمود مكرر لو كان الموجود مسبقاً فيه مسافة خفية بالاسم.
+      const existingHeaders = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (h) { return String(h).trim(); });
       sheets[name].forEach(function (col) {
         if (existingHeaders.indexOf(col) === -1) {
           sh.getRange(1, sh.getLastColumn() + 1).setValue(col).setFontWeight('bold');
+          existingHeaders.push(col); // نحدّث القائمة بالذاكرة عشان ما نضيف نفس العمود مرتين بهذي التشغيلة
         }
       });
     }
@@ -280,6 +283,29 @@ function fillMissingDayNames_() {
   if (missingSheets.length) {
     msg += '\n\nتنبيه: عمود "اليوم" أو "التاريخ" غير موجود أصلاً بشيت: ' + missingSheets.join('، ') + '. شغّلي دالة setup أولاً لإضافته، ثم أعيدي تشغيل هذي الدالة.';
   }
+  notify_(msg);
+}
+
+/* تشغّل مرة وحدة (تشخيص): تطلع لك بالضبط أسماء أعمدة شيتات المبيعات/المرتجعات/الفواتير،
+   كل اسم عمود بين قوسين [ ] عشان توضّح أي مسافة خفية بأول أو آخر الاسم، وتحدد
+   أي عمود هو "اليوم" اللي يتعرف عليه الكود فعلياً. شغليها لو مازال اليوم ما ينكتب
+   بعد تشغيل setup و fillMissingDayNames، وابعتيلي محتوى الرسالة اللي تطلع لك. */
+function debugDayColumn_() {
+  const names = ['المبيعات', 'المرتجعات', 'الفواتير'];
+  let msg = '';
+  names.forEach(function (name) {
+    const sh = sheet_(name);
+    if (!sh) { msg += name + ': ⚠️ الشيت غير موجود\n\n'; return; }
+    const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+    const foundCol = colIndex_(sh, 'اليوم');
+    msg += name + ' (يجدها الكود بعمود رقم: ' + (foundCol === -1 ? 'ما لقاها ❌' : foundCol) + '):\n';
+    headers.forEach(function (h, i) {
+      const isMatch = String(h).trim() === 'اليوم';
+      msg += '  عمود ' + (i + 1) + ': [' + h + ']' + (isMatch ? '  ← تطابق مع "اليوم"' : '') + '\n';
+    });
+    // نموذج: وش راح ينكتب لو سجّلنا صف اليوم بالضبط
+    msg += '  مثال: اسم اليوم المحسوب لتاريخ اليوم = ' + dayNameForDateStr_(nowParts_().date) + '\n\n';
+  });
   notify_(msg);
 }
 
