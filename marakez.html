@@ -70,6 +70,10 @@
           <span class="label">إشعاراتي</span>
           <div class="badge hidden" id="pendingBadge">0</div>
         </div>
+        <div class="icon-btn" onclick="showView('attachmentsView')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12l4.5-4.5a3 3 0 1 1 4.2 4.2L9.5 19a5 5 0 1 1-7-7l7-7"/></svg></div>
+          <span class="label">إضافة مرفقات</span>
+        </div>
       </div>
     </div>
 
@@ -232,6 +236,40 @@
         </div>
       </div>
     </div>
+
+    <!-- المرفقات -->
+    <div id="attachmentsView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">إضافة مرفق</h3>
+        <label>عنوان المرفق</label>
+        <input type="text" id="attachTitle" placeholder="مثال: نموذج طلب إجازة">
+        <label>نوع المرفق</label>
+        <div style="display:flex;gap:18px;margin-bottom:6px;">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;">
+            <input type="radio" name="attachKind" value="link" checked onchange="toggleAttachKind()"> رابط
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;">
+            <input type="radio" name="attachKind" value="file" onchange="toggleAttachKind()"> ملف
+          </label>
+        </div>
+        <div id="attachLinkRow">
+          <label>الرابط</label>
+          <input type="url" id="attachLink" placeholder="https://...">
+        </div>
+        <div id="attachFileRow" class="hidden">
+          <label>الملف</label>
+          <input type="file" id="attachFile">
+        </div>
+        <button class="btn" id="attachSubmitBtn" onclick="submitAttachment()">حفظ المرفق</button>
+        <div class="success-msg" id="attachSuccess">تم إضافة المرفق بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">المرفقات المضافة</h3>
+        <div id="attachmentsList">جاري التحميل...</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -318,13 +356,14 @@ function showDashboard() {
 }
 
 function showView(id) {
-  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView'].forEach(function (v) {
+  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView'].forEach(function (v) {
     document.getElementById(v).classList.toggle('hidden', v !== id);
   });
   if (id === 'salesView') loadSales();
   if (id === 'noticesView') loadNotices();
   if (id === 'invoicesView') loadInvoices();
   if (id === 'returnsView') loadReturns();
+  if (id === 'attachmentsView') loadAttachments();
   if (id === 'homeView') refreshPendingBadge();
 }
 
@@ -789,6 +828,87 @@ function printNoticesReport() {
     { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'time', label: 'الوقت' },
     { key: 'receiver', label: 'المستلمة' }, { key: 'status', label: 'الحالة' }
   ], rows);
+}
+
+/* -------- المرفقات -------- */
+function toggleAttachKind() {
+  const kind = document.querySelector('input[name="attachKind"]:checked').value;
+  document.getElementById('attachLinkRow').classList.toggle('hidden', kind !== 'link');
+  document.getElementById('attachFileRow').classList.toggle('hidden', kind !== 'file');
+}
+
+function submitAttachment() {
+  const title = document.getElementById('attachTitle').value.trim();
+  const kind = document.querySelector('input[name="attachKind"]:checked').value;
+  if (!title) { alert('اكتبي عنوان المرفق'); return; }
+
+  if (kind === 'link') {
+    const link = document.getElementById('attachLink').value.trim();
+    if (!link) { alert('اكتبي رابط المرفق'); return; }
+    sendAttachment({ title: title, kind: 'link', link: link });
+    return;
+  }
+
+  const fileInput = document.getElementById('attachFile');
+  const file = fileInput.files[0];
+  if (!file) { alert('اختاري ملف'); return; }
+  if (file.size > 15 * 1024 * 1024) { alert('حجم الملف كبير جداً (الحد الأقصى 15 ميجا)'); return; }
+  const reader = new FileReader();
+  reader.onload = function () {
+    sendAttachment({ title: title, kind: 'file', fileData: reader.result, fileName: file.name, mimeType: file.type });
+  };
+  reader.readAsDataURL(file);
+}
+
+function sendAttachment(payload) {
+  payload.from = currentCenter;
+  callApi('recordAttachment', payload).then(function (r) {
+    if (r.ok) {
+      document.getElementById('attachTitle').value = '';
+      document.getElementById('attachLink').value = '';
+      document.getElementById('attachFile').value = '';
+      const s = document.getElementById('attachSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+      loadAttachments();
+    } else {
+      alert('صار خطأ أثناء حفظ المرفق، حاولي مرة ثانية');
+    }
+  });
+}
+
+function loadAttachments() {
+  const box = document.getElementById('attachmentsList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getAttachments', {}).then(function (r) {
+    const list = r.attachments || [];
+    if (!r.ok || !list.length) {
+      box.innerHTML = 'لا توجد مرفقات بعد';
+      return;
+    }
+    box.innerHTML = '';
+    list.forEach(function (a) {
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div>' +
+          '<div>' + (a['العنوان'] || '') + '</div>' +
+          '<div class="meta">' + (a['النوع'] || '') + (a['من'] ? (' · بواسطة: ' + a['من']) : '') + ' · ' + (a['اليوم'] || '') + ' ' + toHijriStr(a['التاريخ']) + '</div>' +
+          '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;">' +
+            '<a href="' + (a['الرابط'] || '#') + '" target="_blank">فتح</a>' +
+            '<a href="#" onclick="deleteAttachmentRow(' + a._row + '); return false;">حذف</a>' +
+          '</div>' +
+        '</div>';
+      box.appendChild(div);
+    });
+  });
+}
+
+function deleteAttachmentRow(row) {
+  if (!confirm('متأكدة تبين تحذفين هذا المرفق؟')) return;
+  callApi('deleteAttachment', { row: row }).then(function (r) {
+    if (r.ok) loadAttachments();
+  });
 }
 
 function refreshPendingBadge() {
