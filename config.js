@@ -428,13 +428,15 @@ async function generateNoticeImage(opts) {
   const greg = opts.date ? toGregorianArabicStr(opts.date) : '';
   ctx.fillText('التاريخ: ' + hijri + (greg ? (' (' + greg + ')') : ''), rx, 248);
 
-  // جملة الاستلام/التسليم + المبلغ سوا: "استلمنا من مركز: ... مبلغ وقدره ... ريال"
+  // سطر: استلمنا من مركز: [المركز]
   const verb = opts.type === 'تسليم' ? 'سلّمنا مركز' : 'استلمنا من مركز';
-  const mainLine = verb + ': ' + (opts.center || '') + ' مبلغ وقدره ' +
-    toArabicDigits(Number(opts.amount || 0).toFixed(2)) + ' ريال';
   ctx.font = 'bold 23px Tajawal, sans-serif';
   ctx.fillStyle = '#8C1A2C';
-  wrapText_(ctx, mainLine, rx, 288, W - 160, 30);
+  wrapText_(ctx, verb + ': ' + (opts.center || ''), rx, 282, W - 160, 28);
+
+  // سطر مستقل: مبلغ وقدره ... ريال
+  ctx.font = 'bold 22px Tajawal, sans-serif';
+  ctx.fillText('مبلغ وقدره ' + toArabicDigits(Number(opts.amount || 0).toFixed(2)) + ' ريال', rx, 312);
 
   // جملة السبب: قيمة المبيعات (استلام) أو مكافأة المتعاونة (تسليم)
   const reasonLine = opts.type === 'تسليم'
@@ -443,11 +445,11 @@ async function generateNoticeImage(opts) {
       ' للفصل الدراسي ' + (opts.term || '.......') + ' لعام ' + (opts.year || '.......');
   ctx.font = '20px Tajawal, sans-serif';
   ctx.fillStyle = '#2b2321';
-  wrapText_(ctx, reasonLine, rx, 340, W - 160, 26);
+  wrapText_(ctx, reasonLine, rx, 344, W - 160, 24);
 
   // المبلغ كتابةً بين قوسين
   ctx.font = '17px Tajawal, sans-serif';
-  wrapText_(ctx, '(' + amountToArabicWords(opts.amount) + ')', rx, 401, W - 160, 23);
+  wrapText_(ctx, '(' + amountToArabicWords(opts.amount) + ')', rx, 398, W - 160, 22);
 
   ctx.textAlign = 'center';
   ctx.font = '18px Tajawal, sans-serif';
