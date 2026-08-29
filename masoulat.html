@@ -950,7 +950,7 @@ function sendAttachment(payload) {
       setTimeout(function () { s.style.display = 'none'; }, 2500);
       loadAttachments();
     } else {
-      alert('صار خطأ أثناء حفظ المرفق، حاولي مرة ثانية');
+      alert('صار خطأ أثناء حفظ المرفق:\n' + (r.error || 'خطأ غير معروف') + '\n\nلو الخطأ يقول شي عن "المرفقات" أو null، معناته شيت "المرفقات" لسا ما انسوى بجوجل شيتس - شغّلي دالة setup من محرر Apps Script.');
     }
   });
 }
