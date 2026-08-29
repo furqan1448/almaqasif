@@ -377,6 +377,8 @@ function handleRequest_(p) {
       case 'getPendingNotices': return json_(getPendingNotices_());
       case 'getAllNotices': return json_(getAllNotices_());
       case 'adminSignNotice': return json_(adminSignNotice_(p));
+      case 'updateNotice': return json_(updateNotice_(p));
+      case 'deleteNotice': return json_(deleteNotice_(p));
 
       case 'getStats': return json_(getStats_());
 
@@ -712,6 +714,24 @@ function getCenterNotices_(p) {
     return String(r['اسم المركز']).trim() === String(p.center).trim();
   });
   return { ok: true, notices: rows.reverse() };
+}
+
+/* تعديل خفيف على إشعار موجود: المبلغ و/أو اسم المسلّمة فقط
+   (ما تُعدَّل الصورة/التوقيع/الحالة عشان تبقى السجلات الموقّعة موثوقة) */
+function updateNotice_(p) {
+  const sh = sheet_('الإشعارات');
+  const row = Number(p.row);
+  if (p.amount !== undefined && p.amount !== '') sh.getRange(row, colIndex_(sh, 'المبلغ')).setValue(Number(p.amount));
+  if (p.senderName !== undefined) sh.getRange(row, colIndex_(sh, 'اسم المسلّمة')).setValue(p.senderName);
+  invalidateCache_('الإشعارات');
+  return { ok: true };
+}
+
+function deleteNotice_(p) {
+  const sh = sheet_('الإشعارات');
+  sh.deleteRow(Number(p.row));
+  invalidateCache_('الإشعارات');
+  return { ok: true };
 }
 
 function getPendingNotices_() {
