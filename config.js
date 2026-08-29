@@ -327,29 +327,33 @@ function printReport(title, subtitle, columns, rows, totals) {
   html += '<style>';
   html += '@import url(\'https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Tajawal:wght@400;700;800&display=swap\');';
   html += '@page { margin: 0; }';
-  html += 'body{font-family:"Tajawal",sans-serif;direction:rtl;margin:0;padding:0 28px 28px;color:#2b2321;}';
+  html += '*{box-sizing:border-box;}';
+  html += 'html,body{margin:0;padding:0;}';
+  html += 'body{font-family:"Tajawal",sans-serif;direction:rtl;color:#2b2321;}';
+  html += '.content{padding:0 28px 28px;}';
   html += 'h1{font-family:"Amiri",serif;color:#8C1A2C;margin:0 0 2px;font-size:1.5rem;}';
   html += '.sub{color:#8a7d76;margin:16px 0 22px;font-size:0.9rem;}';
   html += 'table{width:100%;border-collapse:collapse;font-size:0.88rem;}';
   html += 'th,td{border:1px solid #C2AA85;padding:8px 10px;text-align:center;}';
   html += 'th{background:#e8dcc8;color:#6e1523;}';
-  html += '.letterhead{width:100%;display:block;margin-bottom:0;}';
+  html += '.report-total{margin-top:14px;text-align:left;font-weight:800;font-size:1.05rem;color:#6e1523;}';
+  html += '.letterhead{width:100%;display:block;}';
   html += '@media print{ .letterhead{ -webkit-print-color-adjust:exact; print-color-adjust:exact; } }';
   html += '</style></head><body>';
   const letterheadUrl = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
   if (letterheadUrl) {
     html += '<img class="letterhead" src="' + letterheadUrl + '" alt="كليشة جمعية فرقان">';
-    html += '<div style="padding:0 0;"><h1 style="margin-top:18px;">' + title + '</h1>';
+    html += '<div class="content"><h1 style="margin-top:18px;">' + title + '</h1>';
   } else {
     const logoUrl = (typeof FURQAN_LOGO_URL !== 'undefined') ? FURQAN_LOGO_URL : '';
-    html += '<div style="padding-top:20px;">';
+    html += '<div class="content" style="padding-top:20px;">';
     html += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:6px;">';
     if (logoUrl) html += '<img src="' + logoUrl + '" alt="شعار فرقان" style="width:56px;height:56px;border-radius:50%;object-fit:cover;">';
     html += '<h1 style="margin:0;">جمعية فرقان لتحفيظ القرآن الكريم</h1>';
     html += '</div>';
     html += '<h1 style="font-size:1.2rem;">' + title + '</h1>';
   }
-  html += '<div class="sub">' + (subtitle || '') + ' &middot; ' + toHijriStr(todayStr()) + '</div></div>';
+  html += '<div class="sub">' + (subtitle || '') + ' &middot; ' + toHijriStr(todayStr()) + '</div>';
   html += '<table><thead><tr>';
   columns.forEach(function (c) { html += '<th>' + c.label + '</th>'; });
   html += '</tr></thead><tbody>';
@@ -361,18 +365,12 @@ function printReport(title, subtitle, columns, rows, totals) {
     });
     html += '</tr>';
   });
-  html += '</tbody>';
+  html += '</tbody></table>';
   if (totals && totals.key) {
     const sum = rows.reduce(function (s, r) { return s + (Number(r[totals.key]) || 0); }, 0);
-    html += '<tfoot><tr style="font-weight:800;background:#f5efe3;">';
-    columns.forEach(function (c, idx) {
-      if (idx === 0) html += '<td>' + (totals.label || 'الإجمالي') + '</td>';
-      else if (c.key === totals.key) html += '<td>' + sum.toFixed(2) + '</td>';
-      else html += '<td></td>';
-    });
-    html += '</tr></tfoot>';
+    html += '<div class="report-total">' + (totals.label || 'الإجمالي') + ': ' + sum.toFixed(2) + '</div>';
   }
-  html += '</table>';
+  html += '</div>';
   html += '<script>window.onload = function(){ setTimeout(function(){ window.print(); }, 350); };<\/script>';
   html += '</body></html>';
   win.document.write(html);
