@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbzmMvJAPE7Ok7HhRjHIYAfrBE90PxZSDWKhxHRX59HCilWYWGQif_7r-CzXkEBIbOKI/exec";
+const API_URL = https://script.google.com/macros/s/AKfycbzgDwmD4wg0puirj0QmVBkC0q83iFZaLOdNYhJWKgeasHIJNpuEjaBTIavr52uSWnnn/exec";
 
 async function callApi(action, data) {
   const payload = Object.assign({ action: action }, data || {});
