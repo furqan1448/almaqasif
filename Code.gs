@@ -43,7 +43,8 @@ function setup() {
       'اسم المستلمة', 'بيانات توقيع المركز'],
     'المرفقات': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
     'مرفقات الإشراف': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
-    'دخول الإشراف': ['البريد الإلكتروني', 'كلمة المرور', 'الاسم']
+    'دخول الإشراف': ['البريد الإلكتروني', 'كلمة المرور', 'الاسم'],
+    'الصعوبات والمقترحات': ['معرف', 'اسم المركز', 'من', 'النوع', 'النص', 'اليوم', 'التاريخ', 'الوقت']
   };
 
   Object.keys(sheets).forEach(function (name) {
@@ -507,6 +508,10 @@ function handleRequest_(p) {
 
       case 'loginSupervision': return json_(loginSupervision_(p));
 
+      case 'recordDifficulty': return json_(recordDifficulty_(p));
+      case 'getDifficulties': return json_(getDifficulties_(p));
+      case 'deleteDifficulty': return json_(deleteDifficulty_(p));
+
       case 'debugInfo': return json_(debugInfo_());
 
       default: return json_({ ok: false, error: 'إجراء غير معروف' });
@@ -876,6 +881,63 @@ function notifyAdminNewNotice_(type, center, amount, now, noticeImageUrl, sender
   } catch (e) {
     // تجاهل خطأ الإرسال حتى لا يفشل حفظ الإشعار بسببه
   }
+}
+
+/* ------------------- الصعوبات والمقترحات ------------------- */
+
+function recordDifficulty_(p) {
+  const sh = sheet_('الصعوبات والمقترحات');
+  const id = Utilities.getUuid();
+  const now = nowParts_();
+  appendRowByHeaders_(sh, {
+    'معرف': id, 'اسم المركز': p.center || '', 'من': p.from || '', 'النوع': p.type || 'صعوبة',
+    'النص': p.text || '', 'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
+  });
+  invalidateCache_('الصعوبات والمقترحات');
+  notifyAdminNewDifficulty_(p.type, p.center, p.from, p.text, now);
+  return { ok: true, id: id };
+}
+
+function notifyAdminNewDifficulty_(type, center, from, text, now) {
+  if (!ADMIN_NOTIFY_EMAIL || ADMIN_NOTIFY_EMAIL.indexOf('@example.com') !== -1) return;
+  try {
+    MailApp.sendEmail({
+      to: ADMIN_NOTIFY_EMAIL,
+      subject: (type || 'صعوبة') + ' جديدة من ' + (center || '') + ' - وحدة المقاصف',
+      body: 'السلام عليكم،\n\n' +
+        'وصلت ' + (type || 'صعوبة') + ' جديدة من مركز "' + (center || '') + '".\n' +
+        (from ? ('من: ' + from + '\n') : '') +
+        '\nالنص:\n' + (text || '') + '\n\n' +
+        'اليوم: ' + now.day + '\n' +
+        'التاريخ: ' + now.date + '\n' +
+        'الوقت: ' + now.time + '\n\n' +
+        'الرجاء الدخول للوحة إدارة وحدة المقاصف للاطلاع.\n\n' +
+        '— نظام وحدة المقاصف، جمعية فرقان لتحفيظ القرآن الكريم'
+    });
+  } catch (e) {
+    // تجاهل خطأ الإرسال حتى لا يفشل الحفظ بسببه
+  }
+}
+
+/* p.center: لو انمرّرت، ترجع صعوبات/مقترحات هذا المركز بس (يشوفها المركز نفسه).
+   وإلا لو انمرّر p.from، ترجع اللي أرسلتها هذي الجهة بس (مسؤولة غير مربوطة بمركز).
+   لو ما انمرّر ولا واحد منهم، ترجع الكل (لصفحة الإدارة). */
+function getDifficulties_(p) {
+  const rows = sheetToObjects_('الصعوبات والمقترحات');
+  let filtered = rows;
+  if (p && p.center) {
+    filtered = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
+  } else if (p && p.from) {
+    filtered = rows.filter(function (r) { return String(r['من']).trim() === String(p.from).trim(); });
+  }
+  return { ok: true, items: filtered.reverse() };
+}
+
+function deleteDifficulty_(p) {
+  const sh = sheet_('الصعوبات والمقترحات');
+  sh.deleteRow(Number(p.row));
+  invalidateCache_('الصعوبات والمقترحات');
+  return { ok: true };
 }
 
 function getCenterNotices_(p) {

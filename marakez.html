@@ -74,6 +74,10 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12l4.5-4.5a3 3 0 1 1 4.2 4.2L9.5 19a5 5 0 1 1-7-7l7-7"/></svg></div>
           <span class="label">إضافة مرفقات</span>
         </div>
+        <div class="icon-btn" onclick="showView('difficultiesView')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 3 20h18z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg></div>
+          <span class="label">الصعوبات والمقترحات</span>
+        </div>
       </div>
     </div>
 
@@ -270,6 +274,32 @@
         <div id="attachmentsList">جاري التحميل...</div>
       </div>
     </div>
+
+    <!-- الصعوبات والمقترحات -->
+    <div id="difficultiesView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">إرسال صعوبة أو مقترح</h3>
+        <label>النوع</label>
+        <div style="display:flex;gap:18px;margin-bottom:6px;">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;">
+            <input type="radio" name="diffType" value="صعوبة" checked> صعوبة
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;">
+            <input type="radio" name="diffType" value="مقترح"> مقترح
+          </label>
+        </div>
+        <label>النص</label>
+        <textarea id="diffText" rows="5" placeholder="اكتبي التفاصيل هنا..."></textarea>
+        <button class="btn" onclick="submitDifficulty()" style="margin-top:12px;">إرسال لإدارة وحدة المقاصف</button>
+        <div class="success-msg" id="diffSuccess">تم الإرسال بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">ما أرسلتِه سابقاً</h3>
+        <div id="difficultiesList">جاري التحميل...</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -356,7 +386,7 @@ function showDashboard() {
 }
 
 function showView(id) {
-  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView'].forEach(function (v) {
+  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView'].forEach(function (v) {
     document.getElementById(v).classList.toggle('hidden', v !== id);
   });
   if (id === 'salesView') loadSales();
@@ -364,6 +394,7 @@ function showView(id) {
   if (id === 'invoicesView') loadInvoices();
   if (id === 'returnsView') loadReturns();
   if (id === 'attachmentsView') loadAttachments();
+  if (id === 'difficultiesView') loadDifficulties();
   if (id === 'homeView') refreshPendingBadge();
 }
 
@@ -908,6 +939,48 @@ function deleteAttachmentRow(row) {
   if (!confirm('متأكدة تبين تحذفين هذا المرفق؟')) return;
   callApi('deleteAttachment', { row: row }).then(function (r) {
     if (r.ok) loadAttachments();
+  });
+}
+
+/* -------- الصعوبات والمقترحات -------- */
+function submitDifficulty() {
+  const type = document.querySelector('input[name="diffType"]:checked').value;
+  const text = document.getElementById('diffText').value.trim();
+  if (!text) { alert('اكتبي النص'); return; }
+  callApi('recordDifficulty', { center: currentCenter, from: currentCenter, type: type, text: text }).then(function (r) {
+    if (r.ok) {
+      document.getElementById('diffText').value = '';
+      const s = document.getElementById('diffSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+      loadDifficulties();
+    } else {
+      alert('صار خطأ أثناء الإرسال، حاولي مرة ثانية');
+    }
+  });
+}
+
+function loadDifficulties() {
+  const box = document.getElementById('difficultiesList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getDifficulties', { center: currentCenter }).then(function (r) {
+    const list = r.items || [];
+    if (!r.ok || !list.length) {
+      box.innerHTML = 'ما أرسلتِ شي بعد';
+      return;
+    }
+    box.innerHTML = '';
+    list.forEach(function (item) {
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div>' +
+          '<div>' + (item['النوع'] || '') + '</div>' +
+          '<div class="meta">' + (item['اليوم'] || '') + ' ' + toHijriStr(item['التاريخ']) + '</div>' +
+          '<div style="margin-top:6px;white-space:pre-wrap;">' + (item['النص'] || '') + '</div>' +
+        '</div>';
+      box.appendChild(div);
+    });
   });
 }
 

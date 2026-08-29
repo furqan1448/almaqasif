@@ -41,6 +41,7 @@
     <button class="tab-btn" data-tab="attendanceTab" onclick="showAdminTab('attendanceTab')">الحضور</button>
     <button class="tab-btn" data-tab="statsTab" onclick="showAdminTab('statsTab')">الإحصائيات</button>
     <button class="tab-btn" data-tab="attachmentsTab" onclick="showAdminTab('attachmentsTab')">المرفقات</button>
+    <button class="tab-btn" data-tab="difficultiesTab" onclick="showAdminTab('difficultiesTab')">الصعوبات والمقترحات</button>
     <button class="tab-btn" data-tab="officeAttachmentsTab" onclick="showAdminTab('officeAttachmentsTab')">مرفقات المكتب</button>
   </div>
 
@@ -186,6 +187,14 @@
       </div>
     </div>
 
+    <!-- ===== تبويب: الصعوبات والمقترحات (للاطلاع فقط) ===== -->
+    <div id="difficultiesTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">الصعوبات والمقترحات الواردة</h3>
+        <div id="difficultiesList">جاري التحميل...</div>
+      </div>
+    </div>
+
     <!-- ===== تبويب: مرفقات المكتب (خاصة بمكتب إشراف الداخل فقط) ===== -->
     <div id="officeAttachmentsTab" class="admin-tab-panel hidden">
       <div class="card">
@@ -286,6 +295,7 @@ function showAdminTab(tabId) {
   if (tabId === 'returnsTab') loadCenterReturns();
   if (tabId === 'invoicesTab') loadCenterInvoices();
   if (tabId === 'attachmentsTab') loadAttachments();
+  if (tabId === 'difficultiesTab') loadDifficultiesAdmin();
   if (tabId === 'officeAttachmentsTab') loadOfficeAttachments();
 }
 
@@ -644,6 +654,31 @@ function loadAttachments() {
           '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;">' +
             '<a href="' + (a['الرابط'] || '#') + '" target="_blank">فتح</a>' +
           '</div>' +
+        '</div>';
+      box.appendChild(div);
+    });
+  });
+}
+
+/* -------- الصعوبات والمقترحات (للاطلاع فقط) -------- */
+function loadDifficultiesAdmin() {
+  const box = document.getElementById('difficultiesList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getDifficulties', {}).then(function (r) {
+    const list = r.items || [];
+    if (!r.ok || !list.length) {
+      box.innerHTML = 'لا توجد صعوبات أو مقترحات بعد';
+      return;
+    }
+    box.innerHTML = '';
+    list.forEach(function (item) {
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div>' +
+          '<div>' + (item['النوع'] || '') + (item['اسم المركز'] ? (' · ' + item['اسم المركز']) : '') + '</div>' +
+          '<div class="meta">' + (item['من'] ? ('من: ' + item['من'] + ' · ') : '') + (item['اليوم'] || '') + ' ' + toHijriStr(item['التاريخ']) + '</div>' +
+          '<div style="margin-top:6px;white-space:pre-wrap;">' + (item['النص'] || '') + '</div>' +
         '</div>';
       box.appendChild(div);
     });

@@ -41,6 +41,7 @@
     <button class="tab-btn" data-tab="attendanceTab" onclick="showAdminTab('attendanceTab')">الحضور</button>
     <button class="tab-btn" data-tab="statsTab" onclick="showAdminTab('statsTab')">الإحصائيات</button>
     <button class="tab-btn" data-tab="attachmentsTab" onclick="showAdminTab('attachmentsTab')">المرفقات</button>
+    <button class="tab-btn" data-tab="difficultiesTab" onclick="showAdminTab('difficultiesTab')">الصعوبات والمقترحات</button>
   </div>
 
   <div class="wrap">
@@ -233,6 +234,17 @@
       </div>
     </div>
 
+    <!-- ===== تبويب: الصعوبات والمقترحات ===== -->
+    <div id="difficultiesTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">الصعوبات والمقترحات الواردة</h3>
+        <div id="difficultiesList">جاري التحميل...</div>
+        <div class="export-row">
+          <button class="btn outline" onclick="exportDifficulties()">⬇️ Excel</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -295,6 +307,7 @@ function showAdminTab(tabId) {
   if (tabId === 'returnsTab') loadCenterReturns();
   if (tabId === 'invoicesTab') loadCenterInvoices();
   if (tabId === 'attachmentsTab') loadAttachments();
+  if (tabId === 'difficultiesTab') loadDifficultiesAdmin();
 }
 
 /* -------- تحميل قوائم المراكز في كل القوائم المنسدلة -------- */
@@ -774,6 +787,54 @@ function deleteAttachmentRow(row) {
   callApi('deleteAttachment', { row: row }).then(function (r) {
     if (r.ok) loadAttachments();
   });
+}
+
+/* -------- الصعوبات والمقترحات -------- */
+let currentDifficulties = [];
+
+function loadDifficultiesAdmin() {
+  const box = document.getElementById('difficultiesList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getDifficulties', {}).then(function (r) {
+    currentDifficulties = r.items || [];
+    if (!r.ok || !currentDifficulties.length) {
+      box.innerHTML = 'لا توجد صعوبات أو مقترحات بعد';
+      return;
+    }
+    box.innerHTML = '';
+    currentDifficulties.forEach(function (item) {
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div>' +
+          '<div>' + (item['النوع'] || '') + (item['اسم المركز'] ? (' · ' + item['اسم المركز']) : '') + '</div>' +
+          '<div class="meta">' + (item['من'] ? ('من: ' + item['من'] + ' · ') : '') + (item['اليوم'] || '') + ' ' + toHijriStr(item['التاريخ']) + '</div>' +
+          '<div style="margin-top:6px;white-space:pre-wrap;">' + (item['النص'] || '') + '</div>' +
+          '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;">' +
+            '<a href="#" onclick="deleteDifficultyRow(' + item._row + '); return false;">حذف</a>' +
+          '</div>' +
+        '</div>';
+      box.appendChild(div);
+    });
+  });
+}
+
+function deleteDifficultyRow(row) {
+  if (!confirm('متأكدة تبين تحذفين هذا العنصر؟')) return;
+  callApi('deleteDifficulty', { row: row }).then(function (r) {
+    if (r.ok) loadDifficultiesAdmin();
+  });
+}
+
+function exportDifficulties() {
+  if (!currentDifficulties.length) { alert('لا توجد بيانات لتصديرها'); return; }
+  const rows = currentDifficulties.map(function (item) {
+    return {
+      'النوع': item['النوع'] || '', 'المركز': item['اسم المركز'] || '', 'من': item['من'] || '',
+      'النص': item['النص'] || '', 'اليوم': item['اليوم'] || '', 'التاريخ': item['التاريخ'] || ''
+    };
+  });
+  exportToExcel(rows, 'الصعوبات-والمقترحات', 'الصعوبات والمقترحات');
 }
 </script>
 </body>

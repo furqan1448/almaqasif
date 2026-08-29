@@ -56,13 +56,14 @@
         </div>
         <div id="pledgeFormWrap">
           <div class="pledge-box" id="pledgeText">
-            أنا الموقّعة أدناه أتعهد بالالتزام بالآتي: ١. الالتزام بالحجاب الشرعي الساتر والزي الرسمي المحتشم.
-٢. الالتزام بمواعيد الدخول والخروج، مع مراعاة أن التأخر ١٥ دقيقة على الأقل عند الانصراف من صميم العمل (لأجل البيع).
-٣. عدم التغيب عن الدوام إلا بعذر، مع الإعلام المسبق لتغطية المكان، وعدم أخذ إجازة خلال الدوام الرسمي إلا للضرورة.
-٤. عدم بيع أي سلعة غير معتمدة، وعدم قبول أي تبرع أو بضاعة للبيع إلا بعد عرضها على وحدة المقاصف.
-٥. حضور الاجتماعات والدورات المكلَّفة بها بمكتب الإشراف دون تغيب.
-٦. تسليم الإيرادات شهرياً (معدودة ومرتبة) في الوقت المحدد من رئيسة الوحدة، مع جرد الفواتير وحساب الأرباح بمكتب الإشراف.
-٧. التفرغ التام للبيع، وعدم الالتحاق بالدراسة في المركز.
+            أنا الموقّعة أدناه أتعهد بالالتزام بالآتي:<br>
+            ١. الالتزام بالحجاب الشرعي الساتر والزي الرسمي المحتشم.<br>
+            ٢. الالتزام بمواعيد الدخول والخروج، مع مراعاة أن التأخر ١٥ دقيقة على الأقل عند الانصراف من صميم العمل (لأجل البيع).<br>
+            ٣. عدم التغيب عن الدوام إلا بعذر، مع الإعلام المسبق لتغطية المكان، وعدم أخذ إجازة خلال الدوام الرسمي إلا للضرورة.<br>
+            ٤. عدم بيع أي سلعة غير معتمدة، وعدم قبول أي تبرع أو بضاعة للبيع إلا بعد عرضها على وحدة المقاصف.<br>
+            ٥. حضور الاجتماعات والدورات المكلَّفة بها بمكتب الإشراف دون تغيب.<br>
+            ٦. تسليم الإيرادات شهرياً (معدودة ومرتبة) في الوقت المحدد من رئيسة الوحدة، مع جرد الفواتير وحساب الأرباح بمكتب الإشراف.<br>
+            ٧. التفرغ التام للبيع، وعدم الالتحاق بالدراسة في المركز.
           </div>
           <div class="checkline">
             <input type="checkbox" id="pledgeCheck">
@@ -116,6 +117,13 @@
         <h3 style="margin-top:0;color:var(--maroon);">المرفقات</h3>
         <p style="color:#8a7d76;font-size:0.9rem;margin-top:0;">أضيفي ملفات أو روابط مشتركة (نماذج، لوائح، إلخ) تظهر لكل المراكز والمسؤولات والإدارة.</p>
         <button class="btn outline" onclick="showView('attachmentsView')">إدارة المرفقات</button>
+      </div>
+
+      <!-- الصعوبات والمقترحات -->
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">الصعوبات والمقترحات</h3>
+        <p style="color:#8a7d76;font-size:0.9rem;margin-top:0;">أرسلي أي صعوبة تواجهك أو مقترح لإدارة وحدة المقاصف مباشرة.</p>
+        <button class="btn outline" onclick="showView('difficultiesView')">إرسال صعوبة أو مقترح</button>
       </div>
     </div>
 
@@ -305,6 +313,32 @@
       </div>
     </div>
 
+    <!-- الصعوبات والمقترحات -->
+    <div id="difficultiesView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">إرسال صعوبة أو مقترح</h3>
+        <label>النوع</label>
+        <div style="display:flex;gap:18px;margin-bottom:6px;">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;">
+            <input type="radio" name="diffType" value="صعوبة" checked> صعوبة
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;">
+            <input type="radio" name="diffType" value="مقترح"> مقترح
+          </label>
+        </div>
+        <label>النص</label>
+        <textarea id="diffText" rows="5" placeholder="اكتبي التفاصيل هنا..."></textarea>
+        <button class="btn" onclick="submitDifficulty()" style="margin-top:12px;">إرسال لإدارة وحدة المقاصف</button>
+        <div class="success-msg" id="diffSuccess">تم الإرسال بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">ما أرسلتِه سابقاً</h3>
+        <div id="difficultiesList">جاري التحميل...</div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -396,7 +430,7 @@ function showDashboard() {
 }
 
 function showView(id) {
-  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView'].forEach(function (v) {
+  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView'].forEach(function (v) {
     document.getElementById(v).classList.toggle('hidden', v !== id);
   });
   if (id === 'salesView') loadSales();
@@ -404,6 +438,7 @@ function showView(id) {
   if (id === 'invoicesView') loadInvoices();
   if (id === 'returnsView') loadReturns();
   if (id === 'attachmentsView') loadAttachments();
+  if (id === 'difficultiesView') loadDifficulties();
   if (id === 'homeView' && currentCenter) refreshPendingBadge();
 }
 
@@ -445,7 +480,7 @@ function signPledge() {
   if (!checked) { alert('لازم تحددي "أوافق وأتعهد" أولاً'); return; }
   const btn = document.getElementById('pledgeBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
-  callApi('signPledge', { name: currentName, pledgeText: document.getElementById('pledgeText').textContent.trim() }).then(function (r) {
+  callApi('signPledge', { name: currentName, pledgeText: document.getElementById('pledgeText').innerText.trim() }).then(function (r) {
     btn.disabled = false; btn.textContent = 'توقيع التعهد';
     if (r.ok) loadPledge();
   });
@@ -990,6 +1025,50 @@ function deleteAttachmentRow(row) {
   if (!confirm('متأكدة تبين تحذفين هذا المرفق؟')) return;
   callApi('deleteAttachment', { row: row }).then(function (r) {
     if (r.ok) loadAttachments();
+  });
+}
+
+/* -------- الصعوبات والمقترحات -------- */
+function submitDifficulty() {
+  const type = document.querySelector('input[name="diffType"]:checked').value;
+  const text = document.getElementById('diffText').value.trim();
+  if (!text) { alert('اكتبي النص'); return; }
+  const fromLabel = currentName + (currentCenter ? (' - ' + currentCenter) : '');
+  callApi('recordDifficulty', { center: currentCenter, from: fromLabel, type: type, text: text }).then(function (r) {
+    if (r.ok) {
+      document.getElementById('diffText').value = '';
+      const s = document.getElementById('diffSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+      loadDifficulties();
+    } else {
+      alert('صار خطأ أثناء الإرسال، حاولي مرة ثانية');
+    }
+  });
+}
+
+function loadDifficulties() {
+  const box = document.getElementById('difficultiesList');
+  box.innerHTML = 'جاري التحميل...';
+  const params = currentCenter ? { center: currentCenter } : { from: currentName };
+  callApi('getDifficulties', params).then(function (r) {
+    const list = r.items || [];
+    if (!r.ok || !list.length) {
+      box.innerHTML = 'ما أرسلتِ شي بعد';
+      return;
+    }
+    box.innerHTML = '';
+    list.forEach(function (item) {
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div>' +
+          '<div>' + (item['النوع'] || '') + '</div>' +
+          '<div class="meta">' + (item['اليوم'] || '') + ' ' + toHijriStr(item['التاريخ']) + '</div>' +
+          '<div style="margin-top:6px;white-space:pre-wrap;">' + (item['النص'] || '') + '</div>' +
+        '</div>';
+      box.appendChild(div);
+    });
   });
 }
 
