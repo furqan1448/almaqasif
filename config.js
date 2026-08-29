@@ -387,6 +387,25 @@ async function generateNoticeImage(opts) {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, 110);
 
+  // صندوق المبلغ بارز أعلى يسار الإشعار (رقماً) - بأسلوب سندات القبض الرسمية
+  ctx.save();
+  const boxW = 210, boxH = 58, boxX = 34, boxY = 24;
+  ctx.fillStyle = 'rgba(255,255,255,0.13)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, 10); else ctx.rect(boxX, boxY, boxW, boxH);
+  ctx.fill();
+  ctx.stroke();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#e8dcc8';
+  ctx.font = '13px Tajawal, sans-serif';
+  ctx.fillText('المبلغ', boxX + boxW / 2, boxY + 21);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 23px Tajawal, sans-serif';
+  ctx.fillText(toArabicDigits(Number(opts.amount || 0).toFixed(2)) + ' ريال', boxX + boxW / 2, boxY + 46);
+  ctx.restore();
+
   ctx.direction = 'rtl';
   ctx.textAlign = 'center';
   ctx.fillStyle = '#fff';
@@ -430,14 +449,10 @@ async function generateNoticeImage(opts) {
 
   // سطر: استلمنا من مركز: [المركز] (خط منقّط بأسلوب سند القبض)
   const verb = opts.type === 'تسليم' ? 'سلّمنا مركز' : 'استلمنا من مركز';
-  drawDottedField_(ctx, rx, 290, W - 160, verb + ':', opts.center || '');
+  drawDottedField_(ctx, rx, 296, W - 160, verb + ':', opts.center || '');
 
-  // سطر: المبلغ رقماً
-  drawDottedField_(ctx, rx, 326, W - 160, 'المبلغ:',
-    toArabicDigits(Number(opts.amount || 0).toFixed(2)) + ' ريال');
-
-  // سطر: مبلغ وقدره (كتابةً) + نقداً
-  drawDottedField_(ctx, rx, 362, W - 160, 'مبلغ وقدره:',
+  // سطر: مبلغ وقدره (كتابةً) + نقداً - رقم المبلغ نفسه بارز أعلى الإشعار
+  drawDottedField_(ctx, rx, 338, W - 160, 'مبلغ وقدره:',
     amountToArabicWords(opts.amount) + ' نقداً',
     { valueFont: '15px Tajawal, sans-serif' });
 
@@ -446,7 +461,7 @@ async function generateNoticeImage(opts) {
     ? 'مكافأة لمتعاونة المقصف'
     : 'قيمة مبيعات المقصف ' + monthsPhrase(opts.months) +
       ' للفصل الدراسي ' + (opts.term || '.......') + ' لعام ' + (opts.year || '.......');
-  drawDottedField_(ctx, rx, 398, W - 160, 'وذلك:', reasonLine, { valueFont: '15px Tajawal, sans-serif' });
+  drawDottedField_(ctx, rx, 380, W - 160, 'وذلك:', reasonLine, { valueFont: '15px Tajawal, sans-serif' });
 
   ctx.textAlign = 'center';
   ctx.font = '18px Tajawal, sans-serif';
