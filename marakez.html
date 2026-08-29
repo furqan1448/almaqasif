@@ -132,23 +132,24 @@
     <div id="returnsView" class="hidden">
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">تسجيل بضاعة مرتجعة</h3>
+        <h3 style="margin-top:0;color:var(--maroon);" id="returnFormTitle">تسجيل بضاعة مرتجعة</h3>
         <label>وصف الصنف</label>
         <input type="text" id="returnDesc" placeholder="مثال: عصير برتقال">
         <label>الكمية</label>
         <input type="number" id="returnQty" placeholder="0" step="1">
         <label>القيمة (ريال)</label>
         <input type="number" id="returnValue" placeholder="0.00" step="0.01">
-        <button class="btn" onclick="submitReturn()">حفظ المرتجع</button>
+        <button class="btn" id="returnSubmitBtn" onclick="submitReturn()">حفظ المرتجع</button>
+        <button class="btn secondary hidden" id="returnCancelEditBtn" onclick="cancelEditReturn()">إلغاء التعديل</button>
         <div class="success-msg" id="returnSuccess">تم تسجيل المرتجع بنجاح ✅</div>
       </div>
 
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">سجل المرتجعات</h3>
         <table class="log-table" id="returnsTable">
-          <thead><tr><th>اليوم</th><th>التاريخ</th><th>الصنف</th><th>الكمية</th><th>القيمة</th></tr></thead>
-          <tbody id="returnsTbody"><tr><td colspan="5">جاري التحميل...</td></tr></tbody>
-          <tfoot><tr><td colspan="4">إجمالي المرتجعات</td><td id="returnsTotal">0</td></tr></tfoot>
+          <thead><tr><th>اليوم</th><th>التاريخ</th><th>الصنف</th><th>الكمية</th><th>القيمة</th><th></th></tr></thead>
+          <tbody id="returnsTbody"><tr><td colspan="6">جاري التحميل...</td></tr></tbody>
+          <tfoot><tr><td colspan="4">إجمالي المرتجعات</td><td id="returnsTotal">0</td><td></td></tr></tfoot>
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportReturnsReport()">⬇️ Excel</button>
@@ -346,7 +347,7 @@ function loadSales() {
     currentSalesData.forEach(function (s) {
       const tr = document.createElement('tr');
       tr.innerHTML = '<td>' + (s['اليوم'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td>' +
-        '<td><a href="#" onclick="editSale(' + s._row + ', ' + Number(s['المبلغ']) + '); return false;" style="font-size:0.85rem;">تعديل</a></td>';
+        '<td><div class="row-actions"><a href="#" onclick="editSale(' + s._row + ', ' + Number(s['المبلغ']) + '); return false;">تعديل</a><a href="#" onclick="deleteSaleRow(' + s._row + '); return false;">حذف</a></div></td>';
       tbody.appendChild(tr);
     });
     document.getElementById('salesTotal').textContent = r.total.toFixed(2);
@@ -359,6 +360,13 @@ function editSale(row, currentAmount) {
   const num = parseFloat(newVal);
   if (isNaN(num)) { alert('قيمة غير صحيحة'); return; }
   callApi('updateSale', { row: row, amount: num }).then(function (r) {
+    if (r.ok) loadSales();
+  });
+}
+
+function deleteSaleRow(row) {
+  if (!confirm('متأكدة تبين تحذفين هذا المبلغ من سجل المبيعات؟')) return;
+  callApi('deleteSale', { row: row }).then(function (r) {
     if (r.ok) loadSales();
   });
 }
@@ -490,11 +498,23 @@ function printInvoicesReport() {
 }
 
 /* -------- البضائع المرتجعة -------- */
+let editingReturnRow = null;
+
 function submitReturn() {
   const description = document.getElementById('returnDesc').value.trim();
   const quantity = document.getElementById('returnQty').value;
   const value = document.getElementById('returnValue').value;
   if (!description || !value) { alert('أكملي وصف الصنف والقيمة'); return; }
+
+  if (editingReturnRow) {
+    callApi('updateReturn', {
+      row: editingReturnRow, description: description, quantity: quantity || 0, value: value
+    }).then(function (r) {
+      if (r.ok) { cancelEditReturn(); loadReturns(); }
+    });
+    return;
+  }
+
   callApi('recordReturn', {
     center: currentCenter, date: todayStr(), description: description,
     quantity: quantity || 0, value: value
@@ -511,20 +531,51 @@ function submitReturn() {
   });
 }
 
+function editReturn(row) {
+  const rt = currentReturnsData.find(function (r) { return r._row === row; });
+  if (!rt) return;
+  editingReturnRow = row;
+  document.getElementById('returnDesc').value = rt['وصف الصنف'] || '';
+  document.getElementById('returnQty').value = rt['الكمية'] || 0;
+  document.getElementById('returnValue').value = Number(rt['القيمة']);
+  document.getElementById('returnFormTitle').textContent = 'تعديل مرتجع';
+  document.getElementById('returnSubmitBtn').textContent = 'حفظ التعديل';
+  document.getElementById('returnCancelEditBtn').classList.remove('hidden');
+  document.getElementById('returnDesc').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelEditReturn() {
+  editingReturnRow = null;
+  document.getElementById('returnDesc').value = '';
+  document.getElementById('returnQty').value = '';
+  document.getElementById('returnValue').value = '';
+  document.getElementById('returnFormTitle').textContent = 'تسجيل بضاعة مرتجعة';
+  document.getElementById('returnSubmitBtn').textContent = 'حفظ المرتجع';
+  document.getElementById('returnCancelEditBtn').classList.add('hidden');
+}
+
+function deleteReturnRow(row) {
+  if (!confirm('متأكدة تبين تحذفين هذا المرتجع؟')) return;
+  callApi('deleteReturn', { row: row }).then(function (r) {
+    if (r.ok) loadReturns();
+  });
+}
+
 function loadReturns() {
   const tbody = document.getElementById('returnsTbody');
-  tbody.innerHTML = '<tr><td colspan="5">جاري التحميل...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6">جاري التحميل...</td></tr>';
   callApi('getReturns', { center: currentCenter }).then(function (r) {
     currentReturnsData = r.returns || [];
     if (!r.ok || !currentReturnsData.length) {
-      tbody.innerHTML = '<tr><td colspan="5">لا توجد مرتجعات بعد</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6">لا توجد مرتجعات بعد</td></tr>';
       document.getElementById('returnsTotal').textContent = '0';
       return;
     }
     tbody.innerHTML = '';
     currentReturnsData.forEach(function (rt) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (rt['اليوم'] || '') + '</td><td>' + toHijriStr(rt['التاريخ']) + '</td><td>' + (rt['وصف الصنف'] || '') + '</td><td>' + (rt['الكمية'] || 0) + '</td><td>' + Number(rt['القيمة']).toFixed(2) + '</td>';
+      tr.innerHTML = '<td>' + (rt['اليوم'] || '') + '</td><td>' + toHijriStr(rt['التاريخ']) + '</td><td>' + (rt['وصف الصنف'] || '') + '</td><td>' + (rt['الكمية'] || 0) + '</td><td>' + Number(rt['القيمة']).toFixed(2) + '</td>' +
+        '<td><div class="row-actions"><a onclick="editReturn(' + rt._row + ')">تعديل</a><a onclick="deleteReturnRow(' + rt._row + ')">حذف</a></div></td>';
       tbody.appendChild(tr);
     });
     document.getElementById('returnsTotal').textContent = r.total.toFixed(2);
@@ -647,11 +698,16 @@ function loadNotices() {
       const done = n['الحالة'] === 'تم الاطلاع';
       const div = document.createElement('div');
       div.className = 'notice-item';
+      const senderEsc = String(n['اسم المسلّمة'] || '').replace(/'/g, "\\'");
       div.innerHTML =
         '<div>' +
           '<div>إشعار ' + n['النوع'] + ' - ' + Number(n['المبلغ']).toFixed(2) + ' ريال</div>' +
           '<div class="meta">' + formatDayDateTime(n['يوم الإرسال'], n['تاريخ الإرسال'], n['وقت الإرسال']) + (n['اسم المسلّمة'] ? (' · المسلّمة: ' + n['اسم المسلّمة']) : '') + '</div>' +
           (n['الشهر'] ? '<div class="meta">مبيعات ' + n['الشهر'] + ' · الفصل ' + n['الفصل الدراسي'] + ' · ' + n['العام'] + '</div>' : '') +
+          '<div class="row-actions" style="margin-top:6px;">' +
+            (done ? '' : '<a href="#" onclick="editNotice(' + n._row + ', ' + Number(n['المبلغ']) + ', \'' + senderEsc + '\'); return false;">تعديل</a>') +
+            '<a href="#" onclick="deleteNoticeRow(' + n._row + '); return false;">حذف</a>' +
+          '</div>' +
         '</div>' +
         '<div style="text-align:left;">' +
           '<span class="status-pill ' + (done ? 'done' : 'pending') + '">' + (done ? 'تم الاطلاع' : 'بانتظار الاطلاع') + '</span>' +
@@ -660,6 +716,25 @@ function loadNotices() {
         '</div>';
       box.appendChild(div);
     });
+  });
+}
+
+function editNotice(row, currentAmount, currentSender) {
+  const newAmountStr = prompt('تعديل المبلغ (ريال):', currentAmount);
+  if (newAmountStr === null) return;
+  const newAmount = parseFloat(newAmountStr);
+  if (isNaN(newAmount)) { alert('قيمة غير صحيحة'); return; }
+  const newSender = prompt('تعديل اسم المسلّمة:', currentSender || '');
+  if (newSender === null) return;
+  callApi('updateNotice', { row: row, amount: newAmount, senderName: newSender }).then(function (r) {
+    if (r.ok) loadNotices();
+  });
+}
+
+function deleteNoticeRow(row) {
+  if (!confirm('متأكدة تبين تحذفين هذا الإشعار؟ لا يمكن التراجع.')) return;
+  callApi('deleteNotice', { row: row }).then(function (r) {
+    if (r.ok) { loadNotices(); refreshPendingBadge(); }
   });
 }
 
