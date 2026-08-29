@@ -428,28 +428,25 @@ async function generateNoticeImage(opts) {
   const greg = opts.date ? toGregorianArabicStr(opts.date) : '';
   ctx.fillText('التاريخ: ' + hijri + (greg ? (' (' + greg + ')') : ''), rx, 248);
 
-  // سطر: استلمنا من مركز: [المركز]
+  // سطر: استلمنا من مركز: [المركز] (خط منقّط بأسلوب سند القبض)
   const verb = opts.type === 'تسليم' ? 'سلّمنا مركز' : 'استلمنا من مركز';
-  ctx.font = 'bold 23px Tajawal, sans-serif';
-  ctx.fillStyle = '#8C1A2C';
-  wrapText_(ctx, verb + ': ' + (opts.center || ''), rx, 282, W - 160, 28);
+  drawDottedField_(ctx, rx, 290, W - 160, verb + ':', opts.center || '');
 
-  // سطر مستقل: مبلغ وقدره ... ريال
-  ctx.font = 'bold 22px Tajawal, sans-serif';
-  ctx.fillText('مبلغ وقدره ' + toArabicDigits(Number(opts.amount || 0).toFixed(2)) + ' ريال', rx, 312);
+  // سطر: المبلغ رقماً
+  drawDottedField_(ctx, rx, 326, W - 160, 'المبلغ:',
+    toArabicDigits(Number(opts.amount || 0).toFixed(2)) + ' ريال');
 
-  // جملة السبب: قيمة المبيعات (استلام) أو مكافأة المتعاونة (تسليم)
+  // سطر: مبلغ وقدره (كتابةً) + نقداً
+  drawDottedField_(ctx, rx, 362, W - 160, 'مبلغ وقدره:',
+    amountToArabicWords(opts.amount) + ' نقداً',
+    { valueFont: '15px Tajawal, sans-serif' });
+
+  // سطر: وذلك (السبب) - قيمة المبيعات (استلام) أو مكافأة المتعاونة (تسليم)
   const reasonLine = opts.type === 'تسليم'
-    ? 'وذلك مكافأة لمتعاونة المقصف'
-    : 'وذلك قيمة مبيعات المقصف ' + monthsPhrase(opts.months) +
+    ? 'مكافأة لمتعاونة المقصف'
+    : 'قيمة مبيعات المقصف ' + monthsPhrase(opts.months) +
       ' للفصل الدراسي ' + (opts.term || '.......') + ' لعام ' + (opts.year || '.......');
-  ctx.font = '20px Tajawal, sans-serif';
-  ctx.fillStyle = '#2b2321';
-  wrapText_(ctx, reasonLine, rx, 344, W - 160, 24);
-
-  // المبلغ كتابةً بين قوسين
-  ctx.font = '17px Tajawal, sans-serif';
-  wrapText_(ctx, '(' + amountToArabicWords(opts.amount) + ')', rx, 398, W - 160, 22);
+  drawDottedField_(ctx, rx, 398, W - 160, 'وذلك:', reasonLine, { valueFont: '15px Tajawal, sans-serif' });
 
   ctx.textAlign = 'center';
   ctx.font = '18px Tajawal, sans-serif';
@@ -490,6 +487,46 @@ function wrapText_(ctx, text, x, y, maxWidth, lineHeight) {
   if (line) lines.push(line);
   lines.forEach(function (l, i) { ctx.fillText(l, x, y + i * lineHeight); });
   return lines.length;
+}
+
+/* يرسم "حقل" على شكل سند رسمي: تسمية + خط منقّط + القيمة فوق الخط،
+   بنفس أسلوب سندات القبض المطبوعة (تسمية على اليمين، خط نقاط يمتلئ بالقيمة). */
+function drawDottedField_(ctx, rx, y, width, label, value, opts) {
+  opts = opts || {};
+  const labelFont = opts.labelFont || 'bold 19px Tajawal, sans-serif';
+  const valueFont = opts.valueFont || '17px Tajawal, sans-serif';
+  const labelColor = opts.labelColor || '#8C1A2C';
+  const valueColor = opts.valueColor || '#2b2321';
+  const bg = opts.bg || '#FBF8F3';
+  const leftEdge = rx - width;
+
+  ctx.save();
+  ctx.strokeStyle = '#c9bfae';
+  ctx.lineWidth = 1.4;
+  ctx.setLineDash([2, 4]);
+  ctx.beginPath();
+  ctx.moveTo(leftEdge, y);
+  ctx.lineTo(rx, y);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.textAlign = 'right';
+  ctx.font = labelFont;
+  const labelW = ctx.measureText(label).width;
+  ctx.fillStyle = bg;
+  ctx.fillRect(rx - labelW - 4, y - 20, labelW + 8, 26);
+  ctx.fillStyle = labelColor;
+  ctx.fillText(label, rx, y - 2);
+
+  if (value) {
+    const valueX = rx - labelW - 14;
+    ctx.font = valueFont;
+    const valueW = Math.min(ctx.measureText(value).width, width - labelW - 20);
+    ctx.fillStyle = bg;
+    ctx.fillRect(valueX - valueW - 6, y - 20, valueW + 10, 26);
+    ctx.fillStyle = valueColor;
+    ctx.fillText(value, valueX, y - 2);
+  }
 }
 
 /* -------- لوحة توقيع بالإصبع/الفأرة -------- */
