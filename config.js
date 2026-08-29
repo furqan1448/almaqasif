@@ -413,78 +413,55 @@ async function generateNoticeImage(opts) {
   ctx.font = 'bold 34px Amiri, serif';
   ctx.fillText('إشعار ' + opts.type, W / 2, 172);
 
+  ctx.strokeStyle = '#C2AA85';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(40, 128, W - 80, 300);
+
   ctx.textAlign = 'right';
   ctx.fillStyle = '#2b2321';
   const rx = W - 90;
-  const contentWidth = W - 160;
 
-  // نجهّز نصوص الجمل مقدماً عشان نحسب كم سطر بتاخذ كل وحدة (للف التلقائي)
-  // ونقدر نرسم إطار الصندوق بالحجم الصح قبل رسم النص فعلياً
+  // اليوم / التاريخ (هجري وميلادي)
+  ctx.font = '22px Tajawal, sans-serif';
+  ctx.fillText('اليوم: ' + (opts.day || ''), rx, 215);
+  const hijri = opts.date ? toHijriStr(opts.date) : '';
+  const greg = opts.date ? toGregorianArabicStr(opts.date) : '';
+  ctx.fillText('التاريخ: ' + hijri + (greg ? (' (' + greg + ')') : ''), rx, 248);
+
+  // جملة الاستلام/التسليم + المبلغ سوا: "استلمنا من مركز: ... مبلغ وقدره ... ريال"
   const verb = opts.type === 'تسليم' ? 'سلّمنا مركز' : 'استلمنا من مركز';
   const mainLine = verb + ': ' + (opts.center || '') + ' مبلغ وقدره ' +
     toArabicDigits(Number(opts.amount || 0).toFixed(2)) + ' ريال';
+  ctx.font = 'bold 23px Tajawal, sans-serif';
+  ctx.fillStyle = '#8C1A2C';
+  wrapText_(ctx, mainLine, rx, 288, W - 160, 30);
+
+  // جملة السبب: قيمة المبيعات (استلام) أو مكافأة المتعاونة (تسليم)
   const reasonLine = opts.type === 'تسليم'
     ? 'وذلك مكافأة لمتعاونة المقصف'
     : 'وذلك قيمة مبيعات المقصف ' + monthsPhrase(opts.months) +
       ' للفصل الدراسي ' + (opts.term || '.......') + ' لعام ' + (opts.year || '.......');
-  const wordsLine = '(' + amountToArabicWords(opts.amount) + ')';
-
-  ctx.font = 'bold 23px Tajawal, sans-serif';
-  const mainLineCount = measureWrapLines_(ctx, mainLine, contentWidth);
-  ctx.font = '20px Tajawal, sans-serif';
-  const reasonLineCount = measureWrapLines_(ctx, reasonLine, contentWidth);
-  ctx.font = '17px Tajawal, sans-serif';
-  const wordsLineCount = measureWrapLines_(ctx, wordsLine, contentWidth);
-
-  let y = 215;
-  const afterMain = y + 33 + 40 + (mainLineCount * 30) + 12 + (reasonLineCount * 26) + 14 + (wordsLineCount * 23);
-  const boxBottom = afterMain + 15;
-  const sigY = Math.max(boxBottom + 45, 448);
-
-  ctx.strokeStyle = '#C2AA85';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(40, 128, W - 80, boxBottom - 128);
-
-  // اليوم / التاريخ (هجري وميلادي)
-  ctx.font = '22px Tajawal, sans-serif';
-  ctx.fillStyle = '#2b2321';
-  ctx.fillText('اليوم: ' + (opts.day || ''), rx, y);
-  y += 33;
-  const hijri = opts.date ? toHijriStr(opts.date) : '';
-  const greg = opts.date ? toGregorianArabicStr(opts.date) : '';
-  ctx.fillText('التاريخ: ' + hijri + (greg ? (' (' + greg + ')') : ''), rx, y);
-  y += 40;
-
-  // جملة الاستلام/التسليم + المبلغ سوا: "استلمنا من مركز: ... مبلغ وقدره ... ريال"
-  ctx.font = 'bold 23px Tajawal, sans-serif';
-  ctx.fillStyle = '#8C1A2C';
-  const actualMainLines = wrapText_(ctx, mainLine, rx, y, contentWidth, 30);
-  y += (actualMainLines - 1) * 30 + 12;
-
-  // جملة السبب: قيمة المبيعات (استلام) أو مكافأة المتعاونة (تسليم)
   ctx.font = '20px Tajawal, sans-serif';
   ctx.fillStyle = '#2b2321';
-  wrapText_(ctx, reasonLine, rx, y, contentWidth, 26);
-  y += (reasonLineCount - 1) * 26 + 14;
+  wrapText_(ctx, reasonLine, rx, 340, W - 160, 26);
 
   // المبلغ كتابةً بين قوسين
   ctx.font = '17px Tajawal, sans-serif';
-  wrapText_(ctx, wordsLine, rx, y, contentWidth, 23);
+  wrapText_(ctx, '(' + amountToArabicWords(opts.amount) + ')', rx, 401, W - 160, 23);
 
   ctx.textAlign = 'center';
   ctx.font = '18px Tajawal, sans-serif';
   ctx.fillStyle = '#8a7d76';
-  ctx.fillText('توقيع المسلّمة' + (opts.senderName ? (': ' + opts.senderName) : ''), W * 0.28, sigY);
-  ctx.fillText((opts.adminLabel || 'توقيع المستلمة') + (opts.receiverName ? (': ' + opts.receiverName) : ''), W * 0.72, sigY);
+  ctx.fillText('توقيع المسلّمة' + (opts.senderName ? (': ' + opts.senderName) : ''), W * 0.28, 448);
+  ctx.fillText((opts.adminLabel || 'توقيع المستلمة') + (opts.receiverName ? (': ' + opts.receiverName) : ''), W * 0.72, 448);
 
-  if (sigImg) ctx.drawImage(sigImg, W * 0.28 - 130, sigY + 10, 260, 85);
-  if (adminImg) ctx.drawImage(adminImg, W * 0.72 - 130, sigY + 10, 260, 85);
+  if (sigImg) ctx.drawImage(sigImg, W * 0.28 - 130, 458, 260, 85);
+  if (adminImg) ctx.drawImage(adminImg, W * 0.72 - 130, 458, 260, 85);
 
   ctx.strokeStyle = '#e8dcc8';
   ctx.lineWidth = 1;
-  const lineY = sigY + 107;
-  ctx.beginPath(); ctx.moveTo(60, lineY); ctx.lineTo(W * 0.28 + 130, lineY); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(W * 0.72 - 130, lineY); ctx.lineTo(W - 60, lineY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(60, 555); ctx.lineTo(W * 0.28 + 130, 555); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W * 0.72 - 130, 555); ctx.lineTo(W - 60, 555); ctx.stroke();
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#8a7d76';
@@ -511,25 +488,6 @@ function wrapText_(ctx, text, x, y, maxWidth, lineHeight) {
   if (line) lines.push(line);
   lines.forEach(function (l, i) { ctx.fillText(l, x, y + i * lineHeight); });
   return lines.length;
-}
-
-/* نفس منطق التفاف wrapText_ بس بدون رسم - تُستخدم لحساب عدد الأسطر مقدماً
-   عشان نقدر نرسم إطار الصندوق بالحجم المناسب قبل ما نعرف نص الأسطر فعلياً */
-function measureWrapLines_(ctx, text, maxWidth) {
-  const words = text.split(' ');
-  let line = '';
-  let count = 0;
-  words.forEach(function (word) {
-    const test = line ? (line + ' ' + word) : word;
-    if (ctx.measureText(test).width > maxWidth && line) {
-      count++;
-      line = word;
-    } else {
-      line = test;
-    }
-  });
-  if (line) count++;
-  return count;
 }
 
 /* -------- لوحة توقيع بالإصبع/الفأرة -------- */
