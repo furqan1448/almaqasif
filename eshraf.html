@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إدارة التعليم النسائي - مكتب إشراف الداخل</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== شاشة الدخول ===================== -->
+<div id="loginScreen" class="center-wrap">
+  <div class="login-card">
+    <h1>إدارة التعليم النسائي</h1>
+    <p class="sub">مكتب إشراف الداخل - وحدة المقاصف</p>
+
+    <label>البريد الإلكتروني</label>
+    <input type="text" id="supervisionEmail" placeholder="اكتبي بريدك الإلكتروني">
+
+    <label>كلمة المرور</label>
+    <input type="password" id="supervisionPassword" placeholder="أدخلي كلمة المرور">
+
+    <button class="btn" id="loginBtn" onclick="doLogin()">دخول</button>
+    <div class="error-msg" id="loginError"></div>
+  </div>
+  <a href="index.html" class="back-link" style="display:block;text-align:center;margin-top:16px;">⟵ الرجوع للصفحة الرئيسية</a>
+</div>
+
+<!-- ===================== اللوحة ===================== -->
+<div id="dashScreen" class="hidden">
+  <div class="topbar">
+    <div class="brand"><span class="dot" id="brandDot"></span><img class="logo-img hidden" id="brandLogo" alt="شعار فرقان"> إدارة التعليم النسائي - مكتب إشراف الداخل</div>
+    <button class="logout" onclick="logout()">خروج</button>
+  </div>
+
+  <div class="admin-tabs">
+    <button class="tab-btn active" data-tab="noticesTab" onclick="showAdminTab('noticesTab')">الإشعارات</button>
+    <button class="tab-btn" data-tab="salesTab" onclick="showAdminTab('salesTab')">المبيعات</button>
+    <button class="tab-btn" data-tab="returnsTab" onclick="showAdminTab('returnsTab')">المرتجعات</button>
+    <button class="tab-btn" data-tab="invoicesTab" onclick="showAdminTab('invoicesTab')">الفواتير</button>
+    <button class="tab-btn" data-tab="attendanceTab" onclick="showAdminTab('attendanceTab')">الحضور</button>
+    <button class="tab-btn" data-tab="statsTab" onclick="showAdminTab('statsTab')">الإحصائيات</button>
+    <button class="tab-btn" data-tab="attachmentsTab" onclick="showAdminTab('attachmentsTab')">المرفقات</button>
+    <button class="tab-btn" data-tab="officeAttachmentsTab" onclick="showAdminTab('officeAttachmentsTab')">مرفقات المكتب</button>
+  </div>
+
+  <div class="wrap">
+
+    <!-- ===== تبويب: الإشعارات ===== -->
+    <div id="noticesTab" class="admin-tab-panel">
+      <div class="card" id="alertCard" style="display:none;border-right:5px solid var(--pending);">
+        <strong style="color:var(--pending);">يوجد <span id="alertCount">0</span> إشعار بانتظار الاطلاع</strong>
+      </div>
+
+      <div id="listView">
+        <div class="card">
+          <div class="select-row">
+            <div>
+              <label>نوع الإشعار</label>
+              <select id="noticeTypeFilter" onchange="renderNoticeLists()">
+                <option value="">الكل (استلام وتسليم)</option>
+                <option value="استلام">استلام</option>
+                <option value="تسليم">تسليم</option>
+              </select>
+            </div>
+            <div>
+              <label>المركز</label>
+              <select id="noticeCenterFilter" onchange="renderNoticeLists()"><option value="">كل المراكز</option></select>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--maroon);">إشعارات بانتظار الاطلاع</h3>
+          <div id="pendingList">جاري التحميل...</div>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--maroon);">إشعارات تم الاطلاع عليها</h3>
+          <div id="doneList">جاري التحميل...</div>
+        </div>
+      </div>
+
+      <div id="detailView" class="hidden">
+        <a class="back-link" onclick="backToList()">⟵ رجوع للقائمة</a>
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--maroon);">تفاصيل الإشعار</h3>
+          <img id="detailNoticeImg" class="notice-preview">
+          <p style="margin-top:14px;"><strong>الحالة: </strong><span id="detailStatus"></span></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: المبيعات ===== -->
+    <div id="salesTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">سجل البيع اليومي لكل مركز</h3>
+        <div class="select-row">
+          <div>
+            <label>اختاري المركز</label>
+            <select id="salesCenterSelect" onchange="loadCenterSales()"><option value="">جاري التحميل...</option></select>
+          </div>
+        </div>
+        <table class="log-table" id="salesTable">
+          <thead><tr><th>المركز</th><th>اليوم</th><th>التاريخ</th><th>الوقت</th><th>المبلغ</th><th>ملاحظات</th></tr></thead>
+          <tbody id="salesTbody"><tr><td colspan="6">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
+          <tfoot><tr><td colspan="4">الإجمالي</td><td id="salesTotal">0</td><td></td></tr></tfoot>
+        </table>
+        <div class="export-row">
+          <button class="btn outline" onclick="exportCurrentSales()">⬇️ Excel</button>
+          <button class="btn outline" onclick="printCurrentSales()">🖨️ PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: المرتجعات ===== -->
+    <div id="returnsTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">↩️ البضائع المرتجعة لكل مركز</h3>
+        <div class="select-row">
+          <div>
+            <label>اختاري المركز</label>
+            <select id="returnsCenterSelect" onchange="loadCenterReturns()"><option value="">جاري التحميل...</option></select>
+          </div>
+        </div>
+        <table class="log-table" id="returnsTable">
+          <thead><tr><th>المركز</th><th>اليوم</th><th>التاريخ</th><th>الصنف</th><th>الكمية</th><th>القيمة</th><th>ملاحظات</th></tr></thead>
+          <tbody id="returnsTbody"><tr><td colspan="7">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
+          <tfoot><tr><td colspan="5">إجمالي المرتجعات</td><td id="returnsTotal">0</td><td></td></tr></tfoot>
+        </table>
+        <div class="export-row">
+          <button class="btn outline" onclick="exportCurrentReturns()">⬇️ Excel</button>
+          <button class="btn outline" onclick="printCurrentReturns()">🖨️ PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: الفواتير ===== -->
+    <div id="invoicesTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">بيان الفواتير لكل مركز</h3>
+        <div class="select-row">
+          <div>
+            <label>اختاري المركز</label>
+            <select id="invoicesCenterSelect" onchange="loadCenterInvoices()"><option value="">جاري التحميل...</option></select>
+          </div>
+        </div>
+        <table class="log-table" id="invoicesTable">
+          <thead><tr><th>المركز</th><th>رقم الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>المبلغ الإجمالي</th><th>الربح</th><th>ملاحظات</th></tr></thead>
+          <tbody id="invoicesTbody"><tr><td colspan="7">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
+          <tfoot><tr><td colspan="4">الإجمالي</td><td id="invoicesTotalAmount">0</td><td id="invoicesTotalProfit">0</td><td></td></tr></tfoot>
+        </table>
+        <div class="export-row">
+          <button class="btn outline" onclick="exportCurrentInvoices()">⬇️ Excel</button>
+          <button class="btn outline" onclick="printCurrentInvoices()">🖨️ PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: الحضور ===== -->
+    <div id="attendanceTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">حضور اجتماع المسؤولات</h3>
+        <label>تاريخ الاجتماع</label>
+        <input type="date" id="attendanceDate" onchange="loadAttendanceChecklist()">
+        <div class="attendance-checklist" id="attendanceChecklist">جاري التحميل...</div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: الإحصائيات ===== -->
+    <div id="statsTab" class="admin-tab-panel hidden">
+      <div class="stat-hero">
+        <div class="label">إجمالي إيرادات المقاصف</div>
+        <div class="amount" id="totalRevenueVal">0 ريال</div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">ترتيب المراكز حسب الإيرادات</h3>
+        <div id="chartWrap">جاري التحميل...</div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: المرفقات (مشتركة مع المراكز والمسؤولات - للاطلاع فقط) ===== -->
+    <div id="attachmentsTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">المرفقات المشتركة</h3>
+        <p style="color:#8a7d76;font-size:0.9rem;margin-top:0;">مرفقات أضافتها المراكز أو المسؤولات أو إدارة المقاصف - للاطلاع فقط.</p>
+        <div id="attachmentsList">جاري التحميل...</div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: مرفقات المكتب (خاصة بمكتب إشراف الداخل فقط) ===== -->
+    <div id="officeAttachmentsTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">إضافة مرفق خاص بالمكتب</h3>
+        <label>عنوان المرفق</label>
+        <input type="text" id="officeAttachTitle" placeholder="مثال: تقرير الزيارة الميدانية">
+        <label>نوع المرفق</label>
+        <div style="display:flex;gap:18px;margin-bottom:6px;">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;">
+            <input type="radio" name="officeAttachKind" value="link" checked onchange="toggleOfficeAttachKind()"> رابط
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;">
+            <input type="radio" name="officeAttachKind" value="file" onchange="toggleOfficeAttachKind()"> ملف
+          </label>
+        </div>
+        <div id="officeAttachLinkRow">
+          <label>الرابط</label>
+          <input type="url" id="officeAttachLink" placeholder="https://...">
+        </div>
+        <div id="officeAttachFileRow" class="hidden">
+          <label>الملف</label>
+          <input type="file" id="officeAttachFile">
+        </div>
+        <button class="btn" id="officeAttachSubmitBtn" onclick="submitOfficeAttachment()">حفظ المرفق</button>
+        <div class="success-msg" id="officeAttachSuccess">تم إضافة المرفق بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">مرفقات المكتب</h3>
+        <div id="officeAttachmentsList">جاري التحميل...</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<canvas id="noticeCanvas" width="900" height="710" style="display:none;"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="logo-config.js"></script>
+<script src="config.js"></script>
+<script>
+let isLoggedIn = sessionStorage.getItem('maqasif_supervision') === 'yes';
+let allPending = [];
+let currentNotice = null;
+let currentSales = [];
+let currentReturns = [];
+let currentInvoices = [];
+let centersListCache = [];
+
+if (isLoggedIn) showDashboard();
+
+function doLogin() {
+  const email = document.getElementById('supervisionEmail').value.trim();
+  const password = document.getElementById('supervisionPassword').value;
+  const errBox = document.getElementById('loginError');
+  errBox.style.display = 'none';
+  if (!email || !password) {
+    errBox.textContent = 'أدخلي البريد الإلكتروني وكلمة المرور';
+    errBox.style.display = 'block';
+    return;
+  }
+  callApi('loginSupervision', { email: email, password: password }).then(function (r) {
+    if (!r.ok) {
+      errBox.textContent = r.error || 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+      errBox.style.display = 'block';
+      return;
+    }
+    sessionStorage.setItem('maqasif_supervision', 'yes');
+    showDashboard();
+  });
+}
+
+function logout() {
+  sessionStorage.removeItem('maqasif_supervision');
+  document.getElementById('dashScreen').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+}
+
+function showDashboard() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('dashScreen').classList.remove('hidden');
+  loadPending();
+  loadCentersDropdowns();
+}
+
+/* -------- التبويبات -------- */
+function showAdminTab(tabId) {
+  document.querySelectorAll('.admin-tab-panel').forEach(function (el) {
+    el.classList.toggle('hidden', el.id !== tabId);
+  });
+  document.querySelectorAll('.tab-btn').forEach(function (btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+  });
+  if (tabId === 'statsTab') loadStats();
+  if (tabId === 'attendanceTab') loadAttendanceChecklist();
+  if (tabId === 'salesTab') loadCenterSales();
+  if (tabId === 'returnsTab') loadCenterReturns();
+  if (tabId === 'invoicesTab') loadCenterInvoices();
+  if (tabId === 'attachmentsTab') loadAttachments();
+  if (tabId === 'officeAttachmentsTab') loadOfficeAttachments();
+}
+
+/* -------- تحميل قوائم المراكز في كل القوائم المنسدلة -------- */
+function loadCentersDropdowns() {
+  callApi('getCenters').then(function (r) {
+    centersListCache = r.centers || [];
+    fillCenterSelect('salesCenterSelect');
+    fillCenterSelect('returnsCenterSelect');
+    fillCenterSelect('invoicesCenterSelect');
+    fillCenterSelect('noticeCenterFilter');
+  });
+}
+
+function fillCenterSelect(id) {
+  const sel = document.getElementById(id);
+  const placeholder = id === 'noticeCenterFilter' ? 'كل المراكز' : 'عرض جميع المراكز';
+  sel.innerHTML = '<option value="">' + placeholder + '</option>';
+  centersListCache.forEach(function (c) {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+}
+
+/* -------- الإشعارات (تعرض جميع إشعارات الاستلام والتسليم) -------- */
+let allNoticesPending = [];
+let allNoticesDone = [];
+
+function loadPending() {
+  document.getElementById('pendingList').innerHTML = 'جاري التحميل...';
+  document.getElementById('doneList').innerHTML = 'جاري التحميل...';
+  callApi('getAllNotices').then(function (r) {
+    if (!r.ok) {
+      const msg = '<p style="color:#b8321f;">تعذّر تحميل الإشعارات: ' + (r.error || 'الرجاء التأكد من نشر آخر نسخة من الكود بـ Apps Script (Deploy ← Manage deployments ← New version)') + '</p>';
+      document.getElementById('pendingList').innerHTML = msg;
+      document.getElementById('doneList').innerHTML = msg;
+      return;
+    }
+    allNoticesPending = r.pending || [];
+    allNoticesDone = r.done || [];
+    allPending = allNoticesPending; // توافق مع بقية الكود
+
+    const alertCard = document.getElementById('alertCard');
+    if (allNoticesPending.length > 0) {
+      alertCard.style.display = 'block';
+      document.getElementById('alertCount').textContent = allNoticesPending.length;
+    } else {
+      alertCard.style.display = 'none';
+    }
+
+    renderNoticeLists();
+
+    // تشخيص تلقائي: لو رجعت القائمتين فاضيتين تماماً (لا بانتظار ولا تم)، نطلع
+    // معلومات الملف المتصل فيه الكود فعلاً - عشان تكتشفي فوراً لو كنتِ متصلة بملف إكسل غلط
+    if (!allNoticesPending.length && !allNoticesDone.length) {
+      showConnectedFileDebug_();
+    }
+  }).catch(function (err) {
+    const msg = '<p style="color:#b8321f;">تعذّر الاتصال بالسيرفر: ' + err.message + '</p>';
+    document.getElementById('pendingList').innerHTML = msg;
+    document.getElementById('doneList').innerHTML = msg;
+  });
+}
+
+function showConnectedFileDebug_() {
+  const existing = document.getElementById('connDebugBox');
+  if (existing) existing.remove();
+  callApi('debugInfo').then(function (d) {
+    if (!d.ok) return;
+    const noticesSheet = d.sheets.find(function (s) { return s.name === 'الإشعارات'; });
+    const rowsText = noticesSheet ? (noticesSheet.exists ? (noticesSheet.rows + ' صف بيانات') : 'الشيت غير موجود بهذا الملف!') : '';
+    const box = document.createElement('div');
+    box.id = 'connDebugBox';
+    box.className = 'card';
+    box.style.borderRight = '5px solid var(--pending)';
+    box.innerHTML =
+      '<strong style="color:var(--pending);">تنبيه تشخيصي</strong>' +
+      '<p style="margin:8px 0 4px;">الموقع الآن متصل بملف الإكسل التالي:</p>' +
+      '<p style="font-weight:700;">' + d.spreadsheetName + '</p>' +
+      '<p style="font-size:0.85rem;"><a href="' + d.spreadsheetUrl + '" target="_blank">فتح هذا الملف</a></p>' +
+      '<p style="font-size:0.85rem;color:#8a7d76;">شيت "الإشعارات" بهذا الملف فيه: ' + rowsText + '</p>' +
+      '<p style="font-size:0.85rem;color:#8a7d76;">لو هذا مو نفس ملف الإكسل اللي انتِ شايفة فيه الإشعارات المرسلة، فهذا سبب المشكلة: افتحي Apps Script من داخل الملف الصحيح (إضافات ← Apps Script) وأعيدي لصق الأكواد ونشرها من هناك.</p>';
+    document.getElementById('listView').insertBefore(box, document.getElementById('listView').firstChild);
+  });
+}
+
+function renderNoticeLists() {
+  const typeFilter = document.getElementById('noticeTypeFilter').value;
+  const centerFilter = document.getElementById('noticeCenterFilter').value;
+
+  function matches(n) {
+    return (!typeFilter || n['النوع'] === typeFilter) &&
+      (!centerFilter || String(n['اسم المركز']).trim() === centerFilter);
+  }
+
+  const pendingFiltered = allNoticesPending.filter(matches);
+  const doneFiltered = allNoticesDone.filter(matches);
+
+  const pendingBox = document.getElementById('pendingList');
+  if (!pendingFiltered.length) {
+    pendingBox.innerHTML = '<p style="color:#8a7d76;">لا توجد إشعارات بانتظار الاطلاع</p>';
+  } else {
+    pendingBox.innerHTML = '';
+    pendingFiltered.forEach(function (n) {
+      pendingBox.appendChild(buildNoticeRow_(n, true));
+    });
+  }
+
+  const doneBox = document.getElementById('doneList');
+  if (!doneFiltered.length) {
+    doneBox.innerHTML = '<p style="color:#8a7d76;">لا توجد إشعارات تم الاطلاع عليها بعد</p>';
+  } else {
+    doneBox.innerHTML = '';
+    doneFiltered.forEach(function (n) {
+      doneBox.appendChild(buildNoticeRow_(n, false));
+    });
+  }
+}
+
+function buildNoticeRow_(n, isPending) {
+  const div = document.createElement('div');
+  div.className = 'notice-item';
+  div.style.cursor = 'pointer';
+  div.onclick = function () { openDetail(n); };
+  const salesInfo = n['الشهر'] ? ('<div class="meta">مبيعات ' + n['الشهر'] + ' · الفصل ' + n['الفصل الدراسي'] + ' · ' + n['العام'] + '</div>') : '';
+  const timeInfo = isPending
+    ? formatDayDateTime(n['يوم الإرسال'], n['تاريخ الإرسال'], n['وقت الإرسال'])
+    : formatDayDateTime(n['يوم اطلاع الإدارة'], n['تاريخ اطلاع الإدارة'], n['وقت اطلاع الإدارة']);
+  div.innerHTML =
+    '<div>' +
+      '<div><strong>' + n['اسم المركز'] + '</strong> - إشعار ' + n['النوع'] + '</div>' +
+      '<div class="meta">' + Number(n['المبلغ']).toFixed(2) + ' ريال · ' + timeInfo + '</div>' +
+      salesInfo +
+    '</div>' +
+    '<span class="status-pill ' + (isPending ? 'pending' : 'done') + '">' + (isPending ? 'بانتظار الاطلاع' : 'تم الاطلاع') + '</span>';
+  return div;
+}
+
+function openDetail(notice) {
+  currentNotice = notice;
+  document.getElementById('detailNoticeImg').src = notice['رابط صورة الإشعار الموقع'] || notice['رابط صورة الإشعار'];
+  document.getElementById('detailStatus').textContent = notice['الحالة'] === 'بانتظار الاطلاع' ? 'بانتظار الاطلاع' : 'تم الاطلاع';
+  document.getElementById('listView').classList.add('hidden');
+  document.getElementById('detailView').classList.remove('hidden');
+}
+
+function backToList() {
+  document.getElementById('detailView').classList.add('hidden');
+  document.getElementById('listView').classList.remove('hidden');
+  loadPending();
+}
+
+/* -------- المبيعات لكل مركز -------- */
+function loadCenterSales() {
+  const center = document.getElementById('salesCenterSelect').value;
+  const tbody = document.getElementById('salesTbody');
+  tbody.innerHTML = '<tr><td colspan="6">جاري التحميل...</td></tr>';
+  callApi('getSales', { center: center }).then(function (r) {
+    currentSales = r.sales || [];
+    if (!r.ok || !currentSales.length) {
+      tbody.innerHTML = '<tr><td colspan="6">لا يوجد سجل بعد</td></tr>';
+      document.getElementById('salesTotal').textContent = '0';
+      return;
+    }
+    tbody.innerHTML = '';
+    currentSales.forEach(function (s) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + (s['اسم المركز'] || '') + '</td><td>' + (s['اليوم'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td><td>' + (s['ملاحظات'] || '') + '</td>';
+      tbody.appendChild(tr);
+    });
+    document.getElementById('salesTotal').textContent = r.total.toFixed(2);
+  });
+}
+
+function exportCurrentSales() {
+  const center = document.getElementById('salesCenterSelect').value;
+  if (!currentSales.length) { alert('لا يوجد سجل مبيعات لتصديره'); return; }
+  const rows = currentSales.map(function (s) {
+    return { 'المركز': s['اسم المركز'] || '', 'اليوم': s['اليوم'] || '', 'التاريخ': toHijriStr(s['التاريخ']), 'المبلغ': Number(s['المبلغ']), 'ملاحظات': s['ملاحظات'] || '' };
+  });
+  exportToExcel(rows, 'مبيعات-' + (center || 'كل-المراكز'), 'المبيعات', { key: 'المبلغ', label: 'الإجمالي' });
+}
+
+function printCurrentSales() {
+  const center = document.getElementById('salesCenterSelect').value;
+  if (!currentSales.length) { alert('لا يوجد سجل مبيعات لطباعته'); return; }
+  const rows = currentSales.map(function (s) {
+    return { center: s['اسم المركز'] || '', day: s['اليوم'] || '', date: toHijriStr(s['التاريخ']), amount: Number(s['المبلغ']).toFixed(2), notes: s['ملاحظات'] || '' };
+  });
+  printReport('سجل المبيعات', center || 'كل المراكز', [
+    { key: 'center', label: 'المركز' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'amount', label: 'المبلغ' }, { key: 'notes', label: 'ملاحظات' }
+  ], rows, { key: 'amount', label: 'الإجمالي' });
+}
+
+/* -------- المرتجعات لكل مركز -------- */
+function loadCenterReturns() {
+  const center = document.getElementById('returnsCenterSelect').value;
+  const tbody = document.getElementById('returnsTbody');
+  tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
+  callApi('getReturns', { center: center }).then(function (r) {
+    currentReturns = r.returns || [];
+    if (!r.ok || !currentReturns.length) {
+      tbody.innerHTML = '<tr><td colspan="7">لا توجد مرتجعات بعد</td></tr>';
+      document.getElementById('returnsTotal').textContent = '0';
+      return;
+    }
+    tbody.innerHTML = '';
+    currentReturns.forEach(function (rt) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + (rt['اسم المركز'] || '') + '</td><td>' + (rt['اليوم'] || '') + '</td><td>' + toHijriStr(rt['التاريخ']) + '</td><td>' + (rt['وصف الصنف'] || '') + '</td><td>' + (rt['الكمية'] || 0) + '</td><td>' + Number(rt['القيمة']).toFixed(2) + '</td><td>' + (rt['ملاحظات'] || '') + '</td>';
+      tbody.appendChild(tr);
+    });
+    document.getElementById('returnsTotal').textContent = r.total.toFixed(2);
+  });
+}
+
+function exportCurrentReturns() {
+  const center = document.getElementById('returnsCenterSelect').value;
+  if (!currentReturns.length) { alert('لا يوجد سجل مرتجعات لتصديره'); return; }
+  const rows = currentReturns.map(function (rt) {
+    return { 'المركز': rt['اسم المركز'] || '', 'اليوم': rt['اليوم'] || '', 'التاريخ': rt['التاريخ'], 'الصنف': rt['وصف الصنف'] || '', 'الكمية': rt['الكمية'] || 0, 'القيمة': Number(rt['القيمة']), 'ملاحظات': rt['ملاحظات'] || '' };
+  });
+  exportToExcel(rows, 'مرتجعات-' + (center || 'كل-المراكز'), 'المرتجعات');
+}
+
+function printCurrentReturns() {
+  const center = document.getElementById('returnsCenterSelect').value;
+  if (!currentReturns.length) { alert('لا يوجد سجل مرتجعات لطباعته'); return; }
+  const rows = currentReturns.map(function (rt) {
+    return { center: rt['اسم المركز'] || '', day: rt['اليوم'] || '', date: toHijriStr(rt['التاريخ']), item: rt['وصف الصنف'] || '', qty: rt['الكمية'] || 0, value: Number(rt['القيمة']).toFixed(2), notes: rt['ملاحظات'] || '' };
+  });
+  printReport('البضائع المرتجعة', center || 'كل المراكز', [
+    { key: 'center', label: 'المركز' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'item', label: 'الصنف' },
+    { key: 'qty', label: 'الكمية' }, { key: 'value', label: 'القيمة' }, { key: 'notes', label: 'ملاحظات' }
+  ], rows);
+}
+
+/* -------- الفواتير لكل مركز -------- */
+function loadCenterInvoices() {
+  const center = document.getElementById('invoicesCenterSelect').value;
+  const tbody = document.getElementById('invoicesTbody');
+  tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
+  callApi('getInvoices', { center: center }).then(function (r) {
+    currentInvoices = r.invoices || [];
+    if (!r.ok || !currentInvoices.length) {
+      tbody.innerHTML = '<tr><td colspan="7">لا توجد فواتير بعد</td></tr>';
+      document.getElementById('invoicesTotalAmount').textContent = '0';
+      document.getElementById('invoicesTotalProfit').textContent = '0';
+      return;
+    }
+    tbody.innerHTML = '';
+    currentInvoices.forEach(function (inv) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td><td>' + (inv['ملاحظات'] || '') + '</td>';
+      tbody.appendChild(tr);
+    });
+    document.getElementById('invoicesTotalAmount').textContent = r.totalAmount.toFixed(2);
+    document.getElementById('invoicesTotalProfit').textContent = r.totalProfit.toFixed(2);
+  });
+}
+
+function exportCurrentInvoices() {
+  const center = document.getElementById('invoicesCenterSelect').value;
+  if (!currentInvoices.length) { alert('لا يوجد فواتير لتصديرها'); return; }
+  const rows = currentInvoices.map(function (inv) {
+    return { 'المركز': inv['اسم المركز'] || '', 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'المبلغ الإجمالي': Number(inv['المبلغ الإجمالي']), 'الربح': Number(inv['الربح']), 'ملاحظات': inv['ملاحظات'] || '' };
+  });
+  exportToExcel(rows, 'فواتير-' + (center || 'كل-المراكز'), 'الفواتير');
+}
+
+function printCurrentInvoices() {
+  const center = document.getElementById('invoicesCenterSelect').value;
+  if (!currentInvoices.length) { alert('لا يوجد فواتير لطباعتها'); return; }
+  const rows = currentInvoices.map(function (inv) {
+    return { center: inv['اسم المركز'] || '', num: inv['رقم الفاتورة'] || '', day: inv['اليوم'] || '', date: toHijriStr(inv['التاريخ']), total: Number(inv['المبلغ الإجمالي']).toFixed(2), profit: Number(inv['الربح']).toFixed(2), notes: inv['ملاحظات'] || '' };
+  });
+  printReport('بيان الفواتير', center || 'كل المراكز', [
+    { key: 'center', label: 'المركز' }, { key: 'num', label: 'رقم الفاتورة' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' },
+    { key: 'total', label: 'المبلغ الإجمالي' }, { key: 'profit', label: 'الربح' }, { key: 'notes', label: 'ملاحظات' }
+  ], rows);
+}
+
+/* -------- الحضور -------- */
+document.getElementById('attendanceDate') && (document.getElementById('attendanceDate').value = todayStr());
+let masoulatListCache = [];
+
+function loadAttendanceChecklist() {
+  const wrap = document.getElementById('attendanceChecklist');
+  wrap.innerHTML = 'جاري التحميل...';
+  const date = document.getElementById('attendanceDate').value;
+
+  Promise.all([
+    masoulatListCache.length ? Promise.resolve({ ok: true, masoulat: masoulatListCache }) : callApi('getMasoulat'),
+    callApi('getAttendanceForDate', { date: date })
+  ]).then(function (results) {
+    const masoulatRes = results[0];
+    const attRes = results[1];
+    masoulatListCache = masoulatRes.masoulat || [];
+    const presentNames = (attRes.names || []);
+
+    if (!masoulatListCache.length) {
+      wrap.innerHTML = '<p style="color:#8a7d76;">لا توجد مسؤولات مسجّلات بشيت "المسؤولات" بعد</p>';
+      return;
+    }
+    wrap.innerHTML = '';
+    masoulatListCache.forEach(function (name) {
+      const checked = presentNames.indexOf(name) !== -1;
+      const label = document.createElement('label');
+      label.innerHTML = '<input type="checkbox" value="' + name + '" disabled ' + (checked ? 'checked' : '') + '> ' + name;
+      wrap.appendChild(label);
+    });
+  });
+}
+
+/* -------- الإحصائيات -------- */
+function loadStats() {
+  const wrap = document.getElementById('chartWrap');
+  wrap.innerHTML = 'جاري التحميل...';
+  callApi('getStats').then(function (r) {
+    if (!r.ok) { wrap.innerHTML = 'تعذر تحميل الإحصائيات'; return; }
+    document.getElementById('totalRevenueVal').textContent = r.totalRevenue.toFixed(2) + ' ريال';
+    if (!r.centers.length) { wrap.innerHTML = '<p style="color:#8a7d76;">لا توجد بيانات مبيعات بعد</p>'; return; }
+    const max = r.centers[0].total || 1;
+    wrap.innerHTML = '';
+    r.centers.forEach(function (c, idx) {
+      const pct = Math.max(4, Math.round((c.total / max) * 100));
+      const row = document.createElement('div');
+      row.className = 'bar-row';
+      row.innerHTML =
+        '<div class="bar-head"><span><span class="rank">#' + (idx + 1) + '</span>' + c.center + '</span><span>' + c.total.toFixed(2) + ' ريال</span></div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;"></div></div>';
+      wrap.appendChild(row);
+    });
+  });
+}
+
+/* -------- المرفقات المشتركة (للاطلاع فقط - بدون إضافة أو حذف) -------- */
+function loadAttachments() {
+  const box = document.getElementById('attachmentsList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getAttachments', { store: 'المرفقات' }).then(function (r) {
+    const list = r.attachments || [];
+    if (!r.ok || !list.length) {
+      box.innerHTML = 'لا توجد مرفقات بعد';
+      return;
+    }
+    box.innerHTML = '';
+    list.forEach(function (a) {
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div>' +
+          '<div>' + (a['العنوان'] || '') + '</div>' +
+          '<div class="meta">' + (a['النوع'] || '') + (a['من'] ? (' · بواسطة: ' + a['من']) : '') + ' · ' + (a['اليوم'] || '') + ' ' + toHijriStr(a['التاريخ']) + '</div>' +
+          '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;">' +
+            '<a href="' + (a['الرابط'] || '#') + '" target="_blank">فتح</a>' +
+          '</div>' +
+        '</div>';
+      box.appendChild(div);
+    });
+  });
+}
+
+/* -------- مرفقات المكتب (خاصة بمكتب إشراف الداخل - إضافة وحذف كاملة) -------- */
+function toggleOfficeAttachKind() {
+  const kind = document.querySelector('input[name="officeAttachKind"]:checked').value;
+  document.getElementById('officeAttachLinkRow').classList.toggle('hidden', kind !== 'link');
+  document.getElementById('officeAttachFileRow').classList.toggle('hidden', kind !== 'file');
+}
+
+function submitOfficeAttachment() {
+  const title = document.getElementById('officeAttachTitle').value.trim();
+  const kind = document.querySelector('input[name="officeAttachKind"]:checked').value;
+  if (!title) { alert('اكتبي عنوان المرفق'); return; }
+
+  if (kind === 'link') {
+    const link = document.getElementById('officeAttachLink').value.trim();
+    if (!link) { alert('اكتبي رابط المرفق'); return; }
+    sendOfficeAttachment({ title: title, kind: 'link', link: link });
+    return;
+  }
+
+  const fileInput = document.getElementById('officeAttachFile');
+  const file = fileInput.files[0];
+  if (!file) { alert('اختاري ملف'); return; }
+  if (file.size > 15 * 1024 * 1024) { alert('حجم الملف كبير جداً (الحد الأقصى 15 ميجا)'); return; }
+  const reader = new FileReader();
+  reader.onload = function () {
+    sendOfficeAttachment({ title: title, kind: 'file', fileData: reader.result, fileName: file.name, mimeType: file.type });
+  };
+  reader.readAsDataURL(file);
+}
+
+function sendOfficeAttachment(payload) {
+  payload.from = 'مكتب إشراف الداخل';
+  payload.store = 'مرفقات الإشراف';
+  callApi('recordAttachment', payload).then(function (r) {
+    if (r.ok) {
+      document.getElementById('officeAttachTitle').value = '';
+      document.getElementById('officeAttachLink').value = '';
+      document.getElementById('officeAttachFile').value = '';
+      const s = document.getElementById('officeAttachSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+      loadOfficeAttachments();
+    } else {
+      alert('صار خطأ أثناء حفظ المرفق:\n' + (r.error || 'خطأ غير معروف') + '\n\nلو الخطأ يقول شي عن "مرفقات الإشراف" أو null، معناته شيت "مرفقات الإشراف" لسا ما انسوى بجوجل شيتس - شغّلي دالة setup من محرر Apps Script.');
+    }
+  });
+}
+
+function loadOfficeAttachments() {
+  const box = document.getElementById('officeAttachmentsList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getAttachments', { store: 'مرفقات الإشراف' }).then(function (r) {
+    const list = r.attachments || [];
+    if (!r.ok || !list.length) {
+      box.innerHTML = 'لا توجد مرفقات بعد';
+      return;
+    }
+    box.innerHTML = '';
+    list.forEach(function (a) {
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div>' +
+          '<div>' + (a['العنوان'] || '') + '</div>' +
+          '<div class="meta">' + (a['النوع'] || '') + ' · ' + (a['اليوم'] || '') + ' ' + toHijriStr(a['التاريخ']) + '</div>' +
+          '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;">' +
+            '<a href="' + (a['الرابط'] || '#') + '" target="_blank">فتح</a>' +
+            '<a href="#" onclick="deleteOfficeAttachmentRow(' + a._row + '); return false;">حذف</a>' +
+          '</div>' +
+        '</div>';
+      box.appendChild(div);
+    });
+  });
+}
+
+function deleteOfficeAttachmentRow(row) {
+  if (!confirm('متأكدة تبين تحذفين هذا المرفق؟')) return;
+  callApi('deleteAttachment', { row: row, store: 'مرفقات الإشراف' }).then(function (r) {
+    if (r.ok) loadOfficeAttachments();
+  });
+}
+</script>
+</body>
+</html>

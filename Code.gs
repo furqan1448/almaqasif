@@ -41,7 +41,9 @@ function setup() {
       'رابط توقيع الإدارة', 'رابط صورة الإشعار الموقع',
       'يوم اطلاع الإدارة', 'تاريخ اطلاع الإدارة', 'وقت اطلاع الإدارة',
       'اسم المستلمة', 'بيانات توقيع المركز'],
-    'المرفقات': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'اليوم', 'التاريخ', 'الوقت']
+    'المرفقات': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
+    'مرفقات الإشراف': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
+    'دخول الإشراف': ['البريد الإلكتروني', 'كلمة المرور', 'الاسم']
   };
 
   Object.keys(sheets).forEach(function (name) {
@@ -191,11 +193,12 @@ function saveAttachmentFile_(base64Data, fileName, mimeType) {
   return file.getUrl();
 }
 
-/* تسجّل مرفق جديد (ملف أو رابط) - مشترك وتقدر تضيفه/تشوفه كل المراكز والمسؤولات والإدارة.
+/* تسجّل مرفق جديد (ملف أو رابط). p.store: اسم الشيت الوجهة - افتراضياً 'المرفقات'
+   (المشتركة بين المراكز/المسؤولات/الإدارة)، أو 'مرفقات الإشراف' لمكتب إشراف الداخل.
    p.kind: 'file' أو 'link'. لو 'file' لازم p.fileData (base64) و p.fileName و p.mimeType.
    لو 'link' لازم p.link. p.from: اسم الجهة المضيفة (مركز/مسؤولة/الإدارة) للعرض بس. */
 function recordAttachment_(p) {
-  const sh = sheet_('المرفقات');
+  const sh = sheet_(p.store || 'المرفقات');
   const id = Utilities.getUuid();
   const now = nowParts_();
   let link = '';
@@ -211,19 +214,19 @@ function recordAttachment_(p) {
     'الرابط': link, 'اسم الملف': fileName, 'من': p.from || '',
     'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
   });
-  invalidateCache_('المرفقات');
+  invalidateCache_(p.store || 'المرفقات');
   return { ok: true, id: id };
 }
 
-function getAttachments_() {
-  const rows = sheetToObjects_('المرفقات');
+function getAttachments_(p) {
+  const rows = sheetToObjects_((p && p.store) || 'المرفقات');
   return { ok: true, attachments: rows.reverse() };
 }
 
 function deleteAttachment_(p) {
-  const sh = sheet_('المرفقات');
+  const sh = sheet_(p.store || 'المرفقات');
   sh.deleteRow(Number(p.row));
-  invalidateCache_('المرفقات');
+  invalidateCache_(p.store || 'المرفقات');
   return { ok: true };
 }
 
@@ -499,8 +502,10 @@ function handleRequest_(p) {
       case 'getStats': return json_(getStats_());
 
       case 'recordAttachment': return json_(recordAttachment_(p));
-      case 'getAttachments': return json_(getAttachments_());
+      case 'getAttachments': return json_(getAttachments_(p));
       case 'deleteAttachment': return json_(deleteAttachment_(p));
+
+      case 'loginSupervision': return json_(loginSupervision_(p));
 
       case 'debugInfo': return json_(debugInfo_());
 
@@ -551,6 +556,26 @@ function loginMasoula_(p) {
 function getMasoulat_() {
   const rows = sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG);
   return { ok: true, masoulat: rows.map(function (r) { return r['الاسم']; }).filter(Boolean) };
+}
+
+/* تسجيل دخول مكتب إشراف الداخل (eshraf.html) بالبريد الإلكتروني وكلمة المرور -
+   البيانات تُدارى يدوياً بشيت "دخول الإشراف" (تضيفين صف جديد لكل بريد مسموح له بالدخول). */
+function loginSupervision_(p) {
+  const rows = sheetToObjects_('دخول الإشراف', CACHE_SECONDS_LONG);
+  const email = String(p.email || '').trim().toLowerCase();
+  const password = String(p.password || '').trim();
+
+  const found = rows.find(function (r) {
+    return String(r['البريد الإلكتروني']).trim().toLowerCase() === email;
+  });
+
+  if (!found) {
+    return { ok: false, error: 'ما لقينا هذا البريد الإلكتروني بشيت "دخول الإشراف". تأكدي إنه مضاف ومكتوب بالضبط.' };
+  }
+  if (String(found['كلمة المرور']).trim() !== password) {
+    return { ok: false, error: 'البريد الإلكتروني صحيح، بس كلمة المرور مو مطابقة.' };
+  }
+  return { ok: true, email: found['البريد الإلكتروني'], name: found['الاسم'] || '' };
 }
 
 /* ------------------- المبيعات اليومية ------------------- */
