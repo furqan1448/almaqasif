@@ -40,7 +40,8 @@ function setup() {
       'رابط توقيع المركز', 'رابط صورة الإشعار', 'الحالة',
       'رابط توقيع الإدارة', 'رابط صورة الإشعار الموقع',
       'يوم اطلاع الإدارة', 'تاريخ اطلاع الإدارة', 'وقت اطلاع الإدارة',
-      'اسم المستلمة', 'بيانات توقيع المركز']
+      'اسم المستلمة', 'بيانات توقيع المركز'],
+    'المرفقات': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'اليوم', 'التاريخ', 'الوقت']
   };
 
   Object.keys(sheets).forEach(function (name) {
@@ -172,6 +173,58 @@ function saveImage_(base64Data, fileName) {
   // file.getUrl() ترجع رابط صفحة عرض بقوقل درايف، وما تشتغل مباشرة داخل <img src>.
   // هذا الرابط هو الصيغة الصحيحة لعرض الصورة مباشرة بالمتصفح (وبتاق <img>)
   return 'https://lh3.googleusercontent.com/d/' + file.getId();
+}
+
+/* نفس فكرة saveImage_ بس لأي نوع ملف (PDF، Word، صورة...) مو بس PNG -
+   تُستخدم لرفع مرفقات المستخدمات (خانة "إضافة مرفقات"). ترجع رابط عرض/تحميل
+   عادي بقوقل درايف (يشتغل بفتح تبويب جديد، عكس رابط saveImage_ المخصص للعرض داخل <img>) */
+function saveAttachmentFile_(base64Data, fileName, mimeType) {
+  if (!base64Data) return '';
+  const cleaned = String(base64Data).replace(/^data:[^;]+;base64,/, '');
+  const bytes = Utilities.base64Decode(cleaned);
+  const blob = Utilities.newBlob(bytes, mimeType || 'application/octet-stream', fileName || 'مرفق');
+  const root = getOrCreateFolder_();
+  const folders = root.getFoldersByName('المرفقات');
+  const folder = folders.hasNext() ? folders.next() : root.createFolder('المرفقات');
+  const file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return file.getUrl();
+}
+
+/* تسجّل مرفق جديد (ملف أو رابط) - مشترك وتقدر تضيفه/تشوفه كل المراكز والمسؤولات والإدارة.
+   p.kind: 'file' أو 'link'. لو 'file' لازم p.fileData (base64) و p.fileName و p.mimeType.
+   لو 'link' لازم p.link. p.from: اسم الجهة المضيفة (مركز/مسؤولة/الإدارة) للعرض بس. */
+function recordAttachment_(p) {
+  const sh = sheet_('المرفقات');
+  const id = Utilities.getUuid();
+  const now = nowParts_();
+  let link = '';
+  let fileName = '';
+  if (p.kind === 'file') {
+    link = saveAttachmentFile_(p.fileData, p.fileName || (p.title || id), p.mimeType || '');
+    fileName = p.fileName || '';
+  } else {
+    link = p.link || '';
+  }
+  appendRowByHeaders_(sh, {
+    'معرف': id, 'العنوان': p.title || '', 'النوع': p.kind === 'file' ? 'ملف' : 'رابط',
+    'الرابط': link, 'اسم الملف': fileName, 'من': p.from || '',
+    'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
+  });
+  invalidateCache_('المرفقات');
+  return { ok: true, id: id };
+}
+
+function getAttachments_() {
+  const rows = sheetToObjects_('المرفقات');
+  return { ok: true, attachments: rows.reverse() };
+}
+
+function deleteAttachment_(p) {
+  const sh = sheet_('المرفقات');
+  sh.deleteRow(Number(p.row));
+  invalidateCache_('المرفقات');
+  return { ok: true };
 }
 
 // تشغّل مرة وحدة (اختياري): تصلح روابط الصور القديمة المحفوظة بشيت "الإشعارات"
@@ -444,6 +497,10 @@ function handleRequest_(p) {
       case 'deleteNotice': return json_(deleteNotice_(p));
 
       case 'getStats': return json_(getStats_());
+
+      case 'recordAttachment': return json_(recordAttachment_(p));
+      case 'getAttachments': return json_(getAttachments_());
+      case 'deleteAttachment': return json_(deleteAttachment_(p));
 
       case 'debugInfo': return json_(debugInfo_());
 
