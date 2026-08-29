@@ -80,6 +80,25 @@ function toHijriStr(dateStr) {
   }
 }
 
+/* نفس التاريخ الهجري بس رقم الشهر بدل اسمه (مثال: ١٢/٣/١٤٤٨ هـ) */
+function toHijriNumericStr(dateStr) {
+  if (!dateStr) return '';
+  const datePart = String(dateStr).split(' ')[0];
+  const parts = datePart.split('-');
+  let d;
+  if (parts.length === 3) {
+    d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  } else {
+    d = new Date(dateStr);
+  }
+  if (isNaN(d.getTime())) return dateStr;
+  try {
+    return spaceOutDateSlashes_(new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', { day: 'numeric', month: 'numeric', year: 'numeric' }).format(d));
+  } catch (e) {
+    return dateStr;
+  }
+}
+
 /* نفس التاريخ الميلادي بس بالأرقام والشهور العربية، بدون خط لاتيني */
 function toGregorianArabicStr(dateStr) {
   if (!dateStr) return '';
@@ -93,7 +112,7 @@ function toGregorianArabicStr(dateStr) {
   }
   if (isNaN(d.getTime())) return dateStr;
   try {
-    return new Intl.DateTimeFormat('ar-SA', { day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+    return spaceOutDateSlashes_(new Intl.DateTimeFormat('ar-SA', { day: 'numeric', month: 'numeric', year: 'numeric' }).format(d));
   } catch (e) {
     return dateStr;
   }
@@ -103,6 +122,19 @@ function toGregorianArabicStr(dateStr) {
 function toArabicDigits(value) {
   const map = { '0': '٠', '1': '١', '2': '٢', '3': '٣', '4': '٤', '5': '٥', '6': '٦', '7': '٧', '8': '٨', '9': '٩' };
   return String(value).replace(/[0-9]/g, function (d) { return map[d]; });
+}
+
+/* يضيف مسافة بسيطة حوالين علامة "/" بالتاريخ عشان الأرقام ما تكون لاصقة ببعض،
+   ويشيل أي رموز اتجاه نص خفية (RTL marks) يحطها Intl تلقائياً */
+function spaceOutDateSlashes_(str) {
+  return String(str).replace(/[\u200e\u200f]/g, '').split('/').map(function (s) { return s.trim(); }).join(' / ');
+}
+
+/* تنسيق مبلغ بأرقام عربية مع فاصلة "," بدل النقطة العشرية، عشان توضّح الفلوس عن الهللات
+   مثال: 1250.5 => "١٢٥٠,٥٠" */
+function toArabicAmountStr(amount) {
+  const fixed = Number(amount || 0).toFixed(2);
+  return toArabicDigits(fixed).replace('.', ',');
 }
 
 /* تنسيق موحّد لعرض يوم/تاريخ هجري (وميلادي بين قوسين)/وقت بدون أي أصفار زايدة */
@@ -294,22 +326,30 @@ function printReport(title, subtitle, columns, rows, totals) {
   html += '<title>' + title + '</title>';
   html += '<style>';
   html += '@import url(\'https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Tajawal:wght@400;700;800&display=swap\');';
-  html += 'body{font-family:"Tajawal",sans-serif;direction:rtl;padding:28px;color:#2b2321;}';
+  html += '@page { margin: 0; }';
+  html += 'body{font-family:"Tajawal",sans-serif;direction:rtl;margin:0;padding:0 28px 28px;color:#2b2321;}';
   html += 'h1{font-family:"Amiri",serif;color:#8C1A2C;margin:0 0 2px;font-size:1.5rem;}';
-  html += '.sub{color:#8a7d76;margin-bottom:22px;font-size:0.9rem;}';
+  html += '.sub{color:#8a7d76;margin:16px 0 22px;font-size:0.9rem;}';
   html += 'table{width:100%;border-collapse:collapse;font-size:0.88rem;}';
   html += 'th,td{border:1px solid #C2AA85;padding:8px 10px;text-align:center;}';
   html += 'th{background:#e8dcc8;color:#6e1523;}';
-  html += '.report-head{display:flex;align-items:center;gap:14px;margin-bottom:6px;}';
-  html += '.report-head img{width:56px;height:56px;border-radius:50%;object-fit:cover;}';
-  html += '@media print{ body{padding:10px;} }';
+  html += '.letterhead{width:100%;display:block;margin-bottom:0;}';
+  html += '@media print{ .letterhead{ -webkit-print-color-adjust:exact; print-color-adjust:exact; } }';
   html += '</style></head><body>';
-  const logoUrl = (typeof FURQAN_LOGO_URL !== 'undefined') ? FURQAN_LOGO_URL : '';
-  html += '<div class="report-head">';
-  if (logoUrl) html += '<img src="' + logoUrl + '" alt="شعار فرقان">';
-  html += '<h1 style="margin:0;">جمعية فرقان لتحفيظ القرآن الكريم</h1>';
-  html += '</div>';
-  html += '<div class="sub">' + title + (subtitle ? (' - ' + subtitle) : '') + ' &middot; ' + toHijriStr(todayStr()) + '</div>';
+  const letterheadUrl = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
+  if (letterheadUrl) {
+    html += '<img class="letterhead" src="' + letterheadUrl + '" alt="كليشة جمعية فرقان">';
+    html += '<div style="padding:0 0;"><h1 style="margin-top:18px;">' + title + '</h1>';
+  } else {
+    const logoUrl = (typeof FURQAN_LOGO_URL !== 'undefined') ? FURQAN_LOGO_URL : '';
+    html += '<div style="padding-top:20px;">';
+    html += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:6px;">';
+    if (logoUrl) html += '<img src="' + logoUrl + '" alt="شعار فرقان" style="width:56px;height:56px;border-radius:50%;object-fit:cover;">';
+    html += '<h1 style="margin:0;">جمعية فرقان لتحفيظ القرآن الكريم</h1>';
+    html += '</div>';
+    html += '<h1 style="font-size:1.2rem;">' + title + '</h1>';
+  }
+  html += '<div class="sub">' + (subtitle || '') + ' &middot; ' + toHijriStr(todayStr()) + '</div></div>';
   html += '<table><thead><tr>';
   columns.forEach(function (c) { html += '<th>' + c.label + '</th>'; });
   html += '</tr></thead><tbody>';
@@ -385,97 +425,108 @@ async function generateNoticeImage(opts) {
   grad.addColorStop(0, '#8C1A2C');
   grad.addColorStop(1, '#6e1523');
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, 110);
-
-  // صندوق المبلغ بارز أعلى يسار الإشعار (رقماً) - بأسلوب سندات القبض الرسمية
-  ctx.save();
-  const boxW = 210, boxH = 58, boxX = 34, boxY = 24;
-  ctx.fillStyle = 'rgba(255,255,255,0.13)';
-  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, 10); else ctx.rect(boxX, boxY, boxW, boxH);
-  ctx.fill();
-  ctx.stroke();
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#e8dcc8';
-  ctx.font = '13px Tajawal, sans-serif';
-  ctx.fillText('المبلغ', boxX + boxW / 2, boxY + 21);
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 23px Tajawal, sans-serif';
-  ctx.fillText(toArabicDigits(Number(opts.amount || 0).toFixed(2)) + ' ريال', boxX + boxW / 2, boxY + 46);
-  ctx.restore();
+  ctx.fillRect(0, 0, W, 130);
 
   ctx.direction = 'rtl';
   ctx.textAlign = 'center';
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 30px Tajawal, sans-serif';
-  ctx.fillText('جمعية فرقان لتحفيظ القرآن الكريم', W / 2, 48);
-  ctx.font = '20px Tajawal, sans-serif';
+  ctx.font = 'bold 24px Tajawal, sans-serif';
+  ctx.fillText('جمعية فرقان لتحفيظ القرآن الكريم', W / 2, 34);
+  ctx.font = '14px Tajawal, sans-serif';
   ctx.fillStyle = '#e8dcc8';
-  ctx.fillText('وحدة المقاصف', W / 2, 82);
+  ctx.fillText('إدارة التعليم النسائي - مكتب إشراف الداخل', W / 2, 62);
+  ctx.font = 'bold 17px Tajawal, sans-serif';
+  ctx.fillStyle = '#fff';
+  ctx.fillText('وحدة المقاصف', W / 2, 92);
 
   if (logoImg) {
-    const logoSize = 68;
+    const logoSize = 84;
     ctx.save();
     ctx.beginPath();
-    ctx.arc(W - 78, 55, logoSize / 2, 0, Math.PI * 2);
+    ctx.arc(W - 88, 65, logoSize / 2, 0, Math.PI * 2);
     ctx.closePath();
     ctx.fillStyle = '#fff';
     ctx.fill();
     ctx.clip();
-    ctx.drawImage(logoImg, W - 78 - logoSize / 2, 55 - logoSize / 2, logoSize, logoSize);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(logoImg, W - 88 - logoSize / 2, 65 - logoSize / 2, logoSize, logoSize);
     ctx.restore();
   }
 
   ctx.fillStyle = '#8C1A2C';
   ctx.font = 'bold 34px Amiri, serif';
-  ctx.fillText('إشعار ' + opts.type, W / 2, 172);
+  ctx.fillText('إشعار ' + opts.type, W / 2, 192);
 
   ctx.strokeStyle = '#C2AA85';
   ctx.lineWidth = 3;
-  ctx.strokeRect(40, 128, W - 80, 300);
+  ctx.strokeRect(40, 148, W - 80, 330);
 
   ctx.textAlign = 'right';
   ctx.fillStyle = '#2b2321';
   const rx = W - 90;
 
+  // صندوق واحد صغير أعلى الإطار مع تسمية فوقه (بأسلوب سند القبض المرفق)
+  ctx.save();
+  const boxW = 160, boxH = 42, boxX = rx - boxW, boxY = 178;
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#8a7d76';
+  ctx.font = 'bold 13px Tajawal, sans-serif';
+  ctx.fillText('المبلغ بالريال السعودي', boxX + boxW / 2, boxY - 8);
+
+  ctx.fillStyle = '#F3ECDD';
+  ctx.strokeStyle = '#C2AA85';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, 7); else ctx.rect(boxX, boxY, boxW, boxH);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#6e1523';
+  ctx.font = 'bold 22px Tajawal, sans-serif';
+  ctx.fillText(toArabicAmountStr(opts.amount), boxX + boxW / 2, boxY + 28);
+  ctx.restore();
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#2b2321';
+
   // اليوم / التاريخ (هجري وميلادي)
   ctx.font = '22px Tajawal, sans-serif';
-  ctx.fillText('اليوم: ' + (opts.day || ''), rx, 215);
-  const hijri = opts.date ? toHijriStr(opts.date) : '';
+  ctx.fillText('اليوم: ' + (opts.day || ''), rx, 253);
+  const hijri = opts.date ? toHijriNumericStr(opts.date) : '';
   const greg = opts.date ? toGregorianArabicStr(opts.date) : '';
-  ctx.fillText('التاريخ: ' + hijri + (greg ? (' (' + greg + ')') : ''), rx, 248);
+  ctx.fillText('التاريخ: ' + hijri + (greg ? (' (' + greg + ')') : ''), rx, 286);
 
   // سطر: استلمنا من مركز: [المركز] (خط منقّط بأسلوب سند القبض)
   const verb = opts.type === 'تسليم' ? 'سلّمنا مركز' : 'استلمنا من مركز';
-  drawDottedField_(ctx, rx, 296, W - 160, verb + ':', opts.center || '');
+  drawDottedField_(ctx, rx, 334, W - 160, verb + ':', opts.center || '');
 
-  // سطر: مبلغ وقدره (كتابةً) + نقداً - رقم المبلغ نفسه بارز أعلى الإشعار
-  drawDottedField_(ctx, rx, 338, W - 160, 'مبلغ وقدره:',
+  // سطر: مبلغ وقدره (كتابةً) + نقداً - رقم المبلغ نفسه بارز داخل صندوق أعلى الإطار
+  drawDottedField_(ctx, rx, 376, W - 160, 'مبلغ وقدره:',
     amountToArabicWords(opts.amount) + ' نقداً',
-    { valueFont: '15px Tajawal, sans-serif' });
+    { valueFont: '16.5px Tajawal, sans-serif' });
 
   // سطر: وذلك (السبب) - قيمة المبيعات (استلام) أو مكافأة المتعاونة (تسليم)
   const reasonLine = opts.type === 'تسليم'
     ? 'مكافأة لمتعاونة المقصف'
     : 'قيمة مبيعات المقصف ' + monthsPhrase(opts.months) +
       ' للفصل الدراسي ' + (opts.term || '.......') + ' لعام ' + (opts.year || '.......');
-  drawDottedField_(ctx, rx, 380, W - 160, 'وذلك:', reasonLine, { valueFont: '15px Tajawal, sans-serif' });
+  drawDottedField_(ctx, rx, 418, W - 160, 'وذلك:', reasonLine, { valueFont: '16.5px Tajawal, sans-serif' });
 
   ctx.textAlign = 'center';
   ctx.font = '18px Tajawal, sans-serif';
   ctx.fillStyle = '#8a7d76';
-  ctx.fillText('توقيع المسلّمة' + (opts.senderName ? (': ' + opts.senderName) : ''), W * 0.28, 448);
-  ctx.fillText((opts.adminLabel || 'توقيع المستلمة') + (opts.receiverName ? (': ' + opts.receiverName) : ''), W * 0.72, 448);
+  ctx.fillText('توقيع المسلّمة' + (opts.senderName ? (': ' + opts.senderName) : ''), W * 0.28, 508);
+  ctx.fillText((opts.adminLabel || 'توقيع المستلمة') + (opts.receiverName ? (': ' + opts.receiverName) : ''), W * 0.72, 508);
 
-  if (sigImg) ctx.drawImage(sigImg, W * 0.28 - 130, 458, 260, 85);
-  if (adminImg) ctx.drawImage(adminImg, W * 0.72 - 130, 458, 260, 85);
+  if (sigImg) ctx.drawImage(sigImg, W * 0.28 - 130, 518, 260, 85);
+  if (adminImg) ctx.drawImage(adminImg, W * 0.72 - 130, 518, 260, 85);
 
   ctx.strokeStyle = '#e8dcc8';
   ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(60, 555); ctx.lineTo(W * 0.28 + 130, 555); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(W * 0.72 - 130, 555); ctx.lineTo(W - 60, 555); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(60, 615); ctx.lineTo(W * 0.28 + 130, 615); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W * 0.72 - 130, 615); ctx.lineTo(W - 60, 615); ctx.stroke();
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#8a7d76';
@@ -534,9 +585,18 @@ function drawDottedField_(ctx, rx, y, width, label, value, opts) {
   ctx.fillText(label, rx, y - 2);
 
   if (value) {
-    const valueX = rx - labelW - 14;
+    const valueX = rx - labelW - 4;
+    const maxValueWidth = width - labelW - 20;
+    // نصغّر الخط تدريجياً لو النص أطول من المساحة المتاحة، عشان يبقى بسطر وحد
+    // وما يتكسر أو يطلع خارج الخط المنقّط
+    let fontSize = parseFloat(valueFont);
+    const fontRest = valueFont.replace(/^[\d.]+px/, '').trim();
     ctx.font = valueFont;
-    const valueW = Math.min(ctx.measureText(value).width, width - labelW - 20);
+    while (ctx.measureText(value).width > maxValueWidth && fontSize > 10) {
+      fontSize -= 1;
+      ctx.font = fontSize + 'px ' + fontRest;
+    }
+    const valueW = ctx.measureText(value).width;
     ctx.fillStyle = bg;
     ctx.fillRect(valueX - valueW - 6, y - 20, valueW + 10, 26);
     ctx.fillStyle = valueColor;
