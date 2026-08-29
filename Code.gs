@@ -32,11 +32,11 @@ function setup() {
     'الحضور': ['الاسم', 'اليوم', 'التاريخ', 'الوقت'],
     'التعهد': ['الاسم', 'نص التعهد', 'اليوم', 'التاريخ', 'الوقت', 'الحالة'],
     'المراكز': ['اسم المركز', 'كلمة المرور'],
-    'المبيعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'الوقت', 'المبلغ'],
-    'المرتجعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'وصف الصنف', 'الكمية', 'القيمة'],
-    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح'],
+    'المبيعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'الوقت', 'المبلغ', 'ملاحظات'],
+    'المرتجعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'وصف الصنف', 'الكمية', 'القيمة', 'ملاحظات'],
+    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح', 'ملاحظات'],
     'الإشعارات': ['معرف', 'النوع', 'اسم المركز', 'يوم الإرسال', 'تاريخ الإرسال', 'وقت الإرسال',
-      'اسم المسلّمة', 'المبلغ', 'الشهر', 'الفصل الدراسي', 'العام',
+      'اسم المسلّمة', 'المبلغ', 'الشهر', 'الفصل الدراسي', 'العام', 'بيان مخصص',
       'رابط توقيع المركز', 'رابط صورة الإشعار', 'الحالة',
       'رابط توقيع الإدارة', 'رابط صورة الإشعار الموقع',
       'يوم اطلاع الإدارة', 'تاريخ اطلاع الإدارة', 'وقت اطلاع الإدارة',
@@ -77,7 +77,7 @@ function setup() {
     centersSheet.appendRow(['مركز تحفيظ 2', '5678']);
   }
 
-  notify_('تم إنشاء/تحديث جميع الشيتات بنجاح. تأكدي من تعبئة عمود "اسم المركز" بشيت "المسؤولات" لكل مسؤولة، وتحطي بريدك في ADMIN_NOTIFY_EMAIL أعلى الكود.\n\nملاحظة: لو كان عندك شيت قديم وفيه بيانات، شغّلي أيضاً دالة fixOldDateColumns من قائمة الدوال فوق المحرر مرة وحدة عشان تصلح صيغة الأعمدة القديمة.');
+  notify_('تم إنشاء/تحديث جميع الشيتات بنجاح. تأكدي من تعبئة عمود "اسم المركز" بشيت "المسؤولات" لكل مسؤولة، وتحطي بريدك في ADMIN_NOTIFY_EMAIL أعلى الكود.\n\nملاحظة: لو كان عندك شيت قديم وفيه بيانات، شغّلي أيضاً دالة fixOldDateColumns من قائمة الدوال فوق المحرر مرة وحدة عشان تصلح صيغة الأعمدة القديمة، ودالة fillMissingDayNames لو لاحظتِ إن عمود "اليوم" فاضي بصفوف قديمة بالمبيعات/المرتجعات/الفواتير.');
 }
 
 /* تشغّل مرة وحدة (اختياري) لو عندك شيتات قديمة فيها بيانات تاريخ/وقت محفوظة
@@ -246,6 +246,43 @@ function fixMisalignedSalesRows_() {
 }
 
 
+/* تشغّل مرة وحدة (اختياري): تعبّي عمود "اليوم" لأي صف قديم فاضي فيه، بالاعتماد
+   على عمود "التاريخ" بنفس الصف. تستخدمينها لو لاحظتِ إن اسم اليوم ما ينكتب
+   بالمبيعات/المرتجعات/الفواتير (سواء لصفوف قديمة، أو لأن عمود "اليوم" ما كان
+   موجود أصلاً بالشيت وقت ما انسجلت هذي الصفوف). */
+function fillMissingDayNames_() {
+  const sheetNames = ['المبيعات', 'المرتجعات', 'الفواتير'];
+  let totalFixed = 0;
+  const missingSheets = [];
+  sheetNames.forEach(function (name) {
+    const sh = sheet_(name);
+    if (!sh) return;
+    const dayCol = colIndex_(sh, 'اليوم');
+    const dateCol = colIndex_(sh, 'التاريخ');
+    if (dayCol === -1 || dateCol === -1) { missingSheets.push(name); return; }
+    if (sh.getLastRow() < 2) return;
+    const range = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn());
+    const values = range.getValues();
+    let fixed = 0;
+    values.forEach(function (row) {
+      const dayVal = String(row[dayCol - 1]).trim();
+      const dateVal = row[dateCol - 1];
+      if (!dayVal && dateVal) {
+        row[dayCol - 1] = dayNameForDateStr_(String(dateVal));
+        fixed++;
+      }
+    });
+    if (fixed > 0) range.setValues(values);
+    invalidateCache_(name);
+    totalFixed += fixed;
+  });
+  let msg = 'تم تعبئة اسم اليوم لـ ' + totalFixed + ' صف كان فاضي.';
+  if (missingSheets.length) {
+    msg += '\n\nتنبيه: عمود "اليوم" أو "التاريخ" غير موجود أصلاً بشيت: ' + missingSheets.join('، ') + '. شغّلي دالة setup أولاً لإضافته، ثم أعيدي تشغيل هذي الدالة.';
+  }
+  notify_(msg);
+}
+
 function sheet_(name) {
   return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
 }
@@ -306,7 +343,7 @@ function sheetToObjects_(name, cacheSeconds) {
     headers.forEach(function (h, idx) {
       let val = data[i][idx];
       if (val instanceof Date) val = formatSheetDate_(val);
-      obj[h] = val;
+      obj[String(h).trim()] = val;
     });
     obj._row = i + 1;
     rows.push(obj);
@@ -443,7 +480,8 @@ function recordSale_(p) {
   const time = p.time || now.time;
   const day = dayNameForDateStr_(date);
   appendRowByHeaders_(sh, {
-    'معرف': id, 'اسم المركز': p.center, 'اليوم': day, 'التاريخ': date, 'الوقت': time, 'المبلغ': Number(p.amount)
+    'معرف': id, 'اسم المركز': p.center, 'اليوم': day, 'التاريخ': date, 'الوقت': time, 'المبلغ': Number(p.amount),
+    'ملاحظات': p.notes || ''
   });
   invalidateCache_('المبيعات');
   return { ok: true, id: id };
@@ -458,22 +496,31 @@ function getSales_(p) {
   return { ok: true, sales: rows, total: total };
 }
 
-/* ترجع رقم عمود بالاسم (1-indexed) بالبحث عن اسم العمود بصف العناوين */
+/* ترجع رقم عمود بالاسم (1-indexed) بالبحث عن اسم العمود بصف العناوين.
+   تتجاهل أي مسافات زائدة بأول/آخر اسم العمود بالشيت عشان ما يفشل التطابق
+   لو انضاف العمود يدوياً وفيه مسافة خفية (وهذا سبب شائع لمشكلة "اليوم ما ينكتب"). */
 function colIndex_(sh, headerName) {
   const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
-  const idx = headers.indexOf(headerName);
-  return idx === -1 ? -1 : idx + 1;
+  const target = String(headerName).trim();
+  for (let i = 0; i < headers.length; i++) {
+    if (String(headers[i]).trim() === target) return i + 1;
+  }
+  return -1;
 }
 
 /* تضيف صف جديد حسب اسم العمود الفعلي بالشيت (مو حسب ترتيب ثابت بالكود).
    هذا يحمينا لو صار ترتيب الأعمدة الفعلي بالشيت مختلف عن الترتيب المتوقع
    (مثلاً لو انضاف عمود جديد بآخر الشيت بدل ما ينحط بمكانه الصحيح) - وهذا بالضبط
    كان سبب مشكلة "المبلغ يتكتب تحت عمود اليوم" اللي صارت قبل هذا الإصلاح.
+   تتجاهل أيضاً أي مسافات زائدة بأسماء الأعمدة (نفس سبب مشكلة colIndex_ أعلاه).
    valuesObj: كائن {اسم العمود: القيمة} - أي عمود موجود بالشيت وما انذكر بالكائن يُترك فاضي. */
 function appendRowByHeaders_(sh, valuesObj) {
   const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  const keysTrimmed = {};
+  Object.keys(valuesObj).forEach(function (k) { keysTrimmed[k.trim()] = valuesObj[k]; });
   const row = headers.map(function (h) {
-    return valuesObj.hasOwnProperty(h) ? valuesObj[h] : '';
+    const key = String(h).trim();
+    return keysTrimmed.hasOwnProperty(key) ? keysTrimmed[key] : '';
   });
   sh.appendRow(row);
 }
@@ -486,6 +533,10 @@ function updateSale_(p) {
     sh.getRange(row, colIndex_(sh, 'التاريخ')).setValue(p.date);
     const dayCol = colIndex_(sh, 'اليوم');
     if (dayCol !== -1) sh.getRange(row, dayCol).setValue(dayNameForDateStr_(p.date));
+  }
+  if (p.notes !== undefined) {
+    const notesCol = colIndex_(sh, 'ملاحظات');
+    if (notesCol !== -1) sh.getRange(row, notesCol).setValue(p.notes);
   }
   invalidateCache_('المبيعات');
   return { ok: true };
@@ -507,7 +558,8 @@ function recordReturn_(p) {
   const day = dayNameForDateStr_(date);
   appendRowByHeaders_(sh, {
     'معرف': id, 'اسم المركز': p.center, 'اليوم': day, 'التاريخ': date,
-    'وصف الصنف': p.description || '', 'الكمية': Number(p.quantity) || 0, 'القيمة': Number(p.value) || 0
+    'وصف الصنف': p.description || '', 'الكمية': Number(p.quantity) || 0, 'القيمة': Number(p.value) || 0,
+    'ملاحظات': p.notes || ''
   });
   invalidateCache_('المرتجعات');
   return { ok: true, id: id };
@@ -528,6 +580,10 @@ function updateReturn_(p) {
   if (p.description !== undefined) sh.getRange(row, colIndex_(sh, 'وصف الصنف')).setValue(p.description);
   if (p.quantity !== undefined) sh.getRange(row, colIndex_(sh, 'الكمية')).setValue(Number(p.quantity));
   if (p.value !== undefined) sh.getRange(row, colIndex_(sh, 'القيمة')).setValue(Number(p.value));
+  if (p.notes !== undefined) {
+    const notesCol = colIndex_(sh, 'ملاحظات');
+    if (notesCol !== -1) sh.getRange(row, notesCol).setValue(p.notes);
+  }
   invalidateCache_('المرتجعات');
   return { ok: true };
 }
@@ -548,7 +604,7 @@ function recordInvoice_(p) {
   const day = dayNameForDateStr_(date);
   appendRowByHeaders_(sh, {
     'معرف': id, 'اسم المركز': p.center, 'رقم الفاتورة': p.invoiceNumber || '', 'اليوم': day, 'التاريخ': date,
-    'المبلغ الإجمالي': Number(p.totalAmount) || 0, 'الربح': Number(p.profit) || 0
+    'المبلغ الإجمالي': Number(p.totalAmount) || 0, 'الربح': Number(p.profit) || 0, 'ملاحظات': p.notes || ''
   });
   invalidateCache_('الفواتير');
   return { ok: true, id: id };
@@ -575,6 +631,10 @@ function updateInvoice_(p) {
   }
   if (p.totalAmount !== undefined) sh.getRange(row, colIndex_(sh, 'المبلغ الإجمالي')).setValue(Number(p.totalAmount));
   if (p.profit !== undefined) sh.getRange(row, colIndex_(sh, 'الربح')).setValue(Number(p.profit));
+  if (p.notes !== undefined) {
+    const notesCol = colIndex_(sh, 'ملاحظات');
+    if (notesCol !== -1) sh.getRange(row, notesCol).setValue(p.notes);
+  }
   invalidateCache_('الفواتير');
   return { ok: true };
 }
@@ -677,6 +737,7 @@ function submitNotice_(p) {
     'يوم الإرسال': now.day, 'تاريخ الإرسال': now.date, 'وقت الإرسال': now.time,
     'اسم المسلّمة': p.senderName || '', 'المبلغ': p.amount,
     'الشهر': p.month || '', 'الفصل الدراسي': p.term || '', 'العام': p.year || '',
+    'بيان مخصص': p.reason || '',
     'رابط صورة الإشعار': noticeImageUrl, 'الحالة': 'بانتظار الاطلاع',
     'بيانات توقيع المركز': p.signature || ''
   });
