@@ -31,6 +31,7 @@ function setup() {
     'المسؤولات': ['الاسم', 'البريد الإلكتروني', 'كلمة المرور', 'اسم المركز'],
     'الحضور': ['الاسم', 'اليوم', 'التاريخ', 'الوقت'],
     'التعهد': ['الاسم', 'نص التعهد', 'اليوم', 'التاريخ', 'الوقت', 'الحالة'],
+    'المهام': ['الاسم', 'نص المهام', 'اليوم', 'التاريخ', 'الوقت', 'الحالة'],
     'المراكز': ['اسم المركز', 'كلمة المرور'],
     'المبيعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'الوقت', 'المبلغ', 'ملاحظات'],
     'المرتجعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'وصف الصنف', 'الكمية', 'القيمة', 'ملاحظات'],
@@ -91,7 +92,7 @@ function setup() {
    كـ Date تلقائي من قوقل شيتس، عشان تحوّلها لنص واضح بدون أصفار زايدة. */
 function fixOldDateColumns() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  ['المبيعات', 'المرتجعات', 'الفواتير', 'الحضور', 'التعهد', 'الإشعارات'].forEach(function (name) {
+  ['المبيعات', 'المرتجعات', 'الفواتير', 'الحضور', 'التعهد', 'المهام', 'الإشعارات'].forEach(function (name) {
     const sh = ss.getSheetByName(name);
     if (!sh || sh.getLastRow() < 2) return;
     const lastCol = sh.getLastColumn();
@@ -387,7 +388,7 @@ function invalidateCache_(name) {
    بدون ما تنتظري وقت الكاش. */
 function clearCache() {
   const cache = getCache_();
-  ['المسؤولات', 'المراكز', 'المبيعات', 'المرتجعات', 'الفواتير', 'الحضور', 'التعهد', 'الإشعارات'].forEach(function (n) {
+  ['المسؤولات', 'المراكز', 'المبيعات', 'المرتجعات', 'الفواتير', 'الحضور', 'التعهد', 'المهام', 'الإشعارات'].forEach(function (n) {
     cache.remove('sheet_' + n);
   });
   notify_('تم تفريغ الذاكرة المؤقتة. جربي الدخول بالموقع الحين.');
@@ -491,6 +492,9 @@ function handleRequest_(p) {
 
       case 'getPledge': return json_(getPledge_(p));
       case 'signPledge': return json_(signPledge_(p));
+
+      case 'getTasksAck': return json_(getTasksAck_(p));
+      case 'acknowledgeTasks': return json_(acknowledgeTasks_(p));
 
       case 'submitNotice': return json_(submitNotice_(p));
       case 'getCenterNotices': return json_(getCenterNotices_(p));
@@ -835,6 +839,26 @@ function getPledge_(p) {
   return { ok: true, pledge: latest };
 }
 
+/* ------------------- مهام مسؤولة المقصف ------------------- */
+
+function acknowledgeTasks_(p) {
+  const sh = sheet_('المهام');
+  const now = nowParts_();
+  appendRowByHeaders_(sh, {
+    'الاسم': p.name, 'نص المهام': p.tasksText, 'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time, 'الحالة': 'تم الاطلاع'
+  });
+  invalidateCache_('المهام');
+  return { ok: true };
+}
+
+function getTasksAck_(p) {
+  const rows = sheetToObjects_('المهام').filter(function (r) {
+    return String(r['الاسم']).trim() === String(p.name).trim();
+  });
+  const latest = rows.length ? rows[rows.length - 1] : null;
+  return { ok: true, ack: latest };
+}
+
 /* ------------------- إشعارات الاستلام والتسليم ------------------- */
 
 function submitNotice_(p) {
@@ -1010,7 +1034,7 @@ function adminSignNotice_(p) {
 // تساعد لو صار لخبطة إن الموقع متصل بملف إكسل غير اللي المستخدمة تشوف فيه بياناتها
 function debugInfo_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetNames = ['المسؤولات', 'الحضور', 'التعهد', 'المراكز', 'المبيعات', 'المرتجعات', 'الفواتير', 'الإشعارات'];
+  const sheetNames = ['المسؤولات', 'الحضور', 'التعهد', 'المهام', 'المراكز', 'المبيعات', 'المرتجعات', 'الفواتير', 'الإشعارات'];
   const sheetsInfo = sheetNames.map(function (name) {
     const sh = ss.getSheetByName(name);
     return { name: name, exists: !!sh, rows: sh ? Math.max(sh.getLastRow() - 1, 0) : 0 };
