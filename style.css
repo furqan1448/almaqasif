@@ -184,6 +184,8 @@ button.btn.small { width: auto; padding: 9px 16px; margin-top: 0; font-size: 0.8
   gap: 14px;
   margin-top: 8px;
 }
+/* لو عدد الأيقونات فردي، آخر أيقونة تاخذ عرض الصف كامل بدل ما تضل لحالها بنص فاضي جنبها */
+.icon-grid .icon-btn:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .icon-btn {
   background: #fff;
   border: 1.5px solid var(--gold-light);
