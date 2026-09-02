@@ -122,6 +122,25 @@ select:focus, input:focus, textarea:focus {
   border-color: var(--maroon);
 }
 
+.pw-wrap { position: relative; }
+.pw-wrap input[type=password], .pw-wrap input[type=text] { padding-left: 44px; }
+.pw-toggle {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8a7d76;
+}
+.pw-toggle:hover { color: var(--maroon); }
+.pw-toggle svg { width: 20px; height: 20px; }
+
 button.btn {
   width: 100%;
   padding: 13px;
