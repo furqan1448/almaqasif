@@ -77,9 +77,14 @@
       </div>
 
       <!-- أعمال المركز (تظهر فقط لو مربوطة بمركز) -->
-      <div id="centerSection" class="hidden">
-        <h2 style="color:var(--maroon);">أعمال مركزك: <span id="myCenterName"></span></h2>
-        <div class="icon-grid">
+      <h2 id="centerTitle" class="hidden" style="color:var(--maroon);">أعمال مركزك: <span id="myCenterName"></span></h2>
+      <div class="card hidden" id="noCenterCard">
+        <p style="color:#8a7d76;margin:0;">حسابك غير مربوط بمركز حالياً. اطلبي من إدارة وحدة المقاصف تحدّد اسم مركزك بشيت "المسؤولات" عشان تظهر لك أعمال المركز (المبيعات، الفواتير، المرتجعات، الإشعارات).</p>
+      </div>
+
+      <!-- شبكة موحدة لكل الأيقونات (أعمال المركز + المرفقات/الصعوبات/المهام) بنفس حجم أيقونات المراكز -->
+      <div class="icon-grid">
+        <div id="centerTiles" class="hidden">
           <div class="icon-btn" onclick="showView('salesView')">
             <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.3 15c0 1.1 1.2 2 2.7 2s2.7-.7 2.7-1.8-1.2-1.7-2.7-2-2.7-.9-2.7-2S10.5 9.5 12 9.5s2.5.6 2.7 1.5"/></svg></div>
             <span class="label">سجل البيع اليومي</span>
@@ -110,13 +115,8 @@
             <div class="badge hidden" id="pendingBadge">0</div>
           </div>
         </div>
-      </div>
-      <div class="card hidden" id="noCenterCard">
-        <p style="color:#8a7d76;margin:0;">حسابك غير مربوط بمركز حالياً. اطلبي من إدارة وحدة المقاصف تحدّد اسم مركزك بشيت "المسؤولات" عشان تظهر لك أعمال المركز (المبيعات، الفواتير، المرتجعات، الإشعارات).</p>
-      </div>
 
-      <!-- المرفقات والصعوبات (متاحة لكل المسؤولات بغض النظر عن ربطهن بمركز) -->
-      <div class="icon-grid">
+        <!-- المرفقات والصعوبات والمهام (متاحة لكل المسؤولات بغض النظر عن ربطهن بمركز) -->
         <div class="icon-btn" onclick="showView('attachmentsView')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12l4.5-4.5a3 3 0 1 1 4.2 4.2L9.5 19a5 5 0 1 1-7-7l7-7"/></svg></div>
           <span class="label">إضافة مرفقات</span>
@@ -460,12 +460,14 @@ function showDashboard() {
   document.getElementById('nameChip').textContent = currentName;
 
   if (currentCenter) {
-    document.getElementById('centerSection').classList.remove('hidden');
+    document.getElementById('centerTitle').classList.remove('hidden');
+    document.getElementById('centerTiles').classList.remove('hidden');
     document.getElementById('noCenterCard').classList.add('hidden');
     document.getElementById('myCenterName').textContent = currentCenter;
     refreshPendingBadge();
   } else {
-    document.getElementById('centerSection').classList.add('hidden');
+    document.getElementById('centerTitle').classList.add('hidden');
+    document.getElementById('centerTiles').classList.add('hidden');
     document.getElementById('noCenterCard').classList.remove('hidden');
   }
 
