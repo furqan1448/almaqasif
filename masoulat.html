@@ -125,13 +125,11 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 3 20h18z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg></div>
           <span class="label">الصعوبات والمقترحات</span>
         </div>
-      </div>
-
-      <!-- مهام مسؤولة المقصف -->
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">مهام مسؤولة المقصف</h3>
-        <p style="color:#8a7d76;font-size:0.9rem;margin-top:0;">اطّلعي على المهام المطلوبة منك.</p>
-        <button class="btn outline" onclick="showView('tasksView')">عرض المهام</button>
+        <div class="icon-btn" onclick="showView('tasksView')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 3.5h6v2H9z"/><path d="M8.5 11.5h7M8.5 15h7"/></svg></div>
+          <span class="label">مهام مسؤولة المقصف</span>
+          <span class="note">اطّلعي على المسمى الوظيفي والمهام المطلوبة منك</span>
+        </div>
       </div>
     </div>
 
@@ -293,7 +291,7 @@
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">إضافة مرفق</h3>
         <label>عنوان المرفق</label>
-        <input type="text" id="attachTitle" placeholder="مثال: فاتورة أكلتي">
+        <input type="text" id="attachTitle" placeholder="مثال: نموذج طلب إجازة">
         <label>نوع المرفق</label>
         <div style="display:flex;gap:18px;margin-bottom:6px;">
           <label style="display:flex;align-items:center;gap:6px;font-weight:normal;">
