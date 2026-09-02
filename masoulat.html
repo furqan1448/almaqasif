@@ -350,27 +350,27 @@
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">مهام مسؤولة المقصف</h3>
+        <div class="pledge-box" id="tasksText">
+          <strong style="display:block;text-align:center;letter-spacing:4px;margin-bottom:10px;">المهـــــــــام</strong>
+          <strong>المسمى الوظيفي:</strong> مسؤولة مقصف<br>
+          <strong>الهدف:</strong> مسؤولة عن عملية البيع وفق النظام المحدد (بالسجلات والملفات)<br><br>
+          <strong>المهام:</strong><br>
+          ١. الالتزام بموعد الدخول والخروج وقلة الغياب.<br>
+          ٢. القيام بأعمال البيع لجميع بضاعة المقصف من مواد غذائية ومشروبات.<br>
+          ٣. الأمانة والحرص على المبالغ المالية المحصلة من البيع وتسجيلها.<br>
+          ٤. الاحتفاظ بفواتير البضاعة التي يتم توفيرها للمقصف.<br>
+          ٥. عمل جرد لكل فاتورة بيع وحساب الربح والتأكد من صحة الحسابات.<br>
+          ٦. الحفاظ على نظافة المقصف وتجميله والإعلان عن الأسعار في مكان واضح.<br>
+          ٧. جرد البضاعة عند استلامها والتأكد من كميتها وتاريخ الصلاحية.<br>
+          ٨. القيام بأي عمل تكلف به من قبل رئيسة وحدة المقاصف ومديرة المركز فيما يخص أعمال المقاصف.<br>
+          ٩. تسليم الأرباح والفواتير قبل انتهاء الفصل الدراسي بأسبوع.<br>
+          ١٠. تسجيل المبيعات أولاً بأول في سجل البيع اليومي.<br>
+          ١١. الالتزام بتوثيق المبالغ في إشعارات التسليم والاستلام في وقتها.
+        </div>
         <div id="tasksAlreadySigned" class="hidden">
           <div class="success-msg" style="display:block;">تم الاطلاع على المهام بتاريخ <span id="tasksDate"></span></div>
         </div>
-        <div id="tasksFormWrap">
-          <div class="pledge-box" id="tasksText">
-            <strong style="display:block;text-align:center;letter-spacing:4px;margin-bottom:10px;">المهـــــــــام</strong>
-            <strong>المسمى الوظيفي:</strong> مسؤولة مقصف<br>
-            <strong>الهدف:</strong> مسؤولة عن عملية البيع وفق النظام المحدد (بالسجلات والملفات)<br><br>
-            <strong>المهام:</strong><br>
-            ١. الالتزام بموعد الدخول والخروج وقلة الغياب.<br>
-            ٢. القيام بأعمال البيع لجميع بضاعة المقصف من مواد غذائية ومشروبات.<br>
-            ٣. الأمانة والحرص على المبالغ المالية المحصلة من البيع وتسجيلها.<br>
-            ٤. الاحتفاظ بفواتير البضاعة التي يتم توفيرها للمقصف.<br>
-            ٥. عمل جرد لكل فاتورة بيع وحساب الربح والتأكد من صحة الحسابات.<br>
-            ٦. الحفاظ على نظافة المقصف وتجميله والإعلان عن الأسعار في مكان واضح.<br>
-            ٧. جرد البضاعة عند استلامها والتأكد من كميتها وتاريخ الصلاحية.<br>
-            ٨. القيام بأي عمل تكلف به من قبل رئيسة وحدة المقاصف ومديرة المركز فيما يخص أعمال المقاصف.<br>
-            ٩. تسليم الأرباح والفواتير قبل انتهاء الفصل الدراسي بأسبوع.<br>
-            ١٠. تسجيل المبيعات أولاً بأول في سجل البيع اليومي.<br>
-            ١١. الالتزام بتوثيق المبالغ في إشعارات التسليم والاستلام في وقتها.
-          </div>
+        <div id="tasksActionWrap">
           <div class="checkline">
             <input type="checkbox" id="tasksCheck">
             <label for="tasksCheck" style="margin:0;font-weight:500;">تم الاطلاع على المهام</label>
@@ -391,6 +391,7 @@
 <script src="config.js"></script>
 <script>
 let currentName = sessionStorage.getItem('maqasif_masoula') || '';
+let currentEmail = sessionStorage.getItem('maqasif_masoula_email') || '';
 let currentCenter = sessionStorage.getItem('maqasif_masoula_center') || '';
 let currentNoticeType = '';
 let currentNoticeReason = '';
@@ -430,8 +431,10 @@ function doLogin() {
       return;
     }
     currentName = r.name;
+    currentEmail = r.email || '';
     currentCenter = r.center || '';
     sessionStorage.setItem('maqasif_masoula', currentName);
+    sessionStorage.setItem('maqasif_masoula_email', currentEmail);
     sessionStorage.setItem('maqasif_masoula_center', currentCenter);
     showDashboard();
   }).catch(function () {
@@ -443,8 +446,10 @@ function doLogin() {
 
 function logout() {
   sessionStorage.removeItem('maqasif_masoula');
+  sessionStorage.removeItem('maqasif_masoula_email');
   sessionStorage.removeItem('maqasif_masoula_center');
   currentName = '';
+  currentEmail = '';
   currentCenter = '';
   document.getElementById('dashScreen').classList.add('hidden');
   document.getElementById('loginScreen').classList.remove('hidden');
@@ -486,7 +491,9 @@ function showView(id) {
 
 /* -------- حضور الاجتماعات (تسجّله الإدارة - عرض فقط هنا) -------- */
 function loadAttendance() {
+  const requestedFor = currentEmail || currentName;
   callApi('getAttendance', { name: currentName }).then(function (r) {
+    if ((currentEmail || currentName) !== requestedFor) return; // نتيجة متأخرة من حساب سابق (تبديل سريع بين الحسابات) - نتجاهلها
     const info = document.getElementById('attendanceInfo');
     const pillsBox = document.getElementById('attendancePills');
     const records = (r.records || []).slice().reverse();
@@ -508,11 +515,16 @@ function loadAttendance() {
 
 /* -------- التعهد السنوي -------- */
 function loadPledge() {
+  const requestedFor = currentEmail || currentName;
   callApi('getPledge', { name: currentName }).then(function (r) {
+    if ((currentEmail || currentName) !== requestedFor) return; // نتيجة متأخرة من حساب سابق - نتجاهلها
     if (r.ok && r.pledge) {
       document.getElementById('pledgeAlreadySigned').classList.remove('hidden');
       document.getElementById('pledgeFormWrap').classList.add('hidden');
       document.getElementById('pledgeDate').textContent = formatDayDateTime(r.pledge['اليوم'], r.pledge['التاريخ'], r.pledge['الوقت']);
+    } else {
+      document.getElementById('pledgeAlreadySigned').classList.add('hidden');
+      document.getElementById('pledgeFormWrap').classList.remove('hidden');
     }
   });
 }
@@ -530,11 +542,16 @@ function signPledge() {
 
 /* -------- مهام مسؤولة المقصف -------- */
 function loadTasksAck() {
-  callApi('getTasksAck', { name: currentName }).then(function (r) {
+  const requestedFor = currentEmail || currentName;
+  callApi('getTasksAck', { name: currentName, email: currentEmail }).then(function (r) {
+    if ((currentEmail || currentName) !== requestedFor) return; // نتيجة متأخرة من حساب سابق (تبديل سريع بين الحسابات بنفس التبويب) - نتجاهلها
     if (r.ok && r.ack) {
       document.getElementById('tasksAlreadySigned').classList.remove('hidden');
-      document.getElementById('tasksFormWrap').classList.add('hidden');
+      document.getElementById('tasksActionWrap').classList.add('hidden');
       document.getElementById('tasksDate').textContent = formatDayDateTime(r.ack['اليوم'], r.ack['التاريخ'], r.ack['الوقت']);
+    } else {
+      document.getElementById('tasksAlreadySigned').classList.add('hidden');
+      document.getElementById('tasksActionWrap').classList.remove('hidden');
     }
   });
 }
@@ -544,7 +561,7 @@ function acknowledgeTasks() {
   if (!checked) { alert('لازم تحددي "تم الاطلاع على المهام" أولاً'); return; }
   const btn = document.getElementById('tasksBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
-  callApi('acknowledgeTasks', { name: currentName, tasksText: document.getElementById('tasksText').innerText.trim() }).then(function (r) {
+  callApi('acknowledgeTasks', { name: currentName, email: currentEmail, tasksText: document.getElementById('tasksText').innerText.trim() }).then(function (r) {
     btn.disabled = false; btn.textContent = 'تأكيد الاطلاع';
     if (r.ok) loadTasksAck();
   });
