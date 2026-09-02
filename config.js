@@ -525,7 +525,7 @@ async function generateNoticeImage(opts) {
   drawDottedField_(ctx, rx, 418, W - 160, 'وذلك:', reasonLine, { valueFont: '16.5px Tajawal, sans-serif' });
 
   ctx.textAlign = 'center';
-  ctx.font = '18px Tajawal, sans-serif';
+  ctx.font = 'bold 18px Tajawal, sans-serif';
   ctx.fillStyle = '#8C1A2C';
   ctx.fillText('توقيع المسلّمة' + (opts.senderName ? (': ' + opts.senderName) : ''), W * 0.28, 508);
   ctx.fillText((opts.adminLabel || 'توقيع المستلمة') + (opts.receiverName ? (': ' + opts.receiverName) : ''), W * 0.72, 508);
