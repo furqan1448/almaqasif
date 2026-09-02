@@ -115,11 +115,16 @@
         <p style="color:#8a7d76;margin:0;">حسابك غير مربوط بمركز حالياً. اطلبي من إدارة وحدة المقاصف تحدّد اسم مركزك بشيت "المسؤولات" عشان تظهر لك أعمال المركز (المبيعات، الفواتير، المرتجعات، الإشعارات).</p>
       </div>
 
-      <!-- المرفقات (متاحة لكل المسؤولات بغض النظر عن ربطهن بمركز) -->
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">المرفقات</h3>
-        <p style="color:#8a7d76;font-size:0.9rem;margin-top:0;">أضيفي ملفات أو روابط مشتركة (نماذج، لوائح، إلخ) تظهر لكل المراكز والمسؤولات والإدارة.</p>
-        <button class="btn outline" onclick="showView('attachmentsView')">إدارة المرفقات</button>
+      <!-- المرفقات والصعوبات (متاحة لكل المسؤولات بغض النظر عن ربطهن بمركز) -->
+      <div class="icon-grid">
+        <div class="icon-btn" onclick="showView('attachmentsView')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12l4.5-4.5a3 3 0 1 1 4.2 4.2L9.5 19a5 5 0 1 1-7-7l7-7"/></svg></div>
+          <span class="label">إضافة مرفقات</span>
+        </div>
+        <div class="icon-btn" onclick="showView('difficultiesView')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 3 20h18z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg></div>
+          <span class="label">الصعوبات والمقترحات</span>
+        </div>
       </div>
 
       <!-- مهام مسؤولة المقصف -->
@@ -127,13 +132,6 @@
         <h3 style="margin-top:0;color:var(--maroon);">مهام مسؤولة المقصف</h3>
         <p style="color:#8a7d76;font-size:0.9rem;margin-top:0;">اطّلعي على المسمى الوظيفي والمهام المطلوبة منك.</p>
         <button class="btn outline" onclick="showView('tasksView')">عرض المهام</button>
-      </div>
-
-      <!-- الصعوبات والمقترحات -->
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">الصعوبات والمقترحات</h3>
-        <p style="color:#8a7d76;font-size:0.9rem;margin-top:0;">أرسلي أي صعوبة تواجهك أو مقترح لإدارة وحدة المقاصف مباشرة.</p>
-        <button class="btn outline" onclick="showView('difficultiesView')">إرسال صعوبة أو مقترح</button>
       </div>
     </div>
 
@@ -295,7 +293,7 @@
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">إضافة مرفق</h3>
         <label>عنوان المرفق</label>
-        <input type="text" id="attachTitle" placeholder="مثال: فاتورة أكلتي">
+        <input type="text" id="attachTitle" placeholder="مثال: نموذج طلب إجازة">
         <label>نوع المرفق</label>
         <div style="display:flex;gap:18px;margin-bottom:6px;">
           <label style="display:flex;align-items:center;gap:6px;font-weight:normal;">
