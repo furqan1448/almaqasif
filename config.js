@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbytpSUzA1OhTfTDKnvY0lF4deW6GDY0ycvyIczpszPn9bzCp2dASh6q4WoJFd1diEtk/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbw8QFRb1adWdkTqDzokc52qQ_VTQHSGHZUtr8lrtUbwraTXM5nf7JIdBgJiZWRaMFQE/exec";
 
 async function callApi(action, data) {
   const payload = Object.assign({ action: action }, data || {});
@@ -526,7 +526,7 @@ async function generateNoticeImage(opts) {
 
   ctx.textAlign = 'center';
   ctx.font = '18px Tajawal, sans-serif';
-  ctx.fillStyle = '#8a7d76';
+  ctx.fillStyle = '#8C1A2C';
   ctx.fillText('توقيع المسلّمة' + (opts.senderName ? (': ' + opts.senderName) : ''), W * 0.28, 508);
   ctx.fillText((opts.adminLabel || 'توقيع المستلمة') + (opts.receiverName ? (': ' + opts.receiverName) : ''), W * 0.72, 508);
 
