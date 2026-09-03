@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbxv52R11gecY5Z6-PebU_RBJOw4eQTbLb4V1UWg3odej3cEgGk_yamonK3bF9iZI-cG/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbw8QFRb1adWdkTqDzokc52qQ_VTQHSGHZUtr8lrtUbwraTXM5nf7JIdBgJiZWRaMFQE/exec";
 
 async function callApi(action, data) {
   const payload = Object.assign({ action: action }, data || {});
@@ -291,12 +291,31 @@ function amountToArabicWords(amount) {
    sheetName: اسم الورقة داخل ملف الإكسل (اختياري)
    يمكن فتح الملف الناتج مباشرة في Excel، أو استيراده في Google Sheets
    من قائمة File > Import داخل شيتس. */
-function exportToExcel(data, filename, sheetName, totals) {
+/* تحميل مكتبة XLSX عند الحاجة فقط (أول ضغطة على زر تصدير إكسل)، بدل تحميلها
+   مع كل صفحة من البداية - المكتبة كبيرة الحجم (~1 ميجا) وما تُستخدم إلا نادراً،
+   فتحميلها دايماً كان يبطّئ كل صفحة حتى لمن ما يحتاجون التصدير إطلاقاً. */
+let _xlsxLoadPromise_ = null;
+function ensureXlsxLoaded_() {
+  if (typeof XLSX !== 'undefined') return Promise.resolve();
+  if (_xlsxLoadPromise_) return _xlsxLoadPromise_;
+  _xlsxLoadPromise_ = new Promise(function (resolve, reject) {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload = resolve;
+    s.onerror = function () { _xlsxLoadPromise_ = null; reject(new Error('تعذر تحميل مكتبة XLSX')); };
+    document.head.appendChild(s);
+  });
+  return _xlsxLoadPromise_;
+}
+
+async function exportToExcel(data, filename, sheetName, totals) {
   if (!data || !data.length) {
     alert('لا يوجد بيانات لتصديرها');
     return;
   }
-  if (typeof XLSX === 'undefined') {
+  try {
+    await ensureXlsxLoaded_();
+  } catch (e) {
     alert('تعذر تحميل مكتبة التصدير، تأكدي من الاتصال بالإنترنت وحاولي مرة أخرى');
     return;
   }

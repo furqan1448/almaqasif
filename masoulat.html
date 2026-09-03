@@ -385,7 +385,6 @@
 <!-- قالب مخفي لتركيب صورة الإشعار -->
 <canvas id="noticeCanvas" width="900" height="710" style="display:none;"></canvas>
 
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
 <script>
@@ -464,7 +463,6 @@ function showDashboard() {
     document.getElementById('centerTiles').classList.remove('hidden');
     document.getElementById('noCenterCard').classList.add('hidden');
     document.getElementById('myCenterName').textContent = currentCenter;
-    refreshPendingBadge();
   } else {
     document.getElementById('centerTitle').classList.add('hidden');
     document.getElementById('centerTiles').classList.add('hidden');
@@ -472,9 +470,60 @@ function showDashboard() {
   }
 
   showView('homeView');
-  loadAttendance();
-  loadPledge();
-  loadTasksAck();
+  loadDashboardData();
+}
+
+/* تجيب كل بيانات اللوحة (الحضور + التعهد + المهام + عدد الإشعارات المعلّقة) بطلب واحد
+   بدل 4 طلبات منفصلة - كل طلب لـ Apps Script فيه تأخير بدء تشغيل، فطلب واحد أسرع بوضوح. */
+function loadDashboardData() {
+  const requestedFor = currentEmail || currentName;
+  callApi('getMasoulaDashboard', { name: currentName, email: currentEmail, center: currentCenter }).then(function (r) {
+    if ((currentEmail || currentName) !== requestedFor) return; // نتيجة متأخرة من حساب سابق - نتجاهلها
+    if (!r.ok) return;
+
+    // الحضور
+    const info = document.getElementById('attendanceInfo');
+    const pillsBox = document.getElementById('attendancePills');
+    const records = (r.attendance || []).slice().reverse();
+    if (!records.length) {
+      info.textContent = 'ما تم تسجيل حضورك لأي اجتماع بعد.';
+      pillsBox.innerHTML = '';
+    } else {
+      info.textContent = 'آخر حضور مسجّل: ' + toHijriStr(records[0]['التاريخ']);
+      pillsBox.innerHTML = '';
+      records.slice(0, 8).forEach(function (rec) {
+        const pill = document.createElement('span');
+        pill.className = 'pill';
+        pill.textContent = toHijriStr(rec['التاريخ']);
+        pillsBox.appendChild(pill);
+      });
+    }
+
+    // التعهد
+    if (r.pledge) {
+      document.getElementById('pledgeAlreadySigned').classList.remove('hidden');
+      document.getElementById('pledgeFormWrap').classList.add('hidden');
+      document.getElementById('pledgeDate').textContent = formatDayDateTime(r.pledge['اليوم'], r.pledge['التاريخ'], r.pledge['الوقت']);
+    } else {
+      document.getElementById('pledgeAlreadySigned').classList.add('hidden');
+      document.getElementById('pledgeFormWrap').classList.remove('hidden');
+    }
+
+    // المهام
+    if (r.tasksAck) {
+      document.getElementById('tasksAlreadySigned').classList.remove('hidden');
+      document.getElementById('tasksActionWrap').classList.add('hidden');
+      document.getElementById('tasksDate').textContent = formatDayDateTime(r.tasksAck['اليوم'], r.tasksAck['التاريخ'], r.tasksAck['الوقت']);
+    } else {
+      document.getElementById('tasksAlreadySigned').classList.add('hidden');
+      document.getElementById('tasksActionWrap').classList.remove('hidden');
+    }
+
+    // عدد الإشعارات المعلّقة
+    const badge = document.getElementById('pendingBadge');
+    if (r.pendingCount > 0) { badge.textContent = r.pendingCount; badge.classList.remove('hidden'); }
+    else { badge.classList.add('hidden'); }
+  });
 }
 
 function showView(id) {
