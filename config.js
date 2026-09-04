@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbyf8CgNxc4X9uQ0sZWOMGoL01lL7pW69qqYxbyi1AsB7ugIu2HxF76CDr8RZmJ5FeEE/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbw8QFRb1adWdkTqDzokc52qQ_VTQHSGHZUtr8lrtUbwraTXM5nf7JIdBgJiZWRaMFQE/exec";
 
 async function callApi(action, data) {
   const payload = Object.assign({ action: action }, data || {});
@@ -327,7 +327,7 @@ function populateTermFilter_(selectId) {
   });
 }
 
-/* -------- بدء فصل دراسي جديد (ترحيل بيانات الفصل الحالي) --------
+/* -------- أرشفة الفصل السابق (ترحيل بيانات الفصل الحالي) --------
    مشتركة بين مراكز/مسؤولات/إدارة. تتطلب وجود عنصرين بنفس الصفحة:
    <select id="termNumberSelect"> و <input id="termYearInput">
    وزر بـ id="termArchiveBtn" onclick="submitTermArchive()" */
@@ -346,7 +346,7 @@ function submitTermArchive() {
   const btn = document.getElementById('termArchiveBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
   callApi('archiveCurrentTerm', { termLabel: label }).then(function (r) {
-    btn.disabled = false; btn.textContent = 'تأكيد بدء الفصل الجديد';
+    btn.disabled = false; btn.textContent = 'تأكيد الأرشفة';
     if (r.ok) {
       const c = r.counts || {};
       alert(

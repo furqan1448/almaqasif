@@ -45,7 +45,7 @@
     <button class="tab-btn" data-tab="statsTab" onclick="showAdminTab('statsTab')">الإحصائيات</button>
     <button class="tab-btn" data-tab="attachmentsTab" onclick="showAdminTab('attachmentsTab')">المرفقات</button>
     <button class="tab-btn" data-tab="difficultiesTab" onclick="showAdminTab('difficultiesTab')">الصعوبات والمقترحات</button>
-    <button class="tab-btn" data-tab="termTab" onclick="showAdminTab('termTab')">بدء فصل جديد</button>
+    <button class="tab-btn" data-tab="termTab" onclick="showAdminTab('termTab')">أرشفة الفصل السابق</button>
   </div>
 
   <div class="wrap">
@@ -270,14 +270,14 @@
       </div>
     </div>
 
-    <!-- ===== تبويب: بدء فصل دراسي جديد ===== -->
+    <!-- ===== تبويب: أرشفة الفصل السابق ===== -->
     <div id="termTab" class="admin-tab-panel hidden">
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">بدء فصل دراسي جديد</h3>
+        <h3 style="margin-top:0;color:var(--maroon);">أرشفة الفصل السابق</h3>
         <p style="color:#8a7d76;font-size:0.9rem;margin-top:0;">
           هذا الإجراء يرحّل كل بيانات المبيعات والمرتجعات والفواتير والإشعارات "الحالية" (اللي لسا ما انسمّت باسم فصل، من كل المراكز) وينسبها لاسم الفصل المنتهي اللي تحددينه تحت. البيانات نفسها ما تُحذف ولا تتغيّر، بس تصير موسومة بالفصل.
         </p>
-        <label>الفصل الدراسي</label>
+        <label>الفصل الدراسي الذي انتهى</label>
         <select id="termNumberSelect">
           <option value="">اختاري...</option>
           <option value="الأول">الأول</option>
@@ -286,7 +286,7 @@
         </select>
         <label>السنة الهجرية</label>
         <input type="text" id="termYearInput" placeholder="مثال: ١٤٤٨">
-        <button class="btn gold" id="termArchiveBtn" onclick="submitTermArchive()" style="margin-top:12px;">تأكيد بدء الفصل الجديد</button>
+        <button class="btn gold" id="termArchiveBtn" onclick="submitTermArchive()" style="margin-top:12px;">تأكيد الأرشفة</button>
       </div>
     </div>
 
