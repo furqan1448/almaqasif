@@ -23,7 +23,7 @@
     <button class="btn" id="loginBtn" onclick="doLogin()">دخول</button>
     <div class="error-msg" id="loginError"></div>
     <p style="font-size:0.78rem;color:#8a7d76;margin-top:14px;">
-      * لتغيير كلمة مرور الإدارة، عدّلي القيمة ADMIN_PASSWORD في أعلى ملف edara.html
+      * لتغيير كلمة مرور الإدارة: من محرر Apps Script ← ⚙️ Project Settings ← Script Properties
     </p>
   </div>
   <a href="index.html" class="back-link" style="display:block;text-align:center;margin-top:16px;">⟵ الرجوع للصفحة الرئيسية</a>
@@ -367,9 +367,6 @@
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
 <script>
-// ⚠️ عدّلي كلمة مرور الإدارة هنا
-const ADMIN_PASSWORD = "admin1234";
-
 let isLoggedIn = sessionStorage.getItem('maqasif_admin') === 'yes';
 let allPending = [];
 let currentNotice = null;
@@ -385,13 +382,19 @@ if (isLoggedIn) showDashboard();
 function doLogin() {
   const pass = document.getElementById('adminPassword').value;
   const errBox = document.getElementById('loginError');
-  if (pass !== ADMIN_PASSWORD) {
-    errBox.textContent = 'كلمة المرور غير صحيحة';
-    errBox.style.display = 'block';
-    return;
-  }
-  sessionStorage.setItem('maqasif_admin', 'yes');
-  showDashboard();
+  const btn = document.getElementById('loginBtn');
+  errBox.style.display = 'none';
+  btn.disabled = true;
+  callApi('loginAdmin', { password: pass }).then(function (r) {
+    btn.disabled = false;
+    if (!r.ok) {
+      errBox.textContent = r.error || 'كلمة المرور غير صحيحة';
+      errBox.style.display = 'block';
+      return;
+    }
+    sessionStorage.setItem('maqasif_admin', 'yes');
+    showDashboard();
+  });
 }
 
 function logout() {
