@@ -45,7 +45,8 @@ function setup() {
     'المرفقات': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
     'مرفقات الإشراف': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
     'دخول الإشراف': ['البريد الإلكتروني', 'كلمة المرور', 'الاسم'],
-    'الصعوبات والمقترحات': ['معرف', 'اسم المركز', 'من', 'النوع', 'النص', 'اليوم', 'التاريخ', 'الوقت']
+    'الصعوبات والمقترحات': ['معرف', 'اسم المركز', 'من', 'النوع', 'النص', 'اليوم', 'التاريخ', 'الوقت'],
+    'قائمة الدخل': ['معرف', 'البند', 'البيان', 'المبلغ', 'اليوم', 'التاريخ', 'الفصل الدراسي']
   };
 
   Object.keys(sheets).forEach(function (name) {
@@ -513,6 +514,10 @@ function handleRequest_(p) {
       case 'archiveCurrentTerm': return json_(archiveCurrentTerm_(p));
       case 'getTermsList': return json_(getTermsList_());
 
+      case 'recordIncomeItem': return json_(recordIncomeItem_(p));
+      case 'getIncomeItems': return json_(getIncomeItems_(p));
+      case 'deleteIncomeItem': return json_(deleteIncomeItem_(p));
+
       case 'recordAttachment': return json_(recordAttachment_(p));
       case 'getAttachments': return json_(getAttachments_(p));
       case 'deleteAttachment': return json_(deleteAttachment_(p));
@@ -660,6 +665,7 @@ function getTermsList_() {
   collect('المرتجعات', 'الفصل الدراسي');
   collect('الفواتير', 'الفصل الدراسي');
   collect('الإشعارات', 'فصل الأرشفة');
+  collect('قائمة الدخل', 'الفصل الدراسي');
   return { ok: true, terms: terms };
 }
 
@@ -1223,7 +1229,8 @@ function archiveCurrentTerm_(p) {
     { name: 'المبيعات', col: 'الفصل الدراسي' },
     { name: 'المرتجعات', col: 'الفصل الدراسي' },
     { name: 'الفواتير', col: 'الفصل الدراسي' },
-    { name: 'الإشعارات', col: 'فصل الأرشفة' }
+    { name: 'الإشعارات', col: 'فصل الأرشفة' },
+    { name: 'قائمة الدخل', col: 'الفصل الدراسي' }
   ];
   const counts = {};
 
@@ -1251,6 +1258,40 @@ function archiveCurrentTerm_(p) {
   return { ok: true, counts: counts };
 }
 
+
+/* ------------------- قائمة الدخل (الإيرادات والمصروفات - يدوي بالكامل) ------------------- */
+
+function recordIncomeItem_(p) {
+  const sh = sheet_('قائمة الدخل');
+  const id = Utilities.getUuid();
+  const now = nowParts_();
+  appendRowByHeaders_(sh, {
+    'معرف': id, 'البند': p.category || '', 'البيان': p.description || '', 'المبلغ': Number(p.amount) || 0,
+    'اليوم': now.day, 'التاريخ': now.date
+  });
+  invalidateCache_('قائمة الدخل');
+  return { ok: true, id: id };
+}
+
+function getIncomeItems_(p) {
+  let rows = sheetToObjects_('قائمة الدخل');
+  rows = filterByTerm_(rows, p && p.term);
+  rows = rows.slice().reverse();
+  let totalIncome = 0, totalExpenses = 0;
+  rows.forEach(function (r) {
+    const amt = Number(r['المبلغ']) || 0;
+    if (r['البند'] === 'إيراد') totalIncome += amt;
+    else if (r['البند'] === 'مصروفات') totalExpenses += amt;
+  });
+  return { ok: true, items: rows, totalIncome: totalIncome, totalExpenses: totalExpenses, netProfit: totalIncome - totalExpenses };
+}
+
+function deleteIncomeItem_(p) {
+  const sh = sheet_('قائمة الدخل');
+  sh.deleteRow(Number(p.row));
+  invalidateCache_('قائمة الدخل');
+  return { ok: true };
+}
 
 function getStats_() {
   const sales = sheetToObjects_('المبيعات');
