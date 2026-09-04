@@ -117,18 +117,6 @@ select, input[type=text], input[type=password], input[type=number], input[type=d
   background: var(--cream);
   color: var(--ink);
 }
-/* السهم الافتراضي للمتصفح ما يتعامل صح مع اتجاه RTL (يطلع كبير ويتراكب مع النص).
-   نشيله ونحط سهم صغير مرسوم بنفسنا بمكانه الصحيح (يسار الحقل بدل يمينه). */
-select {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%238C1A2C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: left 14px center;
-  background-size: 12px 8px;
-  padding-left: 34px;
-}
 select:focus, input:focus, textarea:focus {
   outline: none;
   border-color: var(--maroon);
