@@ -46,7 +46,7 @@ function setup() {
     'مرفقات الإشراف': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
     'دخول الإشراف': ['البريد الإلكتروني', 'كلمة المرور', 'الاسم'],
     'الصعوبات والمقترحات': ['معرف', 'اسم المركز', 'من', 'النوع', 'النص', 'اليوم', 'التاريخ', 'الوقت'],
-    'قائمة الدخل': ['معرف', 'البند', 'البيان', 'المبلغ', 'اليوم', 'التاريخ', 'الفصل الدراسي']
+    'قائمة الدخل': ['معرف', 'البند', 'البيان', 'المبلغ', 'المبلغ كتابة', 'اليوم', 'التاريخ', 'الفصل الدراسي', 'رابط المرفق', 'اسم المرفق']
   };
 
   Object.keys(sheets).forEach(function (name) {
@@ -516,6 +516,7 @@ function handleRequest_(p) {
 
       case 'recordIncomeItem': return json_(recordIncomeItem_(p));
       case 'getIncomeItems': return json_(getIncomeItems_(p));
+      case 'updateIncomeItem': return json_(updateIncomeItem_(p));
       case 'deleteIncomeItem': return json_(deleteIncomeItem_(p));
 
       case 'recordAttachment': return json_(recordAttachment_(p));
@@ -1265,12 +1266,39 @@ function recordIncomeItem_(p) {
   const sh = sheet_('قائمة الدخل');
   const id = Utilities.getUuid();
   const now = nowParts_();
+  let attachmentUrl = '';
+  let attachmentName = '';
+  if (p.fileData) {
+    attachmentUrl = saveAttachmentFile_(p.fileData, p.fileName || ('مرفق-' + id), p.mimeType || '');
+    attachmentName = p.fileName || '';
+  }
   appendRowByHeaders_(sh, {
     'معرف': id, 'البند': p.category || '', 'البيان': p.description || '', 'المبلغ': Number(p.amount) || 0,
-    'اليوم': now.day, 'التاريخ': now.date
+    'المبلغ كتابة': p.amountWords || '',
+    'اليوم': now.day, 'التاريخ': now.date,
+    'رابط المرفق': attachmentUrl, 'اسم المرفق': attachmentName
   });
   invalidateCache_('قائمة الدخل');
   return { ok: true, id: id };
+}
+
+/* تعديل بند موجود. لو انمرّر ملف مرفق جديد (p.fileData) يستبدل القديم (لو موجود)؛
+   لو ما انمرّر، يبقى المرفق القديم كما هو (ما يُحذف بمجرد التعديل على المبلغ مثلاً). */
+function updateIncomeItem_(p) {
+  const sh = sheet_('قائمة الدخل');
+  const row = Number(p.row);
+  if (p.category !== undefined) sh.getRange(row, colIndex_(sh, 'البند')).setValue(p.category);
+  if (p.description !== undefined) sh.getRange(row, colIndex_(sh, 'البيان')).setValue(p.description);
+  if (p.amount !== undefined) sh.getRange(row, colIndex_(sh, 'المبلغ')).setValue(Number(p.amount));
+  if (p.amountWords !== undefined) sh.getRange(row, colIndex_(sh, 'المبلغ كتابة')).setValue(p.amountWords);
+  if (p.fileData) {
+    const id = Utilities.getUuid();
+    const url = saveAttachmentFile_(p.fileData, p.fileName || ('مرفق-' + id), p.mimeType || '');
+    sh.getRange(row, colIndex_(sh, 'رابط المرفق')).setValue(url);
+    sh.getRange(row, colIndex_(sh, 'اسم المرفق')).setValue(p.fileName || '');
+  }
+  invalidateCache_('قائمة الدخل');
+  return { ok: true };
 }
 
 function getIncomeItems_(p) {
