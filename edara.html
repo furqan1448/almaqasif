@@ -366,7 +366,7 @@
     <!-- ===== تبويب: قائمة الدخل ===== -->
     <div id="incomeTab" class="admin-tab-panel hidden">
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">إضافة بند لقائمة الدخل</h3>
+        <h3 style="margin-top:0;color:var(--maroon);" id="incomeFormTitle">إضافة بند لقائمة الدخل</h3>
         <label>البند</label>
         <select id="incomeCategory">
           <option value="إيراد">إيراد</option>
@@ -376,8 +376,13 @@
         <label>البيان</label>
         <input type="text" id="incomeDescription" placeholder="مثال: أرباح الفطائر">
         <label>المبلغ (ريال)</label>
-        <input type="number" id="incomeAmount" placeholder="0.00" step="0.01">
-        <button class="btn" id="incomeSubmitBtn" onclick="submitIncomeItem()">حفظ البند</button>
+        <input type="number" id="incomeAmount" placeholder="0.00" step="0.01" oninput="updateIncomeAmountWords()">
+        <p id="incomeAmountWords" style="color:#8a7d76;font-size:0.85rem;margin:6px 0 0;"></p>
+        <label>مرفق (اختياري) — مثال: صورة فاتورة أو إثبات</label>
+        <input type="file" id="incomeAttachment">
+        <div id="incomeExistingAttachment" class="hidden" style="font-size:0.85rem;margin-top:6px;"></div>
+        <button class="btn" id="incomeSubmitBtn" onclick="submitIncomeItem()" style="margin-top:12px;">حفظ البند</button>
+        <button class="btn secondary hidden" id="incomeCancelEditBtn" onclick="cancelEditIncomeItem()">إلغاء التعديل</button>
         <div class="success-msg" id="incomeSuccess">تم حفظ البند بنجاح ✅</div>
       </div>
 
@@ -389,8 +394,8 @@
           <option value="all">كل الفصول</option>
         </select>
         <table class="log-table" id="incomeTable">
-          <thead><tr><th>البند</th><th>البيان</th><th>المبلغ</th><th>اليوم</th><th>التاريخ</th><th></th></tr></thead>
-          <tbody id="incomeTbody"><tr><td colspan="6">جاري التحميل...</td></tr></tbody>
+          <thead><tr><th>البند</th><th>البيان</th><th>المبلغ</th><th>اليوم</th><th>التاريخ</th><th>مرفق</th><th></th></tr></thead>
+          <tbody id="incomeTbody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
         </table>
         <div class="card" style="background:var(--cream);box-shadow:none;margin-top:14px;">
           <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>إجمالي الإيرادات</span><strong id="incomeTotalRevenue">0</strong></div>
@@ -1071,6 +1076,13 @@ function loadTasksStatus() {
 
 /* -------- قائمة الدخل -------- */
 let currentIncomeItems = [];
+let editingIncomeRow = null;
+
+function updateIncomeAmountWords() {
+  const amount = parseFloat(document.getElementById('incomeAmount').value);
+  const box = document.getElementById('incomeAmountWords');
+  box.textContent = (!isNaN(amount) && amount > 0) ? amountToArabicWords(amount) : '';
+}
 
 function submitIncomeItem() {
   const category = document.getElementById('incomeCategory').value;
@@ -1078,23 +1090,82 @@ function submitIncomeItem() {
   const amount = parseFloat(document.getElementById('incomeAmount').value);
   if (!description) { alert('اكتبي البيان'); return; }
   if (isNaN(amount) || amount < 0) { alert('اكتبي مبلغ صحيح'); return; }
+  const amountWords = amountToArabicWords(amount);
+  const fileInput = document.getElementById('incomeAttachment');
+  const file = fileInput.files[0];
+
   const btn = document.getElementById('incomeSubmitBtn');
   btn.disabled = true;
-  callApi('recordIncomeItem', { category: category, description: description, amount: amount }).then(function (r) {
-    btn.disabled = false;
-    if (r.ok) {
-      document.getElementById('incomeDescription').value = '';
-      document.getElementById('incomeAmount').value = '';
-      document.getElementById('incomeSuccess').style.display = 'block';
-      setTimeout(function () { document.getElementById('incomeSuccess').style.display = 'none'; }, 2500);
-      loadIncomeItems();
-    }
-  });
+
+  function send(fileData, fileName, mimeType) {
+    const payload = { category: category, description: description, amount: amount, amountWords: amountWords };
+    if (fileData) { payload.fileData = fileData; payload.fileName = fileName; payload.mimeType = mimeType; }
+    const action = editingIncomeRow ? 'updateIncomeItem' : 'recordIncomeItem';
+    if (editingIncomeRow) payload.row = editingIncomeRow;
+    callApi(action, payload).then(function (r) {
+      btn.disabled = false;
+      if (r.ok) {
+        cancelEditIncomeItem();
+        document.getElementById('incomeSuccess').style.display = 'block';
+        setTimeout(function () { document.getElementById('incomeSuccess').style.display = 'none'; }, 2500);
+        loadIncomeItems();
+      } else {
+        alert('تعذّر الحفظ: ' + (r.error || 'خطأ غير معروف') + '\n\nلو الخطأ يتكلم عن شيت "قائمة الدخل" غير موجود، لازم تشغّلي دالة setup() مرة وحدة من قائمة الدوال أعلى محرر Apps Script.');
+      }
+    }).catch(function (err) {
+      btn.disabled = false;
+      alert('تعذّر الاتصال بالسيرفر: ' + err.message);
+    });
+  }
+
+  if (file) {
+    if (file.size > 15 * 1024 * 1024) { alert('حجم الملف كبير جداً (الحد الأقصى 15 ميجا)'); btn.disabled = false; return; }
+    const reader = new FileReader();
+    reader.onload = function () { send(reader.result, file.name, file.type); };
+    reader.readAsDataURL(file);
+  } else {
+    send();
+  }
+}
+
+function editIncomeItem(row) {
+  const item = currentIncomeItems.find(function (i) { return i._row === row; });
+  if (!item) return;
+  editingIncomeRow = row;
+  document.getElementById('incomeCategory').value = item['البند'] || 'إيراد';
+  document.getElementById('incomeDescription').value = item['البيان'] || '';
+  document.getElementById('incomeAmount').value = Number(item['المبلغ']) || 0;
+  updateIncomeAmountWords();
+  document.getElementById('incomeAttachment').value = '';
+  const existingBox = document.getElementById('incomeExistingAttachment');
+  if (item['رابط المرفق']) {
+    existingBox.innerHTML = 'المرفق الحالي: <a href="' + item['رابط المرفق'] + '" target="_blank">' + (item['اسم المرفق'] || 'عرض') + '</a> — اختاري ملف جديد بس لو تبين تستبدلينه';
+    existingBox.classList.remove('hidden');
+  } else {
+    existingBox.classList.add('hidden');
+  }
+  document.getElementById('incomeFormTitle').textContent = 'تعديل بند';
+  document.getElementById('incomeSubmitBtn').textContent = 'حفظ التعديل';
+  document.getElementById('incomeCancelEditBtn').classList.remove('hidden');
+  document.getElementById('incomeFormTitle').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelEditIncomeItem() {
+  editingIncomeRow = null;
+  document.getElementById('incomeCategory').value = 'إيراد';
+  document.getElementById('incomeDescription').value = '';
+  document.getElementById('incomeAmount').value = '';
+  document.getElementById('incomeAmountWords').textContent = '';
+  document.getElementById('incomeAttachment').value = '';
+  document.getElementById('incomeExistingAttachment').classList.add('hidden');
+  document.getElementById('incomeFormTitle').textContent = 'إضافة بند لقائمة الدخل';
+  document.getElementById('incomeSubmitBtn').textContent = 'حفظ البند';
+  document.getElementById('incomeCancelEditBtn').classList.add('hidden');
 }
 
 function loadIncomeItems() {
   const tbody = document.getElementById('incomeTbody');
-  tbody.innerHTML = '<tr><td colspan="6">جاري التحميل...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
   populateTermFilter_('incomeTermFilter').then(function () {
     const term = document.getElementById('incomeTermFilter').value;
     callApi('getIncomeItems', { term: term }).then(function (r) {
@@ -1102,12 +1173,13 @@ function loadIncomeItems() {
       document.getElementById('incomeTotalRevenue').textContent = (r.totalIncome || 0).toFixed(2);
       document.getElementById('incomeTotalExpenses').textContent = (r.totalExpenses || 0).toFixed(2);
       document.getElementById('incomeNetProfit').textContent = (r.netProfit || 0).toFixed(2);
-      if (!currentIncomeItems.length) { tbody.innerHTML = '<tr><td colspan="6">لا توجد بنود بعد</td></tr>'; return; }
+      if (!currentIncomeItems.length) { tbody.innerHTML = '<tr><td colspan="7">لا توجد بنود بعد</td></tr>'; return; }
       tbody.innerHTML = '';
       currentIncomeItems.forEach(function (item) {
         const tr = document.createElement('tr');
-        tr.innerHTML = '<td>' + (item['البند'] || '') + '</td><td>' + (item['البيان'] || '') + '</td><td>' + Number(item['المبلغ']).toFixed(2) + '</td><td>' + (item['اليوم'] || '') + '</td><td>' + toHijriStr(item['التاريخ']) + '</td>' +
-          '<td><a href="#" onclick="deleteIncomeRow(' + item._row + '); return false;">حذف</a></td>';
+        const attachHtml = item['رابط المرفق'] ? '<a href="' + item['رابط المرفق'] + '" target="_blank">عرض</a>' : '—';
+        tr.innerHTML = '<td>' + (item['البند'] || '') + '</td><td>' + (item['البيان'] || '') + '</td><td>' + Number(item['المبلغ']).toFixed(2) + '</td><td>' + (item['اليوم'] || '') + '</td><td>' + toHijriStr(item['التاريخ']) + '</td><td>' + attachHtml + '</td>' +
+          '<td><div class="row-actions"><a href="#" onclick="editIncomeItem(' + item._row + '); return false;">تعديل</a><a href="#" onclick="deleteIncomeRow(' + item._row + '); return false;">حذف</a></div></td>';
         tbody.appendChild(tr);
       });
     });
@@ -1124,7 +1196,7 @@ function deleteIncomeRow(row) {
 function exportIncomeItems() {
   if (!currentIncomeItems.length) { alert('لا توجد بيانات لتصديرها'); return; }
   const rows = currentIncomeItems.map(function (item) {
-    return { 'البند': item['البند'] || '', 'البيان': item['البيان'] || '', 'المبلغ': Number(item['المبلغ']), 'اليوم': item['اليوم'] || '', 'التاريخ': item['التاريخ'] || '' };
+    return { 'البند': item['البند'] || '', 'البيان': item['البيان'] || '', 'المبلغ': Number(item['المبلغ']), 'المبلغ كتابة': item['المبلغ كتابة'] || '', 'اليوم': item['اليوم'] || '', 'التاريخ': item['التاريخ'] || '' };
   });
   exportToExcel(rows, 'قائمة-الدخل', 'قائمة الدخل');
 }
