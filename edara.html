@@ -337,8 +337,8 @@
     <div id="pledgesTab" class="admin-tab-panel hidden">
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">متابعة التعهدات</h3>
-        <label>عرض</label>
-        <select id="pledgesCenterFilter" onchange="loadPledgesStatus()"><option value="">جاري التحميل...</option></select>
+        <label>اسم المسؤولة</label>
+        <select id="pledgesNameFilter" onchange="loadPledgesStatus()"><option value="">جاري التحميل...</option></select>
         <table class="log-table" id="pledgesTable">
           <thead><tr><th>الاسم</th><th>المركز</th><th>الحالة</th><th>التاريخ</th></tr></thead>
           <tbody id="pledgesTbody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
@@ -350,8 +350,8 @@
     <div id="tasksStatusTab" class="admin-tab-panel hidden">
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">متابعة اطلاع المهام</h3>
-        <label>عرض</label>
-        <select id="tasksCenterFilter" onchange="loadTasksStatus()"><option value="">جاري التحميل...</option></select>
+        <label>اسم المسؤولة</label>
+        <select id="tasksNameFilter" onchange="loadTasksStatus()"><option value="">جاري التحميل...</option></select>
         <table class="log-table" id="tasksStatusTable">
           <thead><tr><th>الاسم</th><th>المركز</th><th>الحالة</th><th>التاريخ</th></tr></thead>
           <tbody id="tasksStatusTbody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
@@ -378,6 +378,7 @@ let currentSales = [];
 let currentReturns = [];
 let currentInvoices = [];
 let centersListCache = [];
+let masoulatListCache = [];
 
 if (isLoggedIn) showDashboard();
 
@@ -433,8 +434,21 @@ function loadCentersDropdowns() {
     fillCenterSelect('returnsCenterSelect');
     fillCenterSelect('invoicesCenterSelect');
     fillCenterSelect('noticeCenterFilter');
-    fillCenterSelect('pledgesCenterFilter');
-    fillCenterSelect('tasksCenterFilter');
+  });
+  callApi('getMasoulat').then(function (r) {
+    masoulatListCache = r.masoulat || [];
+    fillNameSelect('pledgesNameFilter');
+    fillNameSelect('tasksNameFilter');
+  });
+}
+
+function fillNameSelect(id) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = '<option value="">عرض الكل</option>';
+  masoulatListCache.forEach(function (n) {
+    const opt = document.createElement('option');
+    opt.value = n; opt.textContent = n;
+    sel.appendChild(opt);
   });
 }
 
@@ -972,8 +986,8 @@ function loadPledgesStatus() {
   tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
   callApi('getPledgeStatusAll', {}).then(function (r) {
     if (!r.ok || !r.list) { tbody.innerHTML = '<tr><td colspan="4">تعذّر التحميل</td></tr>'; return; }
-    const center = document.getElementById('pledgesCenterFilter').value;
-    const list = center ? r.list.filter(function (x) { return String(x.center).trim() === center; }) : r.list;
+    const name = document.getElementById('pledgesNameFilter').value;
+    const list = name ? r.list.filter(function (x) { return String(x.name).trim() === name; }) : r.list;
     if (!list.length) { tbody.innerHTML = '<tr><td colspan="4">لا يوجد مسؤولات مسجّلات</td></tr>'; return; }
     tbody.innerHTML = '';
     list.forEach(function (x) {
@@ -993,8 +1007,8 @@ function loadTasksStatus() {
   tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
   callApi('getTasksStatusAll', {}).then(function (r) {
     if (!r.ok || !r.list) { tbody.innerHTML = '<tr><td colspan="4">تعذّر التحميل</td></tr>'; return; }
-    const center = document.getElementById('tasksCenterFilter').value;
-    const list = center ? r.list.filter(function (x) { return String(x.center).trim() === center; }) : r.list;
+    const name = document.getElementById('tasksNameFilter').value;
+    const list = name ? r.list.filter(function (x) { return String(x.name).trim() === name; }) : r.list;
     if (!list.length) { tbody.innerHTML = '<tr><td colspan="4">لا يوجد مسؤولات مسجّلات</td></tr>'; return; }
     tbody.innerHTML = '';
     list.forEach(function (x) {
