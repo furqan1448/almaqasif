@@ -77,6 +77,14 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8.5 14.5l2 2 4-4"/></svg></div>
           <span class="label">أرشفة الفصل السابق</span>
         </div>
+        <div class="icon-btn" onclick="showAdminTab('pledgesTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l3.5-1 10-10a1.5 1.5 0 0 0-3-3l-10 10z"/><path d="M13 8l3 3"/></svg></div>
+          <span class="label">متابعة التعهدات</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('tasksStatusTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 3.5h6v2H9z"/><path d="M8.5 11.5h7M8.5 15h7"/></svg></div>
+          <span class="label">متابعة اطلاع المهام</span>
+        </div>
       </div>
     </div>
   </div>
@@ -325,6 +333,32 @@
       </div>
     </div>
 
+    <!-- ===== تبويب: متابعة التعهدات ===== -->
+    <div id="pledgesTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">متابعة التعهدات</h3>
+        <label>عرض</label>
+        <select id="pledgesCenterFilter" onchange="loadPledgesStatus()"><option value="">جاري التحميل...</option></select>
+        <table class="log-table" id="pledgesTable">
+          <thead><tr><th>الاسم</th><th>المركز</th><th>الحالة</th><th>التاريخ</th></tr></thead>
+          <tbody id="pledgesTbody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: متابعة اطلاع المهام ===== -->
+    <div id="tasksStatusTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">متابعة اطلاع المهام</h3>
+        <label>عرض</label>
+        <select id="tasksCenterFilter" onchange="loadTasksStatus()"><option value="">جاري التحميل...</option></select>
+        <table class="log-table" id="tasksStatusTable">
+          <thead><tr><th>الاسم</th><th>المركز</th><th>الحالة</th><th>التاريخ</th></tr></thead>
+          <tbody id="tasksStatusTbody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -387,6 +421,8 @@ function showAdminTab(tabId) {
   if (tabId === 'invoicesTab') loadCenterInvoices();
   if (tabId === 'attachmentsTab') loadAttachments();
   if (tabId === 'difficultiesTab') loadDifficultiesAdmin();
+  if (tabId === 'pledgesTab') loadPledgesStatus();
+  if (tabId === 'tasksStatusTab') loadTasksStatus();
 }
 
 /* -------- تحميل قوائم المراكز في كل القوائم المنسدلة -------- */
@@ -397,6 +433,8 @@ function loadCentersDropdowns() {
     fillCenterSelect('returnsCenterSelect');
     fillCenterSelect('invoicesCenterSelect');
     fillCenterSelect('noticeCenterFilter');
+    fillCenterSelect('pledgesCenterFilter');
+    fillCenterSelect('tasksCenterFilter');
   });
 }
 
@@ -926,6 +964,48 @@ function exportDifficulties() {
     };
   });
   exportToExcel(rows, 'الصعوبات-والمقترحات', 'الصعوبات والمقترحات');
+}
+
+/* -------- متابعة التعهدات (لكل مسؤولات المقصف) -------- */
+function loadPledgesStatus() {
+  const tbody = document.getElementById('pledgesTbody');
+  tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
+  callApi('getPledgeStatusAll', {}).then(function (r) {
+    if (!r.ok || !r.list) { tbody.innerHTML = '<tr><td colspan="4">تعذّر التحميل</td></tr>'; return; }
+    const center = document.getElementById('pledgesCenterFilter').value;
+    const list = center ? r.list.filter(function (x) { return String(x.center).trim() === center; }) : r.list;
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="4">لا يوجد مسؤولات مسجّلات</td></tr>'; return; }
+    tbody.innerHTML = '';
+    list.forEach(function (x) {
+      const tr = document.createElement('tr');
+      const statusHtml = x.signed
+        ? '<span class="status-pill done">تم التعهد</span>'
+        : '<span class="status-pill pending">لم تتعهد بعد</span>';
+      tr.innerHTML = '<td>' + (x.name || '') + '</td><td>' + (x.center || '') + '</td><td>' + statusHtml + '</td><td>' + (x.signed ? formatDayDateTime(x.day, x.date, x.time) : '') + '</td>';
+      tbody.appendChild(tr);
+    });
+  });
+}
+
+/* -------- متابعة اطلاع المهام (لكل مسؤولات المقصف) -------- */
+function loadTasksStatus() {
+  const tbody = document.getElementById('tasksStatusTbody');
+  tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
+  callApi('getTasksStatusAll', {}).then(function (r) {
+    if (!r.ok || !r.list) { tbody.innerHTML = '<tr><td colspan="4">تعذّر التحميل</td></tr>'; return; }
+    const center = document.getElementById('tasksCenterFilter').value;
+    const list = center ? r.list.filter(function (x) { return String(x.center).trim() === center; }) : r.list;
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="4">لا يوجد مسؤولات مسجّلات</td></tr>'; return; }
+    tbody.innerHTML = '';
+    list.forEach(function (x) {
+      const tr = document.createElement('tr');
+      const statusHtml = x.acknowledged
+        ? '<span class="status-pill done">تم الاطلاع</span>'
+        : '<span class="status-pill pending">لم تطّلع بعد</span>';
+      tr.innerHTML = '<td>' + (x.name || '') + '</td><td>' + (x.center || '') + '</td><td>' + statusHtml + '</td><td>' + (x.acknowledged ? formatDayDateTime(x.day, x.date, x.time) : '') + '</td>';
+      tbody.appendChild(tr);
+    });
+  });
 }
 </script>
 </body>

@@ -492,9 +492,11 @@ function handleRequest_(p) {
 
       case 'getPledge': return json_(getPledge_(p));
       case 'signPledge': return json_(signPledge_(p));
+      case 'getPledgeStatusAll': return json_(getPledgeStatusAll_());
 
       case 'getTasksAck': return json_(getTasksAck_(p));
       case 'acknowledgeTasks': return json_(acknowledgeTasks_(p));
+      case 'getTasksStatusAll': return json_(getTasksStatusAll_());
 
       case 'getMasoulaDashboard': return json_(getMasoulaDashboard_(p));
 
@@ -880,6 +882,30 @@ function getPledge_(p) {
   return { ok: true, pledge: latest };
 }
 
+/* تُستخدم بلوحة الإدارة: ترجع لكل مسؤولة مسجّلة بشيت "المسؤولات" حالة تعهدها
+   (وقّعت أو لا، وتاريخ آخر توقيع لو وقّعت) - عشان الإدارة تشوف مين وقّعت ومين لسا. */
+function getPledgeStatusAll_() {
+  const masoulat = sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG);
+  const pledgeRows = sheetToObjects_('التعهد');
+  const latestByName = {};
+  pledgeRows.forEach(function (r) {
+    latestByName[String(r['الاسم']).trim()] = r;
+  });
+  const list = masoulat.map(function (m) {
+    const name = String(m['الاسم'] || '').trim();
+    const p = latestByName[name];
+    return {
+      name: name,
+      center: m['اسم المركز'] || '',
+      signed: !!p,
+      day: p ? (p['اليوم'] || '') : '',
+      date: p ? (p['التاريخ'] || '') : '',
+      time: p ? (p['الوقت'] || '') : ''
+    };
+  }).filter(function (r) { return r.name; });
+  return { ok: true, list: list };
+}
+
 /* ------------------- مهام مسؤولة المقصف ------------------- */
 
 /* الاطلاع على المهام يُحفظ ويُتحقق منه بالبريد الإلكتروني (وليس الاسم فقط)،
@@ -906,6 +932,36 @@ function getTasksAck_(p) {
   });
   const latest = rows.length ? rows[rows.length - 1] : null;
   return { ok: true, ack: latest };
+}
+
+/* تُستخدم بلوحة الإدارة: ترجع لكل مسؤولة مسجّلة بشيت "المسؤولات" حالة اطلاعها
+   على المهام (اطلعت أو لا، وتاريخ آخر اطلاع لو اطلعت) - المطابقة بالبريد الإلكتروني
+   أولاً (أدق)، وبالاسم كحل احتياطي للصفوف القديمة اللي ما فيها بريد. */
+function getTasksStatusAll_() {
+  const masoulat = sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG);
+  const taskRows = sheetToObjects_('المهام');
+  const latestByEmail = {};
+  const latestByName = {};
+  taskRows.forEach(function (r) {
+    const email = String(r['البريد الإلكتروني'] || '').trim().toLowerCase();
+    const name = String(r['الاسم'] || '').trim();
+    if (email) latestByEmail[email] = r;
+    if (name) latestByName[name] = r;
+  });
+  const list = masoulat.map(function (m) {
+    const name = String(m['الاسم'] || '').trim();
+    const email = String(m['البريد الإلكتروني'] || '').trim().toLowerCase();
+    const r = (email && latestByEmail[email]) || latestByName[name];
+    return {
+      name: name,
+      center: m['اسم المركز'] || '',
+      acknowledged: !!r,
+      day: r ? (r['اليوم'] || '') : '',
+      date: r ? (r['التاريخ'] || '') : '',
+      time: r ? (r['الوقت'] || '') : ''
+    };
+  }).filter(function (r) { return r.name; });
+  return { ok: true, list: list };
 }
 
 /* تجمع كل بيانات لوحة مسؤولة المقصف (الحضور + التعهد + اطلاع المهام + عدد الإشعارات المعلّقة)
