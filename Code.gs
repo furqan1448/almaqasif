@@ -518,6 +518,7 @@ function handleRequest_(p) {
       case 'deleteAttachment': return json_(deleteAttachment_(p));
 
       case 'loginSupervision': return json_(loginSupervision_(p));
+      case 'loginAdmin': return json_(loginAdmin_(p));
 
       case 'recordDifficulty': return json_(recordDifficulty_(p));
       case 'getDifficulties': return json_(getDifficulties_(p));
@@ -592,6 +593,24 @@ function loginSupervision_(p) {
     return { ok: false, error: 'البريد الإلكتروني صحيح، بس كلمة المرور مو مطابقة.' };
   }
   return { ok: true, email: found['البريد الإلكتروني'], name: found['الاسم'] || '' };
+}
+
+/* تسجيل دخول لوحة إدارة وحدة المقاصف (edara.html) - كلمة المرور مخزّنة بـ
+   "Script Properties" (إعدادات المشروع بمحرر Apps Script)، مو بالكود نفسه،
+   عشان ما تظهر بملفات edara.html أو Code.gs المرفوعة على GitHub.
+   طريقة الإضافة/التعديل: من محرر Apps Script ← أيقونة الترس (⚙️ Project Settings)
+   يسار الشاشة ← "Script Properties" ← Add script property ←
+   Property: ADMIN_PASSWORD, Value: كلمة المرور اللي تبينها ← Save. */
+function loginAdmin_(p) {
+  const password = String(p.password || '').trim();
+  const stored = PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD');
+  if (!stored) {
+    return { ok: false, error: 'ما تم ضبط كلمة مرور الإدارة بعد. من محرر Apps Script: ⚙️ Project Settings ← Script Properties ← أضيفي Property باسم ADMIN_PASSWORD وقيمتها كلمة المرور.' };
+  }
+  if (password !== String(stored).trim()) {
+    return { ok: false, error: 'كلمة المرور غير صحيحة' };
+  }
+  return { ok: true };
 }
 
 /* ------------------- المبيعات اليومية ------------------- */
