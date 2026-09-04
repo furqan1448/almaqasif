@@ -45,6 +45,7 @@
     <button class="tab-btn" data-tab="statsTab" onclick="showAdminTab('statsTab')">الإحصائيات</button>
     <button class="tab-btn" data-tab="attachmentsTab" onclick="showAdminTab('attachmentsTab')">المرفقات</button>
     <button class="tab-btn" data-tab="difficultiesTab" onclick="showAdminTab('difficultiesTab')">الصعوبات والمقترحات</button>
+    <button class="tab-btn" data-tab="termTab" onclick="showAdminTab('termTab')">بدء فصل جديد</button>
   </div>
 
   <div class="wrap">
@@ -123,6 +124,13 @@
             <label>اختاري المركز</label>
             <select id="salesCenterSelect" onchange="loadCenterSales()"><option value="">جاري التحميل...</option></select>
           </div>
+          <div>
+            <label>عرض بيانات</label>
+            <select id="salesTermFilter" class="term-filter-select" onchange="loadCenterSales()">
+              <option value="current">الفصل الحالي</option>
+              <option value="all">كل الفصول</option>
+            </select>
+          </div>
         </div>
         <table class="log-table" id="salesTable">
           <thead><tr><th>المركز</th><th>اليوم</th><th>التاريخ</th><th>الوقت</th><th>المبلغ</th><th>ملاحظات</th></tr></thead>
@@ -145,6 +153,13 @@
             <label>اختاري المركز</label>
             <select id="returnsCenterSelect" onchange="loadCenterReturns()"><option value="">جاري التحميل...</option></select>
           </div>
+          <div>
+            <label>عرض بيانات</label>
+            <select id="returnsTermFilter" class="term-filter-select" onchange="loadCenterReturns()">
+              <option value="current">الفصل الحالي</option>
+              <option value="all">كل الفصول</option>
+            </select>
+          </div>
         </div>
         <table class="log-table" id="returnsTable">
           <thead><tr><th>المركز</th><th>اليوم</th><th>التاريخ</th><th>الصنف</th><th>الكمية</th><th>القيمة</th><th>ملاحظات</th></tr></thead>
@@ -166,6 +181,13 @@
           <div>
             <label>اختاري المركز</label>
             <select id="invoicesCenterSelect" onchange="loadCenterInvoices()"><option value="">جاري التحميل...</option></select>
+          </div>
+          <div>
+            <label>عرض بيانات</label>
+            <select id="invoicesTermFilter" class="term-filter-select" onchange="loadCenterInvoices()">
+              <option value="current">الفصل الحالي</option>
+              <option value="all">كل الفصول</option>
+            </select>
           </div>
         </div>
         <table class="log-table" id="invoicesTable">
@@ -245,6 +267,26 @@
         <div class="export-row">
           <button class="btn outline" onclick="exportDifficulties()">⬇️ Excel</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: بدء فصل دراسي جديد ===== -->
+    <div id="termTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">بدء فصل دراسي جديد</h3>
+        <p style="color:#8a7d76;font-size:0.9rem;margin-top:0;">
+          هذا الإجراء يرحّل كل بيانات المبيعات والمرتجعات والفواتير والإشعارات "الحالية" (اللي لسا ما انسمّت باسم فصل، من كل المراكز) وينسبها لاسم الفصل المنتهي اللي تحددينه تحت. البيانات نفسها ما تُحذف ولا تتغيّر، بس تصير موسومة بالفصل.
+        </p>
+        <label>الفصل الدراسي</label>
+        <select id="termNumberSelect">
+          <option value="">اختاري...</option>
+          <option value="الأول">الأول</option>
+          <option value="الثاني">الثاني</option>
+          <option value="الثالث">الثالث</option>
+        </select>
+        <label>السنة الهجرية</label>
+        <input type="text" id="termYearInput" placeholder="مثال: ١٤٤٨">
+        <button class="btn gold" id="termArchiveBtn" onclick="submitTermArchive()" style="margin-top:12px;">تأكيد بدء الفصل الجديد</button>
       </div>
     </div>
 
@@ -518,7 +560,9 @@ function loadCenterSales() {
   const center = document.getElementById('salesCenterSelect').value;
   const tbody = document.getElementById('salesTbody');
   tbody.innerHTML = '<tr><td colspan="6">جاري التحميل...</td></tr>';
-  callApi('getSales', { center: center }).then(function (r) {
+  populateTermFilter_('salesTermFilter').then(function () {
+    const term = document.getElementById('salesTermFilter').value;
+    callApi('getSales', { center: center, term: term }).then(function (r) {
     currentSales = r.sales || [];
     if (!r.ok || !currentSales.length) {
       tbody.innerHTML = '<tr><td colspan="6">لا يوجد سجل بعد</td></tr>';
@@ -532,6 +576,7 @@ function loadCenterSales() {
       tbody.appendChild(tr);
     });
     document.getElementById('salesTotal').textContent = r.total.toFixed(2);
+    });
   });
 }
 
@@ -560,7 +605,9 @@ function loadCenterReturns() {
   const center = document.getElementById('returnsCenterSelect').value;
   const tbody = document.getElementById('returnsTbody');
   tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
-  callApi('getReturns', { center: center }).then(function (r) {
+  populateTermFilter_('returnsTermFilter').then(function () {
+    const term = document.getElementById('returnsTermFilter').value;
+    callApi('getReturns', { center: center, term: term }).then(function (r) {
     currentReturns = r.returns || [];
     if (!r.ok || !currentReturns.length) {
       tbody.innerHTML = '<tr><td colspan="7">لا توجد مرتجعات بعد</td></tr>';
@@ -574,6 +621,7 @@ function loadCenterReturns() {
       tbody.appendChild(tr);
     });
     document.getElementById('returnsTotal').textContent = r.total.toFixed(2);
+    });
   });
 }
 
@@ -603,7 +651,9 @@ function loadCenterInvoices() {
   const center = document.getElementById('invoicesCenterSelect').value;
   const tbody = document.getElementById('invoicesTbody');
   tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
-  callApi('getInvoices', { center: center }).then(function (r) {
+  populateTermFilter_('invoicesTermFilter').then(function () {
+    const term = document.getElementById('invoicesTermFilter').value;
+    callApi('getInvoices', { center: center, term: term }).then(function (r) {
     currentInvoices = r.invoices || [];
     if (!r.ok || !currentInvoices.length) {
       tbody.innerHTML = '<tr><td colspan="7">لا توجد فواتير بعد</td></tr>';
@@ -619,6 +669,7 @@ function loadCenterInvoices() {
     });
     document.getElementById('invoicesTotalAmount').textContent = r.totalAmount.toFixed(2);
     document.getElementById('invoicesTotalProfit').textContent = r.totalProfit.toFixed(2);
+    });
   });
 }
 

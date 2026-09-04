@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbxv52R11gecY5Z6-PebU_RBJOw4eQTbLb4V1UWg3odej3cEgGk_yamonK3bF9iZI-cG/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbw8QFRb1adWdkTqDzokc52qQ_VTQHSGHZUtr8lrtUbwraTXM5nf7JIdBgJiZWRaMFQE/exec";
 
 async function callApi(action, data) {
   const payload = Object.assign({ action: action }, data || {});
@@ -306,6 +306,64 @@ function ensureXlsxLoaded_() {
     document.head.appendChild(s);
   });
   return _xlsxLoadPromise_;
+}
+
+/* -------- فلتر الفصل الدراسي (سجلات المبيعات/المرتجعات/الفواتير/إشعاراتي) --------
+   تعبّي قائمة <select id="selectId"> بخيار "الفصل الحالي" (افتراضي) + "كل الفصول" +
+   كل فصل دراسي سبق ترحيله. ترجع Promise حتى تنتظرين التعبئة قبل قراءة القيمة المختارة.
+   ما تعيد التعبئة لو معبّية أصلاً (عشان ما تفقد المستخدمة اختيارها كل ما يعاد تحميل السجل). */
+function populateTermFilter_(selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return Promise.resolve();
+  if (sel.dataset.filled === '1') return Promise.resolve();
+  return callApi('getTermsList', {}).then(function (r) {
+    sel.innerHTML = '<option value="current">الفصل الحالي</option><option value="all">كل الفصول</option>';
+    (r.terms || []).forEach(function (t) {
+      const opt = document.createElement('option');
+      opt.value = t; opt.textContent = t;
+      sel.appendChild(opt);
+    });
+    sel.dataset.filled = '1';
+  });
+}
+
+/* -------- بدء فصل دراسي جديد (ترحيل بيانات الفصل الحالي) --------
+   مشتركة بين مراكز/مسؤولات/إدارة. تتطلب وجود عنصرين بنفس الصفحة:
+   <select id="termNumberSelect"> و <input id="termYearInput">
+   وزر بـ id="termArchiveBtn" onclick="submitTermArchive()" */
+function submitTermArchive() {
+  const num = document.getElementById('termNumberSelect').value;
+  const year = document.getElementById('termYearInput').value.trim();
+  if (!num) { alert('اختاري رقم الفصل الدراسي'); return; }
+  if (!year) { alert('اكتبي السنة الهجرية'); return; }
+  const label = 'الفصل الدراسي ' + num + ' ' + year + 'هـ';
+  const sure = confirm(
+    'بيتم ترحيل كل بيانات المبيعات والمرتجعات والفواتير والإشعارات "الحالية" (اللي ما انحطت لها تسمية فصل من قبل) وتسميتها بـ:\n\n"' + label + '"\n\n' +
+    'البيانات نفسها تضل محفوظة بالكامل بالشيت، بس تصير موسومة باسم هذا الفصل بدل ما تكون "حالية". أي بيانات جديدة بعدها تُعتبر تلقائياً بداية فصل جديد.\n\n' +
+    'متأكدة إنك تبين تسوين هذا الآن؟'
+  );
+  if (!sure) return;
+  const btn = document.getElementById('termArchiveBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  callApi('archiveCurrentTerm', { termLabel: label }).then(function (r) {
+    btn.disabled = false; btn.textContent = 'تأكيد بدء الفصل الجديد';
+    if (r.ok) {
+      const c = r.counts || {};
+      alert(
+        'تم بنجاح ✅\n\nعدد الصفوف اللي انوسمت بـ "' + label + '":\n' +
+        '- المبيعات: ' + (c['المبيعات'] || 0) + '\n' +
+        '- المرتجعات: ' + (c['المرتجعات'] || 0) + '\n' +
+        '- الفواتير: ' + (c['الفواتير'] || 0) + '\n' +
+        '- الإشعارات: ' + (c['الإشعارات'] || 0)
+      );
+      document.getElementById('termNumberSelect').value = '';
+      document.getElementById('termYearInput').value = '';
+      document.querySelectorAll('.term-filter-select').forEach(function (s) { delete s.dataset.filled; });
+      if (typeof showView === 'function') showView('homeView');
+    } else {
+      alert('صار خطأ: ' + (r.error || 'غير معروف'));
+    }
+  });
 }
 
 async function exportToExcel(data, filename, sheetName, totals) {

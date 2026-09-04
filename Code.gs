@@ -31,17 +31,17 @@ function setup() {
     'المسؤولات': ['الاسم', 'البريد الإلكتروني', 'كلمة المرور', 'اسم المركز'],
     'الحضور': ['الاسم', 'اليوم', 'التاريخ', 'الوقت'],
     'التعهد': ['الاسم', 'نص التعهد', 'اليوم', 'التاريخ', 'الوقت', 'الحالة'],
-    'المهام': ['الاسم', 'نص المهام', 'اليوم', 'التاريخ', 'الوقت', 'الحالة'],
+    'المهام': ['الاسم', 'البريد الإلكتروني', 'نص المهام', 'اليوم', 'التاريخ', 'الوقت', 'الحالة'],
     'المراكز': ['اسم المركز', 'كلمة المرور'],
-    'المبيعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'الوقت', 'المبلغ', 'ملاحظات'],
-    'المرتجعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'وصف الصنف', 'الكمية', 'القيمة', 'ملاحظات'],
-    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح', 'ملاحظات'],
+    'المبيعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'الوقت', 'المبلغ', 'ملاحظات', 'الفصل الدراسي'],
+    'المرتجعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'وصف الصنف', 'الكمية', 'القيمة', 'ملاحظات', 'الفصل الدراسي'],
+    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح', 'ملاحظات', 'الفصل الدراسي'],
     'الإشعارات': ['معرف', 'النوع', 'اسم المركز', 'يوم الإرسال', 'تاريخ الإرسال', 'وقت الإرسال',
       'اسم المسلّمة', 'المبلغ', 'الشهر', 'الفصل الدراسي', 'العام', 'بيان مخصص',
       'رابط توقيع المركز', 'رابط صورة الإشعار', 'الحالة',
       'رابط توقيع الإدارة', 'رابط صورة الإشعار الموقع',
       'يوم اطلاع الإدارة', 'تاريخ اطلاع الإدارة', 'وقت اطلاع الإدارة',
-      'اسم المستلمة', 'بيانات توقيع المركز'],
+      'اسم المستلمة', 'بيانات توقيع المركز', 'فصل الأرشفة'],
     'المرفقات': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
     'مرفقات الإشراف': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
     'دخول الإشراف': ['البريد الإلكتروني', 'كلمة المرور', 'الاسم'],
@@ -496,6 +496,8 @@ function handleRequest_(p) {
       case 'getTasksAck': return json_(getTasksAck_(p));
       case 'acknowledgeTasks': return json_(acknowledgeTasks_(p));
 
+      case 'getMasoulaDashboard': return json_(getMasoulaDashboard_(p));
+
       case 'submitNotice': return json_(submitNotice_(p));
       case 'getCenterNotices': return json_(getCenterNotices_(p));
       case 'getPendingNotices': return json_(getPendingNotices_());
@@ -505,6 +507,9 @@ function handleRequest_(p) {
       case 'deleteNotice': return json_(deleteNotice_(p));
 
       case 'getStats': return json_(getStats_());
+
+      case 'archiveCurrentTerm': return json_(archiveCurrentTerm_(p));
+      case 'getTermsList': return json_(getTermsList_());
 
       case 'recordAttachment': return json_(recordAttachment_(p));
       case 'getAttachments': return json_(getAttachments_(p));
@@ -559,7 +564,7 @@ function loginMasoula_(p) {
     return { ok: false, error: 'الاسم صحيح، بس كلمة المرور مو مطابقة لللي بالشيت لهذا الاسم.' };
   }
 
-  return { ok: true, name: nameMatch['الاسم'], center: nameMatch['اسم المركز'] || '' };
+  return { ok: true, name: nameMatch['الاسم'], email: nameMatch['البريد الإلكتروني'] || '', center: nameMatch['اسم المركز'] || '' };
 }
 
 function getMasoulat_() {
@@ -604,11 +609,45 @@ function recordSale_(p) {
   return { ok: true, id: id };
 }
 
+/* p.term: 'current' (افتراضي لو ما انمرّر شي) = بس الصفوف اللي عمود الأرشفة فيها فاضي
+   (يعني ما انترحّلت لفصل منتهي بعد). أي قيمة ثانية = اسم فصل محدد بالضبط.
+   'all' = كل الصفوف بدون فلترة (تُستخدم لعرض كل التاريخ).
+   colName: اسم عمود الأرشفة - افتراضياً "الفصل الدراسي"، وبشيت "الإشعارات" نستخدم
+   عمود منفصل اسمه "فصل الأرشفة" لأن "الفصل الدراسي" فيه مستخدم أصلاً لغرض ثاني
+   (تسجيل فصل رسوم حفل تحفيظ الصغار وقت إرسال الإشعار). */
+function filterByTerm_(rows, term, colName) {
+  const col = colName || 'الفصل الدراسي';
+  if (term === 'all') return rows;
+  if (term && term !== 'current') {
+    return rows.filter(function (r) { return String(r[col] || '').trim() === term; });
+  }
+  return rows.filter(function (r) { return String(r[col] || '').trim() === ''; });
+}
+
+/* ترجع قائمة بأسماء الفصول الدراسية المنتهية (اللي سبق ترحيلها) الموجودة فعلياً
+   بأي من الشيتات الأربعة، بدون تكرار - تُستخدم لتعبئة قائمة اختيار الفصل بالواجهة. */
+function getTermsList_() {
+  const seen = {};
+  const terms = [];
+  function collect(name, colName) {
+    sheetToObjects_(name).forEach(function (r) {
+      const t = String(r[colName] || '').trim();
+      if (t && !seen[t]) { seen[t] = true; terms.push(t); }
+    });
+  }
+  collect('المبيعات', 'الفصل الدراسي');
+  collect('المرتجعات', 'الفصل الدراسي');
+  collect('الفواتير', 'الفصل الدراسي');
+  collect('الإشعارات', 'فصل الأرشفة');
+  return { ok: true, terms: terms };
+}
+
 function getSales_(p) {
   const all = sheetToObjects_('المبيعات');
-  const rows = p.center ? all.filter(function (r) {
+  let rows = p.center ? all.filter(function (r) {
     return String(r['اسم المركز']).trim() === String(p.center).trim();
   }) : all;
+  rows = filterByTerm_(rows, p.term);
   const total = rows.reduce(function (sum, r) { return sum + (Number(r['المبلغ']) || 0); }, 0);
   return { ok: true, sales: rows, total: total };
 }
@@ -684,9 +723,10 @@ function recordReturn_(p) {
 
 function getReturns_(p) {
   const all = sheetToObjects_('المرتجعات');
-  const rows = p.center ? all.filter(function (r) {
+  let rows = p.center ? all.filter(function (r) {
     return String(r['اسم المركز']).trim() === String(p.center).trim();
   }) : all;
+  rows = filterByTerm_(rows, p.term);
   const total = rows.reduce(function (sum, r) { return sum + (Number(r['القيمة']) || 0); }, 0);
   return { ok: true, returns: rows, total: total };
 }
@@ -729,9 +769,10 @@ function recordInvoice_(p) {
 
 function getInvoices_(p) {
   const all = sheetToObjects_('الفواتير');
-  const rows = p.center ? all.filter(function (r) {
+  let rows = p.center ? all.filter(function (r) {
     return String(r['اسم المركز']).trim() === String(p.center).trim();
   }) : all;
+  rows = filterByTerm_(rows, p.term);
   const totalAmount = rows.reduce(function (sum, r) { return sum + (Number(r['المبلغ الإجمالي']) || 0); }, 0);
   const totalProfit = rows.reduce(function (sum, r) { return sum + (Number(r['الربح']) || 0); }, 0);
   return { ok: true, invoices: rows, totalAmount: totalAmount, totalProfit: totalProfit };
@@ -841,22 +882,64 @@ function getPledge_(p) {
 
 /* ------------------- مهام مسؤولة المقصف ------------------- */
 
+/* الاطلاع على المهام يُحفظ ويُتحقق منه بالبريد الإلكتروني (وليس الاسم فقط)،
+   عشان لو صار فيه مسؤولتين بنفس الاسم بالضبط، ما يصير خلط بينهن ("فلانة اطلعت"
+   وهي أصلاً ما دخلت). الصفوف القديمة اللي ما فيها بريد إلكتروني (قبل هذا التعديل)
+   لسا تنطابق بالاسم كحل احتياطي. */
 function acknowledgeTasks_(p) {
   const sh = sheet_('المهام');
   const now = nowParts_();
   appendRowByHeaders_(sh, {
-    'الاسم': p.name, 'نص المهام': p.tasksText, 'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time, 'الحالة': 'تم الاطلاع'
+    'الاسم': p.name, 'البريد الإلكتروني': p.email || '', 'نص المهام': p.tasksText, 'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time, 'الحالة': 'تم الاطلاع'
   });
   invalidateCache_('المهام');
   return { ok: true };
 }
 
 function getTasksAck_(p) {
+  const email = String(p.email || '').trim().toLowerCase();
+  const name = String(p.name || '').trim();
   const rows = sheetToObjects_('المهام').filter(function (r) {
-    return String(r['الاسم']).trim() === String(p.name).trim();
+    const rEmail = String(r['البريد الإلكتروني'] || '').trim().toLowerCase();
+    if (email && rEmail) return rEmail === email;
+    return String(r['الاسم']).trim() === name;
   });
   const latest = rows.length ? rows[rows.length - 1] : null;
   return { ok: true, ack: latest };
+}
+
+/* تجمع كل بيانات لوحة مسؤولة المقصف (الحضور + التعهد + اطلاع المهام + عدد الإشعارات المعلّقة)
+   بطلب واحد بدل 4 طلبات منفصلة كانت تُرسل عند فتح اللوحة - كل طلب لـ Apps Script فيه تأخير
+   بدء تشغيل، فتجميعها بطلب واحد يسرّع فتح لوحة المسؤولة بشكل ملحوظ. */
+function getMasoulaDashboard_(p) {
+  const name = String(p.name || '').trim();
+  const email = String(p.email || '').trim().toLowerCase();
+
+  const attendance = sheetToObjects_('الحضور').filter(function (r) {
+    return String(r['الاسم']).trim() === name;
+  });
+  const pledgeRows = sheetToObjects_('التعهد').filter(function (r) {
+    return String(r['الاسم']).trim() === name;
+  });
+  const tasksRows = sheetToObjects_('المهام').filter(function (r) {
+    const rEmail = String(r['البريد الإلكتروني'] || '').trim().toLowerCase();
+    if (email && rEmail) return rEmail === email;
+    return String(r['الاسم']).trim() === name;
+  });
+  let pendingCount = 0;
+  if (p.center) {
+    const notices = sheetToObjects_('الإشعارات').filter(function (r) {
+      return String(r['اسم المركز']).trim() === String(p.center).trim() && r['الحالة'] !== 'تم الاطلاع';
+    });
+    pendingCount = notices.length;
+  }
+  return {
+    ok: true,
+    attendance: attendance,
+    pledge: pledgeRows.length ? pledgeRows[pledgeRows.length - 1] : null,
+    tasksAck: tasksRows.length ? tasksRows[tasksRows.length - 1] : null,
+    pendingCount: pendingCount
+  };
 }
 
 /* ------------------- إشعارات الاستلام والتسليم ------------------- */
@@ -965,9 +1048,10 @@ function deleteDifficulty_(p) {
 }
 
 function getCenterNotices_(p) {
-  const rows = sheetToObjects_('الإشعارات').filter(function (r) {
+  let rows = sheetToObjects_('الإشعارات').filter(function (r) {
     return String(r['اسم المركز']).trim() === String(p.center).trim();
   });
+  rows = filterByTerm_(rows, p.term, 'فصل الأرشفة');
   return { ok: true, notices: rows.reverse() };
 }
 
@@ -1046,6 +1130,52 @@ function debugInfo_() {
     sheets: sheetsInfo
   };
 }
+
+/* ------------------- بدء فصل دراسي جديد (ترحيل/تسمية البيانات) ------------------- */
+
+/* تحط اسم الفصل الدراسي (p.termLabel، مثال: "الفصل الدراسي الأول ١٤٤٨هـ") على كل
+   صف "حالي" (يعني عمود "الفصل الدراسي" فاضي فيه) بشيتات المبيعات/المرتجعات/الفواتير/الإشعارات.
+   بهذا الشكل: أي صف قديم انحط له اسم فصل قبل كذا يضل كما هو (ما يتكتب فوقه)،
+   وبس الصفوف "الحالية" (بدون تسمية) هي اللي تاخذ اسم الفصل المنتهي. بعدها أي بيانات
+   جديدة تنسجل بدون فصل (يعني تعتبر فصل "حالي") لين يجي وقت الترحيل التالي. */
+function archiveCurrentTerm_(p) {
+  const termLabel = String(p.termLabel || '').trim();
+  if (!termLabel) return { ok: false, error: 'اسم الفصل الدراسي مطلوب' };
+
+  // لكل شيت اسم عمود الأرشفة الخاص فيه - "الإشعارات" لها عمود منفصل "فصل الأرشفة"
+  // لأن عمود "الفصل الدراسي" فيها محجوز لغرض ثاني (فصل رسوم حفل تحفيظ الصغار)
+  const sheetsToArchive = [
+    { name: 'المبيعات', col: 'الفصل الدراسي' },
+    { name: 'المرتجعات', col: 'الفصل الدراسي' },
+    { name: 'الفواتير', col: 'الفصل الدراسي' },
+    { name: 'الإشعارات', col: 'فصل الأرشفة' }
+  ];
+  const counts = {};
+
+  sheetsToArchive.forEach(function (entry) {
+    const sh = sheet_(entry.name);
+    if (!sh || sh.getLastRow() < 2) { counts[entry.name] = 0; return; }
+    const col = colIndex_(sh, entry.col);
+    if (col === -1) { counts[entry.name] = 0; return; }
+
+    const lastRow = sh.getLastRow();
+    const range = sh.getRange(2, col, lastRow - 1, 1);
+    const values = range.getValues();
+    let n = 0;
+    for (let i = 0; i < values.length; i++) {
+      if (String(values[i][0]).trim() === '') {
+        values[i][0] = termLabel;
+        n++;
+      }
+    }
+    range.setValues(values);
+    counts[entry.name] = n;
+    invalidateCache_(entry.name);
+  });
+
+  return { ok: true, counts: counts };
+}
+
 
 function getStats_() {
   const sales = sheetToObjects_('المبيعات');
