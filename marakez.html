@@ -81,10 +81,6 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 3 20h18z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg></div>
           <span class="label">الصعوبات والمقترحات</span>
         </div>
-        <div class="icon-btn" onclick="showView('termArchiveView')">
-          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8.5 14.5l2 2 4-4"/></svg></div>
-          <span class="label">أرشفة الفصل السابق</span>
-        </div>
       </div>
     </div>
 
@@ -328,26 +324,6 @@
       </div>
     </div>
 
-    <!-- أرشفة الفصل السابق -->
-    <div id="termArchiveView" class="hidden">
-      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">أرشفة الفصل السابق</h3>
-        <p style="color:#8a7d76;font-size:0.9rem;margin-top:0;">
-          هذا الإجراء يرحّل كل بيانات المبيعات والمرتجعات والفواتير والإشعارات "الحالية" (اللي لسا ما انسمّت باسم فصل) وينسبها لاسم الفصل المنتهي اللي تحددينه تحت. البيانات نفسها ما تُحذف ولا تتغيّر، بس تصير موسومة بالفصل.
-        </p>
-        <label>الفصل الدراسي الذي انتهى</label>
-        <select id="termNumberSelect">
-          <option value="">اختاري...</option>
-          <option value="الأول">الأول</option>
-          <option value="الثاني">الثاني</option>
-          <option value="الثالث">الثالث</option>
-        </select>
-        <label>السنة الهجرية</label>
-        <input type="text" id="termYearInput" placeholder="مثال: ١٤٤٨">
-        <button class="btn gold" id="termArchiveBtn" onclick="submitTermArchive()" style="margin-top:12px;">تأكيد الأرشفة</button>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -433,7 +409,7 @@ function showDashboard() {
 }
 
 function showView(id) {
-  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'termArchiveView'].forEach(function (v) {
+  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView'].forEach(function (v) {
     document.getElementById(v).classList.toggle('hidden', v !== id);
   });
   if (id === 'salesView') loadSales();
