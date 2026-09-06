@@ -48,15 +48,15 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.3 15c0 1.1 1.2 2 2.7 2s2.7-.7 2.7-1.8-1.2-1.7-2.7-2-2.7-.9-2.7-2S10.5 9.5 12 9.5s2.5.6 2.7 1.5"/></svg></div>
           <span class="label">سجل البيع اليومي</span>
         </div>
-        <div class="icon-btn" onclick="openNoticeForm('استلام')">
+        <div class="icon-btn" id="noticeReceiveTile" onclick="openNoticeForm('استلام')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M8 11l4 4 4-4"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg></div>
           <span class="label">إشعار استلام</span>
         </div>
-        <div class="icon-btn" onclick="openNoticeForm('تسليم')">
+        <div class="icon-btn" id="noticeDeliverTile" onclick="openNoticeForm('تسليم')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg></div>
           <span class="label">إشعار تسليم</span>
         </div>
-        <div class="icon-btn" onclick="openNoticeForm('تسليم', 'قيمة رسوم حفل تحفيظ الصغار')">
+        <div class="icon-btn" id="noticeFeeTile" onclick="openNoticeForm('تسليم', 'قيمة رسوم حفل تحفيظ الصغار')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/><circle cx="12" cy="9" r="1"/></svg></div>
           <span class="label">إشعار تسليم رسوم حفل تحفيظ الصغار</span>
         </div>
@@ -87,7 +87,7 @@
     <!-- سجل البيع اليومي -->
     <div id="salesView" class="hidden">
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
-      <div class="card">
+      <div class="card" id="salesAddCard">
         <h3 style="margin-top:0;color:var(--maroon);">إضافة مبلغ بيع اليوم</h3>
         <label>التاريخ</label>
         <input type="date" id="saleDate">
@@ -121,7 +121,7 @@
     <!-- بيان الفواتير -->
     <div id="invoicesView" class="hidden">
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
-      <div class="card">
+      <div class="card" id="invoicesAddCard">
         <h3 style="margin-top:0;color:var(--maroon);" id="invoiceFormTitle">إضافة فاتورة</h3>
         <label>رقم الفاتورة</label>
         <input type="text" id="invoiceNumber" placeholder="مثال: 1024">
@@ -160,7 +160,7 @@
     <!-- البضائع المرتجعة -->
     <div id="returnsView" class="hidden">
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
-      <div class="card">
+      <div class="card" id="returnsAddCard">
         <h3 style="margin-top:0;color:var(--maroon);" id="returnFormTitle">تسجيل بضاعة مرتجعة</h3>
         <label>وصف الصنف</label>
         <input type="text" id="returnDesc" placeholder="مثال: عصير برتقال">
@@ -301,7 +301,7 @@
     <!-- الصعوبات والمقترحات -->
     <div id="difficultiesView" class="hidden">
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
-      <div class="card">
+      <div class="card" id="difficultyAddCard">
         <h3 style="margin-top:0;color:var(--maroon);">إرسال صعوبة أو مقترح</h3>
         <label>النوع</label>
         <div style="display:flex;gap:18px;margin-bottom:6px;">
@@ -334,6 +334,7 @@
 <script src="config.js"></script>
 <script>
 let currentCenter = sessionStorage.getItem('maqasif_center') || '';
+let isReadOnlyCenter = sessionStorage.getItem('maqasif_center_readonly') === '1';
 let currentNoticeType = '';
 let currentNoticeReason = '';
 let currentNoticeDataUrl = '';
@@ -384,7 +385,9 @@ function doLogin() {
       return;
     }
     currentCenter = r.center;
+    isReadOnlyCenter = !!r.readOnly;
     sessionStorage.setItem('maqasif_center', currentCenter);
+    sessionStorage.setItem('maqasif_center_readonly', isReadOnlyCenter ? '1' : '0');
     showDashboard();
   }).catch(function () {
     btn.disabled = false; btn.textContent = 'دخول';
@@ -395,7 +398,9 @@ function doLogin() {
 
 function logout() {
   sessionStorage.removeItem('maqasif_center');
+  sessionStorage.removeItem('maqasif_center_readonly');
   currentCenter = '';
+  isReadOnlyCenter = false;
   document.getElementById('dashScreen').classList.add('hidden');
   document.getElementById('loginScreen').classList.remove('hidden');
 }
@@ -404,8 +409,27 @@ function showDashboard() {
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('dashScreen').classList.remove('hidden');
   document.getElementById('centerNameChip').textContent = currentCenter;
+  applyReadOnlyRestrictions();
   showView('homeView');
   refreshPendingBadge();
+}
+
+/* لو المركز محدد كـ"وضع العرض فقط" بشيت المراكز: نخفي أيقونات الإشعارات
+   (إضافة صرفة، ما فيها عرض) ونخفي بطاقات "إضافة" داخل باقي الشاشات - بس نخلي
+   العرض والجداول والتصدير شغالة، وإضافة المرفقات تضل شغالة زي ما هي دايماً. */
+function applyReadOnlyRestrictions() {
+  if (!isReadOnlyCenter) return;
+  ['noticeReceiveTile', 'noticeDeliverTile', 'noticeFeeTile',
+   'salesAddCard', 'invoicesAddCard', 'returnsAddCard', 'difficultyAddCard'
+  ].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
+  const banner = document.createElement('div');
+  banner.className = 'card';
+  banner.style.cssText = 'background:#fff4d9;color:#8a6d1a;font-size:0.85rem;text-align:center;padding:10px;';
+  banner.textContent = 'هذا الحساب بوضع العرض فقط - الإضافة والتعديل يتم من حساب مسؤولة المقصف الخاص بالمركز';
+  document.getElementById('homeView').insertBefore(banner, document.getElementById('homeView').firstChild);
 }
 
 function showView(id) {
@@ -455,7 +479,7 @@ function loadSales() {
     currentSalesData.forEach(function (s) {
       const tr = document.createElement('tr');
       tr.innerHTML = '<td>' + (s['اليوم'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td><td>' + (s['ملاحظات'] || '') + '</td>' +
-        '<td><div class="row-actions"><a href="#" onclick="editSale(' + s._row + ', ' + Number(s['المبلغ']) + ', \'' + String(s['ملاحظات'] || '').replace(/'/g, "\\'") + '\'); return false;">تعديل</a><a href="#" onclick="deleteSaleRow(' + s._row + '); return false;">حذف</a></div></td>';
+        (isReadOnlyCenter ? '<td></td>' : '<td><div class="row-actions"><a href="#" onclick="editSale(' + s._row + ', ' + Number(s['المبلغ']) + ', \'' + String(s['ملاحظات'] || '').replace(/'/g, "\\'") + '\'); return false;">تعديل</a><a href="#" onclick="deleteSaleRow(' + s._row + '); return false;">حذف</a></div></td>');
       tbody.appendChild(tr);
     });
     document.getElementById('salesTotal').textContent = r.total.toFixed(2);
@@ -588,7 +612,7 @@ function loadInvoices() {
     currentInvoicesData.forEach(function (inv) {
       const tr = document.createElement('tr');
       tr.innerHTML = '<td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td><td>' + (inv['ملاحظات'] || '') + '</td>' +
-        '<td><div class="row-actions"><a onclick="editInvoice(' + inv._row + ')">تعديل</a><a onclick="deleteInvoiceRow(' + inv._row + ')">حذف</a></div></td>';
+        (isReadOnlyCenter ? '<td></td>' : '<td><div class="row-actions"><a onclick="editInvoice(' + inv._row + ')">تعديل</a><a onclick="deleteInvoiceRow(' + inv._row + ')">حذف</a></div></td>');
       tbody.appendChild(tr);
     });
     document.getElementById('invoicesTotalAmount').textContent = r.totalAmount.toFixed(2);
@@ -699,7 +723,7 @@ function loadReturns() {
     currentReturnsData.forEach(function (rt) {
       const tr = document.createElement('tr');
       tr.innerHTML = '<td>' + (rt['اليوم'] || '') + '</td><td>' + toHijriStr(rt['التاريخ']) + '</td><td>' + (rt['وصف الصنف'] || '') + '</td><td>' + (rt['الكمية'] || 0) + '</td><td>' + Number(rt['القيمة']).toFixed(2) + '</td><td>' + (rt['ملاحظات'] || '') + '</td>' +
-        '<td><div class="row-actions"><a onclick="editReturn(' + rt._row + ')">تعديل</a><a onclick="deleteReturnRow(' + rt._row + ')">حذف</a></div></td>';
+        (isReadOnlyCenter ? '<td></td>' : '<td><div class="row-actions"><a onclick="editReturn(' + rt._row + ')">تعديل</a><a onclick="deleteReturnRow(' + rt._row + ')">حذف</a></div></td>');
       tbody.appendChild(tr);
     });
     document.getElementById('returnsTotal').textContent = r.total.toFixed(2);
@@ -834,8 +858,8 @@ function loadNotices() {
           '<div class="meta">' + formatDayDateTime(n['يوم الإرسال'], n['تاريخ الإرسال'], n['وقت الإرسال']) + (n['اسم المسلّمة'] ? (' · المسلّمة: ' + n['اسم المسلّمة']) : '') + '</div>' +
           (n['الشهر'] ? '<div class="meta">مبيعات ' + n['الشهر'] + ' · الفصل ' + n['الفصل الدراسي'] + ' · ' + n['العام'] + '</div>' : '') +
           '<div class="row-actions" style="margin-top:6px;">' +
-            (done ? '' : '<a href="#" onclick="editNotice(' + n._row + ', ' + Number(n['المبلغ']) + ', \'' + senderEsc + '\'); return false;">تعديل</a>') +
-            '<a href="#" onclick="deleteNoticeRow(' + n._row + '); return false;">حذف</a>' +
+            (isReadOnlyCenter ? '' : (done ? '' : '<a href="#" onclick="editNotice(' + n._row + ', ' + Number(n['المبلغ']) + ', \'' + senderEsc + '\'); return false;">تعديل</a>')) +
+            (isReadOnlyCenter ? '' : '<a href="#" onclick="deleteNoticeRow(' + n._row + '); return false;">حذف</a>') +
           '</div>' +
         '</div>' +
         '<div style="text-align:left;">' +
@@ -962,7 +986,7 @@ function loadAttachments() {
           '<div class="meta">' + (a['النوع'] || '') + (a['من'] ? (' · بواسطة: ' + a['من']) : '') + ' · ' + (a['اليوم'] || '') + ' ' + toHijriStr(a['التاريخ']) + '</div>' +
           '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;">' +
             '<a href="' + (a['الرابط'] || '#') + '" target="_blank">فتح</a>' +
-            '<a href="#" onclick="deleteAttachmentRow(' + a._row + '); return false;">حذف</a>' +
+            (isReadOnlyCenter ? '' : '<a href="#" onclick="deleteAttachmentRow(' + a._row + '); return false;">حذف</a>') +
           '</div>' +
         '</div>';
       box.appendChild(div);
