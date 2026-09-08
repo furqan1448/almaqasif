@@ -35,7 +35,7 @@ function setup() {
     'المراكز': ['اسم المركز', 'كلمة المرور', 'وضع العرض فقط'],
     'المبيعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'الوقت', 'المبلغ', 'ملاحظات', 'الفصل الدراسي'],
     'المرتجعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'وصف الصنف', 'الكمية', 'القيمة', 'ملاحظات', 'الفصل الدراسي'],
-    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح', 'ملاحظات', 'الفصل الدراسي'],
+    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'مصدر الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح', 'ملاحظات', 'الفصل الدراسي'],
     'الإشعارات': ['معرف', 'النوع', 'اسم المركز', 'يوم الإرسال', 'تاريخ الإرسال', 'وقت الإرسال',
       'اسم المسلّمة', 'المبلغ', 'الشهر', 'الفصل الدراسي', 'العام', 'بيان مخصص',
       'رابط توقيع المركز', 'رابط صورة الإشعار', 'الحالة',
@@ -789,7 +789,7 @@ function recordInvoice_(p) {
   const date = p.date || nowParts_().date;
   const day = dayNameForDateStr_(date);
   appendRowByHeaders_(sh, {
-    'معرف': id, 'اسم المركز': p.center, 'رقم الفاتورة': p.invoiceNumber || '', 'اليوم': day, 'التاريخ': date,
+    'معرف': id, 'اسم المركز': p.center, 'رقم الفاتورة': p.invoiceNumber || '', 'مصدر الفاتورة': p.invoiceSource || '', 'اليوم': day, 'التاريخ': date,
     'المبلغ الإجمالي': Number(p.totalAmount) || 0, 'الربح': Number(p.profit) || 0, 'ملاحظات': p.notes || ''
   });
   invalidateCache_('الفواتير');
@@ -811,6 +811,10 @@ function updateInvoice_(p) {
   const sh = sheet_('الفواتير');
   const row = Number(p.row);
   if (p.invoiceNumber !== undefined) sh.getRange(row, colIndex_(sh, 'رقم الفاتورة')).setValue(p.invoiceNumber);
+  if (p.invoiceSource !== undefined) {
+    const sourceCol = colIndex_(sh, 'مصدر الفاتورة');
+    if (sourceCol !== -1) sh.getRange(row, sourceCol).setValue(p.invoiceSource);
+  }
   if (p.date !== undefined && p.date) {
     sh.getRange(row, colIndex_(sh, 'التاريخ')).setValue(p.date);
     const dayCol = colIndex_(sh, 'اليوم');

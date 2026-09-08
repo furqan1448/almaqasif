@@ -125,6 +125,13 @@
         <h3 style="margin-top:0;color:var(--maroon);" id="invoiceFormTitle">إضافة فاتورة</h3>
         <label>رقم الفاتورة</label>
         <input type="text" id="invoiceNumber" placeholder="مثال: 1024">
+        <label>مصدر الفاتورة (اختياري)</label>
+        <select id="invoiceSource" onchange="toggleInvoiceSourceOther()">
+          <option value="">اختاري</option>
+          <option value="شركة أعمال الإخلاص">شركة أعمال الإخلاص</option>
+          <option value="أخرى">أخرى</option>
+        </select>
+        <input type="text" id="invoiceSourceOther" class="hidden" placeholder="اكتبي مصدر الفاتورة">
         <label>التاريخ</label>
         <input type="date" id="invoiceDate">
         <label>المبلغ الإجمالي (ريال)</label>
@@ -146,9 +153,9 @@
           <option value="all">كل الفصول</option>
         </select>
         <table class="log-table" id="invoicesTable">
-          <thead><tr><th>رقم الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>الإجمالي</th><th>الربح</th><th>ملاحظات</th><th></th></tr></thead>
-          <tbody id="invoicesTbody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
-          <tfoot><tr><td>الإجمالي</td><td></td><td></td><td id="invoicesTotalAmount">0</td><td id="invoicesTotalProfit">0</td><td></td><td></td></tr></tfoot>
+          <thead><tr><th>رقم الفاتورة</th><th>مصدر الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>الإجمالي</th><th>الربح</th><th>ملاحظات</th><th></th></tr></thead>
+          <tbody id="invoicesTbody"><tr><td colspan="8">جاري التحميل...</td></tr></tbody>
+          <tfoot><tr><td>الإجمالي</td><td></td><td></td><td></td><td id="invoicesTotalAmount">0</td><td id="invoicesTotalProfit">0</td><td></td><td></td></tr></tfoot>
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportInvoicesReport()">⬇️ Excel</button>
@@ -526,8 +533,43 @@ function printSalesReport() {
 /* -------- بيان الفواتير -------- */
 let editingInvoiceRow = null;
 
+function toggleInvoiceSourceOther() {
+  const val = document.getElementById('invoiceSource').value;
+  const otherInput = document.getElementById('invoiceSourceOther');
+  if (val === 'أخرى') {
+    otherInput.classList.remove('hidden');
+  } else {
+    otherInput.classList.add('hidden');
+    otherInput.value = '';
+  }
+}
+
+function getInvoiceSourceValue_() {
+  const sel = document.getElementById('invoiceSource').value;
+  return sel === 'أخرى' ? document.getElementById('invoiceSourceOther').value.trim() : sel;
+}
+
+function setInvoiceSourceValue_(source) {
+  const sel = document.getElementById('invoiceSource');
+  const otherInput = document.getElementById('invoiceSourceOther');
+  if (!source) {
+    sel.value = '';
+    otherInput.classList.add('hidden');
+    otherInput.value = '';
+  } else if (source === 'شركة أعمال الإخلاص') {
+    sel.value = source;
+    otherInput.classList.add('hidden');
+    otherInput.value = '';
+  } else {
+    sel.value = 'أخرى';
+    otherInput.classList.remove('hidden');
+    otherInput.value = source;
+  }
+}
+
 function submitInvoice() {
   const invoiceNumber = document.getElementById('invoiceNumber').value.trim();
+  const invoiceSource = getInvoiceSourceValue_();
   const date = document.getElementById('invoiceDate').value;
   const totalAmount = document.getElementById('invoiceTotal').value;
   const profit = document.getElementById('invoiceProfit').value;
@@ -536,7 +578,7 @@ function submitInvoice() {
 
   if (editingInvoiceRow) {
     callApi('updateInvoice', {
-      row: editingInvoiceRow, invoiceNumber: invoiceNumber, date: date,
+      row: editingInvoiceRow, invoiceNumber: invoiceNumber, invoiceSource: invoiceSource, date: date,
       totalAmount: totalAmount, profit: profit || 0, notes: notes
     }).then(function (r) {
       if (r.ok) { cancelEditInvoice(); loadInvoices(); }
@@ -545,11 +587,12 @@ function submitInvoice() {
   }
 
   callApi('recordInvoice', {
-    center: currentCenter, invoiceNumber: invoiceNumber, date: date,
+    center: currentCenter, invoiceNumber: invoiceNumber, invoiceSource: invoiceSource, date: date,
     totalAmount: totalAmount, profit: profit || 0, notes: notes
   }).then(function (r) {
     if (r.ok) {
       document.getElementById('invoiceNumber').value = '';
+      setInvoiceSourceValue_('');
       document.getElementById('invoiceTotal').value = '';
       document.getElementById('invoiceProfit').value = '';
       document.getElementById('invoiceNotes').value = '';
@@ -566,6 +609,7 @@ function editInvoice(row) {
   if (!inv) return;
   editingInvoiceRow = row;
   document.getElementById('invoiceNumber').value = inv['رقم الفاتورة'] || '';
+  setInvoiceSourceValue_(inv['مصدر الفاتورة'] || '');
   document.getElementById('invoiceDate').value = inv['التاريخ'] || todayStr();
   document.getElementById('invoiceTotal').value = Number(inv['المبلغ الإجمالي']);
   document.getElementById('invoiceProfit').value = Number(inv['الربح']);
@@ -579,6 +623,7 @@ function editInvoice(row) {
 function cancelEditInvoice() {
   editingInvoiceRow = null;
   document.getElementById('invoiceNumber').value = '';
+  setInvoiceSourceValue_('');
   document.getElementById('invoiceDate').value = todayStr();
   document.getElementById('invoiceTotal').value = '';
   document.getElementById('invoiceProfit').value = '';
@@ -597,13 +642,13 @@ function deleteInvoiceRow(row) {
 
 function loadInvoices() {
   const tbody = document.getElementById('invoicesTbody');
-  tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8">جاري التحميل...</td></tr>';
   populateTermFilter_('invoicesTermFilter').then(function () {
     const term = document.getElementById('invoicesTermFilter').value;
     callApi('getInvoices', { center: currentCenter, term: term }).then(function (r) {
     currentInvoicesData = r.invoices || [];
     if (!r.ok || !currentInvoicesData.length) {
-      tbody.innerHTML = '<tr><td colspan="7">لا توجد فواتير بعد</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8">لا توجد فواتير بعد</td></tr>';
       document.getElementById('invoicesTotalAmount').textContent = '0';
       document.getElementById('invoicesTotalProfit').textContent = '0';
       return;
@@ -611,7 +656,7 @@ function loadInvoices() {
     tbody.innerHTML = '';
     currentInvoicesData.forEach(function (inv) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td><td>' + (inv['ملاحظات'] || '') + '</td>' +
+      tr.innerHTML = '<td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + (inv['مصدر الفاتورة'] || '') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td><td>' + (inv['ملاحظات'] || '') + '</td>' +
         (isReadOnlyCenter ? '<td></td>' : '<td><div class="row-actions"><a onclick="editInvoice(' + inv._row + ')">تعديل</a><a onclick="deleteInvoiceRow(' + inv._row + ')">حذف</a></div></td>');
       tbody.appendChild(tr);
     });
@@ -624,17 +669,17 @@ function loadInvoices() {
 function exportInvoicesReport() {
   if (!currentInvoicesData.length) { alert('لا توجد فواتير لتصديرها'); return; }
   const rows = currentInvoicesData.map(function (inv) {
-    return { 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'المبلغ الإجمالي': Number(inv['المبلغ الإجمالي']), 'الربح': Number(inv['الربح']), 'ملاحظات': inv['ملاحظات'] || '' };
+    return { 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'مصدر الفاتورة': inv['مصدر الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'المبلغ الإجمالي': Number(inv['المبلغ الإجمالي']), 'الربح': Number(inv['الربح']), 'ملاحظات': inv['ملاحظات'] || '' };
   });
   exportToExcel(rows, 'فواتير-' + currentCenter, 'الفواتير');
 }
 
 function printInvoicesReport() {
   const rows = currentInvoicesData.map(function (inv) {
-    return { num: inv['رقم الفاتورة'] || '', day: inv['اليوم'] || '', date: toHijriStr(inv['التاريخ']), total: Number(inv['المبلغ الإجمالي']).toFixed(2), profit: Number(inv['الربح']).toFixed(2), notes: inv['ملاحظات'] || '' };
+    return { num: inv['رقم الفاتورة'] || '', source: inv['مصدر الفاتورة'] || '', day: inv['اليوم'] || '', date: toHijriStr(inv['التاريخ']), total: Number(inv['المبلغ الإجمالي']).toFixed(2), profit: Number(inv['الربح']).toFixed(2), notes: inv['ملاحظات'] || '' };
   });
   printReport('بيان الفواتير', currentCenter, [
-    { key: 'num', label: 'رقم الفاتورة' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' },
+    { key: 'num', label: 'رقم الفاتورة' }, { key: 'source', label: 'مصدر الفاتورة' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' },
     { key: 'total', label: 'المبلغ الإجمالي' }, { key: 'profit', label: 'الربح' }, { key: 'notes', label: 'ملاحظات' }
   ], rows);
 }
