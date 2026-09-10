@@ -83,6 +83,85 @@ function togglePassword(inputId, btn) {
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>';
 }
 
+/* ------------------- قائمة منسدلة قابلة للبحث (بديل عن select العادي) -------------------
+   inputId: عنصر input نصي يكتب فيه المستخدم ويظهر فيه الاختيار.
+   dropdownId: عنصر div فاضي يوضع مباشرة بعد الـ input تُعرض فيه النتائج.
+   getItems: دالة ترجع مصفوفة النصوص الحالية (تُستدعى وقت الفتح، عشان تنعكس أي تحديثات لاحقة).
+   onEnterFallback: تُستدعى لو ضغطت Enter والقائمة مقفلة أو ما فيه عنصر محدد (مثلاً لتسجيل الدخول). */
+function setupSearchableDropdown(inputId, dropdownId, getItems, onEnterFallback) {
+  const input = document.getElementById(inputId);
+  const dropdown = document.getElementById(dropdownId);
+  let highlightIndex = -1;
+
+  function filterItems(query) {
+    const items = getItems() || [];
+    const q = String(query || '').trim();
+    if (!q) return items;
+    return items.filter(function (it) { return String(it).indexOf(q) !== -1; });
+  }
+
+  function renderList(list) {
+    dropdown.innerHTML = '';
+    highlightIndex = -1;
+    if (!list.length) {
+      dropdown.innerHTML = '<div class="combo-empty">لا توجد نتائج مطابقة</div>';
+    } else {
+      list.forEach(function (item) {
+        const div = document.createElement('div');
+        div.className = 'combo-item';
+        div.textContent = item;
+        div.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          input.value = item;
+          closeDropdown();
+        });
+        dropdown.appendChild(div);
+      });
+    }
+    dropdown.classList.remove('hidden');
+  }
+
+  function openDropdown() { renderList(filterItems(input.value)); }
+  function closeDropdown() { dropdown.classList.add('hidden'); }
+
+  function updateHighlight() {
+    const els = dropdown.querySelectorAll('.combo-item');
+    els.forEach(function (el, i) { el.classList.toggle('active', i === highlightIndex); });
+    if (highlightIndex >= 0 && els[highlightIndex]) els[highlightIndex].scrollIntoView({ block: 'nearest' });
+  }
+
+  input.addEventListener('focus', openDropdown);
+  input.addEventListener('click', openDropdown);
+  input.addEventListener('input', openDropdown);
+  input.addEventListener('blur', function () { setTimeout(closeDropdown, 150); });
+
+  input.addEventListener('keydown', function (e) {
+    const open = !dropdown.classList.contains('hidden');
+    const els = dropdown.querySelectorAll('.combo-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!open) { openDropdown(); return; }
+      highlightIndex = Math.min(highlightIndex + 1, els.length - 1);
+      updateHighlight();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      highlightIndex = Math.max(highlightIndex - 1, 0);
+      updateHighlight();
+    } else if (e.key === 'Enter') {
+      if (open && highlightIndex >= 0 && els[highlightIndex]) {
+        e.preventDefault();
+        input.value = els[highlightIndex].textContent;
+        closeDropdown();
+        return;
+      }
+      closeDropdown();
+      if (onEnterFallback) onEnterFallback();
+    } else if (e.key === 'Escape') {
+      closeDropdown();
+    }
+  });
+}
+
 function todayStr() {
   const d = new Date();
   const y = d.getFullYear();

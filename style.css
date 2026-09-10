@@ -122,6 +122,25 @@ select:focus, input:focus, textarea:focus {
   border-color: var(--maroon);
 }
 
+/* قائمة منسدلة قابلة للبحث (combobox) */
+.combo-wrap { position: relative; }
+.combo-list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  right: 0; left: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1.5px solid var(--gold-light);
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+}
+.combo-list.hidden { display: none; }
+.combo-item { padding: 10px 14px; font-size: 0.92rem; color: var(--ink); cursor: pointer; }
+.combo-item:hover, .combo-item.active { background: var(--cream); }
+.combo-empty { padding: 10px 14px; font-size: 0.88rem; color: #8a7d76; }
+
 .pw-wrap { position: relative; }
 .pw-wrap input[type=password], .pw-wrap input[type=text] { padding-left: 44px; }
 .pw-toggle {

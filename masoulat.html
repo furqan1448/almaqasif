@@ -15,8 +15,10 @@
     <p class="sub">وحدة المقاصف - جمعية فرقان</p>
 
     <label>الاسم أو البريد الإلكتروني</label>
-    <input type="text" id="username" list="masoulatList" placeholder="اكتبي اسمك أو بريدك" autocomplete="off">
-    <datalist id="masoulatList"></datalist>
+    <div class="combo-wrap">
+      <input type="text" id="username" placeholder="اكتبي للبحث أو اضغطي لعرض القائمة" autocomplete="off">
+      <div id="usernameList" class="combo-list hidden"></div>
+    </div>
 
     <label>كلمة المرور</label>
     <div class="pw-wrap">
@@ -484,21 +486,16 @@ document.getElementById('invoiceDate').value = todayStr();
 if (currentName) showDashboard();
 
 /* -------- تحميل قائمة أسماء المسؤولات -------- */
+let masoulatListCache_ = [];
 callApi('getMasoulat').then(function (r) {
-  const list = document.getElementById('masoulatList');
-  list.innerHTML = '';
-  (r.masoulat || []).forEach(function (name) {
-    const opt = document.createElement('option');
-    opt.value = name;
-    list.appendChild(opt);
-  });
+  masoulatListCache_ = r.masoulat || [];
 }).catch(function () {});
 
-/* -------- الدخول بضغطة Enter -------- */
-['username', 'password'].forEach(function (id) {
-  document.getElementById(id).addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
-  });
+setupSearchableDropdown('username', 'usernameList', function () { return masoulatListCache_; }, doLogin);
+
+/* -------- الدخول بضغطة Enter من حقل كلمة المرور -------- */
+document.getElementById('password').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
 });
 
 /* -------- تسجيل الدخول -------- */

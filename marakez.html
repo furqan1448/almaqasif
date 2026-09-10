@@ -15,8 +15,10 @@
     <p class="sub">وحدة المقاصف - جمعية فرقان</p>
 
     <label>اسم المركز</label>
-    <input type="text" id="centerSelect" list="centersList" placeholder="اكتبي أو اختاري اسم المركز" autocomplete="off">
-    <datalist id="centersList"></datalist>
+    <div class="combo-wrap">
+      <input type="text" id="centerSelect" placeholder="اكتبي للبحث أو اضغطي لعرض القائمة" autocomplete="off">
+      <div id="centerSelectList" class="combo-list hidden"></div>
+    </div>
 
     <label>كلمة المرور</label>
     <div class="pw-wrap">
@@ -390,23 +392,18 @@ document.getElementById('invoiceDate').value = todayStr();
 if (currentCenter) { showDashboard(); }
 
 /* -------- تحميل قائمة المراكز -------- */
+let centersListCache_ = [];
 callApi('getCenters').then(function (r) {
-  const list = document.getElementById('centersList');
-  list.innerHTML = '';
-  (r.centers || []).forEach(function (c) {
-    const opt = document.createElement('option');
-    opt.value = c;
-    list.appendChild(opt);
-  });
+  centersListCache_ = r.centers || [];
 }).catch(function () {
   document.getElementById('centerSelect').placeholder = 'تعذر تحميل المراكز';
 });
 
-/* -------- الدخول بضغطة Enter -------- */
-['centerSelect', 'centerPassword'].forEach(function (id) {
-  document.getElementById(id).addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
-  });
+setupSearchableDropdown('centerSelect', 'centerSelectList', function () { return centersListCache_; }, doLogin);
+
+/* -------- الدخول بضغطة Enter من حقل كلمة المرور -------- */
+document.getElementById('centerPassword').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
 });
 
 /* -------- تسجيل الدخول -------- */
