@@ -135,6 +135,35 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 3.5h6v2H9z"/><path d="M8.5 11.5h7M8.5 15h7"/></svg></div>
           <span class="label">مهام مسؤولة المقصف</span>
         </div>
+        <div class="icon-btn" onclick="showView('priceListView')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12.5 12 21l-8.5-8.5V5A2 2 0 0 1 5.5 3h7z"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></div>
+          <span class="label">قائمة الأسعار</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- قائمة الأسعار -->
+    <div id="priceListView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+
+      <!-- تظهر بس للمسؤولة المخوّلة بإدارة قائمة الأسعار -->
+      <div class="card hidden" id="priceManagerFormCard">
+        <h3 style="margin-top:0;color:var(--maroon);" id="priceItemFormTitle">إضافة صنف</h3>
+        <label>التصنيف</label>
+        <input type="text" id="priceItemCategory" list="priceCategoriesList" placeholder="مثال: البطاطسات">
+        <datalist id="priceCategoriesList"></datalist>
+        <label>اسم الصنف</label>
+        <input type="text" id="priceItemName" placeholder="مثال: ليز">
+        <label>السعر</label>
+        <input type="text" id="priceItemPrice" placeholder="مثال: 1 أو 1.5 أو حبتين بريال">
+        <button class="btn" id="priceItemSubmitBtn" onclick="submitPriceItem()" style="margin-top:12px;">إضافة الصنف</button>
+        <button class="btn secondary hidden" id="priceItemCancelEditBtn" onclick="cancelEditPriceItem()">إلغاء التعديل</button>
+        <div class="success-msg" id="priceItemSuccess">تم الحفظ بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">قائمة أسعار المقصف</h3>
+        <div id="priceItemsList">جاري التحميل...</div>
       </div>
     </div>
 
@@ -570,7 +599,7 @@ function loadDashboardData() {
 }
 
 function showView(id) {
-  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'tasksView', 'announcementsView'].forEach(function (v) {
+  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'tasksView', 'announcementsView', 'priceListView'].forEach(function (v) {
     document.getElementById(v).classList.toggle('hidden', v !== id);
   });
   if (id === 'salesView') loadSales();
@@ -580,6 +609,7 @@ function showView(id) {
   if (id === 'attachmentsView') loadAttachments();
   if (id === 'difficultiesView') loadDifficulties();
   if (id === 'announcementsView') loadAnnouncementsList();
+  if (id === 'priceListView') loadPriceItemsView();
   if (id === 'homeView' && currentCenter) refreshPendingBadge();
 }
 
@@ -1230,6 +1260,112 @@ function loadAnnouncementsList() {
         '</div>';
       box.appendChild(div);
     });
+  });
+}
+
+/* -------- قائمة الأسعار -------- */
+let editingPriceItemRow = null;
+let isPriceListManager_ = false;
+
+function formatPriceLabel_(price) {
+  const p = String(price || '').trim();
+  return /^[0-9.]+$/.test(p) ? (p + ' ريال') : p;
+}
+
+function loadPriceItemsView() {
+  const formCard = document.getElementById('priceManagerFormCard');
+  callApi('getPriceListManager').then(function (r) {
+    isPriceListManager_ = !!(r && r.masoula && currentName && r.masoula.trim() === currentName.trim());
+    formCard.classList.toggle('hidden', !isPriceListManager_);
+    renderPriceItemsList_();
+  });
+}
+
+function renderPriceItemsList_() {
+  const box = document.getElementById('priceItemsList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getPriceItems').then(function (r) {
+    const items = r.items || [];
+    const categories = Array.from(new Set(items.map(function (it) { return it['التصنيف']; }).filter(Boolean)));
+    if (isPriceListManager_) {
+      document.getElementById('priceCategoriesList').innerHTML = categories.map(function (c) { return '<option value="' + c + '">'; }).join('');
+    }
+    if (!items.length) { box.innerHTML = 'لا توجد أصناف بعد'; return; }
+    box.innerHTML = '';
+    categories.forEach(function (cat) {
+      const catBox = document.createElement('div');
+      catBox.style.marginBottom = '16px';
+      catBox.innerHTML = '<h4 style="color:var(--maroon-dark);margin:0 0 6px;">' + cat + '</h4>';
+      items.filter(function (it) { return it['التصنيف'] === cat; }).forEach(function (it) {
+        const row = document.createElement('div');
+        row.className = 'notice-item';
+        if (isPriceListManager_) {
+          row.innerHTML =
+            '<div><div>' + (it['اسم الصنف'] || '') + '</div><div class="meta">' + (it['السعر'] || '') + '</div></div>' +
+            '<div class="row-actions">' +
+              '<a href="#" onclick="editPriceItem(' + it._row + ', ' + JSON.stringify(it['التصنيف']) + ', ' + JSON.stringify(it['اسم الصنف']) + ', ' + JSON.stringify(it['السعر']) + '); return false;">تعديل</a>' +
+              '<a href="#" onclick="deletePriceItemRow(' + it._row + '); return false;">حذف</a>' +
+            '</div>';
+        } else {
+          row.innerHTML = '<div>' + (it['اسم الصنف'] || '') + '</div><div class="meta">' + formatPriceLabel_(it['السعر']) + '</div>';
+        }
+        catBox.appendChild(row);
+      });
+      box.appendChild(catBox);
+    });
+  });
+}
+
+function submitPriceItem() {
+  const category = document.getElementById('priceItemCategory').value.trim();
+  const name = document.getElementById('priceItemName').value.trim();
+  const price = document.getElementById('priceItemPrice').value.trim();
+  if (!category || !name || !price) { alert('أكملي التصنيف واسم الصنف والسعر'); return; }
+  const btn = document.getElementById('priceItemSubmitBtn');
+  setBtnBusy(btn, true);
+  const action = editingPriceItemRow ? 'updatePriceItem' : 'addPriceItem';
+  const payload = { actor: currentName, category: category, name: name, price: price };
+  if (editingPriceItemRow) payload.row = editingPriceItemRow;
+  callApi(action, payload).then(function (r) {
+    setBtnBusy(btn, false);
+    if (r.ok) {
+      cancelEditPriceItem();
+      const s = document.getElementById('priceItemSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+      renderPriceItemsList_();
+    } else {
+      alert(r.error || 'صار خطأ أثناء الحفظ');
+    }
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+function editPriceItem(row, category, name, price) {
+  editingPriceItemRow = row;
+  document.getElementById('priceItemCategory').value = category || '';
+  document.getElementById('priceItemName').value = name || '';
+  document.getElementById('priceItemPrice').value = price || '';
+  document.getElementById('priceItemFormTitle').textContent = 'تعديل صنف';
+  document.getElementById('priceItemSubmitBtn').textContent = 'حفظ التعديل';
+  document.getElementById('priceItemCancelEditBtn').classList.remove('hidden');
+  document.getElementById('priceItemCategory').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function cancelEditPriceItem() {
+  editingPriceItemRow = null;
+  document.getElementById('priceItemCategory').value = '';
+  document.getElementById('priceItemName').value = '';
+  document.getElementById('priceItemPrice').value = '';
+  document.getElementById('priceItemFormTitle').textContent = 'إضافة صنف';
+  document.getElementById('priceItemSubmitBtn').textContent = 'إضافة الصنف';
+  document.getElementById('priceItemCancelEditBtn').classList.add('hidden');
+}
+
+function deletePriceItemRow(row) {
+  if (!confirm('متأكدة تبين تحذفين هذا الصنف؟')) return;
+  callApi('deletePriceItem', { actor: currentName, row: row }).then(function (r) {
+    if (r.ok) renderPriceItemsList_();
+    else alert(r.error || 'تعذّر الحذف');
   });
 }
 
