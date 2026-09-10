@@ -105,7 +105,7 @@
           </div>
           <div class="icon-btn" onclick="openNoticeForm('تسليم')">
             <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg></div>
-            <span class="label">إشعار تسليم</span>
+            <span class="label">إشعار تسليم المكافأة</span>
           </div>
           <div class="icon-btn" onclick="openNoticeForm('تسليم', 'قيمة رسوم حفل تحفيظ الصغار')">
             <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/><circle cx="12" cy="9" r="1"/></svg></div>
@@ -1414,7 +1414,7 @@ function printPriceListReport() {
 function openPriceListFile() {
   callApi('getPriceListFile').then(function (r) {
     if (r.link) { window.open(r.link, '_blank'); }
-    else { alert('ما فيه ملف أو رابط مضاف لقائمة الأسعار حالياً'); }
+    else { alert('لا يوجد ملف حالياً'); }
   });
 }
 

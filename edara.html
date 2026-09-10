@@ -1180,7 +1180,7 @@ function loadPriceListFileAdmin() {
       box.innerHTML = 'الحالي: <a href="' + r.link + '" target="_blank">' + (r.label || 'فتح الملف/الرابط') + '</a>';
       document.getElementById('priceFileLinkInput').value = r.link;
     } else {
-      box.textContent = 'ما فيه ملف أو رابط مضاف حالياً';
+      box.textContent = 'لا يوجد ملف حالياً';
       document.getElementById('priceFileLinkInput').value = '';
     }
   });
