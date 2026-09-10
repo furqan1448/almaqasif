@@ -143,7 +143,7 @@
         <input type="number" id="saleAmount" placeholder="0.00" step="0.01">
         <label>ملاحظات (اختياري)</label>
         <input type="text" id="saleNotes" placeholder="أي ملاحظة تحبين تضيفينها">
-        <button class="btn" onclick="submitSale()">حفظ المبلغ</button>
+        <button class="btn" id="saleSubmitBtn" onclick="submitSale()">حفظ المبلغ</button>
         <div class="success-msg" id="saleSuccess">تم تسجيل المبلغ بنجاح ✅</div>
       </div>
 
@@ -650,7 +650,10 @@ function submitSale() {
   const amount = document.getElementById('saleAmount').value;
   const notes = document.getElementById('saleNotes').value.trim();
   if (!date || !amount) return;
+  const btn = document.getElementById('saleSubmitBtn');
+  setBtnBusy(btn, true);
   callApi('recordSale', { center: currentCenter, date: date, time: nowTimeStr(), amount: amount, notes: notes }).then(function (r) {
+    setBtnBusy(btn, false);
     if (r.ok) {
       document.getElementById('saleAmount').value = '';
       document.getElementById('saleNotes').value = '';
@@ -659,7 +662,7 @@ function submitSale() {
       setTimeout(function () { s.style.display = 'none'; }, 2500);
       loadSales();
     }
-  });
+  }).catch(function () { setBtnBusy(btn, false); });
 }
 
 function loadSales() {
@@ -766,13 +769,17 @@ function submitInvoice() {
   const notes = document.getElementById('invoiceNotes').value.trim();
   if (!invoiceNumber || !date || !totalAmount) { alert('أكملي رقم الفاتورة والتاريخ والمبلغ الإجمالي'); return; }
 
+  const btn = document.getElementById('invoiceSubmitBtn');
+  setBtnBusy(btn, true);
+
   if (editingInvoiceRow) {
     callApi('updateInvoice', {
       row: editingInvoiceRow, invoiceNumber: invoiceNumber, invoiceSource: invoiceSource, date: date,
       totalAmount: totalAmount, profit: profit || 0, notes: notes
     }).then(function (r) {
+      setBtnBusy(btn, false);
       if (r.ok) { cancelEditInvoice(); loadInvoices(); }
-    });
+    }).catch(function () { setBtnBusy(btn, false); });
     return;
   }
 
@@ -780,6 +787,7 @@ function submitInvoice() {
     center: currentCenter, invoiceNumber: invoiceNumber, invoiceSource: invoiceSource, date: date,
     totalAmount: totalAmount, profit: profit || 0, notes: notes
   }).then(function (r) {
+    setBtnBusy(btn, false);
     if (r.ok) {
       document.getElementById('invoiceNumber').value = '';
       setInvoiceSourceValue_('');
@@ -791,7 +799,7 @@ function submitInvoice() {
       setTimeout(function () { s.style.display = 'none'; }, 2500);
       loadInvoices();
     }
-  });
+  }).catch(function () { setBtnBusy(btn, false); });
 }
 
 function editInvoice(row) {
@@ -892,12 +900,16 @@ function submitReturn() {
   const notes = document.getElementById('returnNotes').value.trim();
   if (!description || !value) { alert('أكملي وصف الصنف والقيمة'); return; }
 
+  const btn = document.getElementById('returnSubmitBtn');
+  setBtnBusy(btn, true);
+
   if (editingReturnRow) {
     callApi('updateReturn', {
       row: editingReturnRow, description: description, quantity: quantity || 0, value: value, notes: notes
     }).then(function (r) {
+      setBtnBusy(btn, false);
       if (r.ok) { cancelEditReturn(); loadReturns(); }
-    });
+    }).catch(function () { setBtnBusy(btn, false); });
     return;
   }
 
@@ -905,6 +917,7 @@ function submitReturn() {
     center: currentCenter, date: todayStr(), description: description,
     quantity: quantity || 0, value: value, notes: notes
   }).then(function (r) {
+    setBtnBusy(btn, false);
     if (r.ok) {
       document.getElementById('returnDesc').value = '';
       document.getElementById('returnQty').value = '';
@@ -915,7 +928,7 @@ function submitReturn() {
       setTimeout(function () { s.style.display = 'none'; }, 2500);
       loadReturns();
     }
-  });
+  }).catch(function () { setBtnBusy(btn, false); });
 }
 
 function editReturn(row) {

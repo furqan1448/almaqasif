@@ -1103,7 +1103,7 @@ function submitIncomeItem() {
   const file = fileInput.files[0];
 
   const btn = document.getElementById('incomeSubmitBtn');
-  btn.disabled = true;
+  setBtnBusy(btn, true);
 
   function send(fileData, fileName, mimeType) {
     const payload = { category: category, description: description, amount: amount, amountWords: amountWords };
@@ -1111,7 +1111,7 @@ function submitIncomeItem() {
     const action = editingIncomeRow ? 'updateIncomeItem' : 'recordIncomeItem';
     if (editingIncomeRow) payload.row = editingIncomeRow;
     callApi(action, payload).then(function (r) {
-      btn.disabled = false;
+      setBtnBusy(btn, false);
       if (r.ok) {
         cancelEditIncomeItem();
         document.getElementById('incomeSuccess').style.display = 'block';
@@ -1121,13 +1121,13 @@ function submitIncomeItem() {
         alert('تعذّر الحفظ: ' + (r.error || 'خطأ غير معروف') + '\n\nلو الخطأ يتكلم عن شيت "قائمة الدخل" غير موجود، لازم تشغّلي دالة setup() مرة وحدة من قائمة الدوال أعلى محرر Apps Script.');
       }
     }).catch(function (err) {
-      btn.disabled = false;
+      setBtnBusy(btn, false);
       alert('تعذّر الاتصال بالسيرفر: ' + err.message);
     });
   }
 
   if (file) {
-    if (file.size > 15 * 1024 * 1024) { alert('حجم الملف كبير جداً (الحد الأقصى 15 ميجا)'); btn.disabled = false; return; }
+    if (file.size > 15 * 1024 * 1024) { alert('حجم الملف كبير جداً (الحد الأقصى 15 ميجا)'); setBtnBusy(btn, false); return; }
     const reader = new FileReader();
     reader.onload = function () { send(reader.result, file.name, file.type); };
     reader.readAsDataURL(file);

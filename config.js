@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbxUAjWucj-aXQxZZ7M9Vwf6OR9J9_mAD8fLbMoX-1vgjtjHg8AbbLP0Ywq9_m1v2Lsf/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbz9G5ISY5BNMVO0fVwv61hzB6r7Ikl5Bpg8q4O3kwPSW0CyRrA4ohh0Io6BAufT4dRq/exec";
 
 async function callApi(action, data) {
   const payload = Object.assign({ action: action }, data || {});
@@ -8,6 +8,24 @@ async function callApi(action, data) {
     body: JSON.stringify(payload)
   });
   return res.json();
+}
+
+/* تخلي أي زر حفظ/إرسال يبيّن إنه انضغط فوراً (يتعطّل + تظهر دوّارة تحميل)
+   عشان اللي يستخدم النظام ما يضغط عليه أكثر من مرة وهو يحسب إنه ما انضغط.
+   استخدام: setBtnBusy(btn, true) قبل استدعاء callApi، و setBtnBusy(btn, false) بعد الرد (نجح أو فشل). */
+function setBtnBusy(btn, busy, busyText) {
+  if (!btn) return;
+  if (busy) {
+    if (btn.dataset.originalHtml === undefined) btn.dataset.originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> ' + (busyText || 'جاري الحفظ...');
+  } else {
+    btn.disabled = false;
+    if (btn.dataset.originalHtml !== undefined) {
+      btn.innerHTML = btn.dataset.originalHtml;
+      delete btn.dataset.originalHtml;
+    }
+  }
 }
 
 function togglePassword(inputId, btn) {
