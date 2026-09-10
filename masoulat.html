@@ -1195,6 +1195,7 @@ function submitAttachment() {
 
 function sendAttachment(payload) {
   payload.from = currentName || currentCenter || 'مسؤولة المقصف';
+  payload.owner = currentCenter || currentEmail || currentName;
   callApi('recordAttachment', payload).then(function (r) {
     if (r.ok) {
       document.getElementById('attachTitle').value = '';
@@ -1213,7 +1214,7 @@ function sendAttachment(payload) {
 function loadAttachments() {
   const box = document.getElementById('attachmentsList');
   box.innerHTML = 'جاري التحميل...';
-  callApi('getAttachments', {}).then(function (r) {
+  callApi('getAttachments', { owner: currentCenter || currentEmail || currentName }).then(function (r) {
     const list = r.attachments || [];
     if (!r.ok || !list.length) {
       box.innerHTML = 'لا توجد مرفقات بعد';
