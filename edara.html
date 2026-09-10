@@ -65,6 +65,10 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="12" width="4" height="8"/><rect x="10" y="7" width="4" height="13"/><rect x="16" y="3" width="4" height="17"/></svg></div>
           <span class="label">الإحصائيات</span>
         </div>
+        <div class="icon-btn" onclick="showAdminTab('announcementsTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 8.5a4 4 0 0 1 0 7"/><path d="M18 6a8 8 0 0 1 0 12"/></svg></div>
+          <span class="label">إعلانات هامة</span>
+        </div>
         <div class="icon-btn" onclick="showAdminTab('attachmentsTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12l4.5-4.5a3 3 0 1 1 4.2 4.2L9.5 19a5 5 0 1 1-7-7l7-7"/></svg></div>
           <span class="label">المرفقات</span>
@@ -273,6 +277,35 @@
       </div>
     </div>
 
+    <!-- ===== تبويب: إعلانات هامة ===== -->
+    <div id="announcementsTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">نشر إعلان هام</h3>
+        <label>نص الإعلان</label>
+        <textarea id="announceText" rows="4" placeholder="اكتبي نص الإعلان هنا..."></textarea>
+
+        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:14px;">
+          <input type="checkbox" id="announceAllCheck" checked onchange="toggleAnnounceTargets()">
+          <span>يظهر لكل المراكز والمسؤولات</span>
+        </label>
+
+        <div id="announceTargetsBox" class="hidden" style="margin-top:10px;">
+          <label>مراكز محددة</label>
+          <div id="announceCentersList" style="max-height:160px;overflow-y:auto;border:1.5px solid var(--gold-light);border-radius:8px;padding:8px 10px;margin-bottom:12px;">جاري التحميل...</div>
+          <label>مسؤولات محددات</label>
+          <div id="announceMasoulatList" style="max-height:160px;overflow-y:auto;border:1.5px solid var(--gold-light);border-radius:8px;padding:8px 10px;">جاري التحميل...</div>
+        </div>
+
+        <button class="btn" id="announceSubmitBtn" onclick="submitAnnouncement()" style="margin-top:14px;">نشر الإعلان</button>
+        <div class="success-msg" id="announceSuccess">تم نشر الإعلان بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">الإعلانات المنشورة</h3>
+        <div id="announcementsList">جاري التحميل...</div>
+      </div>
+    </div>
+
     <!-- ===== تبويب: المرفقات ===== -->
     <div id="attachmentsTab" class="admin-tab-panel hidden">
       <div class="card">
@@ -477,6 +510,7 @@ function showAdminTab(tabId) {
   if (tabId === 'pledgesTab') loadPledgesStatus();
   if (tabId === 'tasksStatusTab') loadTasksStatus();
   if (tabId === 'incomeTab') loadIncomeItems();
+  if (tabId === 'announcementsTab') { renderAnnounceTargetLists(); loadAnnouncementsAdmin(); }
 }
 
 /* -------- تحميل قوائم المراكز في كل القوائم المنسدلة -------- */
@@ -908,6 +942,111 @@ function loadStats() {
         '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;"></div></div>';
       wrap.appendChild(row);
     });
+  });
+}
+
+/* -------- إعلانات هامة -------- */
+function toggleAnnounceTargets() {
+  const all = document.getElementById('announceAllCheck').checked;
+  document.getElementById('announceTargetsBox').classList.toggle('hidden', all);
+}
+
+function renderAnnounceTargetLists() {
+  const centersBox = document.getElementById('announceCentersList');
+  const masoulatBox = document.getElementById('announceMasoulatList');
+
+  function render() {
+    centersBox.innerHTML = centersListCache.length ? '' : 'لا يوجد مراكز';
+    centersListCache.forEach(function (c) {
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:6px;';
+      label.innerHTML = '<input type="checkbox" class="announce-center-check" value="' + c + '"> <span>' + c + '</span>';
+      centersBox.appendChild(label);
+    });
+    masoulatBox.innerHTML = masoulatListCache.length ? '' : 'لا يوجد مسؤولات';
+    masoulatListCache.forEach(function (m) {
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:6px;';
+      label.innerHTML = '<input type="checkbox" class="announce-masoula-check" value="' + m + '"> <span>' + m + '</span>';
+      masoulatBox.appendChild(label);
+    });
+  }
+
+  if (centersListCache.length || masoulatListCache.length) { render(); return; }
+  Promise.all([callApi('getCenters'), callApi('getMasoulat')]).then(function (results) {
+    centersListCache = results[0].centers || [];
+    masoulatListCache = results[1].masoulat || [];
+    render();
+  });
+}
+
+function submitAnnouncement() {
+  const text = document.getElementById('announceText').value.trim();
+  if (!text) { alert('اكتبي نص الإعلان'); return; }
+  const all = document.getElementById('announceAllCheck').checked;
+  const payload = { text: text, all: all, from: 'الإدارة' };
+  if (!all) {
+    payload.centers = Array.from(document.querySelectorAll('.announce-center-check:checked')).map(function (el) { return el.value; });
+    payload.masoulat = Array.from(document.querySelectorAll('.announce-masoula-check:checked')).map(function (el) { return el.value; });
+    if (!payload.centers.length && !payload.masoulat.length) { alert('اختاري مركز أو مسؤولة واحدة على الأقل، أو فعّلي "يظهر لكل المراكز والمسؤولات"'); return; }
+  }
+  const btn = document.getElementById('announceSubmitBtn');
+  setBtnBusy(btn, true);
+  callApi('recordAnnouncement', payload).then(function (r) {
+    setBtnBusy(btn, false);
+    if (r.ok) {
+      document.getElementById('announceText').value = '';
+      document.getElementById('announceAllCheck').checked = true;
+      toggleAnnounceTargets();
+      document.querySelectorAll('.announce-center-check, .announce-masoula-check').forEach(function (el) { el.checked = false; });
+      const s = document.getElementById('announceSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+      loadAnnouncementsAdmin();
+    } else {
+      alert('صار خطأ أثناء نشر الإعلان:\n' + (r.error || 'خطأ غير معروف'));
+    }
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+function announceTargetLabel_(target) {
+  if (!target || target === 'الكل') return 'الكل';
+  return target.split('|').map(function (t) {
+    const parts = t.split(':');
+    return parts[1] || t;
+  }).join('، ');
+}
+
+function loadAnnouncementsAdmin() {
+  const box = document.getElementById('announcementsList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getAllAnnouncements', {}).then(function (r) {
+    const list = r.announcements || [];
+    if (!r.ok || !list.length) {
+      box.innerHTML = 'لا توجد إعلانات بعد';
+      return;
+    }
+    box.innerHTML = '';
+    list.forEach(function (a) {
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div>' +
+          '<div>' + (a['النص'] || '') + '</div>' +
+          '<div class="meta">إلى: ' + announceTargetLabel_(a['استهداف']) + ' · ' + (a['اليوم'] || '') + ' ' + toHijriStr(a['التاريخ']) + '</div>' +
+          '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;">' +
+            '<a href="#" onclick="deleteAnnouncementRow(' + a._row + '); return false;">حذف</a>' +
+          '</div>' +
+        '</div>';
+      box.appendChild(div);
+    });
+  });
+}
+
+function deleteAnnouncementRow(row) {
+  if (!confirm('متأكدة تبين تحذفين هذا الإعلان؟')) return;
+  callApi('deleteAnnouncement', { row: row }).then(function (r) {
+    if (r.ok) loadAnnouncementsAdmin();
   });
 }
 

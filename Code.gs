@@ -44,6 +44,7 @@ function setup() {
       'اسم المستلمة', 'بيانات توقيع المركز', 'فصل الأرشفة'],
     'المرفقات': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'المالك', 'اليوم', 'التاريخ', 'الوقت'],
     'مرفقات الإشراف': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
+    'الإعلانات الهامة': ['معرف', 'النص', 'استهداف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
     'دخول الإشراف': ['البريد الإلكتروني', 'كلمة المرور', 'الاسم'],
     'الصعوبات والمقترحات': ['معرف', 'اسم المركز', 'من', 'النوع', 'النص', 'اليوم', 'التاريخ', 'الوقت'],
     'قائمة الدخل': ['معرف', 'البند', 'البيان', 'المبلغ', 'المبلغ كتابة', 'اليوم', 'التاريخ', 'الفصل الدراسي', 'رابط المرفق', 'اسم المرفق']
@@ -238,6 +239,60 @@ function deleteAttachment_(p) {
   const sh = sheet_(p.store || 'المرفقات');
   sh.deleteRow(Number(p.row));
   invalidateCache_(p.store || 'المرفقات');
+  return { ok: true };
+}
+
+/* ------------------- الإعلانات الهامة (إدارة → مراكز/مسؤولات) ------------------- */
+/* p.text: نص الإعلان. p.all: true لو يُنشر لكل المراكز والمسؤولات.
+   لو p.all غير موجود/false: p.centers مصفوفة أسماء مراكز مستهدفة، p.masoulat مصفوفة أسماء مسؤولات مستهدفات
+   (يمديها الاثنين مع بعض بنفس الإعلان). لو الاثنين فاضيين يتحول تلقائياً لـ"الكل". */
+function recordAnnouncement_(p) {
+  const sh = sheet_('الإعلانات الهامة');
+  const id = Utilities.getUuid();
+  const now = nowParts_();
+  let targets = 'الكل';
+  if (!p.all) {
+    const list = [];
+    (p.centers || []).forEach(function (c) { if (c) list.push('مركز:' + c); });
+    (p.masoulat || []).forEach(function (m) { if (m) list.push('مسؤولة:' + m); });
+    targets = list.length ? list.join('|') : 'الكل';
+  }
+  appendRowByHeaders_(sh, {
+    'معرف': id, 'النص': p.text || '', 'استهداف': targets, 'من': p.from || 'الإدارة',
+    'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
+  });
+  invalidateCache_('الإعلانات الهامة');
+  return { ok: true, id: id };
+}
+
+/* لوحة الإدارة: ترجع كل الإعلانات (بدون فلترة) لعرضها وحذفها. */
+function getAllAnnouncements_() {
+  const rows = sheetToObjects_('الإعلانات الهامة');
+  return { ok: true, announcements: rows.reverse() };
+}
+
+/* p.center و/أو p.masoula: ترجع بس الإعلانات اللي تخص هذا المركز/المسؤولة، أو اللي استهدافها "الكل". */
+function getAnnouncementsFor_(p) {
+  const rows = sheetToObjects_('الإعلانات الهامة');
+  const center = p && p.center ? String(p.center).trim() : '';
+  const masoula = p && p.masoula ? String(p.masoula).trim() : '';
+  const matched = rows.filter(function (r) {
+    const target = String(r['استهداف'] || '').trim();
+    if (target === 'الكل' || !target) return true;
+    const tokens = target.split('|');
+    return tokens.some(function (t) {
+      if (center && t === 'مركز:' + center) return true;
+      if (masoula && t === 'مسؤولة:' + masoula) return true;
+      return false;
+    });
+  });
+  return { ok: true, announcements: matched.reverse() };
+}
+
+function deleteAnnouncement_(p) {
+  const sh = sheet_('الإعلانات الهامة');
+  sh.deleteRow(Number(p.row));
+  invalidateCache_('الإعلانات الهامة');
   return { ok: true };
 }
 
@@ -530,6 +585,11 @@ function handleRequest_(p) {
       case 'recordAttachment': return json_(recordAttachment_(p));
       case 'getAttachments': return json_(getAttachments_(p));
       case 'deleteAttachment': return json_(deleteAttachment_(p));
+
+      case 'recordAnnouncement': return json_(recordAnnouncement_(p));
+      case 'getAllAnnouncements': return json_(getAllAnnouncements_());
+      case 'getAnnouncementsFor': return json_(getAnnouncementsFor_(p));
+      case 'deleteAnnouncement': return json_(deleteAnnouncement_(p));
 
       case 'loginSupervision': return json_(loginSupervision_(p));
       case 'loginAdmin': return json_(loginAdmin_(p));

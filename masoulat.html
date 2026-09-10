@@ -43,6 +43,8 @@
 
     <!-- الشاشة الرئيسية -->
     <div id="homeView">
+      <div id="announceBanner"></div>
+
       <!-- حضور الاجتماع (تسجّله الإدارة) -->
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">حضور الاجتماعات</h3>
@@ -117,6 +119,10 @@
         </div>
 
         <!-- المرفقات والصعوبات والمهام (متاحة لكل المسؤولات بغض النظر عن ربطهن بمركز) -->
+        <div class="icon-btn" onclick="showView('announcementsView')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 8.5a4 4 0 0 1 0 7"/><path d="M18 6a8 8 0 0 1 0 12"/></svg></div>
+          <span class="label">إعلانات هامة</span>
+        </div>
         <div class="icon-btn" onclick="showView('attachmentsView')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12l4.5-4.5a3 3 0 1 1 4.2 4.2L9.5 19a5 5 0 1 1-7-7l7-7"/></svg></div>
           <span class="label">إضافة مرفقات</span>
@@ -129,6 +135,15 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 3.5h6v2H9z"/><path d="M8.5 11.5h7M8.5 15h7"/></svg></div>
           <span class="label">مهام مسؤولة المقصف</span>
         </div>
+      </div>
+    </div>
+
+    <!-- الإعلانات الهامة -->
+    <div id="announcementsView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">إعلانات هامة</h3>
+        <div id="announcementsList">جاري التحميل...</div>
       </div>
     </div>
 
@@ -498,6 +513,7 @@ function showDashboard() {
 
   showView('homeView');
   loadDashboardData();
+  loadHomeAnnouncements();
 }
 
 /* تجيب كل بيانات اللوحة (الحضور + التعهد + المهام + عدد الإشعارات المعلّقة) بطلب واحد
@@ -554,7 +570,7 @@ function loadDashboardData() {
 }
 
 function showView(id) {
-  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'tasksView'].forEach(function (v) {
+  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'tasksView', 'announcementsView'].forEach(function (v) {
     document.getElementById(v).classList.toggle('hidden', v !== id);
   });
   if (id === 'salesView') loadSales();
@@ -563,6 +579,7 @@ function showView(id) {
   if (id === 'returnsView') loadReturns();
   if (id === 'attachmentsView') loadAttachments();
   if (id === 'difficultiesView') loadDifficulties();
+  if (id === 'announcementsView') loadAnnouncementsList();
   if (id === 'homeView' && currentCenter) refreshPendingBadge();
 }
 
@@ -1174,6 +1191,46 @@ function printNoticesReport() {
     { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'time', label: 'الوقت' },
     { key: 'receiver', label: 'المستلمة' }, { key: 'status', label: 'الحالة' }
   ], rows);
+}
+
+/* -------- إعلانات هامة -------- */
+function loadHomeAnnouncements() {
+  const box = document.getElementById('announceBanner');
+  callApi('getAnnouncementsFor', { center: currentCenter, masoula: currentName }).then(function (r) {
+    const list = (r.announcements || []).slice(0, 3);
+    box.innerHTML = '';
+    list.forEach(function (a) {
+      const div = document.createElement('div');
+      div.className = 'announce-banner';
+      div.innerHTML =
+        '<div class="announce-title">📢 إعلان هام</div>' +
+        '<div class="announce-text">' + (a['النص'] || '') + '</div>';
+      box.appendChild(div);
+    });
+  });
+}
+
+function loadAnnouncementsList() {
+  const box = document.getElementById('announcementsList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getAnnouncementsFor', { center: currentCenter, masoula: currentName }).then(function (r) {
+    const list = r.announcements || [];
+    if (!r.ok || !list.length) {
+      box.innerHTML = 'لا توجد إعلانات حالياً';
+      return;
+    }
+    box.innerHTML = '';
+    list.forEach(function (a) {
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div>' +
+          '<div>' + (a['النص'] || '') + '</div>' +
+          '<div class="meta">' + (a['اليوم'] || '') + ' ' + toHijriStr(a['التاريخ']) + '</div>' +
+        '</div>';
+      box.appendChild(div);
+    });
+  });
 }
 
 /* -------- المرفقات -------- */

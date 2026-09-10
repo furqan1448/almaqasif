@@ -42,8 +42,13 @@
   <div class="wrap">
     <!-- الشاشة الرئيسية: الأيقونات -->
     <div id="homeView">
+      <div id="announceBanner"></div>
       <h2 style="color:var(--maroon);">مرحباً بك</h2>
       <div class="icon-grid">
+        <div class="icon-btn" onclick="showView('announcementsView')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 8.5a4 4 0 0 1 0 7"/><path d="M18 6a8 8 0 0 1 0 12"/></svg></div>
+          <span class="label">إعلانات هامة</span>
+        </div>
         <div class="icon-btn" onclick="showView('salesView')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.3 15c0 1.1 1.2 2 2.7 2s2.7-.7 2.7-1.8-1.2-1.7-2.7-2-2.7-.9-2.7-2S10.5 9.5 12 9.5s2.5.6 2.7 1.5"/></svg></div>
           <span class="label">سجل البيع اليومي</span>
@@ -81,6 +86,15 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 3 20h18z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg></div>
           <span class="label">الصعوبات والمقترحات</span>
         </div>
+      </div>
+    </div>
+
+    <!-- الإعلانات الهامة -->
+    <div id="announcementsView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">إعلانات هامة</h3>
+        <div id="announcementsList">جاري التحميل...</div>
       </div>
     </div>
 
@@ -419,6 +433,7 @@ function showDashboard() {
   applyReadOnlyRestrictions();
   showView('homeView');
   refreshPendingBadge();
+  loadHomeAnnouncements();
 }
 
 /* لو المركز محدد كـ"وضع العرض فقط" بشيت المراكز: نخفي أيقونات الإشعارات
@@ -440,7 +455,7 @@ function applyReadOnlyRestrictions() {
 }
 
 function showView(id) {
-  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView'].forEach(function (v) {
+  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'announcementsView'].forEach(function (v) {
     document.getElementById(v).classList.toggle('hidden', v !== id);
   });
   if (id === 'salesView') loadSales();
@@ -449,6 +464,7 @@ function showView(id) {
   if (id === 'returnsView') loadReturns();
   if (id === 'attachmentsView') loadAttachments();
   if (id === 'difficultiesView') loadDifficulties();
+  if (id === 'announcementsView') loadAnnouncementsList();
   if (id === 'homeView') refreshPendingBadge();
 }
 
@@ -984,6 +1000,46 @@ function printNoticesReport() {
     { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'time', label: 'الوقت' },
     { key: 'receiver', label: 'المستلمة' }, { key: 'status', label: 'الحالة' }
   ], rows);
+}
+
+/* -------- إعلانات هامة -------- */
+function loadHomeAnnouncements() {
+  const box = document.getElementById('announceBanner');
+  callApi('getAnnouncementsFor', { center: currentCenter }).then(function (r) {
+    const list = (r.announcements || []).slice(0, 3);
+    box.innerHTML = '';
+    list.forEach(function (a) {
+      const div = document.createElement('div');
+      div.className = 'announce-banner';
+      div.innerHTML =
+        '<div class="announce-title">📢 إعلان هام</div>' +
+        '<div class="announce-text">' + (a['النص'] || '') + '</div>';
+      box.appendChild(div);
+    });
+  });
+}
+
+function loadAnnouncementsList() {
+  const box = document.getElementById('announcementsList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getAnnouncementsFor', { center: currentCenter }).then(function (r) {
+    const list = r.announcements || [];
+    if (!r.ok || !list.length) {
+      box.innerHTML = 'لا توجد إعلانات حالياً';
+      return;
+    }
+    box.innerHTML = '';
+    list.forEach(function (a) {
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div>' +
+          '<div>' + (a['النص'] || '') + '</div>' +
+          '<div class="meta">' + (a['اليوم'] || '') + ' ' + toHijriStr(a['التاريخ']) + '</div>' +
+        '</div>';
+      box.appendChild(div);
+    });
+  });
 }
 
 /* -------- المرفقات -------- */
