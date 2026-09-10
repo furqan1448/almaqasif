@@ -554,7 +554,7 @@ function showDashboard() {
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('dashScreen').classList.remove('hidden');
   showAdminTab();
-  loadPending();
+  loadPendingBadgeOnly();
   loadCentersDropdowns();
 }
 
@@ -566,6 +566,7 @@ function showAdminTab(tabId) {
     el.classList.toggle('hidden', el.id !== tabId);
   });
   if (tabId === 'statsTab') loadStats();
+  if (tabId === 'noticesTab') loadPending();
   if (tabId === 'attendanceTab') loadAttendanceChecklist();
   if (tabId === 'salesTab') loadCenterSales();
   if (tabId === 'returnsTab') loadCenterReturns();
@@ -619,6 +620,18 @@ function fillCenterSelect(id) {
 /* -------- الإشعارات (تعرض جميع إشعارات الاستلام والتسليم) -------- */
 let allNoticesPending = [];
 let allNoticesDone = [];
+
+/* نسخة خفيفة تُستخدم فور الدخول: تجيب رقم عدد الإشعارات المعلّقة بس (لتحديث النقطة
+   الحمراء على أيقونة "الإشعارات" بالشاشة الرئيسية)، بدون تحميل كل سجل الإشعارات
+   (اللي ما يظهر أصلاً إلا لما تُفتح شاشة "الإشعارات" - يتحمّل حينها بدالة loadPending). */
+function loadPendingBadgeOnly() {
+  callApi('getPendingNoticesCount').then(function (r) {
+    const homeBadge = document.getElementById('adminPendingBadge');
+    if (!homeBadge) return;
+    if (r.ok && r.count > 0) { homeBadge.textContent = r.count; homeBadge.classList.remove('hidden'); }
+    else { homeBadge.classList.add('hidden'); }
+  });
+}
 
 function loadPending() {
   document.getElementById('pendingList').innerHTML = 'جاري التحميل...';

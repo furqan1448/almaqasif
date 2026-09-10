@@ -1,13 +1,59 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
 const API_URL = "https://script.google.com/macros/s/AKfycbzjEqNQf-o9yDYEuXpWbhcVIGncIDbgnPrvTGV51WexM_aBAgo7csLuZnm_iDkq-sit/exec";
 
+/* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
+   الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
+   - أي إجراء اسمه يبدأ بـ "get" (قراءة بيانات) يُخزَّن لمدة قصيرة (20 ثانية) بنفس
+     معطياته بالضبط؛ لو تكرر نفس الطلب خلال هالمدة (مثلاً بالتنقل بين الشاشات) يرجع
+     من الذاكرة فوراً بدل إعادة الاتصال بالسيرفر.
+   - لو صار طلبان لنفس القراءة بنفس اللحظة (قبل ما يوصل ردّ الأول)، الثاني يشارك
+     نفس الطلب الجالس بدل ما يبعت طلب مكرر.
+   - أي إجراء غير "get..." (حفظ/تعديل/حذف/تسجيل دخول) يفرّغ هذا التخزين تلقائياً
+     فور نجاحه، عشان أي قراءة بعده ترجع البيانات المحدّثة دايماً ولا يصير تعارض. */
+const _apiCache_ = new Map();
+const _apiInFlight_ = new Map();
+const API_CACHE_MS = 20000;
+
+function _apiCacheKey_(action, data) {
+  const clean = Object.assign({}, data || {});
+  const sortedKeys = Object.keys(clean).sort();
+  const sorted = {};
+  sortedKeys.forEach(function (k) { sorted[k] = clean[k]; });
+  return action + '|' + JSON.stringify(sorted);
+}
+
 async function callApi(action, data) {
+  const isRead = action.indexOf('get') === 0;
+  const key = isRead ? _apiCacheKey_(action, data) : null;
+
+  if (isRead) {
+    const cached = _apiCache_.get(key);
+    if (cached && (Date.now() - cached.time) < API_CACHE_MS) return cached.value;
+    if (_apiInFlight_.has(key)) return _apiInFlight_.get(key);
+  }
+
   const payload = Object.assign({ action: action }, data || {});
-  const res = await fetch(API_URL, {
+  const requestPromise = fetch(API_URL, {
     method: "POST",
     body: JSON.stringify(payload)
-  });
-  return res.json();
+  }).then(function (res) { return res.json(); });
+
+  if (!isRead) {
+    // أي طلب حفظ/تعديل/حذف: نفرّغ كل الكاش فور نجاحه عشان الشاشات التالية تجيب بيانات محدّثة
+    return requestPromise.then(function (result) {
+      _apiCache_.clear();
+      return result;
+    });
+  }
+
+  _apiInFlight_.set(key, requestPromise);
+  try {
+    const result = await requestPromise;
+    _apiCache_.set(key, { value: result, time: Date.now() });
+    return result;
+  } finally {
+    _apiInFlight_.delete(key);
+  }
 }
 
 /* تخلي أي زر حفظ/إرسال يبيّن إنه انضغط فوراً (يتعطّل + تظهر دوّارة تحميل)

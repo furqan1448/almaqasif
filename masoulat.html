@@ -1545,11 +1545,10 @@ function loadDifficulties() {
 }
 
 function refreshPendingBadge() {
-  callApi('getCenterNotices', { center: currentCenter }).then(function (r) {
+  callApi('getCenterPendingCount', { center: currentCenter }).then(function (r) {
     if (!r.ok) return;
-    const pendingCount = r.notices.filter(function (n) { return n['الحالة'] !== 'تم الاطلاع'; }).length;
     const badge = document.getElementById('pendingBadge');
-    if (pendingCount > 0) { badge.textContent = pendingCount; badge.classList.remove('hidden'); }
+    if (r.count > 0) { badge.textContent = r.count; badge.classList.remove('hidden'); }
     else { badge.classList.add('hidden'); }
   });
 }

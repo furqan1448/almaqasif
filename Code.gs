@@ -727,7 +727,9 @@ function handleRequest_(p) {
 
       case 'submitNotice': return json_(submitNotice_(p));
       case 'getCenterNotices': return json_(getCenterNotices_(p));
+      case 'getCenterPendingCount': return json_(getCenterPendingCount_(p));
       case 'getPendingNotices': return json_(getPendingNotices_());
+      case 'getPendingNoticesCount': return json_(getPendingNoticesCount_());
       case 'getAllNotices': return json_(getAllNotices_());
       case 'adminSignNotice': return json_(adminSignNotice_(p));
       case 'updateNotice': return json_(updateNotice_(p));
@@ -920,11 +922,25 @@ function getSales_(p) {
   return { ok: true, sales: rows, total: total };
 }
 
+/* كاش بسيط لصف العناوين مدة تنفيذ الطلب الواحد بس (متغيّر عام يُعاد إنشاؤه
+   مع كل استدعاء جديد لـ Apps Script). الهدف: دوال مثل updateInvoice_ اللي تنادي
+   colIndex_ عدة مرات بنفس الشيت كانت تعيد قراءة صف العناوين من قوقل شيتس بكل
+   استدعاء (طلب شبكة منفصل لكل مرة) - الحين تُقرأ مرة وحدة وتُعاد استخدامها. */
+var _headerRowCache_ = {};
+
+function getHeaderRow_(sh) {
+  const key = sh.getSheetId();
+  if (_headerRowCache_[key]) return _headerRowCache_[key];
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  _headerRowCache_[key] = headers;
+  return headers;
+}
+
 /* ترجع رقم عمود بالاسم (1-indexed) بالبحث عن اسم العمود بصف العناوين.
    تتجاهل أي مسافات زائدة بأول/آخر اسم العمود بالشيت عشان ما يفشل التطابق
    لو انضاف العمود يدوياً وفيه مسافة خفية (وهذا سبب شائع لمشكلة "اليوم ما ينكتب"). */
 function colIndex_(sh, headerName) {
-  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  const headers = getHeaderRow_(sh);
   const target = String(headerName).trim();
   for (let i = 0; i < headers.length; i++) {
     if (String(headers[i]).trim() === target) return i + 1;
@@ -939,7 +955,7 @@ function colIndex_(sh, headerName) {
    تتجاهل أيضاً أي مسافات زائدة بأسماء الأعمدة (نفس سبب مشكلة colIndex_ أعلاه).
    valuesObj: كائن {اسم العمود: القيمة} - أي عمود موجود بالشيت وما انذكر بالكائن يُترك فاضي. */
 function appendRowByHeaders_(sh, valuesObj) {
-  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  const headers = getHeaderRow_(sh);
   const keysTrimmed = {};
   Object.keys(valuesObj).forEach(function (k) { keysTrimmed[k.trim()] = valuesObj[k]; });
   const row = headers.map(function (h) {
@@ -1404,6 +1420,29 @@ function getPendingNotices_() {
     return r['الحالة'] === 'بانتظار الاطلاع';
   });
   return { ok: true, notices: rows.reverse() };
+}
+
+/* نسخة خفيفة من getPendingNotices_ - ترجع رقم العدد بس (بدون كل بيانات الإشعارات)
+   تُستخدم لتحديث نقطة العداد على الشاشة الرئيسية بدون تحميل كل سجل الإشعارات كامل. */
+function getPendingNoticesCount_() {
+  const rows = sheetToObjects_('الإشعارات');
+  let count = 0;
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i]['الحالة'] === 'بانتظار الاطلاع') count++;
+  }
+  return { ok: true, count: count };
+}
+
+/* نفس فكرة getPendingNoticesCount_ بس لمركز معيّن - تُستخدم لعداد الشاشة الرئيسية
+   بمراكز/مسؤولات بدل ما نجيب كل تاريخ إشعارات المركز كامل بس عشان نعدّ منها. */
+function getCenterPendingCount_(p) {
+  const rows = sheetToObjects_('الإشعارات');
+  const center = String(p.center || '').trim();
+  let count = 0;
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i]['اسم المركز']).trim() === center && rows[i]['الحالة'] !== 'تم الاطلاع') count++;
+  }
+  return { ok: true, count: count };
 }
 
 // ترجع جميع إشعارات الاستلام والتسليم (بانتظار الاطلاع + تم الاطلاع) - تُستخدم بلوحة الإدارة
