@@ -15,7 +15,8 @@
     <p class="sub">وحدة المقاصف - جمعية فرقان</p>
 
     <label>الاسم أو البريد الإلكتروني</label>
-    <input type="text" id="username" placeholder="اكتبي اسمك أو بريدك">
+    <input type="text" id="username" list="masoulatList" placeholder="اكتبي اسمك أو بريدك" autocomplete="off">
+    <datalist id="masoulatList"></datalist>
 
     <label>كلمة المرور</label>
     <div class="pw-wrap">
@@ -481,6 +482,24 @@ document.getElementById('saleDate').value = todayStr();
 document.getElementById('invoiceDate').value = todayStr();
 
 if (currentName) showDashboard();
+
+/* -------- تحميل قائمة أسماء المسؤولات -------- */
+callApi('getMasoulat').then(function (r) {
+  const list = document.getElementById('masoulatList');
+  list.innerHTML = '';
+  (r.masoulat || []).forEach(function (name) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    list.appendChild(opt);
+  });
+}).catch(function () {});
+
+/* -------- الدخول بضغطة Enter -------- */
+['username', 'password'].forEach(function (id) {
+  document.getElementById(id).addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
+  });
+});
 
 /* -------- تسجيل الدخول -------- */
 function doLogin() {
