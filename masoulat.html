@@ -121,7 +121,7 @@
         <!-- المرفقات والصعوبات والمهام (متاحة لكل المسؤولات بغض النظر عن ربطهن بمركز) -->
         <div class="icon-btn" onclick="showView('announcementsView')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 8.5a4 4 0 0 1 0 7"/><path d="M18 6a8 8 0 0 1 0 12"/></svg></div>
-          <span class="label">إعلانات هامة</span>
+          <span class="label">إشعارات هامة</span>
         </div>
         <div class="icon-btn" onclick="showView('attachmentsView')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12l4.5-4.5a3 3 0 1 1 4.2 4.2L9.5 19a5 5 0 1 1-7-7l7-7"/></svg></div>
@@ -138,11 +138,11 @@
       </div>
     </div>
 
-    <!-- الإعلانات الهامة -->
+    <!-- الإشعارات الهامة -->
     <div id="announcementsView" class="hidden">
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">إعلانات هامة</h3>
+        <h3 style="margin-top:0;color:var(--maroon);">إشعارات هامة</h3>
         <div id="announcementsList">جاري التحميل...</div>
       </div>
     </div>
@@ -1193,7 +1193,7 @@ function printNoticesReport() {
   ], rows);
 }
 
-/* -------- إعلانات هامة -------- */
+/* -------- إشعارات هامة -------- */
 function loadHomeAnnouncements() {
   const box = document.getElementById('announceBanner');
   callApi('getAnnouncementsFor', { center: currentCenter, masoula: currentName }).then(function (r) {
@@ -1203,7 +1203,7 @@ function loadHomeAnnouncements() {
       const div = document.createElement('div');
       div.className = 'announce-banner';
       div.innerHTML =
-        '<div class="announce-title">📢 إعلان هام</div>' +
+        '<div class="announce-title">📢 إشعار هام</div>' +
         '<div class="announce-text">' + (a['النص'] || '') + '</div>';
       box.appendChild(div);
     });
@@ -1216,7 +1216,7 @@ function loadAnnouncementsList() {
   callApi('getAnnouncementsFor', { center: currentCenter, masoula: currentName }).then(function (r) {
     const list = r.announcements || [];
     if (!r.ok || !list.length) {
-      box.innerHTML = 'لا توجد إعلانات حالياً';
+      box.innerHTML = 'لا توجد إشعارات حالياً';
       return;
     }
     box.innerHTML = '';

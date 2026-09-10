@@ -67,7 +67,7 @@
         </div>
         <div class="icon-btn" onclick="showAdminTab('announcementsTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 8.5a4 4 0 0 1 0 7"/><path d="M18 6a8 8 0 0 1 0 12"/></svg></div>
-          <span class="label">إعلانات هامة</span>
+          <span class="label">إشعارات هامة</span>
         </div>
         <div class="icon-btn" onclick="showAdminTab('attachmentsTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12l4.5-4.5a3 3 0 1 1 4.2 4.2L9.5 19a5 5 0 1 1-7-7l7-7"/></svg></div>
@@ -277,12 +277,12 @@
       </div>
     </div>
 
-    <!-- ===== تبويب: إعلانات هامة ===== -->
+    <!-- ===== تبويب: إشعارات هامة ===== -->
     <div id="announcementsTab" class="admin-tab-panel hidden">
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">نشر إعلان هام</h3>
-        <label>نص الإعلان</label>
-        <textarea id="announceText" rows="4" placeholder="اكتبي نص الإعلان هنا..."></textarea>
+        <h3 style="margin-top:0;color:var(--maroon);">نشر إشعار هام</h3>
+        <label>نص الإشعار</label>
+        <textarea id="announceText" rows="4" placeholder="اكتبي نص الإشعار هنا..."></textarea>
 
         <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:14px;">
           <input type="checkbox" id="announceAllCheck" checked onchange="toggleAnnounceTargets()">
@@ -296,12 +296,12 @@
           <div id="announceMasoulatList" style="max-height:160px;overflow-y:auto;border:1.5px solid var(--gold-light);border-radius:8px;padding:8px 10px;">جاري التحميل...</div>
         </div>
 
-        <button class="btn" id="announceSubmitBtn" onclick="submitAnnouncement()" style="margin-top:14px;">نشر الإعلان</button>
-        <div class="success-msg" id="announceSuccess">تم نشر الإعلان بنجاح ✅</div>
+        <button class="btn" id="announceSubmitBtn" onclick="submitAnnouncement()" style="margin-top:14px;">نشر الإشعار</button>
+        <div class="success-msg" id="announceSuccess">تم نشر الإشعار بنجاح ✅</div>
       </div>
 
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">الإعلانات المنشورة</h3>
+        <h3 style="margin-top:0;color:var(--maroon);">الإشعارات الهامة المنشورة</h3>
         <div id="announcementsList">جاري التحميل...</div>
       </div>
     </div>
@@ -945,7 +945,7 @@ function loadStats() {
   });
 }
 
-/* -------- إعلانات هامة -------- */
+/* -------- إشعارات هامة -------- */
 function toggleAnnounceTargets() {
   const all = document.getElementById('announceAllCheck').checked;
   document.getElementById('announceTargetsBox').classList.toggle('hidden', all);
@@ -982,7 +982,7 @@ function renderAnnounceTargetLists() {
 
 function submitAnnouncement() {
   const text = document.getElementById('announceText').value.trim();
-  if (!text) { alert('اكتبي نص الإعلان'); return; }
+  if (!text) { alert('اكتبي نص الإشعار'); return; }
   const all = document.getElementById('announceAllCheck').checked;
   const payload = { text: text, all: all, from: 'الإدارة' };
   if (!all) {
@@ -1004,7 +1004,7 @@ function submitAnnouncement() {
       setTimeout(function () { s.style.display = 'none'; }, 2500);
       loadAnnouncementsAdmin();
     } else {
-      alert('صار خطأ أثناء نشر الإعلان:\n' + (r.error || 'خطأ غير معروف'));
+      alert('صار خطأ أثناء نشر الإشعار:\n' + (r.error || 'خطأ غير معروف'));
     }
   }).catch(function () { setBtnBusy(btn, false); });
 }
@@ -1023,7 +1023,7 @@ function loadAnnouncementsAdmin() {
   callApi('getAllAnnouncements', {}).then(function (r) {
     const list = r.announcements || [];
     if (!r.ok || !list.length) {
-      box.innerHTML = 'لا توجد إعلانات بعد';
+      box.innerHTML = 'لا توجد إشعارات بعد';
       return;
     }
     box.innerHTML = '';
@@ -1044,7 +1044,7 @@ function loadAnnouncementsAdmin() {
 }
 
 function deleteAnnouncementRow(row) {
-  if (!confirm('متأكدة تبين تحذفين هذا الإعلان؟')) return;
+  if (!confirm('متأكدة تبين تحذفين هذا الإشعار؟')) return;
   callApi('deleteAnnouncement', { row: row }).then(function (r) {
     if (r.ok) loadAnnouncementsAdmin();
   });
