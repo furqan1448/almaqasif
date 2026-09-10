@@ -40,22 +40,26 @@
     <div class="wrap">
       <h2 style="color:var(--maroon);margin-top:14px;">الرئيسية</h2>
       <div class="icon-grid">
-        <div class="icon-btn" onclick="showAdminTab('noticesTab')">
-          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="1.5"/><path d="M4 9.5h16M8 3v3.5M16 3v3.5"/></svg></div>
-          <span class="label">الإشعارات</span>
-          <div class="badge hidden" id="adminPendingBadge">0</div>
+        <div class="icon-btn" onclick="showAdminTab('priceListTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12.5 12 21l-8.5-8.5V5A2 2 0 0 1 5.5 3h7z"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></div>
+          <span class="label">قائمة الأسعار</span>
         </div>
         <div class="icon-btn" onclick="showAdminTab('salesTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.3 15c0 1.1 1.2 2 2.7 2s2.7-.7 2.7-1.8-1.2-1.7-2.7-2-2.7-.9-2.7-2S10.5 9.5 12 9.5s2.5.6 2.7 1.5"/></svg></div>
           <span class="label">المبيعات</span>
         </div>
-        <div class="icon-btn" onclick="showAdminTab('returnsTab')">
-          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8 5 12l4 4"/><path d="M5 12h9a5 5 0 0 1 5 5v1"/></svg></div>
-          <span class="label">المرتجعات</span>
-        </div>
         <div class="icon-btn" onclick="showAdminTab('invoicesTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10v18l-2.5-1.6L12 21l-2.5-1.6L7 21z"/><path d="M9.5 8h5M9.5 11.5h5"/></svg></div>
           <span class="label">الفواتير</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('noticesTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="1.5"/><path d="M4 9.5h16M8 3v3.5M16 3v3.5"/></svg></div>
+          <span class="label">الإشعارات</span>
+          <div class="badge hidden" id="adminPendingBadge">0</div>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('returnsTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8 5 12l4 4"/><path d="M5 12h9a5 5 0 0 1 5 5v1"/></svg></div>
+          <span class="label">المرتجعات</span>
         </div>
         <div class="icon-btn" onclick="showAdminTab('attendanceTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h2M4 12h2M4 18h2"/><path d="M9 6h11M9 12h11M9 18h11"/></svg></div>
@@ -92,10 +96,6 @@
         <div class="icon-btn" onclick="showAdminTab('incomeTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M7 7.5c0-1.5 1.8-2.5 5-2.5s5 1 5 2.5-1.8 2.5-5 2.5-5 1-5 2.5 1.8 2.5 5 2.5 5 1 5 2.5-1.8 2.5-5 2.5-5-1-5-2.5"/></svg></div>
           <span class="label">قائمة الدخل</span>
-        </div>
-        <div class="icon-btn" onclick="showAdminTab('priceListTab')">
-          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12.5 12 21l-8.5-8.5V5A2 2 0 0 1 5.5 3h7z"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></div>
-          <span class="label">قائمة الأسعار</span>
         </div>
       </div>
     </div>
@@ -467,6 +467,21 @@
       </div>
 
       <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">ملف أو رابط إضافي لقائمة الأسعار</h3>
+        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">يظهر كزر "📎 ملف/رابط القائمة" لكل المراكز والمسؤولات (عرض فقط، الإدارة هي وحدها اللي تضيفه أو تعدّله).</p>
+        <div id="priceFileCurrent" style="margin-bottom:10px;color:#8a7d76;font-size:0.9rem;">جاري التحميل...</div>
+        <label>رابط خارجي</label>
+        <input type="text" id="priceFileLinkInput" placeholder="https://...">
+        <label style="margin-top:10px;">أو ارفعي ملف (PDF/صورة...) - يلغي الرابط أعلاه لو اتعبّى</label>
+        <input type="file" id="priceFileUploadInput">
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="btn" id="priceFileSaveBtn" onclick="savePriceListFile()">حفظ</button>
+          <button class="btn secondary" onclick="removePriceListFile()">إزالة</button>
+        </div>
+        <div class="success-msg" id="priceFileSuccess">تم الحفظ بنجاح ✅</div>
+      </div>
+
+      <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);" id="priceItemFormTitle">إضافة صنف</h3>
         <label>التصنيف</label>
         <input type="text" id="priceItemCategory" list="priceCategoriesList" placeholder="مثال: البطاطسات">
@@ -561,7 +576,7 @@ function showAdminTab(tabId) {
   if (tabId === 'tasksStatusTab') loadTasksStatus();
   if (tabId === 'incomeTab') loadIncomeItems();
   if (tabId === 'announcementsTab') { renderAnnounceTargetLists(); loadAnnouncementsAdmin(); }
-  if (tabId === 'priceListTab') { loadPriceManagerSelect(); loadPriceItemsAdmin(); }
+  if (tabId === 'priceListTab') { loadPriceManagerSelect(); loadPriceItemsAdmin(); loadPriceListFileAdmin(); }
 }
 
 /* -------- تحميل قوائم المراكز في كل القوائم المنسدلة -------- */
@@ -1155,6 +1170,64 @@ function savePriceListManager() {
       setTimeout(function () { s.style.display = 'none'; }, 2500);
     }
   }).catch(function () { setBtnBusy(btn, false); });
+}
+
+/* -------- ملف/رابط إضافي لقائمة الأسعار (الإدارة فقط) -------- */
+function loadPriceListFileAdmin() {
+  const box = document.getElementById('priceFileCurrent');
+  callApi('getPriceListFile').then(function (r) {
+    if (r && r.link) {
+      box.innerHTML = 'الحالي: <a href="' + r.link + '" target="_blank">' + (r.label || 'فتح الملف/الرابط') + '</a>';
+      document.getElementById('priceFileLinkInput').value = r.link;
+    } else {
+      box.textContent = 'ما فيه ملف أو رابط مضاف حالياً';
+      document.getElementById('priceFileLinkInput').value = '';
+    }
+  });
+}
+
+function savePriceListFile() {
+  const btn = document.getElementById('priceFileSaveBtn');
+  const fileInput = document.getElementById('priceFileUploadInput');
+  const file = fileInput.files[0];
+
+  function finish(payload) {
+    payload.actor = 'admin';
+    setBtnBusy(btn, true);
+    callApi('setPriceListFile', payload).then(function (r) {
+      setBtnBusy(btn, false);
+      if (r.ok) {
+        fileInput.value = '';
+        const s = document.getElementById('priceFileSuccess');
+        s.style.display = 'block';
+        setTimeout(function () { s.style.display = 'none'; }, 2500);
+        loadPriceListFileAdmin();
+      } else {
+        alert('صار خطأ أثناء الحفظ:\n' + (r.error || 'خطأ غير معروف'));
+      }
+    }).catch(function () { setBtnBusy(btn, false); });
+  }
+
+  if (file) {
+    if (file.size > 15 * 1024 * 1024) { alert('حجم الملف كبير جداً (الحد الأقصى 15 ميجا)'); return; }
+    const reader = new FileReader();
+    reader.onload = function () {
+      finish({ kind: 'file', fileData: reader.result, fileName: file.name, mimeType: file.type, label: file.name });
+    };
+    reader.readAsDataURL(file);
+    return;
+  }
+
+  const link = document.getElementById('priceFileLinkInput').value.trim();
+  if (!link) { alert('اكتبي رابط أو اختاري ملف'); return; }
+  finish({ kind: 'link', link: link, label: 'رابط قائمة الأسعار' });
+}
+
+function removePriceListFile() {
+  if (!confirm('متأكدة تبين تزيلين الملف/الرابط الحالي؟')) return;
+  callApi('setPriceListFile', { actor: 'admin', kind: 'link', link: '', label: '' }).then(function (r) {
+    if (r.ok) loadPriceListFileAdmin();
+  });
 }
 
 function loadPriceItemsAdmin() {

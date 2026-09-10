@@ -435,6 +435,28 @@ function setPriceListManager_(p) {
   return { ok: true };
 }
 
+/* -------- ملف/رابط قائمة الأسعار (يظهر للجميع، الإدارة فقط تضيفه/تعدّله) -------- */
+function getPriceListFile_() {
+  return {
+    ok: true,
+    link: getSettingValue_('رابط ملف قائمة الأسعار'),
+    label: getSettingValue_('اسم ملف قائمة الأسعار')
+  };
+}
+
+function setPriceListFile_(p) {
+  if (p.actor !== 'admin') return { ok: false, error: 'ما عندك صلاحية تعديل ملف قائمة الأسعار' };
+  let link = '';
+  if (p.kind === 'file') {
+    link = saveAttachmentFile_(p.fileData, p.fileName || 'ملف قائمة الأسعار', p.mimeType || '');
+  } else {
+    link = p.link || '';
+  }
+  setSettingValue_('رابط ملف قائمة الأسعار', link);
+  setSettingValue_('اسم ملف قائمة الأسعار', p.label || p.fileName || '');
+  return { ok: true };
+}
+
 // تشغّل مرة وحدة (اختياري): تصلح روابط الصور القديمة المحفوظة بشيت "الإشعارات"
 // اللي كانت بالصيغة الغلط (drive.google.com/file/d/.../view) وتحوّلها للصيغة الصحيحة
 function fixOldImageUrls() {
@@ -736,6 +758,9 @@ function handleRequest_(p) {
       case 'deletePriceItem': return json_(deletePriceItem_(p));
       case 'getPriceListManager': return json_(getPriceListManager_());
       case 'setPriceListManager': return json_(setPriceListManager_(p));
+
+      case 'getPriceListFile': return json_(getPriceListFile_());
+      case 'setPriceListFile': return json_(setPriceListFile_(p));
 
       case 'loginSupervision': return json_(loginSupervision_(p));
       case 'loginAdmin': return json_(loginAdmin_(p));

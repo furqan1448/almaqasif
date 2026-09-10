@@ -86,10 +86,18 @@
 
       <!-- شبكة موحدة لكل الأيقونات (أعمال المركز + المرفقات/الصعوبات/المهام) بنفس حجم أيقونات المراكز -->
       <div class="icon-grid">
+        <div class="icon-btn" onclick="showView('priceListView')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12.5 12 21l-8.5-8.5V5A2 2 0 0 1 5.5 3h7z"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></div>
+          <span class="label">قائمة الأسعار</span>
+        </div>
         <div id="centerTiles" class="hidden">
           <div class="icon-btn" onclick="showView('salesView')">
             <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.3 15c0 1.1 1.2 2 2.7 2s2.7-.7 2.7-1.8-1.2-1.7-2.7-2-2.7-.9-2.7-2S10.5 9.5 12 9.5s2.5.6 2.7 1.5"/></svg></div>
             <span class="label">سجل البيع اليومي</span>
+          </div>
+          <div class="icon-btn" onclick="showView('invoicesView')">
+            <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10v18l-2.5-1.6L12 21l-2.5-1.6L7 21z"/><path d="M9.5 8h5M9.5 11.5h5"/></svg></div>
+            <span class="label">بيان الفواتير</span>
           </div>
           <div class="icon-btn" onclick="openNoticeForm('استلام')">
             <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M8 11l4 4 4-4"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg></div>
@@ -102,10 +110,6 @@
           <div class="icon-btn" onclick="openNoticeForm('تسليم', 'قيمة رسوم حفل تحفيظ الصغار')">
             <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/><circle cx="12" cy="9" r="1"/></svg></div>
             <span class="label">إشعار تسليم رسوم حفل تحفيظ الصغار</span>
-          </div>
-          <div class="icon-btn" onclick="showView('invoicesView')">
-            <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10v18l-2.5-1.6L12 21l-2.5-1.6L7 21z"/><path d="M9.5 8h5M9.5 11.5h5"/></svg></div>
-            <span class="label">بيان الفواتير</span>
           </div>
           <div class="icon-btn" onclick="showView('returnsView')">
             <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8 5 12l4 4"/><path d="M5 12h9a5 5 0 0 1 5 5v1"/></svg></div>
@@ -134,10 +138,6 @@
         <div class="icon-btn" onclick="showView('tasksView')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 3.5h6v2H9z"/><path d="M8.5 11.5h7M8.5 15h7"/></svg></div>
           <span class="label">مهام مسؤولة المقصف</span>
-        </div>
-        <div class="icon-btn" onclick="showView('priceListView')">
-          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12.5 12 21l-8.5-8.5V5A2 2 0 0 1 5.5 3h7z"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></div>
-          <span class="label">قائمة الأسعار</span>
         </div>
       </div>
     </div>
@@ -168,6 +168,7 @@
         <div class="export-row">
           <button class="btn outline" onclick="exportPriceListExcel()">⬇️ Excel</button>
           <button class="btn outline" onclick="printPriceListReport()">🖨️ PDF</button>
+          <button class="btn outline" onclick="openPriceListFile()">📎 ملف/رابط القائمة</button>
         </div>
       </div>
     </div>
@@ -1407,6 +1408,14 @@ function printPriceListReport() {
   printReport('قائمة أسعار المقصف', '', [
     { key: 'category', label: 'التصنيف' }, { key: 'name', label: 'اسم الصنف' }, { key: 'price', label: 'السعر' }
   ], rows);
+}
+
+/* رابط أو ملف إضافي لقائمة الأسعار - تضيفه الإدارة فقط من edara.html، وهنا فقط عرض */
+function openPriceListFile() {
+  callApi('getPriceListFile').then(function (r) {
+    if (r.link) { window.open(r.link, '_blank'); }
+    else { alert('ما فيه ملف أو رابط مضاف لقائمة الأسعار حالياً'); }
+  });
 }
 
 /* -------- المرفقات -------- */
