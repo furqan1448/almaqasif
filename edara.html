@@ -482,7 +482,12 @@
 
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">الأصناف الحالية</h3>
+        <input type="text" id="priceSearchInput" class="price-search" placeholder="🔍 ابحثي عن صنف..." oninput="filterPriceItemsAdmin()">
         <div id="priceItemsList">جاري التحميل...</div>
+        <div class="export-row">
+          <button class="btn outline" onclick="exportPriceListExcel()">⬇️ Excel</button>
+          <button class="btn outline" onclick="printPriceListReport()">🖨️ PDF</button>
+        </div>
       </div>
     </div>
 
@@ -1117,6 +1122,7 @@ function deleteAnnouncementRow(row) {
 
 /* -------- قائمة الأسعار -------- */
 let editingPriceItemRow = null;
+let currentPriceItemsCache_ = [];
 
 function loadPriceManagerSelect() {
   const sel = document.getElementById('priceManagerSelect');
@@ -1155,29 +1161,48 @@ function loadPriceItemsAdmin() {
   const box = document.getElementById('priceItemsList');
   box.innerHTML = 'جاري التحميل...';
   callApi('getPriceItems').then(function (r) {
-    const items = r.items || [];
-    const categories = Array.from(new Set(items.map(function (it) { return it['التصنيف']; }).filter(Boolean)));
+    currentPriceItemsCache_ = r.items || [];
+    const categories = Array.from(new Set(currentPriceItemsCache_.map(function (it) { return it['التصنيف']; }).filter(Boolean)));
     document.getElementById('priceCategoriesList').innerHTML = categories.map(function (c) { return '<option value="' + c + '">'; }).join('');
+    document.getElementById('priceSearchInput').value = '';
+    renderPriceItemsAdminGrid_(currentPriceItemsCache_);
+  });
+}
 
-    if (!items.length) { box.innerHTML = 'لا توجد أصناف بعد'; return; }
-    box.innerHTML = '';
-    categories.forEach(function (cat) {
-      const catBox = document.createElement('div');
-      catBox.style.marginBottom = '16px';
-      catBox.innerHTML = '<h4 style="color:var(--maroon-dark);margin:0 0 6px;">' + cat + '</h4>';
-      items.filter(function (it) { return it['التصنيف'] === cat; }).forEach(function (it) {
-        const row = document.createElement('div');
-        row.className = 'notice-item';
-        row.innerHTML =
-          '<div><div>' + (it['اسم الصنف'] || '') + '</div><div class="meta">' + (it['السعر'] || '') + '</div></div>' +
-          '<div class="row-actions">' +
-            '<a href="#" onclick="editPriceItem(' + it._row + ', ' + JSON.stringify(it['التصنيف']) + ', ' + JSON.stringify(it['اسم الصنف']) + ', ' + JSON.stringify(it['السعر']) + '); return false;">تعديل</a>' +
-            '<a href="#" onclick="deletePriceItemRow(' + it._row + '); return false;">حذف</a>' +
-          '</div>';
-        catBox.appendChild(row);
-      });
-      box.appendChild(catBox);
+function filterPriceItemsAdmin() {
+  const q = document.getElementById('priceSearchInput').value.trim().toLowerCase();
+  if (!q) { renderPriceItemsAdminGrid_(currentPriceItemsCache_); return; }
+  const filtered = currentPriceItemsCache_.filter(function (it) {
+    return String(it['اسم الصنف'] || '').toLowerCase().indexOf(q) !== -1 ||
+      String(it['التصنيف'] || '').toLowerCase().indexOf(q) !== -1;
+  });
+  renderPriceItemsAdminGrid_(filtered);
+}
+
+function renderPriceItemsAdminGrid_(items) {
+  const box = document.getElementById('priceItemsList');
+  if (!items.length) { box.innerHTML = 'ما فيه أصناف مطابقة'; return; }
+  const categories = Array.from(new Set(items.map(function (it) { return it['التصنيف']; }).filter(Boolean)));
+  box.innerHTML = '';
+  categories.forEach(function (cat) {
+    const catWrap = document.createElement('div');
+    const grid = document.createElement('div');
+    grid.className = 'price-grid';
+    items.filter(function (it) { return it['التصنيف'] === cat; }).forEach(function (it) {
+      const chip = document.createElement('div');
+      chip.className = 'price-chip';
+      chip.innerHTML =
+        '<div class="pactions">' +
+          '<a href="#" onclick="editPriceItem(' + it._row + ', ' + JSON.stringify(it['التصنيف']) + ', ' + JSON.stringify(it['اسم الصنف']) + ', ' + JSON.stringify(it['السعر']) + '); return false;">✎</a>' +
+          '<a href="#" onclick="deletePriceItemRow(' + it._row + '); return false;">×</a>' +
+        '</div>' +
+        '<div class="pname">' + (it['اسم الصنف'] || '') + '</div>' +
+        '<div class="pprice">' + (it['السعر'] || '') + '</div>';
+      grid.appendChild(chip);
     });
+    catWrap.innerHTML = '<h4 class="price-cat-title">' + cat + '</h4>';
+    catWrap.appendChild(grid);
+    box.appendChild(catWrap);
   });
 }
 
@@ -1232,6 +1257,22 @@ function deletePriceItemRow(row) {
     if (r.ok) loadPriceItemsAdmin();
     else alert(r.error || 'تعذّر الحذف');
   });
+}
+
+function exportPriceListExcel() {
+  const rows = currentPriceItemsCache_.map(function (it) {
+    return { 'التصنيف': it['التصنيف'] || '', 'اسم الصنف': it['اسم الصنف'] || '', 'السعر': it['السعر'] || '' };
+  });
+  exportToExcel(rows, 'قائمة-الأسعار', 'الأسعار');
+}
+
+function printPriceListReport() {
+  const rows = currentPriceItemsCache_.map(function (it) {
+    return { category: it['التصنيف'] || '', name: it['اسم الصنف'] || '', price: it['السعر'] || '' };
+  });
+  printReport('قائمة أسعار المقصف', '', [
+    { key: 'category', label: 'التصنيف' }, { key: 'name', label: 'اسم الصنف' }, { key: 'price', label: 'السعر' }
+  ], rows);
 }
 
 /* -------- المرفقات -------- */
