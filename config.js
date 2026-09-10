@@ -18,7 +18,7 @@ function setBtnBusy(btn, busy, busyText) {
   if (busy) {
     if (btn.dataset.originalHtml === undefined) btn.dataset.originalHtml = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> ' + (busyText || 'جاري الحفظ...');
+    btn.innerHTML = '<span class="spinner"></span> ' + (busyText || 'جارِ الحفظ...');
   } else {
     btn.disabled = false;
     if (btn.dataset.originalHtml !== undefined) {
