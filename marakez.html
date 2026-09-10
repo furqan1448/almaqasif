@@ -16,7 +16,7 @@
 
     <label>اسم المركز</label>
     <div class="combo-wrap">
-      <input type="text" id="centerSelect" placeholder="اكتبي للبحث أو اضغطي لعرض القائمة" autocomplete="off">
+      <input type="text" id="centerSelect" placeholder="اختاري اسم المركز" autocomplete="off">
       <div id="centerSelectList" class="combo-list hidden"></div>
     </div>
 
@@ -101,7 +101,10 @@
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">قائمة أسعار المقصف</h3>
-        <input type="text" id="priceSearchInput" class="price-search" placeholder="🔍 ابحثي عن صنف..." oninput="filterPriceItemsList()">
+        <div class="combo-wrap price-search">
+          <input type="text" id="priceSearchInput" placeholder="🔍 ابحثي عن صنف..." oninput="filterPriceItemsList()" autocomplete="off">
+          <div id="priceSearchList" class="combo-list hidden"></div>
+        </div>
         <div id="priceItemsList">جاري التحميل...</div>
         <div class="export-row">
           <button class="btn outline" onclick="exportPriceListExcel()">⬇️ Excel</button>
@@ -399,7 +402,7 @@ callApi('getCenters').then(function (r) {
   document.getElementById('centerSelect').placeholder = 'تعذر تحميل المراكز';
 });
 
-setupSearchableDropdown('centerSelect', 'centerSelectList', function () { return centersListCache_; }, doLogin);
+setupSearchableDropdown('centerSelect', 'centerSelectList', function () { return centersListCache_; }, null, doLogin);
 
 /* -------- الدخول بضغطة Enter من حقل كلمة المرور -------- */
 document.getElementById('centerPassword').addEventListener('keydown', function (e) {
@@ -1092,6 +1095,10 @@ function filterPriceItemsList() {
   });
   renderPriceItemsGrid_(filtered);
 }
+
+setupSearchableDropdown('priceSearchInput', 'priceSearchList', function () {
+  return currentPriceItemsCache_.map(function (it) { return it['اسم الصنف']; }).filter(Boolean);
+}, filterPriceItemsList);
 
 function renderPriceItemsGrid_(items) {
   const box = document.getElementById('priceItemsList');

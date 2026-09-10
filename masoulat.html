@@ -16,7 +16,7 @@
 
     <label>الاسم أو البريد الإلكتروني</label>
     <div class="combo-wrap">
-      <input type="text" id="username" placeholder="اكتبي للبحث أو اضغطي لعرض القائمة" autocomplete="off">
+      <input type="text" id="username" placeholder="اسم المستخدم" autocomplete="off">
       <div id="usernameList" class="combo-list hidden"></div>
     </div>
 
@@ -166,7 +166,10 @@
 
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">قائمة أسعار المقصف</h3>
-        <input type="text" id="priceSearchInput" class="price-search" placeholder="🔍 ابحثي عن صنف..." oninput="filterPriceItemsView()">
+        <div class="combo-wrap price-search">
+          <input type="text" id="priceSearchInput" placeholder="🔍 ابحثي عن صنف..." oninput="filterPriceItemsView()" autocomplete="off">
+          <div id="priceSearchList" class="combo-list hidden"></div>
+        </div>
         <div id="priceItemsList">جاري التحميل...</div>
         <div class="export-row">
           <button class="btn outline" onclick="exportPriceListExcel()">⬇️ Excel</button>
@@ -491,7 +494,7 @@ callApi('getMasoulat').then(function (r) {
   masoulatListCache_ = r.masoulat || [];
 }).catch(function () {});
 
-setupSearchableDropdown('username', 'usernameList', function () { return masoulatListCache_; }, doLogin);
+setupSearchableDropdown('username', 'usernameList', function () { return masoulatListCache_; }, null, doLogin);
 
 /* -------- الدخول بضغطة Enter من حقل كلمة المرور -------- */
 document.getElementById('password').addEventListener('keydown', function (e) {
@@ -1327,6 +1330,10 @@ function filterPriceItemsView() {
   });
   renderPriceItemsGrid_(filtered);
 }
+
+setupSearchableDropdown('priceSearchInput', 'priceSearchList', function () {
+  return currentPriceItemsCache_.map(function (it) { return it['اسم الصنف']; }).filter(Boolean);
+}, filterPriceItemsView);
 
 function renderPriceItemsGrid_(items) {
   const box = document.getElementById('priceItemsList');
