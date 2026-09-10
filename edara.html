@@ -290,9 +290,19 @@
         </label>
 
         <div id="announceTargetsBox" class="hidden" style="margin-top:10px;">
-          <label>مراكز محددة</label>
+          <label style="display:flex;align-items:center;justify-content:space-between;">
+            <span>مراكز محددة</span>
+            <span style="display:flex;align-items:center;gap:6px;font-weight:normal;font-size:0.85rem;">
+              <input type="checkbox" id="announceCentersAllCheck" onchange="toggleAnnounceGroupAll('center')"> تحديد الكل
+            </span>
+          </label>
           <div id="announceCentersList" style="max-height:160px;overflow-y:auto;border:1.5px solid var(--gold-light);border-radius:8px;padding:8px 10px;margin-bottom:12px;">جاري التحميل...</div>
-          <label>مسؤولات محددات</label>
+          <label style="display:flex;align-items:center;justify-content:space-between;">
+            <span>مسؤولات محددات</span>
+            <span style="display:flex;align-items:center;gap:6px;font-weight:normal;font-size:0.85rem;">
+              <input type="checkbox" id="announceMasoulatAllCheck" onchange="toggleAnnounceGroupAll('masoula')"> تحديد الكل
+            </span>
+          </label>
           <div id="announceMasoulatList" style="max-height:160px;overflow-y:auto;border:1.5px solid var(--gold-light);border-radius:8px;padding:8px 10px;">جاري التحميل...</div>
         </div>
 
@@ -951,6 +961,21 @@ function toggleAnnounceTargets() {
   document.getElementById('announceTargetsBox').classList.toggle('hidden', all);
 }
 
+function toggleAnnounceGroupAll(type) {
+  const selector = type === 'center' ? '.announce-center-check' : '.announce-masoula-check';
+  const allCheckId = type === 'center' ? 'announceCentersAllCheck' : 'announceMasoulatAllCheck';
+  const checked = document.getElementById(allCheckId).checked;
+  document.querySelectorAll(selector).forEach(function (el) { el.checked = checked; });
+}
+
+function syncAnnounceGroupAllCheck_(type) {
+  const selector = type === 'center' ? '.announce-center-check' : '.announce-masoula-check';
+  const allCheckId = type === 'center' ? 'announceCentersAllCheck' : 'announceMasoulatAllCheck';
+  const boxes = Array.from(document.querySelectorAll(selector));
+  const allChecked = boxes.length > 0 && boxes.every(function (el) { return el.checked; });
+  document.getElementById(allCheckId).checked = allChecked;
+}
+
 function renderAnnounceTargetLists() {
   const centersBox = document.getElementById('announceCentersList');
   const masoulatBox = document.getElementById('announceMasoulatList');
@@ -960,16 +985,18 @@ function renderAnnounceTargetLists() {
     centersListCache.forEach(function (c) {
       const label = document.createElement('label');
       label.style.cssText = 'display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:6px;';
-      label.innerHTML = '<input type="checkbox" class="announce-center-check" value="' + c + '"> <span>' + c + '</span>';
+      label.innerHTML = '<input type="checkbox" class="announce-center-check" value="' + c + '" onchange="syncAnnounceGroupAllCheck_(\'center\')"> <span>' + c + '</span>';
       centersBox.appendChild(label);
     });
     masoulatBox.innerHTML = masoulatListCache.length ? '' : 'لا يوجد مسؤولات';
     masoulatListCache.forEach(function (m) {
       const label = document.createElement('label');
       label.style.cssText = 'display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:6px;';
-      label.innerHTML = '<input type="checkbox" class="announce-masoula-check" value="' + m + '"> <span>' + m + '</span>';
+      label.innerHTML = '<input type="checkbox" class="announce-masoula-check" value="' + m + '" onchange="syncAnnounceGroupAllCheck_(\'masoula\')"> <span>' + m + '</span>';
       masoulatBox.appendChild(label);
     });
+    document.getElementById('announceCentersAllCheck').checked = false;
+    document.getElementById('announceMasoulatAllCheck').checked = false;
   }
 
   if (centersListCache.length || masoulatListCache.length) { render(); return; }
@@ -999,6 +1026,8 @@ function submitAnnouncement() {
       document.getElementById('announceAllCheck').checked = true;
       toggleAnnounceTargets();
       document.querySelectorAll('.announce-center-check, .announce-masoula-check').forEach(function (el) { el.checked = false; });
+      document.getElementById('announceCentersAllCheck').checked = false;
+      document.getElementById('announceMasoulatAllCheck').checked = false;
       const s = document.getElementById('announceSuccess');
       s.style.display = 'block';
       setTimeout(function () { s.style.display = 'none'; }, 2500);
