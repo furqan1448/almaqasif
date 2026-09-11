@@ -619,6 +619,104 @@ function clearCache() {
   notify_('تم تفريغ الذاكرة المؤقتة. جربي الدخول بالموقع الحين.');
 }
 
+/* ------------------- الأرشفة الحقيقية (نقل فعلي بدل التوسيم بس) -------------------
+   قبل هذا التعديل كانت "الأرشفة" توسيم بس (تكتب اسم الفصل بعمود الفصل الدراسي)
+   والبيانات القديمة تضل بنفس الشيت الحيّ للأبد، فيكبر حجمه مع كل فصل جديد ويصير
+   كل طلب (حتى لو للفصل الحالي بس) يقرأ تاريخ النظام كامل من أول يوم. الحين
+   الأرشفة تنقل الصفوف فعلياً لشيت منفصل اسمه "أرشيف_<اسم الشيت>"، فيبقى الشيت
+   الحيّ يحتوي بيانات الفصل الحالي بس وصغير دايماً. */
+const ARCHIVE_PREFIX = 'أرشيف_';
+
+function getOrCreateArchiveSheet_(name) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const archiveName = ARCHIVE_PREFIX + name;
+  let sh = ss.getSheetByName(archiveName);
+  if (!sh) {
+    sh = ss.insertSheet(archiveName);
+    const live = sheet_(name);
+    if (live && live.getLastColumn() > 0) {
+      const headers = live.getRange(1, 1, 1, live.getLastColumn()).getValues()[0];
+      sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+    }
+  }
+  return sh;
+}
+
+/* تنقل من الشيت الحيّ كل صف يحقق matchFn(قيمة عمود الأرشفة) لشيت الأرشيف،
+   وتعيد كتابة الشيت الحيّ بالصفوف الباقية بس (بعملية واحدة أسرع من حذف صف صف).
+   لو انمرّر newLabel تُكتب هالقيمة بعمود الأرشفة بالصفوف المنقولة قبل نقلها
+   (تُستخدم وقت إغلاق فصل حالي: الصفوف الفاضية تتحول لموسومة باسم الفصل).
+   بدون newLabel تُنقل الصفوف بقيمتها الحالية كما هي (تُستخدم بالترحيل لمرة وحدة
+   للصفوف اللي كانت موسومة قبل بس ما انتقلت فعلياً). */
+function archiveRowsMatching_(sh, archiveSh, colIdx, matchFn, newLabel) {
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return 0;
+  const numCols = sh.getLastColumn();
+  const data = sh.getRange(2, 1, lastRow - 1, numCols).getValues();
+  const toArchive = [];
+  const keepRows = [];
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    if (matchFn(row[colIdx - 1])) {
+      if (newLabel !== undefined) row[colIdx - 1] = newLabel;
+      toArchive.push(row);
+    } else {
+      keepRows.push(row);
+    }
+  }
+  if (toArchive.length) {
+    archiveSh.getRange(archiveSh.getLastRow() + 1, 1, toArchive.length, numCols).setValues(toArchive);
+  }
+  sh.getRange(2, 1, lastRow - 1, numCols).clearContent();
+  if (keepRows.length) {
+    sh.getRange(2, 1, keepRows.length, numCols).setValues(keepRows);
+  }
+  return toArchive.length;
+}
+
+/* ترجّع صفوف شيت معيّن حسب الفصل المطلوب:
+   - بدون فصل أو "current": صفوف الشيت الحيّ اللي عمود أرشفتها فاضي (الفصل الحالي)
+   - "all": كل الصفوف، من الشيت الحيّ + شيت الأرشيف مع بعض
+   - اسم فصل محدد: صفوف شيت الأرشيف اللي عمود أرشفتها يساوي هالاسم بالضبط */
+function getRowsForTerm_(name, term, archiveCol, cacheSeconds) {
+  const col = archiveCol || 'الفصل الدراسي';
+  const archiveName = ARCHIVE_PREFIX + name;
+  const t = term ? String(term).trim() : '';
+  if (!t || t === 'current') {
+    return sheetToObjects_(name, cacheSeconds).filter(function (r) { return String(r[col] || '').trim() === ''; });
+  }
+  if (t === 'all') {
+    return sheetToObjects_(name, cacheSeconds).concat(sheetToObjects_(archiveName, cacheSeconds));
+  }
+  return sheetToObjects_(archiveName, cacheSeconds).filter(function (r) { return String(r[col] || '').trim() === t; });
+}
+
+/* دالة ترحيل تُشغَّل يدوياً مرة وحدة بس (من قائمة الدوال أعلى محرر Apps Script):
+   تنقل كل الصفوف اللي كانت موسومة قبل باسم فصل (من نظام الأرشفة القديم) من
+   الشيتات الحيّة لشيتات الأرشيف المقابلة، فيرجع حجم الشيتات الحيّة صغير فوراً. */
+function migrateOldArchivedRowsToArchiveSheets_() {
+  const sheetsToMigrate = [
+    { name: 'المبيعات', col: 'الفصل الدراسي' },
+    { name: 'المرتجعات', col: 'الفصل الدراسي' },
+    { name: 'الفواتير', col: 'الفصل الدراسي' },
+    { name: 'الإشعارات', col: 'فصل الأرشفة' },
+    { name: 'قائمة الدخل', col: 'الفصل الدراسي' }
+  ];
+  const counts = {};
+  sheetsToMigrate.forEach(function (entry) {
+    const sh = sheet_(entry.name);
+    if (!sh || sh.getLastRow() < 2) { counts[entry.name] = 0; return; }
+    const col = colIndex_(sh, entry.col);
+    if (col === -1) { counts[entry.name] = 0; return; }
+    const archiveSh = getOrCreateArchiveSheet_(entry.name);
+    const n = archiveRowsMatching_(sh, archiveSh, col, function (v) { return String(v).trim() !== ''; });
+    counts[entry.name] = n;
+    invalidateCache_(entry.name);
+    invalidateCache_(ARCHIVE_PREFIX + entry.name);
+  });
+  notify_('تم ترحيل البيانات القديمة لشيتات الأرشيف بنجاح:\n' + JSON.stringify(counts));
+}
+
 /* تنسيق التواريخ عند القراءة: قوقل شيتس يحوّل نصوص التاريخ تلقائياً لكائن Date،
    وإذا رجعناه للواجهة كما هو يظهر بصيغة فيها أصفار زايدة (مثل 00:00:00.000Z).
    هذي الدالة تصيغه نص واضح: تاريخ فقط، أو تاريخ ووقت لو فيه وقت فعلي. */
@@ -644,7 +742,9 @@ function sheetToObjects_(name, cacheSeconds) {
   }
 
   const sh = sheet_(name);
+  if (!sh) return [];
   const data = sh.getDataRange().getValues();
+  if (!data || data.length < 1) return [];
   const headers = data[0];
   const rows = [];
   for (let i = 1; i < data.length; i++) {
@@ -730,7 +830,7 @@ function handleRequest_(p) {
       case 'getCenterPendingCount': return json_(getCenterPendingCount_(p));
       case 'getPendingNotices': return json_(getPendingNotices_());
       case 'getPendingNoticesCount': return json_(getPendingNoticesCount_());
-      case 'getAllNotices': return json_(getAllNotices_());
+      case 'getAllNotices': return json_(getAllNotices_(p));
       case 'adminSignNotice': return json_(adminSignNotice_(p));
       case 'updateNotice': return json_(updateNotice_(p));
       case 'deleteNotice': return json_(deleteNotice_(p));
@@ -899,7 +999,9 @@ function getTermsList_() {
   const seen = {};
   const terms = [];
   function collect(name, colName) {
-    sheetToObjects_(name).forEach(function (r) {
+    // بعد الأرشفة الحقيقية، الفصول المنتهية تُقرأ من شيت الأرشيف (الشيت الحيّ
+    // يحتوي الفصل الحالي بس، وما فيه أصلاً قيم فصل غير فاضية لنجمعها)
+    sheetToObjects_(ARCHIVE_PREFIX + name).forEach(function (r) {
       const t = String(r[colName] || '').trim();
       if (t && !seen[t]) { seen[t] = true; terms.push(t); }
     });
@@ -913,11 +1015,8 @@ function getTermsList_() {
 }
 
 function getSales_(p) {
-  const all = sheetToObjects_('المبيعات');
-  let rows = p.center ? all.filter(function (r) {
-    return String(r['اسم المركز']).trim() === String(p.center).trim();
-  }) : all;
-  rows = filterByTerm_(rows, p.term);
+  let rows = getRowsForTerm_('المبيعات', p.term, 'الفصل الدراسي');
+  if (p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
   const total = rows.reduce(function (sum, r) { return sum + (Number(r['المبلغ']) || 0); }, 0);
   return { ok: true, sales: rows, total: total };
 }
@@ -1006,11 +1105,8 @@ function recordReturn_(p) {
 }
 
 function getReturns_(p) {
-  const all = sheetToObjects_('المرتجعات');
-  let rows = p.center ? all.filter(function (r) {
-    return String(r['اسم المركز']).trim() === String(p.center).trim();
-  }) : all;
-  rows = filterByTerm_(rows, p.term);
+  let rows = getRowsForTerm_('المرتجعات', p.term, 'الفصل الدراسي');
+  if (p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
   const total = rows.reduce(function (sum, r) { return sum + (Number(r['القيمة']) || 0); }, 0);
   return { ok: true, returns: rows, total: total };
 }
@@ -1052,11 +1148,8 @@ function recordInvoice_(p) {
 }
 
 function getInvoices_(p) {
-  const all = sheetToObjects_('الفواتير');
-  let rows = p.center ? all.filter(function (r) {
-    return String(r['اسم المركز']).trim() === String(p.center).trim();
-  }) : all;
-  rows = filterByTerm_(rows, p.term);
+  let rows = getRowsForTerm_('الفواتير', p.term, 'الفصل الدراسي');
+  if (p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
   const totalAmount = rows.reduce(function (sum, r) { return sum + (Number(r['المبلغ الإجمالي']) || 0); }, 0);
   const totalProfit = rows.reduce(function (sum, r) { return sum + (Number(r['الربح']) || 0); }, 0);
   return { ok: true, invoices: rows, totalAmount: totalAmount, totalProfit: totalProfit };
@@ -1390,10 +1483,8 @@ function deleteDifficulty_(p) {
 }
 
 function getCenterNotices_(p) {
-  let rows = sheetToObjects_('الإشعارات').filter(function (r) {
-    return String(r['اسم المركز']).trim() === String(p.center).trim();
-  });
-  rows = filterByTerm_(rows, p.term, 'فصل الأرشفة');
+  let rows = getRowsForTerm_('الإشعارات', p.term, 'فصل الأرشفة');
+  rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
   return { ok: true, notices: rows.reverse() };
 }
 
@@ -1446,8 +1537,9 @@ function getCenterPendingCount_(p) {
 }
 
 // ترجع جميع إشعارات الاستلام والتسليم (بانتظار الاطلاع + تم الاطلاع) - تُستخدم بلوحة الإدارة
-function getAllNotices_() {
-  const rows = sheetToObjects_('الإشعارات').slice().reverse();
+// افتراضياً فصل حالي بس (زي بقية شاشات الفصل الدراسي)؛ p.term = "all" أو اسم فصل سابق يوسّع النطاق
+function getAllNotices_(p) {
+  const rows = getRowsForTerm_('الإشعارات', p && p.term, 'فصل الأرشفة').slice().reverse();
   const pending = rows.filter(function (r) { return r['الحالة'] === 'بانتظار الاطلاع'; });
   const done = rows.filter(function (r) { return r['الحالة'] !== 'بانتظار الاطلاع'; });
   return { ok: true, pending: pending, done: done, notices: rows };
@@ -1524,19 +1616,14 @@ function archiveCurrentTerm_(p) {
     const col = colIndex_(sh, entry.col);
     if (col === -1) { counts[entry.name] = 0; return; }
 
-    const lastRow = sh.getLastRow();
-    const range = sh.getRange(2, col, lastRow - 1, 1);
-    const values = range.getValues();
-    let n = 0;
-    for (let i = 0; i < values.length; i++) {
-      if (String(values[i][0]).trim() === '') {
-        values[i][0] = termLabel;
-        n++;
-      }
-    }
-    range.setValues(values);
+    // ننقل الصفوف "الحالية" (عمود الأرشفة فاضي) فعلياً لشيت الأرشيف بعد ما نكتب
+    // عليها اسم الفصل - فيرجع الشيت الحيّ صغيراً (بيانات الفصل الجديد بس) بدل
+    // ما يتراكم فيه كل الفصول للأبد.
+    const archiveSh = getOrCreateArchiveSheet_(entry.name);
+    const n = archiveRowsMatching_(sh, archiveSh, col, function (v) { return String(v).trim() === ''; }, termLabel);
     counts[entry.name] = n;
     invalidateCache_(entry.name);
+    invalidateCache_(ARCHIVE_PREFIX + entry.name);
   });
 
   return { ok: true, counts: counts };
@@ -1585,8 +1672,7 @@ function updateIncomeItem_(p) {
 }
 
 function getIncomeItems_(p) {
-  let rows = sheetToObjects_('قائمة الدخل');
-  rows = filterByTerm_(rows, p && p.term);
+  let rows = getRowsForTerm_('قائمة الدخل', p && p.term, 'الفصل الدراسي');
   rows = rows.slice().reverse();
   let totalIncome = 0, totalExpenses = 0;
   rows.forEach(function (r) {
