@@ -520,9 +520,9 @@ function submitSale() {
 function loadSales() {
   const tbody = document.getElementById('salesTbody');
   tbody.innerHTML = '<tr><td colspan="6">جاري التحميل...</td></tr>';
-  populateTermFilter_('salesTermFilter').then(function () {
-    const term = document.getElementById('salesTermFilter').value;
-    callApi('getSales', { center: currentCenter, term: term }).then(function (r) {
+  populateTermFilter_('salesTermFilter'); // لا ننتظرها - تعبئة القائمة تصير بالخلفية بدون ما تأخّر عرض البيانات
+  const term = document.getElementById('salesTermFilter').value;
+  callApi('getSales', { center: currentCenter, term: term }).then(function (r) {
     currentSalesData = r.sales || [];
     if (!r.ok || !currentSalesData.length) {
       tbody.innerHTML = '<tr><td colspan="6">لا يوجد سجل بعد</td></tr>';
@@ -537,7 +537,6 @@ function loadSales() {
       tbody.appendChild(tr);
     });
     document.getElementById('salesTotal').textContent = r.total.toFixed(2);
-    });
   });
 }
 
@@ -695,9 +694,9 @@ function deleteInvoiceRow(row) {
 function loadInvoices() {
   const tbody = document.getElementById('invoicesTbody');
   tbody.innerHTML = '<tr><td colspan="9">جاري التحميل...</td></tr>';
-  populateTermFilter_('invoicesTermFilter').then(function () {
-    const term = document.getElementById('invoicesTermFilter').value;
-    callApi('getInvoices', { center: currentCenter, term: term }).then(function (r) {
+  populateTermFilter_('invoicesTermFilter');
+  const term = document.getElementById('invoicesTermFilter').value;
+  callApi('getInvoices', { center: currentCenter, term: term }).then(function (r) {
     currentInvoicesData = r.invoices || [];
     if (!r.ok || !currentInvoicesData.length) {
       tbody.innerHTML = '<tr><td colspan="9">لا توجد فواتير بعد</td></tr>';
@@ -718,7 +717,6 @@ function loadInvoices() {
     document.getElementById('invoicesTotalAmount').textContent = r.totalAmount.toFixed(2);
     document.getElementById('invoicesTotalProfit').textContent = r.totalProfit.toFixed(2);
     document.getElementById('invoicesGrandTotal').textContent = (r.totalAmount + r.totalProfit).toFixed(2);
-    });
   });
 }
 
@@ -820,9 +818,9 @@ function deleteReturnRow(row) {
 function loadReturns() {
   const tbody = document.getElementById('returnsTbody');
   tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
-  populateTermFilter_('returnsTermFilter').then(function () {
-    const term = document.getElementById('returnsTermFilter').value;
-    callApi('getReturns', { center: currentCenter, term: term }).then(function (r) {
+  populateTermFilter_('returnsTermFilter');
+  const term = document.getElementById('returnsTermFilter').value;
+  callApi('getReturns', { center: currentCenter, term: term }).then(function (r) {
     currentReturnsData = r.returns || [];
     if (!r.ok || !currentReturnsData.length) {
       tbody.innerHTML = '<tr><td colspan="7">لا توجد مرتجعات بعد</td></tr>';
@@ -837,7 +835,6 @@ function loadReturns() {
       tbody.appendChild(tr);
     });
     document.getElementById('returnsTotal').textContent = r.total.toFixed(2);
-    });
   });
 }
 
@@ -951,9 +948,9 @@ function sendNotice() {
 function loadNotices() {
   const box = document.getElementById('noticesList');
   box.innerHTML = 'جاري التحميل...';
-  populateTermFilter_('noticesTermFilter').then(function () {
-    const term = document.getElementById('noticesTermFilter').value;
-    callApi('getCenterNotices', { center: currentCenter, term: term }).then(function (r) {
+  populateTermFilter_('noticesTermFilter');
+  const term = document.getElementById('noticesTermFilter').value;
+  callApi('getCenterNotices', { center: currentCenter, term: term }).then(function (r) {
     currentNoticesData = r.notices || [];
     if (!r.ok || !currentNoticesData.length) { box.innerHTML = 'لا توجد إشعارات بعد'; return; }
     box.innerHTML = '';
@@ -978,7 +975,6 @@ function loadNotices() {
           (done && n['رابط صورة الإشعار الموقع'] ? '<br><a href="' + n['رابط صورة الإشعار الموقع'] + '" target="_blank" style="font-size:0.8rem;">عرض الإشعار</a>' : '') +
         '</div>';
       box.appendChild(div);
-    });
     });
   });
 }

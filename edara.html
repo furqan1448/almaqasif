@@ -640,10 +640,9 @@ function loadPendingBadgeOnly() {
 }
 
 function loadPending() {
-  populateTermFilter_('noticesTermFilter').then(function () {
-    const term = document.getElementById('noticesTermFilter').value;
-    loadPendingForTerm_(term);
-  });
+  populateTermFilter_('noticesTermFilter');
+  const term = document.getElementById('noticesTermFilter').value;
+  loadPendingForTerm_(term);
 }
 
 function loadPendingForTerm_(term) {
@@ -829,9 +828,9 @@ function loadCenterSales() {
   const center = document.getElementById('salesCenterSelect').value;
   const tbody = document.getElementById('salesTbody');
   tbody.innerHTML = '<tr><td colspan="6">جاري التحميل...</td></tr>';
-  populateTermFilter_('salesTermFilter').then(function () {
-    const term = document.getElementById('salesTermFilter').value;
-    callApi('getSales', { center: center, term: term }).then(function (r) {
+  populateTermFilter_('salesTermFilter');
+  const term = document.getElementById('salesTermFilter').value;
+  callApi('getSales', { center: center, term: term }).then(function (r) {
     currentSales = r.sales || [];
     if (!r.ok || !currentSales.length) {
       tbody.innerHTML = '<tr><td colspan="6">لا يوجد سجل بعد</td></tr>';
@@ -845,7 +844,6 @@ function loadCenterSales() {
       tbody.appendChild(tr);
     });
     document.getElementById('salesTotal').textContent = r.total.toFixed(2);
-    });
   });
 }
 
@@ -874,9 +872,9 @@ function loadCenterReturns() {
   const center = document.getElementById('returnsCenterSelect').value;
   const tbody = document.getElementById('returnsTbody');
   tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
-  populateTermFilter_('returnsTermFilter').then(function () {
-    const term = document.getElementById('returnsTermFilter').value;
-    callApi('getReturns', { center: center, term: term }).then(function (r) {
+  populateTermFilter_('returnsTermFilter');
+  const term = document.getElementById('returnsTermFilter').value;
+  callApi('getReturns', { center: center, term: term }).then(function (r) {
     currentReturns = r.returns || [];
     if (!r.ok || !currentReturns.length) {
       tbody.innerHTML = '<tr><td colspan="7">لا توجد مرتجعات بعد</td></tr>';
@@ -890,7 +888,6 @@ function loadCenterReturns() {
       tbody.appendChild(tr);
     });
     document.getElementById('returnsTotal').textContent = r.total.toFixed(2);
-    });
   });
 }
 
@@ -920,9 +917,9 @@ function loadCenterInvoices() {
   const center = document.getElementById('invoicesCenterSelect').value;
   const tbody = document.getElementById('invoicesTbody');
   tbody.innerHTML = '<tr><td colspan="9">جاري التحميل...</td></tr>';
-  populateTermFilter_('invoicesTermFilter').then(function () {
-    const term = document.getElementById('invoicesTermFilter').value;
-    callApi('getInvoices', { center: center, term: term }).then(function (r) {
+  populateTermFilter_('invoicesTermFilter');
+  const term = document.getElementById('invoicesTermFilter').value;
+  callApi('getInvoices', { center: center, term: term }).then(function (r) {
     currentInvoices = r.invoices || [];
     if (!r.ok || !currentInvoices.length) {
       tbody.innerHTML = '<tr><td colspan="9">لا توجد فواتير بعد</td></tr>';
@@ -942,7 +939,6 @@ function loadCenterInvoices() {
     document.getElementById('invoicesTotalAmount').textContent = r.totalAmount.toFixed(2);
     document.getElementById('invoicesTotalProfit').textContent = r.totalProfit.toFixed(2);
     document.getElementById('invoicesGrandTotal').textContent = (r.totalAmount + r.totalProfit).toFixed(2);
-    });
   });
 }
 
@@ -1637,22 +1633,21 @@ function cancelEditIncomeItem() {
 function loadIncomeItems() {
   const tbody = document.getElementById('incomeTbody');
   tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
-  populateTermFilter_('incomeTermFilter').then(function () {
-    const term = document.getElementById('incomeTermFilter').value;
-    callApi('getIncomeItems', { term: term }).then(function (r) {
-      currentIncomeItems = r.items || [];
-      document.getElementById('incomeTotalRevenue').textContent = (r.totalIncome || 0).toFixed(2);
-      document.getElementById('incomeTotalExpenses').textContent = (r.totalExpenses || 0).toFixed(2);
-      document.getElementById('incomeNetProfit').textContent = (r.netProfit || 0).toFixed(2);
-      if (!currentIncomeItems.length) { tbody.innerHTML = '<tr><td colspan="7">لا توجد بنود بعد</td></tr>'; return; }
-      tbody.innerHTML = '';
-      currentIncomeItems.forEach(function (item) {
-        const tr = document.createElement('tr');
-        const attachHtml = item['رابط المرفق'] ? '<a href="' + item['رابط المرفق'] + '" target="_blank">عرض</a>' : '—';
-        tr.innerHTML = '<td>' + (item['البند'] || '') + '</td><td>' + (item['البيان'] || '') + '</td><td>' + Number(item['المبلغ']).toFixed(2) + '</td><td>' + (item['اليوم'] || '') + '</td><td>' + toHijriStr(item['التاريخ']) + '</td><td>' + attachHtml + '</td>' +
-          '<td><div class="row-actions"><a href="#" onclick="editIncomeItem(' + item._row + '); return false;">تعديل</a><a href="#" onclick="deleteIncomeRow(' + item._row + '); return false;">حذف</a></div></td>';
-        tbody.appendChild(tr);
-      });
+  populateTermFilter_('incomeTermFilter');
+  const term = document.getElementById('incomeTermFilter').value;
+  callApi('getIncomeItems', { term: term }).then(function (r) {
+    currentIncomeItems = r.items || [];
+    document.getElementById('incomeTotalRevenue').textContent = (r.totalIncome || 0).toFixed(2);
+    document.getElementById('incomeTotalExpenses').textContent = (r.totalExpenses || 0).toFixed(2);
+    document.getElementById('incomeNetProfit').textContent = (r.netProfit || 0).toFixed(2);
+    if (!currentIncomeItems.length) { tbody.innerHTML = '<tr><td colspan="7">لا توجد بنود بعد</td></tr>'; return; }
+    tbody.innerHTML = '';
+    currentIncomeItems.forEach(function (item) {
+      const tr = document.createElement('tr');
+      const attachHtml = item['رابط المرفق'] ? '<a href="' + item['رابط المرفق'] + '" target="_blank">عرض</a>' : '—';
+      tr.innerHTML = '<td>' + (item['البند'] || '') + '</td><td>' + (item['البيان'] || '') + '</td><td>' + Number(item['المبلغ']).toFixed(2) + '</td><td>' + (item['اليوم'] || '') + '</td><td>' + toHijriStr(item['التاريخ']) + '</td><td>' + attachHtml + '</td>' +
+        '<td><div class="row-actions"><a href="#" onclick="editIncomeItem(' + item._row + '); return false;">تعديل</a><a href="#" onclick="deleteIncomeRow(' + item._row + '); return false;">حذف</a></div></td>';
+      tbody.appendChild(tr);
     });
   });
 }
