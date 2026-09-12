@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbwgSIUJXakIUpnVRFT7JXzZVjVXufieo1Dl5KgAZS7K8Ivbxm_1vSsuZUoStawy5ALE/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzerjrWsK0twawFPcYXwita6nSt0iSzCXBJKn0wNwLKiLpxoLBBjCJIZ8fXWr6j7QKp/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -22,6 +22,36 @@ function _apiCacheKey_(action, data) {
   return action + '|' + JSON.stringify(sorted);
 }
 
+/* طلب واحد بمهلة زمنية (10 ثواني) - لو تأخر أكثر من كذا نعتبره فاشل ونعيد المحاولة،
+   بدل ما يظل معلّق للأبد بدون ما يوصل رد ولا خطأ (هذا اللي يسبب "أحياناً تطلع
+   وأحياناً لا" مع اتصالات الجوال المتذبذبة). */
+function _fetchWithTimeout_(url, opts, timeoutMs) {
+  return new Promise(function (resolve, reject) {
+    const timer = setTimeout(function () { reject(new Error('timeout')); }, timeoutMs);
+    fetch(url, opts).then(function (res) {
+      clearTimeout(timer); resolve(res);
+    }, function (err) {
+      clearTimeout(timer); reject(err);
+    });
+  });
+}
+
+/* تعيد تنفيذ نفس الطلب تلقائياً وبصمت (بدون ما تشوف المستخدمة أي خطأ) لين 3 محاولات
+   قبل ما نستسلم فعلاً - أغلب حالات التذبذب بشبكات الجوال (خصوصاً Private Relay بسفاري)
+   تنجح من المحاولة الثانية أو الثالثة مباشرة. */
+async function _fetchWithRetry_(url, opts, attempts) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await _fetchWithTimeout_(url, opts, 10000);
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) await new Promise(function (r) { setTimeout(r, 400); });
+    }
+  }
+  throw lastErr;
+}
+
 async function callApi(action, data) {
   const isRead = action.indexOf('get') === 0;
   const key = isRead ? _apiCacheKey_(action, data) : null;
@@ -33,10 +63,10 @@ async function callApi(action, data) {
   }
 
   const payload = Object.assign({ action: action }, data || {});
-  const requestPromise = fetch(API_URL, {
+  const requestPromise = _fetchWithRetry_(API_URL, {
     method: "POST",
     body: JSON.stringify(payload)
-  }).then(function (res) { return res.json(); });
+  }, 3).then(function (res) { return res.json(); });
 
   if (!isRead) {
     // أي طلب حفظ/تعديل/حذف: نفرّغ كل الكاش فور نجاحه عشان الشاشات التالية تجيب بيانات محدّثة

@@ -491,15 +491,31 @@ if (currentName) showDashboard();
 
 /* -------- تحميل قائمة أسماء المسؤولات -------- */
 let masoulatListCache_ = [];
-callApi('getMasoulat').then(function (r) {
-  masoulatListCache_ = r.masoulat || [];
+(function () {
   const list = document.getElementById('usernameOptions');
-  masoulatListCache_.forEach(function (name) {
-    const opt = document.createElement('option');
-    opt.value = name;
-    list.appendChild(opt);
-  });
-}).catch(function () {});
+
+  function fillOptions(names) {
+    list.innerHTML = '';
+    names.forEach(function (name) {
+      const opt = document.createElement('option');
+      opt.value = name;
+      list.appendChild(opt);
+    });
+  }
+
+  try {
+    const cached = JSON.parse(localStorage.getItem('maqasif_masoulat_cache') || '[]');
+    if (cached.length) { masoulatListCache_ = cached; fillOptions(cached); }
+  } catch (e) {}
+
+  callApi('getMasoulat').then(function (r) {
+    masoulatListCache_ = r.masoulat || [];
+    if (masoulatListCache_.length) {
+      fillOptions(masoulatListCache_);
+      try { localStorage.setItem('maqasif_masoulat_cache', JSON.stringify(masoulatListCache_)); } catch (e) {}
+    }
+  }).catch(function () {});
+})();
 
 /* -------- الدخول بضغطة Enter من حقل كلمة المرور -------- */
 document.getElementById('password').addEventListener('keydown', function (e) {
