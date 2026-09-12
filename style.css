@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;700;800&display=swap');
-
 :root {
   --maroon: #8C1A2C;
   --maroon-dark: #6e1523;
@@ -41,6 +39,10 @@ h1, h2, h3, .display {
   position: sticky;
   top: 0;
   z-index: 20;
+  /* يمنع المتصفح من إعادة رسم الشريط (وما تحته) في كل فريم أثناء التمرير على الجوال */
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
 }
 .topbar .brand {
   display: flex;
@@ -131,6 +133,7 @@ select:focus, input:focus, textarea:focus {
   right: 0; left: 0;
   max-height: 220px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background: #fff;
   border: 1.5px solid var(--gold-light);
   border-radius: 10px;
@@ -240,6 +243,11 @@ button.btn.small { width: auto; padding: 9px 16px; margin-top: 0; font-size: 0.8
 /* -------- جدول -------- */
 table.log-table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 0.88rem; }
 table.log-table th, table.log-table td { padding: 10px 8px; text-align: center; border-bottom: 1px solid var(--gold-light); }
+table.log-table tbody tr {
+  /* يخفف الحمل أثناء التمرير: المتصفح ما يرسم الصفوف إلا وقت ظهورها فعليًا */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 42px;
+}
 table.log-table th { background: var(--gold-light); color: var(--maroon-dark); font-weight: 700; }
 table.log-table tfoot td { font-weight: 900; color: var(--maroon); background: #fbf3ec; }
 
@@ -355,6 +363,7 @@ canvas.sig-pad { width: 100%; height: 160px; display: block; touch-action: none;
   display: flex;
   gap: 8px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 12px 18px 0;
   max-width: 720px;
   margin: 0 auto;
