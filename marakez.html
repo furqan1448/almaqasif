@@ -18,10 +18,9 @@
     <p class="sub">وحدة المقاصف - جمعية فرقان</p>
 
     <label>اسم المركز</label>
-    <div class="combo-wrap">
-      <input type="text" id="centerSelect" placeholder="اختاري اسم المركز" autocomplete="off">
-      <div id="centerSelectList" class="combo-list hidden"></div>
-    </div>
+    <select id="centerSelect">
+      <option value="">اختاري اسم المركز</option>
+    </select>
 
     <label>كلمة المرور</label>
     <div class="pw-wrap">
@@ -398,14 +397,16 @@ document.getElementById('invoiceDate').value = todayStr();
 if (currentCenter) { showDashboard(); }
 
 /* -------- تحميل قائمة المراكز -------- */
-let centersListCache_ = [];
 callApi('getCenters').then(function (r) {
-  centersListCache_ = r.centers || [];
+  const select = document.getElementById('centerSelect');
+  (r.centers || []).forEach(function (name) {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    select.appendChild(opt);
+  });
 }).catch(function () {
-  document.getElementById('centerSelect').placeholder = 'تعذر تحميل المراكز';
+  document.getElementById('centerSelect').firstElementChild.textContent = 'تعذر تحميل المراكز';
 });
-
-setupSearchableDropdown('centerSelect', 'centerSelectList', function () { return centersListCache_; }, null, doLogin);
 
 /* -------- الدخول بضغطة Enter من حقل كلمة المرور -------- */
 document.getElementById('centerPassword').addEventListener('keydown', function (e) {

@@ -18,10 +18,8 @@
     <p class="sub">وحدة المقاصف - جمعية فرقان</p>
 
     <label>الاسم أو البريد الإلكتروني</label>
-    <div class="combo-wrap">
-      <input type="text" id="username" placeholder="اسم المستخدم" autocomplete="off">
-      <div id="usernameList" class="combo-list hidden"></div>
-    </div>
+    <input type="text" id="username" list="usernameOptions" placeholder="اسم المستخدم" autocomplete="off">
+    <datalist id="usernameOptions"></datalist>
 
     <label>كلمة المرور</label>
     <div class="pw-wrap">
@@ -495,9 +493,13 @@ if (currentName) showDashboard();
 let masoulatListCache_ = [];
 callApi('getMasoulat').then(function (r) {
   masoulatListCache_ = r.masoulat || [];
+  const list = document.getElementById('usernameOptions');
+  masoulatListCache_.forEach(function (name) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    list.appendChild(opt);
+  });
 }).catch(function () {});
-
-setupSearchableDropdown('username', 'usernameList', function () { return masoulatListCache_; }, null, doLogin);
 
 /* -------- الدخول بضغطة Enter من حقل كلمة المرور -------- */
 document.getElementById('password').addEventListener('keydown', function (e) {
