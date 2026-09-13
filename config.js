@@ -636,6 +636,78 @@ function printReport(title, subtitle, columns, rows, totals) {
   win.document.close();
 }
 
+/* -------- طباعة "تقرير الزيارة اليومي" (نموذج بشأن أوضاع المقصف) --------
+   opts: { center, year, morning, evening, visitType, visitNumber, date, day, notesLines: [نص لكل صف], recommendation } */
+function printVisitReportWindow(opts) {
+  const win = window.open('', '_blank');
+  if (!win) {
+    alert('يرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع عشان تقدري تطبعي التقرير');
+    return;
+  }
+  const rowsCount = Math.max(4, (opts.notesLines || []).length);
+  const hijriDate = opts.date ? toHijriNumericStr(opts.date) : ' / / ' + (opts.year || '') + 'هـ';
+  const boxChar = function (checked) { return checked ? '☑' : '☐'; };
+
+  let html = '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">';
+  html += '<title>تقرير الزيارة اليومي - ' + (opts.center || '') + '</title>';
+  html += '<style>';
+  html += '@import url(\'https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Tajawal:wght@400;500;700;800&display=swap\');';
+  html += '@page { margin: 0; }';
+  html += '*{box-sizing:border-box;}';
+  html += 'html,body{margin:0;padding:0;}';
+  html += 'body{font-family:"Tajawal",sans-serif;direction:rtl;color:#2b2321;}';
+  html += '.content{padding:14px 30px 30px;}';
+  html += '.letterhead{width:100%;display:block;}';
+  html += '@media print{ .letterhead{ -webkit-print-color-adjust:exact; print-color-adjust:exact; } }';
+  html += 'h1{font-family:"Amiri",serif;color:#8C1A2C;margin:14px 0 18px;font-size:1.55rem;text-align:center;}';
+  html += '.infoline{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:0.95rem;margin-bottom:10px;flex-wrap:wrap;gap:8px;}';
+  html += '.infoline .chk{font-weight:700;}';
+  html += '.subject{font-weight:800;margin:6px 0 14px;font-size:0.95rem;}';
+  html += 'table{width:100%;border-collapse:collapse;font-size:0.88rem;margin-bottom:0;}';
+  html += 'td,th{border:1px solid #2b2321;padding:9px 10px;text-align:center;vertical-align:middle;}';
+  html += '.hdr-row td{background:#F2F2F2;font-weight:800;}';
+  html += '.notes-table td.notecell{text-align:right;padding-right:14px;min-height:44px;}';
+  html += '.notes-table td.mcell{width:5%;font-weight:800;}';
+  html += '.notes-table td.reccell{width:38%;text-align:right;padding-right:14px;font-weight:700;color:#8C1A2C;}';
+  html += '.info-table td{font-weight:800;}';
+  html += '.footer{display:flex;justify-content:space-between;margin-top:34px;font-weight:800;}';
+  html += '</style></head><body>';
+
+  const letterheadUrl = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
+  if (letterheadUrl) html += '<img class="letterhead" src="' + letterheadUrl + '" alt="كليشة جمعية فرقان">';
+
+  html += '<div class="content">';
+  html += '<h1>تقرير الزيارة اليومي</h1>';
+  html += '<div class="infoline">';
+  html += '<span class="chk">' + boxChar(opts.morning) + ' صباحي &nbsp;&nbsp; ' + boxChar(opts.evening) + ' مسائي</span>';
+  html += '<span>لعام ' + (opts.year || '') + 'هـ</span>';
+  html += '<span>المركز: ' + (opts.center || '') + '</span>';
+  html += '</div>';
+  html += '<div class="subject">بشأن: أوضاع المقصف</div>';
+
+  html += '<table class="info-table"><tr class="hdr-row">';
+  html += '<td>نوع الزيارة: ' + (opts.visitType || '') + '</td>';
+  html += '<td>رقم الزيارة: ' + (opts.visitNumber || '') + '</td>';
+  html += '<td>التاريخ: ' + hijriDate + '</td>';
+  html += '<td>اليوم: ' + (opts.day || '') + '</td>';
+  html += '</tr></table>';
+
+  html += '<table class="notes-table"><tr class="hdr-row"><td class="mcell">م</td><td>الملاحظة</td><td>التوصية</td></tr>';
+  for (let i = 0; i < rowsCount; i++) {
+    const note = (opts.notesLines && opts.notesLines[i]) ? opts.notesLines[i] : '';
+    const rec = i === 0 ? (opts.recommendation || '') : '';
+    html += '<tr><td class="mcell">' + toArabicDigits(i + 1) + '</td><td class="notecell" style="height:56px;">' + note + '</td><td class="reccell">' + rec + '</td></tr>';
+  }
+  html += '</table>';
+
+  html += '<div class="footer"><span>مديرة المركز</span><span>رئيسة وحدة المقاصف: فاطمة مبارك قفزور</span></div>';
+  html += '</div>';
+  html += '<script>window.onload = function(){ setTimeout(function(){ window.print(); }, 350); };<\/script>';
+  html += '</body></html>';
+  win.document.write(html);
+  win.document.close();
+}
+
 /* -------- توليد صورة الإشعار (مشتركة بين صفحة المراكز والإدارة) --------
    تتطلب وجود عنصر: <canvas id="noticeCanvas" width="900" height="560" style="display:none;"></canvas> */
 

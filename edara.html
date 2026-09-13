@@ -100,6 +100,10 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M7 7.5c0-1.5 1.8-2.5 5-2.5s5 1 5 2.5-1.8 2.5-5 2.5-5 1-5 2.5 1.8 2.5 5 2.5 5 1 5 2.5-1.8 2.5-5 2.5-5-1-5-2.5"/></svg></div>
           <span class="label">قائمة الدخل</span>
         </div>
+        <div class="icon-btn" onclick="showAdminTab('visitReportTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h4"/></svg></div>
+          <span class="label">تقرير الزيارة</span>
+        </div>
       </div>
     </div>
   </div>
@@ -464,6 +468,55 @@
       </div>
     </div>
 
+    <!-- ===== تبويب: تقرير الزيارة ===== -->
+    <div id="visitReportTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">تقرير الزيارة اليومي</h3>
+        <div class="select-row">
+          <div>
+            <label>المركز</label>
+            <select id="vrCenterSelect"><option value="">جاري التحميل...</option></select>
+          </div>
+          <div>
+            <label>لعام (هـ)</label>
+            <input type="text" id="vrYear" placeholder="١٤٤٨">
+          </div>
+        </div>
+        <div class="select-row">
+          <div>
+            <label>الفترة</label>
+            <div style="display:flex;gap:18px;margin-top:8px;">
+              <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:0;">
+                <input type="checkbox" id="vrPeriodMorning" style="width:auto;" onchange="if(this.checked)document.getElementById('vrPeriodEvening').checked=false;"> صباحي
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:0;">
+                <input type="checkbox" id="vrPeriodEvening" style="width:auto;" onchange="if(this.checked)document.getElementById('vrPeriodMorning').checked=false;"> مسائي
+              </label>
+            </div>
+          </div>
+          <div>
+            <label>التاريخ</label>
+            <input type="date" id="vrDate">
+          </div>
+        </div>
+        <div class="select-row">
+          <div>
+            <label>نوع الزيارة</label>
+            <input type="text" id="vrVisitType" value="تقييم">
+          </div>
+          <div>
+            <label>رقم الزيارة</label>
+            <input type="number" id="vrVisitNumber" placeholder="١">
+          </div>
+        </div>
+        <label>الملاحظات — كل سطر يتحوّل لصف مستقل بعمود "الملاحظة" (٤ أسطر كحد أقصى بالنموذج المطبوع)</label>
+        <textarea id="vrNotes" rows="5" placeholder="اكتبي كل ملاحظة بسطر مستقل..."></textarea>
+        <label>التوصية (تظهر بأول صف فقط)</label>
+        <textarea id="vrRecommendation" rows="2">نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والنجاح</textarea>
+        <button class="btn" onclick="printVisitReport()" style="margin-top:14px;">🖨️ معاينة وطباعة التقرير</button>
+      </div>
+    </div>
+
     <!-- ===== تبويب: قائمة الأسعار ===== -->
     <div id="priceListTab" class="admin-tab-panel hidden">
       <div class="card">
@@ -587,6 +640,7 @@ function showAdminTab(tabId) {
   if (tabId === 'incomeTab') loadIncomeItems();
   if (tabId === 'announcementsTab') { renderAnnounceTargetLists(); loadAnnouncementsAdmin(); }
   if (tabId === 'priceListTab') { loadPriceManagerSelect(); loadPriceItemsAdmin(); loadPriceListFileAdmin(); }
+  if (tabId === 'visitReportTab') { fillCenterSelect('vrCenterSelect'); if (!document.getElementById('vrDate').value) document.getElementById('vrDate').value = todayStr(); }
 }
 
 /* -------- تحميل قوائم المراكز في كل القوائم المنسدلة -------- */
@@ -1668,6 +1722,27 @@ function exportIncomeItems() {
     return { 'البند': item['البند'] || '', 'البيان': item['البيان'] || '', 'المبلغ': Number(item['المبلغ']), 'المبلغ كتابة': item['المبلغ كتابة'] || '', 'اليوم': item['اليوم'] || '', 'التاريخ': item['التاريخ'] || '' };
   });
   exportToExcel(rows, 'قائمة-الدخل', 'قائمة الدخل');
+}
+
+/* -------- تقرير الزيارة اليومي -------- */
+function printVisitReport() {
+  const center = document.getElementById('vrCenterSelect').value;
+  if (!center) { alert('اختاري المركز أولاً'); return; }
+  const date = document.getElementById('vrDate').value;
+  const notesLines = document.getElementById('vrNotes').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+  const opts = {
+    center: center,
+    year: document.getElementById('vrYear').value || '',
+    morning: document.getElementById('vrPeriodMorning').checked,
+    evening: document.getElementById('vrPeriodEvening').checked,
+    visitType: document.getElementById('vrVisitType').value || 'تقييم',
+    visitNumber: document.getElementById('vrVisitNumber').value || '',
+    date: date,
+    day: date ? dayNameFor(date) : '',
+    notesLines: notesLines.length ? notesLines : [''],
+    recommendation: document.getElementById('vrRecommendation').value || ''
+  };
+  printVisitReportWindow(opts);
 }
 </script>
 </body>
