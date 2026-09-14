@@ -1188,17 +1188,23 @@ function submitAttachment() {
   const file = fileInput.files[0];
   if (!file) { alert('اختاري ملف'); return; }
   if (file.size > 15 * 1024 * 1024) { alert('حجم الملف كبير جداً (الحد الأقصى 15 ميجا)'); return; }
+  const btn = document.getElementById('attachSubmitBtn');
+  setBtnBusy(btn, true);
   const reader = new FileReader();
   reader.onload = function () {
     sendAttachment({ title: title, kind: 'file', fileData: reader.result, fileName: file.name, mimeType: file.type });
   };
+  reader.onerror = function () { setBtnBusy(btn, false); alert('تعذرت قراءة الملف'); };
   reader.readAsDataURL(file);
 }
 
 function sendAttachment(payload) {
+  const btn = document.getElementById('attachSubmitBtn');
+  setBtnBusy(btn, true);
   payload.from = currentCenter;
   payload.owner = currentCenter;
   callApi('recordAttachment', payload).then(function (r) {
+    setBtnBusy(btn, false);
     if (r.ok) {
       document.getElementById('attachTitle').value = '';
       document.getElementById('attachLink').value = '';
@@ -1210,7 +1216,7 @@ function sendAttachment(payload) {
     } else {
       alert('صار خطأ أثناء حفظ المرفق:\n' + (r.error || 'خطأ غير معروف') + '\n\nلو الخطأ يقول شي عن "المرفقات" أو null، معناته شيت "المرفقات" لسا ما انسوى بجوجل شيتس - شغّلي دالة setup من محرر Apps Script.');
     }
-  });
+  }).catch(function () { setBtnBusy(btn, false); });
 }
 
 function loadAttachments() {

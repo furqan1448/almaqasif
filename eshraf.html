@@ -713,17 +713,23 @@ function submitOfficeAttachment() {
   const file = fileInput.files[0];
   if (!file) { alert('اختاري ملف'); return; }
   if (file.size > 15 * 1024 * 1024) { alert('حجم الملف كبير جداً (الحد الأقصى 15 ميجا)'); return; }
+  const btn = document.getElementById('officeAttachSubmitBtn');
+  setBtnBusy(btn, true);
   const reader = new FileReader();
   reader.onload = function () {
     sendOfficeAttachment({ title: title, kind: 'file', fileData: reader.result, fileName: file.name, mimeType: file.type });
   };
+  reader.onerror = function () { setBtnBusy(btn, false); alert('تعذرت قراءة الملف'); };
   reader.readAsDataURL(file);
 }
 
 function sendOfficeAttachment(payload) {
+  const btn = document.getElementById('officeAttachSubmitBtn');
+  setBtnBusy(btn, true);
   payload.from = 'مكتب إشراف الداخل';
   payload.store = 'مرفقات الإشراف';
   callApi('recordAttachment', payload).then(function (r) {
+    setBtnBusy(btn, false);
     if (r.ok) {
       document.getElementById('officeAttachTitle').value = '';
       document.getElementById('officeAttachLink').value = '';
@@ -735,7 +741,7 @@ function sendOfficeAttachment(payload) {
     } else {
       alert('صار خطأ أثناء حفظ المرفق:\n' + (r.error || 'خطأ غير معروف') + '\n\nلو الخطأ يقول شي عن "مرفقات الإشراف" أو null، معناته شيت "مرفقات الإشراف" لسا ما انسوى بجوجل شيتس - شغّلي دالة setup من محرر Apps Script.');
     }
-  });
+  }).catch(function () { setBtnBusy(btn, false); });
 }
 
 function loadOfficeAttachments() {
