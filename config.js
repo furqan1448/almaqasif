@@ -636,18 +636,72 @@ function printReport(title, subtitle, columns, rows, totals) {
   win.document.close();
 }
 
-/* -------- طباعة "تقرير الزيارة اليومي" (نموذج بشأن أوضاع المقصف) --------
-   opts: { center, year, morning, evening, visitType, visitNumber, date, day, notesLines: [نص لكل صف], recommendation } */
+/* -------- بناء محتوى "تقرير الزيارة اليومي" كـ HTML (يُستخدم بالطباعة، وبحفظ/مشاركة PDF) --------
+   opts: { center, year, term, morning, evening, day, hijriDate, visitType, visitNumber,
+           notesLines: [نص لكل صف], recommendation }
+   ملاحظة: كل حقول التقرير (المركز، اليوم، التاريخ الهجري) تُكتب يدويًا بالنموذج، بدون أي تحويل تلقائي */
+function buildVisitReportHTML(opts) {
+  const rowsCount = Math.max(2, (opts.notesLines || []).length);
+  const boxChar = function (checked) { return checked ? '☑' : '☐'; };
+
+  let html = '<div class="vr-doc">';
+  const letterheadUrl = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
+  if (letterheadUrl) html += '<img class="vr-letterhead" src="' + letterheadUrl + '" alt="كليشة جمعية فرقان">';
+
+  html += '<div class="vr-content">';
+  html += '<h1 class="vr-title">تقرير الزيارة اليومي</h1>';
+  html += '<div class="vr-infoline">';
+  html += '<span class="vr-chk">' + boxChar(opts.morning) + ' صباحي &nbsp;&nbsp; ' + boxChar(opts.evening) + ' مسائي</span>';
+  html += '<span>لعام ' + (opts.year || '') + 'هـ للفصل الدراسي ' + (opts.term || 'الأول') + '</span>';
+  html += '<span>المركز: ' + (opts.center || '') + '</span>';
+  html += '</div>';
+  html += '<div class="vr-subject">بشأن: أوضاع المقصف</div>';
+
+  html += '<table class="vr-info-table"><tr class="vr-hdr-row">';
+  html += '<td>اليوم: ' + (opts.day || '') + '</td>';
+  html += '<td>التاريخ: ' + (opts.hijriDate || '') + '</td>';
+  html += '<td>رقم الزيارة: ' + (opts.visitNumber || '') + '</td>';
+  html += '<td>نوع الزيارة: ' + (opts.visitType || '') + '</td>';
+  html += '</tr></table>';
+
+  html += '<table class="vr-notes-table"><tr class="vr-hdr-row"><td class="vr-mcell">م</td><td>الملاحظة</td><td>التوصية</td></tr>';
+  for (let i = 0; i < rowsCount; i++) {
+    const note = (opts.notesLines && opts.notesLines[i]) ? opts.notesLines[i] : '';
+    const rec = i === 0 ? (opts.recommendation || '') : '';
+    html += '<tr><td class="vr-mcell">' + toArabicDigits(i + 1) + '</td><td class="vr-notecell" style="height:56px;">' + note + '</td><td class="vr-reccell">' + rec + '</td></tr>';
+  }
+  html += '</table>';
+
+  html += '<div class="vr-footer"><span>مديرة المركز</span><span>رئيسة وحدة المقاصف: فاطمة مباركة الكثيري</span></div>';
+  html += '</div></div>';
+  return html;
+}
+
+/* نفس ستايل .vr-* الموجود بـ style.css، بس مكرر هنا كنص عشان نافذة الطباعة صفحة منفصلة
+   ما توصل لملف style.css (نفس أسلوب بقية دوال الطباعة بهذا الملف) */
+const VR_DOC_CSS_ =
+  '.vr-doc{width:100%;}' +
+  '.vr-letterhead{width:100%;display:block;}' +
+  '@media print{ .vr-letterhead{ -webkit-print-color-adjust:exact; print-color-adjust:exact; } }' +
+  '.vr-content{padding:14px 30px 30px;}' +
+  '.vr-title{font-family:"Amiri",serif;color:#8C1A2C;margin:14px 0 18px;font-size:1.55rem;text-align:center;}' +
+  '.vr-infoline{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:0.95rem;margin-bottom:10px;flex-wrap:wrap;gap:8px;}' +
+  '.vr-subject{font-weight:800;margin:6px 0 14px;font-size:0.95rem;}' +
+  '.vr-info-table,.vr-notes-table{width:100%;border-collapse:collapse;font-size:0.88rem;margin-bottom:0;}' +
+  '.vr-info-table td,.vr-notes-table td{border:1px solid #2b2321;padding:9px 10px;text-align:center;vertical-align:middle;}' +
+  '.vr-hdr-row td{background:#F2F2F2;font-weight:800;}' +
+  '.vr-notecell{text-align:right;padding-right:14px;min-height:44px;}' +
+  '.vr-mcell{width:5%;font-weight:800;}' +
+  '.vr-reccell{width:38%;text-align:right;padding-right:14px;font-weight:700;color:#8C1A2C;}' +
+  '.vr-footer{display:flex;justify-content:space-between;margin-top:34px;font-weight:800;}';
+
+/* -------- طباعة "تقرير الزيارة اليومي" (فتح نافذة طباعة، تقدري منها "حفظ كـ PDF" أيضًا) -------- */
 function printVisitReportWindow(opts) {
   const win = window.open('', '_blank');
   if (!win) {
     alert('يرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع عشان تقدري تطبعي التقرير');
     return;
   }
-  const rowsCount = Math.max(4, (opts.notesLines || []).length);
-  const hijriDate = opts.date ? toHijriNumericStr(opts.date) : ' / / ' + (opts.year || '') + 'هـ';
-  const boxChar = function (checked) { return checked ? '☑' : '☐'; };
-
   let html = '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">';
   html += '<title>تقرير الزيارة اليومي - ' + (opts.center || '') + '</title>';
   html += '<style>';
@@ -656,56 +710,72 @@ function printVisitReportWindow(opts) {
   html += '*{box-sizing:border-box;}';
   html += 'html,body{margin:0;padding:0;}';
   html += 'body{font-family:"Tajawal",sans-serif;direction:rtl;color:#2b2321;}';
-  html += '.content{padding:14px 30px 30px;}';
-  html += '.letterhead{width:100%;display:block;}';
-  html += '@media print{ .letterhead{ -webkit-print-color-adjust:exact; print-color-adjust:exact; } }';
-  html += 'h1{font-family:"Amiri",serif;color:#8C1A2C;margin:14px 0 18px;font-size:1.55rem;text-align:center;}';
-  html += '.infoline{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:0.95rem;margin-bottom:10px;flex-wrap:wrap;gap:8px;}';
-  html += '.infoline .chk{font-weight:700;}';
-  html += '.subject{font-weight:800;margin:6px 0 14px;font-size:0.95rem;}';
-  html += 'table{width:100%;border-collapse:collapse;font-size:0.88rem;margin-bottom:0;}';
-  html += 'td,th{border:1px solid #2b2321;padding:9px 10px;text-align:center;vertical-align:middle;}';
-  html += '.hdr-row td{background:#F2F2F2;font-weight:800;}';
-  html += '.notes-table td.notecell{text-align:right;padding-right:14px;min-height:44px;}';
-  html += '.notes-table td.mcell{width:5%;font-weight:800;}';
-  html += '.notes-table td.reccell{width:38%;text-align:right;padding-right:14px;font-weight:700;color:#8C1A2C;}';
-  html += '.info-table td{font-weight:800;}';
-  html += '.footer{display:flex;justify-content:space-between;margin-top:34px;font-weight:800;}';
+  html += VR_DOC_CSS_;
   html += '</style></head><body>';
-
-  const letterheadUrl = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
-  if (letterheadUrl) html += '<img class="letterhead" src="' + letterheadUrl + '" alt="كليشة جمعية فرقان">';
-
-  html += '<div class="content">';
-  html += '<h1>تقرير الزيارة اليومي</h1>';
-  html += '<div class="infoline">';
-  html += '<span class="chk">' + boxChar(opts.morning) + ' صباحي &nbsp;&nbsp; ' + boxChar(opts.evening) + ' مسائي</span>';
-  html += '<span>لعام ' + (opts.year || '') + 'هـ</span>';
-  html += '<span>المركز: ' + (opts.center || '') + '</span>';
-  html += '</div>';
-  html += '<div class="subject">بشأن: أوضاع المقصف</div>';
-
-  html += '<table class="info-table"><tr class="hdr-row">';
-  html += '<td>نوع الزيارة: ' + (opts.visitType || '') + '</td>';
-  html += '<td>رقم الزيارة: ' + (opts.visitNumber || '') + '</td>';
-  html += '<td>التاريخ: ' + hijriDate + '</td>';
-  html += '<td>اليوم: ' + (opts.day || '') + '</td>';
-  html += '</tr></table>';
-
-  html += '<table class="notes-table"><tr class="hdr-row"><td class="mcell">م</td><td>الملاحظة</td><td>التوصية</td></tr>';
-  for (let i = 0; i < rowsCount; i++) {
-    const note = (opts.notesLines && opts.notesLines[i]) ? opts.notesLines[i] : '';
-    const rec = i === 0 ? (opts.recommendation || '') : '';
-    html += '<tr><td class="mcell">' + toArabicDigits(i + 1) + '</td><td class="notecell" style="height:56px;">' + note + '</td><td class="reccell">' + rec + '</td></tr>';
-  }
-  html += '</table>';
-
-  html += '<div class="footer"><span>مديرة المركز</span><span>رئيسة وحدة المقاصف: فاطمة مبارك قفزور</span></div>';
-  html += '</div>';
+  html += buildVisitReportHTML(opts);
   html += '<script>window.onload = function(){ setTimeout(function(){ window.print(); }, 350); };<\/script>';
   html += '</body></html>';
   win.document.write(html);
   win.document.close();
+}
+
+/* -------- حفظ ومشاركة "تقرير الزيارة اليومي" كملف PDF فعلي --------
+   يعتمد على: 1) مكتبة html2pdf.js (لازم تكون محمّلة بالصفحة عبر <script> بالـ head)
+              2) عنصر مخفي بالصفحة: <div id="vrPdfHost"></div> */
+function visitReportFileName_(opts) {
+  const safeCenter = String(opts.center || 'تقرير').replace(/[\\/:*?"<>|]/g, '').trim() || 'تقرير';
+  return 'تقرير-الزيارة-' + safeCenter + '.pdf';
+}
+
+function renderVisitReportToHost_(opts) {
+  const host = document.getElementById('vrPdfHost');
+  if (!host) { alert('تعذّر تجهيز التقرير (عنصر vrPdfHost غير موجود بالصفحة)'); return null; }
+  host.innerHTML = buildVisitReportHTML(opts);
+  return host;
+}
+
+function visitReportPdfOptions_(fileName) {
+  return {
+    margin: 0,
+    filename: fileName,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+}
+
+/* حفظ التقرير مباشرة كملف PDF بجهاز المستخدمة */
+function saveVisitReportPdf(opts) {
+  const host = renderVisitReportToHost_(opts);
+  if (!host) return;
+  if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة ثانية'); return; }
+  const fileName = visitReportFileName_(opts);
+  html2pdf().set(visitReportPdfOptions_(fileName)).from(host).save();
+}
+
+/* مشاركة التقرير كملف PDF عبر واتساب (تفتح شاشة المشاركة العادية بالجوال، وتختارين منها جهة الاتصال) */
+async function shareVisitReportPdf(opts) {
+  const host = renderVisitReportToHost_(opts);
+  if (!host) return;
+  if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة ثانية'); return; }
+  const fileName = visitReportFileName_(opts);
+  try {
+    const blob = await html2pdf().set(visitReportPdfOptions_(fileName)).from(host).outputPdf('blob');
+    const file = new File([blob], fileName, { type: 'application/pdf' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'تقرير الزيارة اليومي',
+        text: 'تقرير الزيارة اليومي - ' + (opts.center || '')
+      });
+    } else {
+      alert('جهازك ما يدعم مشاركة الملفات مباشرة من المتصفح. راح نحفظ التقرير كملف PDF بدلاً من ذلك، وبعدها افتحي واتساب وأرفقيه يدويًا.');
+      html2pdf().set(visitReportPdfOptions_(fileName)).from(host).save();
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') return; // ألغت المستخدمة نافذة المشاركة، ما فيه خطأ فعلي
+    alert('صار خطأ أثناء تجهيز التقرير للمشاركة، حاولي مرة أخرى');
+  }
 }
 
 /* -------- توليد صورة الإشعار (مشتركة بين صفحة المراكز والإدارة) --------

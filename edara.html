@@ -475,7 +475,7 @@
         <div class="select-row">
           <div>
             <label>المركز</label>
-            <select id="vrCenterSelect"><option value="">جاري التحميل...</option></select>
+            <input type="text" id="vrCenterName" placeholder="اكتبي اسم المركز">
           </div>
           <div>
             <label>لعام (هـ)</label>
@@ -483,6 +483,14 @@
           </div>
         </div>
         <div class="select-row">
+          <div>
+            <label>الفصل الدراسي</label>
+            <select id="vrTerm">
+              <option value="الأول">الأول</option>
+              <option value="الثاني">الثاني</option>
+              <option value="الثالث">الثالث</option>
+            </select>
+          </div>
           <div>
             <label>الفترة</label>
             <div style="display:flex;gap:18px;margin-top:8px;">
@@ -494,9 +502,39 @@
               </label>
             </div>
           </div>
+        </div>
+        <div class="select-row">
           <div>
-            <label>التاريخ</label>
-            <input type="date" id="vrDate">
+            <label>اليوم</label>
+            <select id="vrDayName">
+              <option value="الأحد">الأحد</option>
+              <option value="الاثنين">الاثنين</option>
+              <option value="الثلاثاء">الثلاثاء</option>
+              <option value="الأربعاء">الأربعاء</option>
+              <option value="الخميس">الخميس</option>
+              <option value="الجمعة">الجمعة</option>
+              <option value="السبت">السبت</option>
+            </select>
+          </div>
+          <div>
+            <label>التاريخ الهجري (يوم / شهر)</label>
+            <div style="display:flex;gap:8px;">
+              <input type="number" id="vrHijriDay" min="1" max="30" placeholder="اليوم" style="width:35%;">
+              <select id="vrHijriMonth" style="width:65%;">
+                <option value="محرم">محرم</option>
+                <option value="صفر">صفر</option>
+                <option value="ربيع الأول">ربيع الأول</option>
+                <option value="ربيع الآخر">ربيع الآخر</option>
+                <option value="جمادى الأولى">جمادى الأولى</option>
+                <option value="جمادى الآخرة">جمادى الآخرة</option>
+                <option value="رجب">رجب</option>
+                <option value="شعبان">شعبان</option>
+                <option value="رمضان">رمضان</option>
+                <option value="شوال">شوال</option>
+                <option value="ذو القعدة">ذو القعدة</option>
+                <option value="ذو الحجة">ذو الحجة</option>
+              </select>
+            </div>
           </div>
         </div>
         <div class="select-row">
@@ -509,13 +547,20 @@
             <input type="number" id="vrVisitNumber" placeholder="١">
           </div>
         </div>
-        <label>الملاحظات — كل سطر يتحوّل لصف مستقل بعمود "الملاحظة" (٤ أسطر كحد أقصى بالنموذج المطبوع)</label>
+        <label>الملاحظات — كل سطر يتحوّل لصف مستقل بعمود "الملاحظة"</label>
         <textarea id="vrNotes" rows="5" placeholder="اكتبي كل ملاحظة بسطر مستقل..."></textarea>
         <label>التوصية (تظهر بأول صف فقط)</label>
         <textarea id="vrRecommendation" rows="2">نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والنجاح</textarea>
-        <button class="btn" onclick="printVisitReport()" style="margin-top:14px;">🖨️ معاينة وطباعة التقرير</button>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+          <button class="btn outline" onclick="printVisitReport()">🖨️ معاينة وطباعة</button>
+          <button class="btn outline" onclick="saveVisitReport()">📄 حفظ PDF</button>
+          <button class="btn" onclick="shareVisitReport()">📤 إرسال واتساب</button>
+        </div>
       </div>
     </div>
+
+    <!-- عنصر مخفي: يُستخدم داخليًا لتحويل تقرير الزيارة لملف PDF (حفظ/مشاركة) - لا يظهر بالشاشة -->
+    <div id="vrPdfHost" style="position:fixed;top:0;left:-99999px;width:794px;background:#fff;"></div>
 
     <!-- ===== تبويب: قائمة الأسعار ===== -->
     <div id="priceListTab" class="admin-tab-panel hidden">
@@ -573,6 +618,7 @@
 
 <canvas id="noticeCanvas" width="900" height="710" style="display:none;"></canvas>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
 <script>
@@ -640,7 +686,7 @@ function showAdminTab(tabId) {
   if (tabId === 'incomeTab') loadIncomeItems();
   if (tabId === 'announcementsTab') { renderAnnounceTargetLists(); loadAnnouncementsAdmin(); }
   if (tabId === 'priceListTab') { loadPriceManagerSelect(); loadPriceItemsAdmin(); loadPriceListFileAdmin(); }
-  if (tabId === 'visitReportTab') { fillCenterSelect('vrCenterSelect'); if (!document.getElementById('vrDate').value) document.getElementById('vrDate').value = todayStr(); }
+  if (tabId === 'visitReportTab') { /* المركز، اليوم، والتاريخ الهجري تُكتب يدويًا الآن، ما فيه تعبئة تلقائية */ }
 }
 
 /* -------- تحميل قوائم المراكز في كل القوائم المنسدلة -------- */
@@ -1734,24 +1780,43 @@ function exportIncomeItems() {
 }
 
 /* -------- تقرير الزيارة اليومي -------- */
-function printVisitReport() {
-  const center = document.getElementById('vrCenterSelect').value;
-  if (!center) { alert('اختاري المركز أولاً'); return; }
-  const date = document.getElementById('vrDate').value;
+function collectVisitReportOpts_() {
+  const center = document.getElementById('vrCenterName').value.trim();
+  if (!center) { alert('اكتبي اسم المركز أولاً'); return null; }
+  const year = document.getElementById('vrYear').value.trim();
+  const hijriDay = document.getElementById('vrHijriDay').value.trim();
+  const hijriMonth = document.getElementById('vrHijriMonth').value;
+  const hijriDate = (hijriDay ? toArabicDigits(hijriDay) : '  ') + ' / ' + (hijriMonth || '') +
+    (year ? ' / ' + toArabicDigits(year) + 'هـ' : '');
   const notesLines = document.getElementById('vrNotes').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
-  const opts = {
+  return {
     center: center,
-    year: document.getElementById('vrYear').value || '',
+    year: year,
+    term: document.getElementById('vrTerm').value || 'الأول',
     morning: document.getElementById('vrPeriodMorning').checked,
     evening: document.getElementById('vrPeriodEvening').checked,
+    day: document.getElementById('vrDayName').value || '',
+    hijriDate: hijriDate,
     visitType: document.getElementById('vrVisitType').value || 'تقييم',
     visitNumber: document.getElementById('vrVisitNumber').value || '',
-    date: date,
-    day: date ? dayNameFor(date) : '',
     notesLines: notesLines.length ? notesLines : [''],
     recommendation: document.getElementById('vrRecommendation').value || ''
   };
-  printVisitReportWindow(opts);
+}
+
+function printVisitReport() {
+  const opts = collectVisitReportOpts_();
+  if (opts) printVisitReportWindow(opts);
+}
+
+function saveVisitReport() {
+  const opts = collectVisitReportOpts_();
+  if (opts) saveVisitReportPdf(opts);
+}
+
+function shareVisitReport() {
+  const opts = collectVisitReportOpts_();
+  if (opts) shareVisitReportPdf(opts);
 }
 </script>
 </body>
