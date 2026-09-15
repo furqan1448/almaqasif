@@ -662,7 +662,7 @@ function buildVisitReportHTML(opts) {
   html += '<table class="vr-info-table"><tr class="vr-hdr-row">';
   html += '<td>اليوم: <span class="vr-value">' + (opts.day || '') + '</span></td>';
   html += '<td>التاريخ: <span class="vr-value">' + (opts.hijriDate || '') + '</span></td>';
-  html += '<td>رقم الزيارة: <span class="vr-value">' + (opts.visitNumber || '') + '</span></td>';
+  html += '<td>رقم الزيارة: <span class="vr-value">' + toArabicDigits(opts.visitNumber || '') + '</span></td>';
   html += '<td>نوع الزيارة: <span class="vr-value">' + (opts.visitType || '') + '</span></td>';
   html += '</tr></table>';
 
@@ -676,8 +676,8 @@ function buildVisitReportHTML(opts) {
 
   const sigUrl = opts.signatureDataUrl || ((typeof FURQAN_UNIT_HEAD_SIGNATURE_URL !== 'undefined') ? FURQAN_UNIT_HEAD_SIGNATURE_URL : '');
   const sigScale = (opts.sigScale && opts.sigScale > 0) ? opts.sigScale : 1;
-  const sigW = Math.round(110 * sigScale);
-  const sigH = Math.round(60 * sigScale);
+  const sigW = Math.round(140 * sigScale);
+  const sigH = Math.round(80 * sigScale);
   html += '<div class="vr-footer">';
   html += '<span class="vr-footer-col"><span>رئيسة وحدة المقاصف</span><span>فاطمة مبارك الكثيري</span>';
   if (sigUrl) html += '<img class="vr-sig" style="max-width:' + sigW + 'px;max-height:' + sigH + 'px;" src="' + sigUrl + '" alt="توقيع" onerror="this.style.display=\'none\';">';
@@ -706,7 +706,7 @@ const VR_DOC_CSS_ =
   '.vr-mcell{width:5%;font-weight:800;}' +
   '.vr-reccell{width:38%;text-align:right;padding-right:14px;font-weight:700;color:#2b2321;}' +
   '.vr-footer{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:40px;font-weight:800;}' +
-  '.vr-footer-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;text-align:center;min-height:70px;}' +
+  '.vr-footer-col{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;min-height:90px;}' +
   '.vr-sig{object-fit:contain;}';
 
 /* -------- طباعة "تقرير الزيارة اليومي" (فتح نافذة طباعة، تقدري منها "حفظ كـ PDF" أيضًا) -------- */
