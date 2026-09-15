@@ -669,8 +669,11 @@ function buildVisitReportHTML(opts) {
   html += '<table class="vr-notes-table"><tr class="vr-hdr-row"><td class="vr-mcell">م</td><td>الملاحظة</td><td>التوصية</td></tr>';
   for (let i = 0; i < rowsCount; i++) {
     const note = (opts.notesLines && opts.notesLines[i]) ? opts.notesLines[i] : '';
-    const rec = i === 0 ? (opts.recommendation || '') : '';
-    html += '<tr><td class="vr-mcell vr-value">' + toArabicDigits(i + 1) + '</td><td class="vr-notecell" style="height:56px;">' + note + '</td><td class="vr-reccell">' + rec + '</td></tr>';
+    html += '<tr><td class="vr-mcell vr-value">' + toArabicDigits(i + 1) + '</td><td class="vr-notecell" style="height:56px;">' + note + '</td>';
+    if (i === 0) {
+      html += '<td class="vr-reccell" rowspan="' + rowsCount + '">' + (opts.recommendation || '') + '</td>';
+    }
+    html += '</tr>';
   }
   html += '</table>';
 

@@ -547,8 +547,9 @@
             <input type="number" id="vrVisitNumber" placeholder="١">
           </div>
         </div>
-        <label>الملاحظات — كل سطر يتحوّل لصف مستقل بعمود "الملاحظة"</label>
-        <textarea id="vrNotes" rows="5" placeholder="اكتبي كل ملاحظة بسطر مستقل..."></textarea>
+        <label>الملاحظات — كل ملاحظة برقمها الخاص، زي جدول التقرير بالضبط</label>
+        <div id="vrNotesContainer"></div>
+        <button type="button" class="btn outline" onclick="addVrNoteRow()" style="width:auto;padding:6px 14px;margin-top:6px;">➕ إضافة ملاحظة</button>
         <label>التوصية (تظهر بأول صف فقط)</label>
         <textarea id="vrRecommendation" rows="2">نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والنجاح</textarea>
         <label>توقيع رئيسة وحدة المقاصف (اختياري)</label>
@@ -700,7 +701,7 @@ function showAdminTab(tabId) {
   if (tabId === 'incomeTab') loadIncomeItems();
   if (tabId === 'announcementsTab') { renderAnnounceTargetLists(); loadAnnouncementsAdmin(); }
   if (tabId === 'priceListTab') { loadPriceManagerSelect(); loadPriceItemsAdmin(); loadPriceListFileAdmin(); }
-  if (tabId === 'visitReportTab') { /* المركز، اليوم، والتاريخ الهجري تُكتب يدويًا الآن، ما فيه تعبئة تلقائية */ }
+  if (tabId === 'visitReportTab') { initVrNotesDefault_(); }
 }
 
 /* -------- تحميل قوائم المراكز في كل القوائم المنسدلة -------- */
@@ -1796,6 +1797,45 @@ function exportIncomeItems() {
 /* -------- تقرير الزيارة اليومي -------- */
 let vrSignatureDataUrl = null;
 
+function addVrNoteRow(value) {
+  const container = document.getElementById('vrNotesContainer');
+  const row = document.createElement('div');
+  row.className = 'vr-note-row';
+  row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;';
+  const num = document.createElement('span');
+  num.className = 'vr-note-num';
+  num.style.cssText = 'font-weight:800;color:var(--maroon);min-width:22px;text-align:center;';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'اكتبي الملاحظة...';
+  input.style.flex = '1';
+  input.value = value || '';
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.textContent = '✕';
+  removeBtn.style.cssText = 'width:auto;padding:4px 10px;background:transparent;border:1px solid var(--gold-light);border-radius:6px;color:#8a7d76;cursor:pointer;flex:none;';
+  removeBtn.onclick = function () { row.remove(); renumberVrNoteRows_(); };
+  row.appendChild(num);
+  row.appendChild(input);
+  row.appendChild(removeBtn);
+  container.appendChild(row);
+  renumberVrNoteRows_();
+}
+
+function renumberVrNoteRows_() {
+  document.querySelectorAll('#vrNotesContainer .vr-note-row .vr-note-num').forEach(function (el, i) {
+    el.textContent = toArabicDigits(i + 1);
+  });
+}
+
+function initVrNotesDefault_() {
+  const container = document.getElementById('vrNotesContainer');
+  if (container && !container.children.length) {
+    addVrNoteRow('');
+    addVrNoteRow('');
+  }
+}
+
 function handleVrSigUpload(evt) {
   const file = evt.target.files && evt.target.files[0];
   if (!file) return;
@@ -1873,7 +1913,7 @@ function collectVisitReportOpts_() {
   const hijriMonth = document.getElementById('vrHijriMonth').value;
   const hijriDate = (hijriDay ? toArabicDigits(hijriDay) : '  ') + ' / ' + (hijriMonth || '') +
     (year ? ' / ' + toArabicDigits(year) + 'هـ' : '');
-  const notesLines = document.getElementById('vrNotes').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+  const notesLines = Array.from(document.querySelectorAll('#vrNotesContainer input')).map(function (inp) { return inp.value.trim(); }).filter(Boolean);
   return {
     center: center,
     year: year,
