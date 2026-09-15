@@ -551,6 +551,15 @@
         <textarea id="vrNotes" rows="5" placeholder="اكتبي كل ملاحظة بسطر مستقل..."></textarea>
         <label>التوصية (تظهر بأول صف فقط)</label>
         <textarea id="vrRecommendation" rows="2">نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والنجاح</textarea>
+        <label>توقيع رئيسة وحدة المقاصف (اختياري)</label>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <input type="file" id="vrSigUpload" accept="image/*" onchange="handleVrSigUpload(event)" style="width:auto;">
+          <img id="vrSigPreview" class="hidden" alt="معاينة التوقيع" style="max-width:100px;max-height:55px;object-fit:contain;border:1px solid var(--gold-light);border-radius:6px;padding:2px;">
+          <button type="button" class="btn outline" id="vrSigClearBtn" onclick="clearVrSigUpload()" style="width:auto;padding:6px 14px;display:none;">مسح</button>
+        </div>
+        <p style="font-size:0.78rem;color:#8a7d76;margin:4px 0 0;">
+          ارفعي صورة التوقيع هنا وبتظهر تحت اسمها بهذا التقرير فقط. أو، عشان تظهر تلقائيًا بكل التقارير بدون ما ترفعيها كل مرة، ارفعي الصورة مرة وحدة بمستودع GitHub باسم fatima-signature.png جنب باقي صور الموقع.
+        </p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
           <button class="btn outline" onclick="printVisitReport()">🖨️ معاينة وطباعة</button>
           <button class="btn outline" onclick="saveVisitReport()">📄 حفظ PDF</button>
@@ -1780,6 +1789,31 @@ function exportIncomeItems() {
 }
 
 /* -------- تقرير الزيارة اليومي -------- */
+let vrSignatureDataUrl = null;
+
+function handleVrSigUpload(evt) {
+  const file = evt.target.files && evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    vrSignatureDataUrl = e.target.result;
+    const preview = document.getElementById('vrSigPreview');
+    preview.src = vrSignatureDataUrl;
+    preview.classList.remove('hidden');
+    document.getElementById('vrSigClearBtn').style.display = 'inline-block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearVrSigUpload() {
+  vrSignatureDataUrl = null;
+  document.getElementById('vrSigUpload').value = '';
+  const preview = document.getElementById('vrSigPreview');
+  preview.src = '';
+  preview.classList.add('hidden');
+  document.getElementById('vrSigClearBtn').style.display = 'none';
+}
+
 function collectVisitReportOpts_() {
   const center = document.getElementById('vrCenterName').value.trim();
   if (!center) { alert('اكتبي اسم المركز أولاً'); return null; }
@@ -1800,7 +1834,8 @@ function collectVisitReportOpts_() {
     visitType: document.getElementById('vrVisitType').value || 'تقييم',
     visitNumber: document.getElementById('vrVisitNumber').value || '',
     notesLines: notesLines.length ? notesLines : [''],
-    recommendation: document.getElementById('vrRecommendation').value || ''
+    recommendation: document.getElementById('vrRecommendation').value || '',
+    signatureDataUrl: vrSignatureDataUrl || ''
   };
 }
 

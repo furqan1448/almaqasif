@@ -674,7 +674,7 @@ function buildVisitReportHTML(opts) {
   }
   html += '</table>';
 
-  const sigUrl = (typeof FURQAN_UNIT_HEAD_SIGNATURE_URL !== 'undefined') ? FURQAN_UNIT_HEAD_SIGNATURE_URL : '';
+  const sigUrl = opts.signatureDataUrl || ((typeof FURQAN_UNIT_HEAD_SIGNATURE_URL !== 'undefined') ? FURQAN_UNIT_HEAD_SIGNATURE_URL : '');
   html += '<div class="vr-footer">';
   html += '<span class="vr-footer-col">رئيسة وحدة المقاصف: فاطمة مبارك الكثيري';
   if (sigUrl) html += '<img class="vr-sig" src="' + sigUrl + '" alt="توقيع" onerror="this.style.display=\'none\';">';
@@ -701,8 +701,8 @@ const VR_DOC_CSS_ =
   '.vr-notecell{text-align:right;padding-right:14px;min-height:44px;}' +
   '.vr-mcell{width:5%;font-weight:800;}' +
   '.vr-reccell{width:38%;text-align:right;padding-right:14px;font-weight:700;color:#8C1A2C;}' +
-  '.vr-footer{display:flex;justify-content:space-between;margin-top:34px;font-weight:800;}' +
-  '.vr-footer-col{display:flex;flex-direction:column;align-items:center;gap:4px;}' +
+  '.vr-footer{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:40px;padding-top:16px;border-top:1px solid #C2AA85;}' +
+  '.vr-footer-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:6px;font-weight:800;text-align:center;min-height:70px;}' +
   '.vr-sig{max-width:110px;max-height:60px;object-fit:contain;}';
 
 /* -------- طباعة "تقرير الزيارة اليومي" (فتح نافذة طباعة، تقدري منها "حفظ كـ PDF" أيضًا) -------- */
