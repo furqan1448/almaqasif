@@ -706,7 +706,7 @@ const VR_DOC_CSS_ =
   '.vr-mcell{width:5%;font-weight:800;}' +
   '.vr-reccell{width:38%;text-align:right;padding-right:14px;font-weight:700;color:#2b2321;}' +
   '.vr-footer{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:40px;font-weight:800;}' +
-  '.vr-footer-col{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;min-height:90px;}' +
+  '.vr-footer-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;text-align:center;}' +
   '.vr-sig{object-fit:contain;}';
 
 /* -------- طباعة "تقرير الزيارة اليومي" (فتح نافذة طباعة، تقدري منها "حفظ كـ PDF" أيضًا) -------- */

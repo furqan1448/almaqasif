@@ -1801,13 +1801,59 @@ function handleVrSigUpload(evt) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = function (e) {
-    vrSignatureDataUrl = e.target.result;
-    const preview = document.getElementById('vrSigPreview');
-    preview.src = vrSignatureDataUrl;
-    preview.classList.remove('hidden');
-    document.getElementById('vrSigClearBtn').style.display = 'inline-block';
+    const img = new Image();
+    img.onload = function () {
+      let finalUrl = e.target.result;
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        finalUrl = trimSignatureCanvas_(canvas);
+      } catch (err) { /* لو صار خطأ بالقص، نستخدم الصورة الأصلية بدون تعديل */ }
+      vrSignatureDataUrl = finalUrl;
+      const preview = document.getElementById('vrSigPreview');
+      preview.src = vrSignatureDataUrl;
+      preview.classList.remove('hidden');
+      document.getElementById('vrSigClearBtn').style.display = 'inline-block';
+    };
+    img.src = e.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+/* يقص المسافات الفاضية/البيضاء المحيطة بالتوقيع تلقائيًا من الصورة المرفوعة،
+   عشان ما تطلع فيه مسافة زايدة فوق أو حوالين التوقيع بالتقرير المطبوع/PDF */
+function trimSignatureCanvas_(canvas) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const data = ctx.getImageData(0, 0, w, h).data;
+  let minX = w, minY = h, maxX = 0, maxY = 0;
+  const whiteThreshold = 248;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = (y * w + x) * 4;
+      const r = data[idx], g = data[idx + 1], b = data[idx + 2], a = data[idx + 3];
+      const isBackground = a === 0 || (r >= whiteThreshold && g >= whiteThreshold && b >= whiteThreshold);
+      if (!isBackground) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX <= minX || maxY <= minY) return canvas.toDataURL('image/png');
+  const pad = 4;
+  minX = Math.max(0, minX - pad);
+  minY = Math.max(0, minY - pad);
+  maxX = Math.min(w - 1, maxX + pad);
+  maxY = Math.min(h - 1, maxY + pad);
+  const cw = maxX - minX + 1, ch = maxY - minY + 1;
+  const out = document.createElement('canvas');
+  out.width = cw; out.height = ch;
+  out.getContext('2d').drawImage(canvas, minX, minY, cw, ch, 0, 0, cw, ch);
+  return out.toDataURL('image/png');
 }
 
 function clearVrSigUpload() {
