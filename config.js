@@ -660,24 +660,27 @@ function buildVisitReportHTML(opts) {
   html += '<div class="vr-subject">بشأن: أوضاع المقصف</div>';
 
   html += '<table class="vr-info-table"><tr class="vr-hdr-row">';
-  html += '<td>اليوم: ' + (opts.day || '') + '</td>';
-  html += '<td>التاريخ: ' + (opts.hijriDate || '') + '</td>';
-  html += '<td>رقم الزيارة: ' + (opts.visitNumber || '') + '</td>';
-  html += '<td>نوع الزيارة: ' + (opts.visitType || '') + '</td>';
+  html += '<td>اليوم: <span class="vr-value">' + (opts.day || '') + '</span></td>';
+  html += '<td>التاريخ: <span class="vr-value">' + (opts.hijriDate || '') + '</span></td>';
+  html += '<td>رقم الزيارة: <span class="vr-value">' + (opts.visitNumber || '') + '</span></td>';
+  html += '<td>نوع الزيارة: <span class="vr-value">' + (opts.visitType || '') + '</span></td>';
   html += '</tr></table>';
 
   html += '<table class="vr-notes-table"><tr class="vr-hdr-row"><td class="vr-mcell">م</td><td>الملاحظة</td><td>التوصية</td></tr>';
   for (let i = 0; i < rowsCount; i++) {
     const note = (opts.notesLines && opts.notesLines[i]) ? opts.notesLines[i] : '';
     const rec = i === 0 ? (opts.recommendation || '') : '';
-    html += '<tr><td class="vr-mcell">' + toArabicDigits(i + 1) + '</td><td class="vr-notecell" style="height:56px;">' + note + '</td><td class="vr-reccell">' + rec + '</td></tr>';
+    html += '<tr><td class="vr-mcell vr-value">' + toArabicDigits(i + 1) + '</td><td class="vr-notecell" style="height:56px;">' + note + '</td><td class="vr-reccell">' + rec + '</td></tr>';
   }
   html += '</table>';
 
   const sigUrl = opts.signatureDataUrl || ((typeof FURQAN_UNIT_HEAD_SIGNATURE_URL !== 'undefined') ? FURQAN_UNIT_HEAD_SIGNATURE_URL : '');
+  const sigScale = (opts.sigScale && opts.sigScale > 0) ? opts.sigScale : 1;
+  const sigW = Math.round(110 * sigScale);
+  const sigH = Math.round(60 * sigScale);
   html += '<div class="vr-footer">';
-  html += '<span class="vr-footer-col">رئيسة وحدة المقاصف: فاطمة مبارك الكثيري';
-  if (sigUrl) html += '<img class="vr-sig" src="' + sigUrl + '" alt="توقيع" onerror="this.style.display=\'none\';">';
+  html += '<span class="vr-footer-col"><span>رئيسة وحدة المقاصف</span><span>فاطمة مبارك الكثيري</span>';
+  if (sigUrl) html += '<img class="vr-sig" style="max-width:' + sigW + 'px;max-height:' + sigH + 'px;" src="' + sigUrl + '" alt="توقيع" onerror="this.style.display=\'none\';">';
   html += '</span>';
   html += '<span class="vr-footer-col">مديرة المركز</span>';
   html += '</div>';
@@ -694,16 +697,17 @@ const VR_DOC_CSS_ =
   '.vr-content{padding:14px 30px 30px;}' +
   '.vr-title{font-family:"Amiri",serif;color:#8C1A2C;margin:14px 0 18px;font-size:1.55rem;text-align:center;}' +
   '.vr-infoline{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:0.95rem;margin-bottom:10px;flex-wrap:wrap;gap:8px;}' +
-  '.vr-subject{font-weight:800;margin:6px 0 14px;font-size:0.95rem;}' +
+  '.vr-subject{font-weight:800;margin:6px 0 14px;font-size:0.95rem;color:#8C1A2C;}' +
   '.vr-info-table,.vr-notes-table{width:100%;border-collapse:collapse;font-size:0.88rem;margin-bottom:0;}' +
   '.vr-info-table td,.vr-notes-table td{border:1px solid #2b2321;padding:9px 10px;text-align:center;vertical-align:middle;}' +
   '.vr-hdr-row td{background:#F2F2F2;font-weight:800;}' +
+  '.vr-value{color:#8C1A2C;font-weight:800;}' +
   '.vr-notecell{text-align:right;padding-right:14px;min-height:44px;}' +
   '.vr-mcell{width:5%;font-weight:800;}' +
-  '.vr-reccell{width:38%;text-align:right;padding-right:14px;font-weight:700;color:#8C1A2C;}' +
-  '.vr-footer{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:40px;padding-top:16px;border-top:1px solid #C2AA85;}' +
-  '.vr-footer-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:6px;font-weight:800;text-align:center;min-height:70px;}' +
-  '.vr-sig{max-width:110px;max-height:60px;object-fit:contain;}';
+  '.vr-reccell{width:38%;text-align:right;padding-right:14px;font-weight:700;color:#2b2321;}' +
+  '.vr-footer{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:40px;font-weight:800;}' +
+  '.vr-footer-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;text-align:center;min-height:70px;}' +
+  '.vr-sig{object-fit:contain;}';
 
 /* -------- طباعة "تقرير الزيارة اليومي" (فتح نافذة طباعة، تقدري منها "حفظ كـ PDF" أيضًا) -------- */
 function printVisitReportWindow(opts) {

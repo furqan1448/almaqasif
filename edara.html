@@ -557,6 +557,11 @@
           <img id="vrSigPreview" class="hidden" alt="معاينة التوقيع" style="max-width:100px;max-height:55px;object-fit:contain;border:1px solid var(--gold-light);border-radius:6px;padding:2px;">
           <button type="button" class="btn outline" id="vrSigClearBtn" onclick="clearVrSigUpload()" style="width:auto;padding:6px 14px;display:none;">مسح</button>
         </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+          <label style="margin:0;white-space:nowrap;">حجم التوقيع</label>
+          <input type="range" id="vrSigSize" min="50" max="200" value="100" step="10" style="width:160px;" oninput="document.getElementById('vrSigSizeLabel').textContent=this.value+'%'">
+          <span id="vrSigSizeLabel" style="font-weight:700;color:var(--maroon);">100%</span>
+        </div>
         <p style="font-size:0.78rem;color:#8a7d76;margin:4px 0 0;">
           ارفعي صورة التوقيع هنا وبتظهر تحت اسمها بهذا التقرير فقط. أو، عشان تظهر تلقائيًا بكل التقارير بدون ما ترفعيها كل مرة، ارفعي الصورة مرة وحدة بمستودع GitHub باسم fatima-signature.png جنب باقي صور الموقع.
         </p>
@@ -1835,7 +1840,8 @@ function collectVisitReportOpts_() {
     visitNumber: document.getElementById('vrVisitNumber').value || '',
     notesLines: notesLines.length ? notesLines : [''],
     recommendation: document.getElementById('vrRecommendation').value || '',
-    signatureDataUrl: vrSignatureDataUrl || ''
+    signatureDataUrl: vrSignatureDataUrl || '',
+    sigScale: (Number(document.getElementById('vrSigSize').value) || 100) / 100
   };
 }
 
