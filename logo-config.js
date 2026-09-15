@@ -10,3 +10,8 @@
 // نفسه برفع ملف جديد بنفس الاسم على GitHub، بدون ما تحتاجين تلمسين هذا الملف إطلاقاً.
 const FURQAN_LOGO_URL = "furqan-logo.png";
 const FURQAN_LETTERHEAD_URL = "furqan-letterhead.jpg";
+
+// توقيع رئيسة وحدة المقاصف (الأستاذة فاطمة) - يظهر بأسفل نموذج "تقرير الزيارة اليومي" فقط
+// نفس فكرة الشعار: ارفعي صورة التوقيع (يفضّل بخلفية شفافة PNG) بنفس اسم الملف هذا
+// بجانب باقي ملفات الموقع على GitHub، وبتظهر تلقائياً - بدون أي تعديل على الكود
+const FURQAN_UNIT_HEAD_SIGNATURE_URL = "fatima-signature.png";

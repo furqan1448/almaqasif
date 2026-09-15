@@ -651,9 +651,11 @@ function buildVisitReportHTML(opts) {
   html += '<div class="vr-content">';
   html += '<h1 class="vr-title">تقرير الزيارة اليومي</h1>';
   html += '<div class="vr-infoline">';
-  html += '<span class="vr-chk">' + boxChar(opts.morning) + ' صباحي &nbsp;&nbsp; ' + boxChar(opts.evening) + ' مسائي</span>';
-  html += '<span>لعام ' + (opts.year || '') + 'هـ للفصل الدراسي ' + (opts.term || 'الأول') + '</span>';
+  html += '<span style="display:flex;align-items:center;gap:14px;">';
   html += '<span>المركز: ' + (opts.center || '') + '</span>';
+  html += '<span class="vr-chk">' + boxChar(opts.morning) + ' صباحي &nbsp;&nbsp; ' + boxChar(opts.evening) + ' مسائي</span>';
+  html += '</span>';
+  html += '<span>لعام ' + toArabicDigits(opts.year || '') + 'هـ للفصل الدراسي ' + (opts.term || 'الأول') + '</span>';
   html += '</div>';
   html += '<div class="vr-subject">بشأن: أوضاع المقصف</div>';
 
@@ -672,7 +674,13 @@ function buildVisitReportHTML(opts) {
   }
   html += '</table>';
 
-  html += '<div class="vr-footer"><span>مديرة المركز</span><span>رئيسة وحدة المقاصف: فاطمة مباركة الكثيري</span></div>';
+  const sigUrl = (typeof FURQAN_UNIT_HEAD_SIGNATURE_URL !== 'undefined') ? FURQAN_UNIT_HEAD_SIGNATURE_URL : '';
+  html += '<div class="vr-footer">';
+  html += '<span class="vr-footer-col">رئيسة وحدة المقاصف: فاطمة مبارك الكثيري';
+  if (sigUrl) html += '<img class="vr-sig" src="' + sigUrl + '" alt="توقيع" onerror="this.style.display=\'none\';">';
+  html += '</span>';
+  html += '<span class="vr-footer-col">مديرة المركز</span>';
+  html += '</div>';
   html += '</div></div>';
   return html;
 }
@@ -693,7 +701,9 @@ const VR_DOC_CSS_ =
   '.vr-notecell{text-align:right;padding-right:14px;min-height:44px;}' +
   '.vr-mcell{width:5%;font-weight:800;}' +
   '.vr-reccell{width:38%;text-align:right;padding-right:14px;font-weight:700;color:#8C1A2C;}' +
-  '.vr-footer{display:flex;justify-content:space-between;margin-top:34px;font-weight:800;}';
+  '.vr-footer{display:flex;justify-content:space-between;margin-top:34px;font-weight:800;}' +
+  '.vr-footer-col{display:flex;flex-direction:column;align-items:center;gap:4px;}' +
+  '.vr-sig{max-width:110px;max-height:60px;object-fit:contain;}';
 
 /* -------- طباعة "تقرير الزيارة اليومي" (فتح نافذة طباعة، تقدري منها "حفظ كـ PDF" أيضًا) -------- */
 function printVisitReportWindow(opts) {
