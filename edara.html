@@ -552,6 +552,8 @@
         <button type="button" class="btn outline" onclick="addVrNoteRow()" style="width:auto;padding:6px 14px;margin-top:6px;">➕ إضافة ملاحظة</button>
         <label>التوصية (تظهر بأول صف فقط)</label>
         <textarea id="vrRecommendation" rows="2">نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والنجاح</textarea>
+        <label>اسم رئيسة وحدة المقاصف</label>
+        <input type="text" id="vrHeadName" value="فاطمة مبارك الكثيري">
         <label>توقيع رئيسة وحدة المقاصف (اختياري)</label>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <input type="file" id="vrSigUpload" accept="image/*" onchange="handleVrSigUpload(event)" style="width:auto;">
@@ -571,11 +573,19 @@
           <button class="btn outline" onclick="saveVisitReport()">📄 حفظ PDF</button>
           <button class="btn" onclick="shareVisitReport()">📤 إرسال واتساب</button>
         </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
+          <button class="btn outline" onclick="saveVrDraft()">💾 حفظ مسودة</button>
+          <button class="btn outline" onclick="clearVrReport()">🗑️ مسح التقرير</button>
+        </div>
       </div>
     </div>
 
-    <!-- عنصر مخفي: يُستخدم داخليًا لتحويل تقرير الزيارة لملف PDF (حفظ/مشاركة) - لا يظهر بالشاشة -->
-    <div id="vrPdfHost" style="position:fixed;top:0;left:-99999px;width:794px;background:#fff;"></div>
+    <!-- عنصر مخفي: يُستخدم داخليًا لتحويل تقرير الزيارة لملف PDF (حفظ/مشاركة) - لا يظهر بالشاشة
+         ملاحظة: نستخدم "قص" (overflow:hidden بأبعاد صفر) بدل إحداثيات بعيدة جدًا (مثل left:-99999px)
+         لأن الإحداثيات البعيدة جدًا تخلي أداة تحويل PDF تحاول تنشئ لوحة رسم ضخمة جدًا وتوقف الصفحة (شاشة بيضاء) -->
+    <div style="position:fixed;top:0;left:0;width:0;height:0;overflow:hidden;z-index:-1;">
+      <div id="vrPdfHost" style="width:1123px;background:#fff;"></div>
+    </div>
 
     <!-- ===== تبويب: قائمة الأسعار ===== -->
     <div id="priceListTab" class="admin-tab-panel hidden">
@@ -701,7 +711,7 @@ function showAdminTab(tabId) {
   if (tabId === 'incomeTab') loadIncomeItems();
   if (tabId === 'announcementsTab') { renderAnnounceTargetLists(); loadAnnouncementsAdmin(); }
   if (tabId === 'priceListTab') { loadPriceManagerSelect(); loadPriceItemsAdmin(); loadPriceListFileAdmin(); }
-  if (tabId === 'visitReportTab') { initVrNotesDefault_(); }
+  if (tabId === 'visitReportTab') { initVisitReportTab_(); }
 }
 
 /* -------- تحميل قوائم المراكز في كل القوائم المنسدلة -------- */
@@ -1801,25 +1811,32 @@ function addVrNoteRow(value) {
   const container = document.getElementById('vrNotesContainer');
   const row = document.createElement('div');
   row.className = 'vr-note-row';
-  row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;';
+  row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;';
   const num = document.createElement('span');
   num.className = 'vr-note-num';
-  num.style.cssText = 'font-weight:800;color:var(--maroon);min-width:22px;text-align:center;';
-  const input = document.createElement('input');
-  input.type = 'text';
+  num.style.cssText = 'font-weight:800;color:var(--maroon);min-width:22px;text-align:center;margin-top:8px;';
+  const input = document.createElement('textarea');
+  input.rows = 1;
   input.placeholder = 'اكتبي الملاحظة...';
-  input.style.flex = '1';
+  input.style.cssText = 'flex:1;resize:none;overflow:hidden;min-height:38px;';
   input.value = value || '';
+  input.addEventListener('input', function () { autoResizeVrNote_(input); });
   const removeBtn = document.createElement('button');
   removeBtn.type = 'button';
   removeBtn.textContent = '✕';
-  removeBtn.style.cssText = 'width:auto;padding:4px 10px;background:transparent;border:1px solid var(--gold-light);border-radius:6px;color:#8a7d76;cursor:pointer;flex:none;';
+  removeBtn.style.cssText = 'width:auto;padding:4px 10px;background:transparent;border:1px solid var(--gold-light);border-radius:6px;color:#8a7d76;cursor:pointer;flex:none;margin-top:2px;';
   removeBtn.onclick = function () { row.remove(); renumberVrNoteRows_(); };
   row.appendChild(num);
   row.appendChild(input);
   row.appendChild(removeBtn);
   container.appendChild(row);
   renumberVrNoteRows_();
+  autoResizeVrNote_(input);
+}
+
+function autoResizeVrNote_(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
 }
 
 function renumberVrNoteRows_() {
@@ -1834,6 +1851,99 @@ function initVrNotesDefault_() {
     addVrNoteRow('');
     addVrNoteRow('');
   }
+}
+
+/* -------- حفظ/استرجاع مسودة تقرير الزيارة (بدون التوقيع) -------- */
+const VR_DRAFT_KEY_ = 'vrReportDraft';
+let vrDraftInited_ = false;
+
+function saveVrDraft() {
+  const notesLines = Array.from(document.querySelectorAll('#vrNotesContainer textarea')).map(function (t) { return t.value; });
+  const draft = {
+    center: document.getElementById('vrCenterName').value,
+    year: document.getElementById('vrYear').value,
+    term: document.getElementById('vrTerm').value,
+    morning: document.getElementById('vrPeriodMorning').checked,
+    evening: document.getElementById('vrPeriodEvening').checked,
+    day: document.getElementById('vrDayName').value,
+    hijriDay: document.getElementById('vrHijriDay').value,
+    hijriMonth: document.getElementById('vrHijriMonth').value,
+    visitType: document.getElementById('vrVisitType').value,
+    visitNumber: document.getElementById('vrVisitNumber').value,
+    notesLines: notesLines,
+    recommendation: document.getElementById('vrRecommendation').value,
+    headName: document.getElementById('vrHeadName').value,
+    sigScale: document.getElementById('vrSigSize').value
+  };
+  try {
+    localStorage.setItem(VR_DRAFT_KEY_, JSON.stringify(draft));
+    alert('تم حفظ المسودة، وبتلقينها جاهزة لما ترجعين لهذا التبويب');
+  } catch (e) {
+    alert('تعذّر حفظ المسودة بهذا المتصفح');
+  }
+}
+
+/* يرجع true لو فيه مسودة محفوظة وتم تحميلها، false لو ما فيه */
+function loadVrDraft_() {
+  let draft;
+  try {
+    const raw = localStorage.getItem(VR_DRAFT_KEY_);
+    if (!raw) return false;
+    draft = JSON.parse(raw);
+  } catch (e) { return false; }
+  if (!draft) return false;
+  document.getElementById('vrCenterName').value = draft.center || '';
+  document.getElementById('vrYear').value = draft.year || '';
+  document.getElementById('vrTerm').value = draft.term || 'الأول';
+  document.getElementById('vrPeriodMorning').checked = !!draft.morning;
+  document.getElementById('vrPeriodEvening').checked = !!draft.evening;
+  document.getElementById('vrDayName').value = draft.day || 'الأحد';
+  document.getElementById('vrHijriDay').value = draft.hijriDay || '';
+  document.getElementById('vrHijriMonth').value = draft.hijriMonth || '١';
+  document.getElementById('vrVisitType').value = draft.visitType || 'تقييم';
+  document.getElementById('vrVisitNumber').value = draft.visitNumber || '';
+  if (draft.recommendation !== undefined) document.getElementById('vrRecommendation').value = draft.recommendation;
+  document.getElementById('vrHeadName').value = draft.headName || 'فاطمة مبارك الكثيري';
+  if (draft.sigScale) {
+    document.getElementById('vrSigSize').value = draft.sigScale;
+    document.getElementById('vrSigSizeLabel').textContent = draft.sigScale + '%';
+  }
+  const container = document.getElementById('vrNotesContainer');
+  container.innerHTML = '';
+  const lines = (draft.notesLines && draft.notesLines.length) ? draft.notesLines : ['', ''];
+  lines.forEach(function (l) { addVrNoteRow(l); });
+  return true;
+}
+
+/* تُستدعى مرة وحدة بس أول ما يُفتح التبويب: تحمّل المسودة لو موجودة، وإلا تبدأ بصفين فاضيين */
+function initVisitReportTab_() {
+  if (vrDraftInited_) return;
+  vrDraftInited_ = true;
+  const hasDraft = loadVrDraft_();
+  if (!hasDraft) initVrNotesDefault_();
+}
+
+/* تصفير كل حقول التقرير للبدء من جديد - ما عدا التوقيع (يبقى محفوظ زي ما هو) */
+function clearVrReport() {
+  if (!confirm('هل تبين تصفير كل حقول التقرير؟ (التوقيع بيضل كما هو)')) return;
+  document.getElementById('vrCenterName').value = '';
+  document.getElementById('vrYear').value = '';
+  document.getElementById('vrTerm').value = 'الأول';
+  document.getElementById('vrPeriodMorning').checked = false;
+  document.getElementById('vrPeriodEvening').checked = false;
+  document.getElementById('vrDayName').value = 'الأحد';
+  document.getElementById('vrHijriDay').value = '';
+  document.getElementById('vrHijriMonth').value = '١';
+  document.getElementById('vrVisitType').value = 'تقييم';
+  document.getElementById('vrVisitNumber').value = '';
+  document.getElementById('vrRecommendation').value = 'نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والنجاح';
+  document.getElementById('vrHeadName').value = 'فاطمة مبارك الكثيري';
+  const container = document.getElementById('vrNotesContainer');
+  container.innerHTML = '';
+  addVrNoteRow('');
+  addVrNoteRow('');
+  try { localStorage.removeItem(VR_DRAFT_KEY_); } catch (e) { /* تجاهل */ }
+  /* التوقيع (vrSignatureDataUrl، المعاينة، وحجم التوقيع) عن قصد ما يتصفّر */
 }
 
 function handleVrSigUpload(evt) {
@@ -1913,7 +2023,7 @@ function collectVisitReportOpts_() {
   const hijriMonth = document.getElementById('vrHijriMonth').value;
   const hijriDate = (hijriDay ? toArabicDigits(hijriDay) : '  ') + ' / ' + (hijriMonth || '') +
     (year ? ' / ' + toArabicDigits(year) + 'هـ' : '');
-  const notesLines = Array.from(document.querySelectorAll('#vrNotesContainer input')).map(function (inp) { return inp.value.trim(); }).filter(Boolean);
+  const notesLines = Array.from(document.querySelectorAll('#vrNotesContainer textarea')).map(function (inp) { return inp.value.trim(); }).filter(Boolean);
   return {
     center: center,
     year: year,
@@ -1926,6 +2036,7 @@ function collectVisitReportOpts_() {
     visitNumber: document.getElementById('vrVisitNumber').value || '',
     notesLines: notesLines.length ? notesLines : [''],
     recommendation: document.getElementById('vrRecommendation').value || '',
+    headName: document.getElementById('vrHeadName').value || 'فاطمة مبارك الكثيري',
     signatureDataUrl: vrSignatureDataUrl || '',
     sigScale: (Number(document.getElementById('vrSigSize').value) || 100) / 100
   };

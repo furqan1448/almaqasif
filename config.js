@@ -682,7 +682,7 @@ function buildVisitReportHTML(opts) {
   const sigW = Math.round(140 * sigScale);
   const sigH = Math.round(80 * sigScale);
   html += '<div class="vr-footer">';
-  html += '<span class="vr-footer-col"><span>رئيسة وحدة المقاصف</span><span>فاطمة مبارك الكثيري</span>';
+  html += '<span class="vr-footer-col"><span>رئيسة وحدة المقاصف</span><span>' + (opts.headName || 'فاطمة مبارك الكثيري') + '</span>';
   if (sigUrl) html += '<img class="vr-sig" style="max-width:' + sigW + 'px;max-height:' + sigH + 'px;" src="' + sigUrl + '" alt="توقيع" onerror="this.style.display=\'none\';">';
   html += '</span>';
   html += '<span class="vr-footer-col">مديرة المركز</span>';
@@ -723,7 +723,7 @@ function printVisitReportWindow(opts) {
   html += '<title>تقرير الزيارة اليومي - ' + (opts.center || '') + '</title>';
   html += '<style>';
   html += '@import url(\'https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Tajawal:wght@400;500;700;800&display=swap\');';
-  html += '@page { margin: 0; }';
+  html += '@page { size: landscape; margin: 0; }';
   html += '*{box-sizing:border-box;}';
   html += 'html,body{margin:0;padding:0;}';
   html += 'body{font-family:"Tajawal",sans-serif;direction:rtl;color:#2b2321;}';
@@ -756,8 +756,8 @@ function visitReportPdfOptions_(fileName) {
     margin: 0,
     filename: fileName,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 1123 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
   };
 }
 
@@ -767,7 +767,9 @@ function saveVisitReportPdf(opts) {
   if (!host) return;
   if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة ثانية'); return; }
   const fileName = visitReportFileName_(opts);
-  html2pdf().set(visitReportPdfOptions_(fileName)).from(host).save();
+  html2pdf().set(visitReportPdfOptions_(fileName)).from(host).save().catch(function () {
+    alert('صار خطأ أثناء إنشاء ملف الـPDF، حاولي مرة أخرى');
+  });
 }
 
 /* مشاركة التقرير كملف PDF عبر واتساب (تفتح شاشة المشاركة العادية بالجوال، وتختارين منها جهة الاتصال) */
