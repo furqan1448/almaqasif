@@ -723,7 +723,7 @@ function printVisitReportWindow(opts) {
   html += '<title>تقرير الزيارة اليومي - ' + (opts.center || '') + '</title>';
   html += '<style>';
   html += '@import url(\'https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Tajawal:wght@400;500;700;800&display=swap\');';
-  html += '@page { size: landscape; margin: 0; }';
+  html += '@page { size: A4 landscape; margin: 0; }';
   html += '*{box-sizing:border-box;}';
   html += 'html,body{margin:0;padding:0;}';
   html += 'body{font-family:"Tajawal",sans-serif;direction:rtl;color:#2b2321;}';
