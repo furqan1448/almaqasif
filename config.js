@@ -757,7 +757,7 @@ function visitReportPdfOptions_(fileName) {
     filename: fileName,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 1123 },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    jsPDF: { unit: 'mm', format: [297, 210], orientation: 'landscape' }
   };
 }
 
