@@ -641,7 +641,7 @@ function printReport(title, subtitle, columns, rows, totals) {
            notesLines: [نص لكل صف], recommendation }
    ملاحظة: كل حقول التقرير (المركز، اليوم، التاريخ الهجري) تُكتب يدويًا بالنموذج، بدون أي تحويل تلقائي */
 function buildVisitReportHTML(opts) {
-  const rowsCount = Math.max(2, (opts.notesLines || []).length);
+  const rowsCount = Math.max(1, (opts.notesLines || []).length);
   const boxChar = function (checked) { return checked ? '☑' : '☐'; };
 
   let html = '<div class="vr-doc">';
@@ -685,7 +685,7 @@ function buildVisitReportHTML(opts) {
   html += '<span class="vr-footer-col"><span>رئيسة وحدة المقاصف</span><span>' + (opts.headName || 'فاطمة مبارك الكثيري') + '</span>';
   if (sigUrl) html += '<img class="vr-sig" style="max-width:' + sigW + 'px;max-height:' + sigH + 'px;" src="' + sigUrl + '" alt="توقيع" onerror="this.style.display=\'none\';">';
   html += '</span>';
-  html += '<span class="vr-footer-col">مديرة المركز</span>';
+  html += '<span class="vr-footer-col"><span>مديرة المركز</span><span>' + (opts.centerHeadName || '') + '</span></span>';
   html += '</div>';
   html += '</div></div>';
   return html;

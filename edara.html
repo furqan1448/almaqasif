@@ -551,7 +551,9 @@
         <div id="vrNotesContainer"></div>
         <button type="button" class="btn outline" onclick="addVrNoteRow()" style="width:auto;padding:6px 14px;margin-top:6px;">➕ إضافة ملاحظة</button>
         <label>التوصية (تظهر بأول صف فقط)</label>
-        <textarea id="vrRecommendation" rows="2">نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والنجاح</textarea>
+        <textarea id="vrRecommendation" rows="2">نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والسداد</textarea>
+        <label>اسم مديرة المركز</label>
+        <input type="text" id="vrCenterHeadName" placeholder="اسم مديرة المركز">
         <label>اسم رئيسة وحدة المقاصف</label>
         <input type="text" id="vrHeadName" value="فاطمة مبارك الكثيري">
         <label>توقيع رئيسة وحدة المقاصف (اختياري)</label>
@@ -1872,6 +1874,7 @@ function saveVrDraft() {
     visitNumber: document.getElementById('vrVisitNumber').value,
     notesLines: notesLines,
     recommendation: document.getElementById('vrRecommendation').value,
+    centerHeadName: document.getElementById('vrCenterHeadName').value,
     headName: document.getElementById('vrHeadName').value,
     sigScale: document.getElementById('vrSigSize').value
   };
@@ -1903,6 +1906,7 @@ function loadVrDraft_() {
   document.getElementById('vrVisitType').value = draft.visitType || 'تقييم';
   document.getElementById('vrVisitNumber').value = draft.visitNumber || '';
   if (draft.recommendation !== undefined) document.getElementById('vrRecommendation').value = draft.recommendation;
+  document.getElementById('vrCenterHeadName').value = draft.centerHeadName || '';
   document.getElementById('vrHeadName').value = draft.headName || 'فاطمة مبارك الكثيري';
   if (draft.sigScale) {
     document.getElementById('vrSigSize').value = draft.sigScale;
@@ -1936,7 +1940,8 @@ function clearVrReport() {
   document.getElementById('vrHijriMonth').value = '١';
   document.getElementById('vrVisitType').value = 'تقييم';
   document.getElementById('vrVisitNumber').value = '';
-  document.getElementById('vrRecommendation').value = 'نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والنجاح';
+  document.getElementById('vrRecommendation').value = 'نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والسداد';
+  document.getElementById('vrCenterHeadName').value = '';
   document.getElementById('vrHeadName').value = 'فاطمة مبارك الكثيري';
   const container = document.getElementById('vrNotesContainer');
   container.innerHTML = '';
@@ -2036,6 +2041,7 @@ function collectVisitReportOpts_() {
     visitNumber: document.getElementById('vrVisitNumber').value || '',
     notesLines: notesLines.length ? notesLines : [''],
     recommendation: document.getElementById('vrRecommendation').value || '',
+    centerHeadName: document.getElementById('vrCenterHeadName').value || '',
     headName: document.getElementById('vrHeadName').value || 'فاطمة مبارك الكثيري',
     signatureDataUrl: vrSignatureDataUrl || '',
     sigScale: (Number(document.getElementById('vrSigSize').value) || 100) / 100
