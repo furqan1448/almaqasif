@@ -104,6 +104,10 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h4"/></svg></div>
           <span class="label">تقرير الزيارة</span>
         </div>
+        <div class="icon-btn" onclick="showAdminTab('cardsAdminTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="7.5" cy="14" r="1"/></svg></div>
+          <span class="label">بطاقات التحفيز</span>
+        </div>
       </div>
     </div>
   </div>
@@ -582,6 +586,24 @@
       </div>
     </div>
 
+    <!-- ===== تبويب: بطاقات التحفيز (عهدة الإدارة) ===== -->
+    <div id="cardsAdminTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">رصيد كل مركز/مسؤولة</h3>
+        <table class="log-table" id="cardsCentersTable">
+          <thead><tr><th>المركز</th><th>هدية متاحة</th><th>مكافأة متاحة</th></tr></thead>
+          <tbody id="cardsCentersTbody"><tr><td colspan="3">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">معلمات عليهن بطاقات لسا (ما رجّعنها بتوقيع)</h3>
+        <table class="log-table" id="cardsTeachersTable">
+          <thead><tr><th>المركز</th><th>المعلمة</th><th>هدية عليها</th><th>مكافأة عليها</th></tr></thead>
+          <tbody id="cardsTeachersTbody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- عنصر مخفي: يُستخدم داخليًا لتحويل تقرير الزيارة لملف PDF (حفظ/مشاركة) - لا يظهر بالشاشة
          ملاحظة: نستخدم "قص" (overflow:hidden بأبعاد صفر) بدل إحداثيات بعيدة جدًا (مثل left:-99999px)
          لأن الإحداثيات البعيدة جدًا تخلي أداة تحويل PDF تحاول تنشئ لوحة رسم ضخمة جدًا وتوقف الصفحة (شاشة بيضاء) -->
@@ -714,6 +736,32 @@ function showAdminTab(tabId) {
   if (tabId === 'announcementsTab') { renderAnnounceTargetLists(); loadAnnouncementsAdmin(); }
   if (tabId === 'priceListTab') { loadPriceManagerSelect(); loadPriceItemsAdmin(); loadPriceListFileAdmin(); }
   if (tabId === 'visitReportTab') { initVisitReportTab_(); }
+  if (tabId === 'cardsAdminTab') { loadCardsAdminOverview(); }
+}
+
+/* -------- بطاقات التحفيز: نظرة الإدارة -------- */
+function loadCardsAdminOverview() {
+  const centersTbody = document.getElementById('cardsCentersTbody');
+  const teachersTbody = document.getElementById('cardsTeachersTbody');
+  centersTbody.innerHTML = '<tr><td colspan="3">جاري التحميل...</td></tr>';
+  teachersTbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
+  callApi('getCardsAdminOverview', {}).then(function (r) {
+    if (!r.ok) return;
+    centersTbody.innerHTML = '';
+    if (!r.centers.length) { centersTbody.innerHTML = '<tr><td colspan="3">لا يوجد بيانات</td></tr>'; }
+    r.centers.forEach(function (c) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + c.center + '</td><td>' + (c['هدية'] || 0) + '</td><td>' + (c['مكافأة'] || 0) + '</td>';
+      centersTbody.appendChild(tr);
+    });
+    teachersTbody.innerHTML = '';
+    if (!r.teachersOutstanding.length) { teachersTbody.innerHTML = '<tr><td colspan="4">لا يوجد معلمات عليهن بطاقات حالياً 👍</td></tr>'; }
+    r.teachersOutstanding.forEach(function (t) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + t.center + '</td><td>' + t.teacher + '</td><td>' + (t['هدية'] || 0) + '</td><td>' + (t['مكافأة'] || 0) + '</td>';
+      teachersTbody.appendChild(tr);
+    });
+  });
 }
 
 /* -------- تحميل قوائم المراكز في كل القوائم المنسدلة -------- */

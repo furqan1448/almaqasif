@@ -49,7 +49,12 @@ function setup() {
     'الإعدادات': ['المفتاح', 'القيمة'],
     'دخول الإشراف': ['البريد الإلكتروني', 'كلمة المرور', 'الاسم'],
     'الصعوبات والمقترحات': ['معرف', 'اسم المركز', 'من', 'النوع', 'النص', 'اليوم', 'التاريخ', 'الوقت'],
-    'قائمة الدخل': ['معرف', 'البند', 'البيان', 'المبلغ', 'المبلغ كتابة', 'اليوم', 'التاريخ', 'الفصل الدراسي', 'رابط المرفق', 'اسم المرفق']
+    'قائمة الدخل': ['معرف', 'البند', 'البيان', 'المبلغ', 'المبلغ كتابة', 'اليوم', 'التاريخ', 'الفصل الدراسي', 'رابط المرفق', 'اسم المرفق'],
+    // عهدة بطاقات التحفيز: كل سطر = عملية وحدة (استلام عهدة / تسليم لمعلمة / إرجاع من معلمة)
+    // ما تُؤرشف تلقائياً مع نهاية الفصل الدراسي (عمداً) عشان أي بطاقة ما ترجعها معلمة
+    // تفضل ظاهرة باسمها للمسؤولة وللإدارة حتى لو دخلنا فصل جديد، لين تُسوّى فعلياً
+    'بطاقات التحفيز': ['معرف', 'اسم المركز', 'نوع العملية', 'الفئة', 'العدد', 'القيمة',
+      'اسم المعلمة', 'توقيع المعلمة', 'اليوم', 'التاريخ', 'الوقت', 'ملاحظات']
   };
 
   Object.keys(sheets).forEach(function (name) {
@@ -871,6 +876,12 @@ function handleRequest_(p) {
       case 'getDifficulties': return json_(getDifficulties_(p));
       case 'deleteDifficulty': return json_(deleteDifficulty_(p));
 
+      case 'recordCardTx': return json_(recordCardTx_(p));
+      case 'getCardTx': return json_(getCardTx_(p));
+      case 'getCardBalance': return json_(getCardBalance_(p));
+      case 'getTeacherOutstanding': return json_(getTeacherOutstanding_(p));
+      case 'getCardsAdminOverview': return json_(getCardsAdminOverview_());
+
       case 'debugInfo': return json_(debugInfo_());
 
       default: return json_({ ok: false, error: 'إجراء غير معروف' });
@@ -1130,6 +1141,103 @@ function deleteReturn_(p) {
   sh.deleteRow(Number(p.row));
   invalidateCache_('المرتجعات');
   return { ok: true };
+}
+
+/* ------------------- بطاقات التحفيز (عهدة هدية/مكافأة لكل مركز، وتتبّع رصيد كل معلمة) -------------------
+   نوع العملية: 'استلام عهدة' (المركز/المسؤولة يستلمون رصيد من الإدارة) |
+                'تسليم لمعلمة' (يوزّعون على معلمة، بتوقيعها) |
+                'إرجاع من معلمة' (المعلمة ترجع، بتوقيعها) - ما فيه "إرجاع" بدون توقيع فعلي وقتها
+   عمداً بدون فصل دراسي/أرشفة (شوفي setup()) عشان رصيد أي معلمة ما ترجعه يفضل ظاهر دايماً */
+const CARD_CATEGORY_PRICE_ = { 'هدية': 3, 'مكافأة': 2 };
+
+function recordCardTx_(p) {
+  const sh = sheet_('بطاقات التحفيز');
+  const id = Utilities.getUuid();
+  const now = nowParts_();
+  const category = p.category;
+  const qty = Number(p.qty) || 0;
+  const unitPrice = CARD_CATEGORY_PRICE_[category] || 0;
+  if (!p.center) return { ok: false, error: 'اسم المركز مطلوب' };
+  if (!category || !unitPrice) return { ok: false, error: 'فئة البطاقة غير صحيحة' };
+  if (!qty || qty < 1) return { ok: false, error: 'العدد مطلوب' };
+  if ((p.opType === 'تسليم لمعلمة' || p.opType === 'إرجاع من معلمة')) {
+    if (!p.teacherName) return { ok: false, error: 'اسم المعلمة مطلوب' };
+    if (!p.teacherSignature) return { ok: false, error: 'لازم توقيع المعلمة نفسها' };
+  }
+  appendRowByHeaders_(sh, {
+    'معرف': id, 'اسم المركز': p.center, 'نوع العملية': p.opType, 'الفئة': category,
+    'العدد': qty, 'القيمة': qty * unitPrice, 'اسم المعلمة': p.teacherName || '',
+    'توقيع المعلمة': p.teacherSignature || '', 'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time,
+    'ملاحظات': p.notes || ''
+  });
+  invalidateCache_('بطاقات التحفيز');
+  return { ok: true, id: id };
+}
+
+function getCardTx_(p) {
+  let rows = sheetToObjects_('بطاقات التحفيز');
+  if (p && p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
+  rows.sort(function (a, b) { return String(b['التاريخ'] || '').localeCompare(String(a['التاريخ'] || '')); });
+  return { ok: true, list: rows };
+}
+
+/* رصيد المخزون المتاح عند المركز/المسؤولة نفسها (اللي استلمته كعهدة - اللي وزّعته + اللي رجع لها) */
+function getCardBalance_(p) {
+  const rows = sheetToObjects_('بطاقات التحفيز').filter(function (r) {
+    return String(r['اسم المركز']).trim() === String(p.center || '').trim();
+  });
+  const bal = { 'هدية': 0, 'مكافأة': 0 };
+  rows.forEach(function (r) {
+    const cat = r['الفئة']; const qty = Number(r['العدد']) || 0;
+    if (!bal.hasOwnProperty(cat)) return;
+    if (r['نوع العملية'] === 'استلام عهدة') bal[cat] += qty;
+    else if (r['نوع العملية'] === 'تسليم لمعلمة') bal[cat] -= qty;
+    else if (r['نوع العملية'] === 'إرجاع من معلمة') bal[cat] += qty;
+  });
+  return { ok: true, balance: bal };
+}
+
+/* المعلمات اللي عندهم بطاقات لسا ما رجعوها (رصيدهم > صفر) - لمركز معيّن، أو لكل المراكز لو ما انمرّر center */
+function getTeacherOutstanding_(p) {
+  let rows = sheetToObjects_('بطاقات التحفيز').filter(function (r) {
+    return r['نوع العملية'] === 'تسليم لمعلمة' || r['نوع العملية'] === 'إرجاع من معلمة';
+  });
+  if (p && p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
+  const map = {};
+  rows.forEach(function (r) {
+    const center = String(r['اسم المركز']).trim();
+    const teacher = String(r['اسم المعلمة']).trim();
+    const key = center + '|' + teacher;
+    if (!map[key]) map[key] = { center: center, teacher: teacher, 'هدية': 0, 'مكافأة': 0 };
+    const cat = r['الفئة']; const qty = Number(r['العدد']) || 0;
+    if (!map[key].hasOwnProperty(cat)) return;
+    if (r['نوع العملية'] === 'تسليم لمعلمة') map[key][cat] += qty;
+    else map[key][cat] -= qty;
+  });
+  const list = Object.keys(map).map(function (k) { return map[k]; })
+    .filter(function (t) { return (t['هدية'] || 0) > 0 || (t['مكافأة'] || 0) > 0; });
+  return { ok: true, teachers: list };
+}
+
+/* ملخص شامل للإدارة: رصيد كل مركز + كل المعلمات اللي عليهم بطاقات لسا بكل المراكز */
+function getCardsAdminOverview_() {
+  const rows = sheetToObjects_('بطاقات التحفيز');
+  const centers = {};
+  rows.forEach(function (r) {
+    const c = String(r['اسم المركز']).trim();
+    if (!c) return;
+    if (!centers[c]) centers[c] = { center: c, 'هدية': 0, 'مكافأة': 0 };
+    const cat = r['الفئة']; const qty = Number(r['العدد']) || 0;
+    if (!centers[c].hasOwnProperty(cat)) return;
+    if (r['نوع العملية'] === 'استلام عهدة') centers[c][cat] += qty;
+    else if (r['نوع العملية'] === 'تسليم لمعلمة') centers[c][cat] -= qty;
+    else if (r['نوع العملية'] === 'إرجاع من معلمة') centers[c][cat] += qty;
+  });
+  return {
+    ok: true,
+    centers: Object.keys(centers).map(function (k) { return centers[k]; }),
+    teachersOutstanding: getTeacherOutstanding_({}).teachers
+  };
 }
 
 /* ------------------- بيان الفواتير ------------------- */

@@ -124,6 +124,10 @@
             <span class="label">إشعاراتي</span>
             <div class="badge hidden" id="pendingBadge">0</div>
           </div>
+          <div class="icon-btn" onclick="showView('cardsView')">
+            <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="7.5" cy="14" r="1"/></svg></div>
+            <span class="label">بطاقات التحفيز</span>
+          </div>
         </div>
 
         <!-- المرفقات والصعوبات والمهام (متاحة لكل المسؤولات بغض النظر عن ربطهن بمركز) -->
@@ -303,6 +307,97 @@
           <button class="btn outline" onclick="exportReturnsReport()">⬇️ Excel</button>
           <button class="btn outline" onclick="printReturnsReport()">🖨️ PDF</button>
         </div>
+      </div>
+    </div>
+
+    <!-- بطاقات التحفيز -->
+    <div id="cardsView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">رصيدك الحالي</h3>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:140px;text-align:center;padding:10px;border:1px solid var(--gold-light);border-radius:10px;">
+            <div style="font-size:0.85rem;color:#8a7d76;">هدية (٣ ريال)</div>
+            <div style="font-size:1.6rem;font-weight:800;color:var(--maroon);" id="cardBalanceGift">0</div>
+          </div>
+          <div style="flex:1;min-width:140px;text-align:center;padding:10px;border:1px solid var(--gold-light);border-radius:10px;">
+            <div style="font-size:0.85rem;color:#8a7d76;">مكافأة (٢ ريال)</div>
+            <div style="font-size:1.6rem;font-weight:800;color:var(--maroon);" id="cardBalanceReward">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">استلام عهدة جديدة</h3>
+        <div class="select-row">
+          <div>
+            <label>عدد الهدية (٣ ريال)</label>
+            <input type="number" id="cardReceiveGift" placeholder="0" min="0" step="1">
+          </div>
+          <div>
+            <label>عدد المكافأة (٢ ريال)</label>
+            <input type="number" id="cardReceiveReward" placeholder="0" min="0" step="1">
+          </div>
+        </div>
+        <button class="btn" id="cardReceiveBtn" onclick="receiveCardCustody()">تأكيد الاستلام</button>
+        <div class="success-msg" id="cardReceiveSuccess">تم تسجيل الاستلام بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">تسليم بطاقة لمعلمة</h3>
+        <label>اسم المعلمة</label>
+        <input type="text" id="cardDeliverTeacher" placeholder="اسم المعلمة">
+        <div class="select-row">
+          <div>
+            <label>نوع البطاقة</label>
+            <select id="cardDeliverCategory">
+              <option value="هدية">هدية (٣ ريال)</option>
+              <option value="مكافأة">مكافأة (٢ ريال)</option>
+            </select>
+          </div>
+          <div>
+            <label>العدد</label>
+            <input type="number" id="cardDeliverQty" placeholder="0" min="1" step="1">
+          </div>
+        </div>
+        <label>توقيع المعلمة (تأكيد إنها استلمت)</label>
+        <div class="sig-wrap"><canvas id="cardDeliverSig" class="sig-pad"></canvas></div>
+        <button type="button" class="btn outline" onclick="clearCardSig_('cardDeliverSig')" style="width:auto;padding:6px 14px;margin-top:6px;">مسح التوقيع</button>
+        <button class="btn" id="cardDeliverBtn" onclick="submitCardDelivery()" style="margin-top:10px;">تسجيل التسليم</button>
+        <div class="success-msg" id="cardDeliverSuccess">تم تسجيل التسليم بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">إرجاع بطاقة من معلمة</h3>
+        <label>اسم المعلمة</label>
+        <input type="text" id="cardReturnTeacher" placeholder="اسم المعلمة">
+        <div class="select-row">
+          <div>
+            <label>نوع البطاقة</label>
+            <select id="cardReturnCategory">
+              <option value="هدية">هدية (٣ ريال)</option>
+              <option value="مكافأة">مكافأة (٢ ريال)</option>
+            </select>
+          </div>
+          <div>
+            <label>العدد</label>
+            <input type="number" id="cardReturnQty" placeholder="0" min="1" step="1">
+          </div>
+        </div>
+        <label>توقيع المعلمة (تأكيد إنها ترجّع)</label>
+        <div class="sig-wrap"><canvas id="cardReturnSig" class="sig-pad"></canvas></div>
+        <button type="button" class="btn outline" onclick="clearCardSig_('cardReturnSig')" style="width:auto;padding:6px 14px;margin-top:6px;">مسح التوقيع</button>
+        <button class="btn" id="cardReturnBtn" onclick="submitCardReturn()" style="margin-top:10px;">تسجيل الإرجاع</button>
+        <div class="success-msg" id="cardReturnSuccess">تم تسجيل الإرجاع بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">معلمات عليهن بطاقات لسا</h3>
+        <table class="log-table" id="cardOutstandingTable">
+          <thead><tr><th>المعلمة</th><th>هدية عليها</th><th>مكافأة عليها</th></tr></thead>
+          <tbody id="cardOutstandingTbody"><tr><td colspan="3">جاري التحميل...</td></tr></tbody>
+        </table>
       </div>
     </div>
 
@@ -645,7 +740,7 @@ function loadDashboardData() {
 }
 
 function showView(id) {
-  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'tasksView', 'announcementsView', 'priceListView'].forEach(function (v) {
+  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'tasksView', 'announcementsView', 'priceListView', 'cardsView'].forEach(function (v) {
     document.getElementById(v).classList.toggle('hidden', v !== id);
   });
   if (id === 'salesView') loadSales();
@@ -656,6 +751,7 @@ function showView(id) {
   if (id === 'difficultiesView') loadDifficulties();
   if (id === 'announcementsView') loadAnnouncementsList();
   if (id === 'priceListView') loadPriceItemsView();
+  if (id === 'cardsView') initCardSigPads_();
   if (id === 'homeView' && currentCenter) refreshPendingBadge();
 }
 
@@ -1597,6 +1693,128 @@ function refreshPendingBadge() {
     if (r.count > 0) { badge.textContent = r.count; badge.classList.remove('hidden'); }
     else { badge.classList.add('hidden'); }
   });
+}
+
+/* -------- بطاقات التحفيز --------
+   عهدة: استلام من الإدارة (رصيد المركز)، ثم تسليم لمعلمة أو إرجاع منها - بتوقيعها هي بالذات
+   وقت التسليم/الإرجاع، عشان ما فيه مجال إنكار (لا حد يقدر يدّعي إرجاع بدون توقيعه الفعلي) */
+let cardSigHandles_ = {};
+
+function initCardSigPads_() {
+  loadCardBalance_();
+  loadCardOutstanding_();
+  setTimeout(function () {
+    cardSigHandles_['cardDeliverSig'] = initSignaturePad('cardDeliverSig');
+    cardSigHandles_['cardReturnSig'] = initSignaturePad('cardReturnSig');
+  }, 50);
+}
+
+function clearCardSig_(id) {
+  if (cardSigHandles_[id]) cardSigHandles_[id].clear();
+}
+
+function loadCardBalance_() {
+  callApi('getCardBalance', { center: currentCenter }).then(function (r) {
+    if (!r.ok) return;
+    document.getElementById('cardBalanceGift').textContent = r.balance['هدية'] || 0;
+    document.getElementById('cardBalanceReward').textContent = r.balance['مكافأة'] || 0;
+  });
+}
+
+function loadCardOutstanding_() {
+  const tbody = document.getElementById('cardOutstandingTbody');
+  callApi('getTeacherOutstanding', { center: currentCenter }).then(function (r) {
+    if (!r.ok) return;
+    tbody.innerHTML = '';
+    if (!r.teachers.length) { tbody.innerHTML = '<tr><td colspan="3">لا يوجد معلمات عليهن بطاقات حالياً 👍</td></tr>'; return; }
+    r.teachers.forEach(function (t) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + t.teacher + '</td><td>' + (t['هدية'] || 0) + '</td><td>' + (t['مكافأة'] || 0) + '</td>';
+      tbody.appendChild(tr);
+    });
+  });
+}
+
+function receiveCardCustody() {
+  const gift = Number(document.getElementById('cardReceiveGift').value) || 0;
+  const reward = Number(document.getElementById('cardReceiveReward').value) || 0;
+  if (!gift && !reward) { alert('اكتبي عدد الهدية أو المكافأة اللي تبين تستلمينها'); return; }
+  const btn = document.getElementById('cardReceiveBtn');
+  setBtnBusy(btn, true);
+  const calls = [];
+  if (gift) calls.push(callApi('recordCardTx', { center: currentCenter, opType: 'استلام عهدة', category: 'هدية', qty: gift }));
+  if (reward) calls.push(callApi('recordCardTx', { center: currentCenter, opType: 'استلام عهدة', category: 'مكافأة', qty: reward }));
+  Promise.all(calls).then(function () {
+    setBtnBusy(btn, false);
+    document.getElementById('cardReceiveGift').value = '';
+    document.getElementById('cardReceiveReward').value = '';
+    const s = document.getElementById('cardReceiveSuccess');
+    s.style.display = 'block';
+    setTimeout(function () { s.style.display = 'none'; }, 2500);
+    loadCardBalance_();
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+function submitCardDelivery() {
+  const teacher = document.getElementById('cardDeliverTeacher').value.trim();
+  const category = document.getElementById('cardDeliverCategory').value;
+  const qty = Number(document.getElementById('cardDeliverQty').value) || 0;
+  if (!teacher) { alert('اكتبي اسم المعلمة'); return; }
+  if (!qty) { alert('اكتبي العدد'); return; }
+  const sig = cardSigHandles_['cardDeliverSig'] ? getSignatureDataUrl('cardDeliverSig') : '';
+  if (!sig || isCanvasBlank_('cardDeliverSig')) { alert('لازم المعلمة توقّع بنفسها إنها استلمت'); return; }
+  const btn = document.getElementById('cardDeliverBtn');
+  setBtnBusy(btn, true);
+  callApi('recordCardTx', {
+    center: currentCenter, opType: 'تسليم لمعلمة', category: category, qty: qty,
+    teacherName: teacher, teacherSignature: sig
+  }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r.ok) { alert(r.error || 'تعذر تسجيل التسليم'); return; }
+    document.getElementById('cardDeliverTeacher').value = '';
+    document.getElementById('cardDeliverQty').value = '';
+    clearCardSig_('cardDeliverSig');
+    const s = document.getElementById('cardDeliverSuccess');
+    s.style.display = 'block';
+    setTimeout(function () { s.style.display = 'none'; }, 2500);
+    loadCardBalance_(); loadCardOutstanding_();
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+function submitCardReturn() {
+  const teacher = document.getElementById('cardReturnTeacher').value.trim();
+  const category = document.getElementById('cardReturnCategory').value;
+  const qty = Number(document.getElementById('cardReturnQty').value) || 0;
+  if (!teacher) { alert('اكتبي اسم المعلمة'); return; }
+  if (!qty) { alert('اكتبي العدد'); return; }
+  const sig = cardSigHandles_['cardReturnSig'] ? getSignatureDataUrl('cardReturnSig') : '';
+  if (!sig || isCanvasBlank_('cardReturnSig')) { alert('لازم المعلمة توقّع بنفسها إنها ترجّعت'); return; }
+  const btn = document.getElementById('cardReturnBtn');
+  setBtnBusy(btn, true);
+  callApi('recordCardTx', {
+    center: currentCenter, opType: 'إرجاع من معلمة', category: category, qty: qty,
+    teacherName: teacher, teacherSignature: sig
+  }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r.ok) { alert(r.error || 'تعذر تسجيل الإرجاع'); return; }
+    document.getElementById('cardReturnTeacher').value = '';
+    document.getElementById('cardReturnQty').value = '';
+    clearCardSig_('cardReturnSig');
+    const s = document.getElementById('cardReturnSuccess');
+    s.style.display = 'block';
+    setTimeout(function () { s.style.display = 'none'; }, 2500);
+    loadCardBalance_(); loadCardOutstanding_();
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+/* تتأكد إن لوحة التوقيع مو فاضية (المعلمة رسمت فعلاً ولا لأ) قبل ما نقبل التسليم/الإرجاع */
+function isCanvasBlank_(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return true;
+  const ctx = canvas.getContext('2d');
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let i = 3; i < data.length; i += 4) { if (data[i] !== 0) return false; }
+  return true;
 }
 </script>
 </body>
