@@ -50,11 +50,12 @@ function setup() {
     'دخول الإشراف': ['البريد الإلكتروني', 'كلمة المرور', 'الاسم'],
     'الصعوبات والمقترحات': ['معرف', 'اسم المركز', 'من', 'النوع', 'النص', 'اليوم', 'التاريخ', 'الوقت'],
     'قائمة الدخل': ['معرف', 'البند', 'البيان', 'المبلغ', 'المبلغ كتابة', 'اليوم', 'التاريخ', 'الفصل الدراسي', 'رابط المرفق', 'اسم المرفق'],
-    // عهدة بطاقات التحفيز: كل سطر = عملية وحدة (استلام عهدة / تسليم لمعلمة / إرجاع من معلمة)
+    // عهدة بطاقات التحفيز: كل سطر = عملية وحدة (استلام عهدة / تسليم لشخص / إرجاع من شخص / استبدال)
+    // كل فئة (هدية أو مكافأة) إلها قيمتين ممكنتين: ٣ ريال أو ريالين - القيمة منفصلة عن الفئة
     // ما تُؤرشف تلقائياً مع نهاية الفصل الدراسي (عمداً) عشان أي بطاقة ما ترجعها معلمة
     // تفضل ظاهرة باسمها للمسؤولة وللإدارة حتى لو دخلنا فصل جديد، لين تُسوّى فعلياً
-    'بطاقات التحفيز': ['معرف', 'اسم المركز', 'نوع العملية', 'الفئة', 'العدد', 'القيمة',
-      'اسم المعلمة', 'توقيع المعلمة', 'اليوم', 'التاريخ', 'الوقت', 'ملاحظات']
+    'بطاقات التحفيز': ['معرف', 'اسم المركز', 'نوع العملية', 'الفئة', 'سعر البطاقة', 'العدد', 'القيمة',
+      'اسم المعلمة', 'توقيع المعلمة', 'اسم المستفيد', 'اليوم', 'التاريخ', 'الوقت', 'ملاحظات']
   };
 
   Object.keys(sheets).forEach(function (name) {
@@ -1143,31 +1144,54 @@ function deleteReturn_(p) {
   return { ok: true };
 }
 
-/* ------------------- بطاقات التحفيز (عهدة هدية/مكافأة لكل مركز، وتتبّع رصيد كل معلمة) -------------------
-   نوع العملية: 'استلام عهدة' (المركز/المسؤولة يستلمون رصيد من الإدارة) |
-                'تسليم لمعلمة' (يوزّعون على معلمة، بتوقيعها) |
-                'إرجاع من معلمة' (المعلمة ترجع، بتوقيعها) - ما فيه "إرجاع" بدون توقيع فعلي وقتها
-   عمداً بدون فصل دراسي/أرشفة (شوفي setup()) عشان رصيد أي معلمة ما ترجعه يفضل ظاهر دايماً */
-const CARD_CATEGORY_PRICE_ = { 'هدية': 3, 'مكافأة': 2 };
+/* ------------------- بطاقات التحفيز (عهدة هدية/مكافأة لكل مركز، وتتبّع رصيد كل شخص وزّعها) -------------------
+   نوع العملية: 'استلام عهدة' (المركز/المسؤولة تستلم رصيد من الإدارة، بتوقيعها هي) |
+                'تسليم لمعلمة' (توزّع على شخص عشان يهديها لغيره، بتوقيع نفس هذا الشخص) |
+                'إرجاع من معلمة' (نفس الشخص يرجّع اللي ما وزّعه، بتوقيعه) |
+                'استبدال' (المستفيد النهائي يستبدلها بمشتريات عند المقصف - يقفل رصيد
+                           الشخص اللي وزّعها أصلاً، بدون توقيع لأنه استهلاك مباشر بحضور المسؤولة)
+   الفئة (هدية/مكافأة) والقيمة (٣ ريال أو ريالين) منفصلتين عن بعض - كل فئة تصير بأي وحدة القيمتين.
+   'اسم المعلمة' يُستخدم بشكل عام لاسم "الشخص" في كل عملية (معلمة أو أي شخص آخر). 'اسم المستفيد'
+   يُستخدم بعملية 'استبدال' بس، لتوثيق مين استفاد فعلياً.
+   عمداً بدون فصل دراسي/أرشفة (شوفي setup()) عشان رصيد أي شخص ما ترجعه يفضل ظاهر دايماً */
+const CARD_CATEGORIES_ = ['هدية', 'مكافأة'];
+const CARD_PRICES_ = [3, 2];
+const CARD_SIGNED_OPS_ = ['استلام عهدة', 'تسليم لمعلمة', 'إرجاع من معلمة'];
+const CARD_PERSON_REQUIRED_OPS_ = ['تسليم لمعلمة', 'إرجاع من معلمة', 'استبدال'];
+
+function cardBalanceKey_(category, price) { return category + '_' + price; }
+
+function newCardBalanceObj_() {
+  const o = {};
+  CARD_CATEGORIES_.forEach(function (c) { CARD_PRICES_.forEach(function (v) { o[cardBalanceKey_(c, v)] = 0; }); });
+  return o;
+}
 
 function recordCardTx_(p) {
   const sh = sheet_('بطاقات التحفيز');
   const id = Utilities.getUuid();
   const now = nowParts_();
   const category = p.category;
+  const price = Number(p.price) || 0;
   const qty = Number(p.qty) || 0;
-  const unitPrice = CARD_CATEGORY_PRICE_[category] || 0;
   if (!p.center) return { ok: false, error: 'اسم المركز مطلوب' };
-  if (!category || !unitPrice) return { ok: false, error: 'فئة البطاقة غير صحيحة' };
+  if (CARD_CATEGORIES_.indexOf(category) === -1) return { ok: false, error: 'فئة البطاقة غير صحيحة' };
+  if (CARD_PRICES_.indexOf(price) === -1) return { ok: false, error: 'قيمة البطاقة غير صحيحة' };
   if (!qty || qty < 1) return { ok: false, error: 'العدد مطلوب' };
-  if ((p.opType === 'تسليم لمعلمة' || p.opType === 'إرجاع من معلمة')) {
-    if (!p.teacherName) return { ok: false, error: 'اسم المعلمة مطلوب' };
-    if (!p.teacherSignature) return { ok: false, error: 'لازم توقيع المعلمة نفسها' };
+  if (CARD_PERSON_REQUIRED_OPS_.indexOf(p.opType) !== -1 && !p.teacherName) {
+    return { ok: false, error: 'اسم الشخص مطلوب' };
+  }
+  if (p.opType === 'استبدال' && !p.beneficiaryName) {
+    return { ok: false, error: 'اسم المستفيد (اللي استبدلها) مطلوب' };
+  }
+  if (CARD_SIGNED_OPS_.indexOf(p.opType) !== -1 && !p.teacherSignature) {
+    return { ok: false, error: 'لازم توقيع فعلي على هذي الخطوة' };
   }
   appendRowByHeaders_(sh, {
     'معرف': id, 'اسم المركز': p.center, 'نوع العملية': p.opType, 'الفئة': category,
-    'العدد': qty, 'القيمة': qty * unitPrice, 'اسم المعلمة': p.teacherName || '',
-    'توقيع المعلمة': p.teacherSignature || '', 'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time,
+    'سعر البطاقة': price, 'العدد': qty, 'القيمة': qty * price, 'اسم المعلمة': p.teacherName || '',
+    'توقيع المعلمة': p.teacherSignature || '', 'اسم المستفيد': p.beneficiaryName || '',
+    'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time,
     'ملاحظات': p.notes || ''
   });
   invalidateCache_('بطاقات التحفيز');
@@ -1181,57 +1205,65 @@ function getCardTx_(p) {
   return { ok: true, list: rows };
 }
 
-/* رصيد المخزون المتاح عند المركز/المسؤولة نفسها (اللي استلمته كعهدة - اللي وزّعته + اللي رجع لها) */
+/* رصيد المخزون المتاح عند المركز/المسؤولة نفسها (اللي استلمته كعهدة - اللي وزّعته + اللي رجع لها)
+   مقسّم بمفتاح "الفئة_القيمة" (مثلاً هدية_3، مكافأة_2). عملية "استبدال" ما تُغيّر مخزون المركز -
+   البطاقة أصلاً خرجت من المخزون وقت "تسليم لمعلمة" */
 function getCardBalance_(p) {
   const rows = sheetToObjects_('بطاقات التحفيز').filter(function (r) {
     return String(r['اسم المركز']).trim() === String(p.center || '').trim();
   });
-  const bal = { 'هدية': 0, 'مكافأة': 0 };
+  const bal = newCardBalanceObj_();
   rows.forEach(function (r) {
-    const cat = r['الفئة']; const qty = Number(r['العدد']) || 0;
-    if (!bal.hasOwnProperty(cat)) return;
-    if (r['نوع العملية'] === 'استلام عهدة') bal[cat] += qty;
-    else if (r['نوع العملية'] === 'تسليم لمعلمة') bal[cat] -= qty;
-    else if (r['نوع العملية'] === 'إرجاع من معلمة') bal[cat] += qty;
+    const key = cardBalanceKey_(r['الفئة'], Number(r['سعر البطاقة']));
+    const qty = Number(r['العدد']) || 0;
+    if (!bal.hasOwnProperty(key)) return;
+    if (r['نوع العملية'] === 'استلام عهدة') bal[key] += qty;
+    else if (r['نوع العملية'] === 'تسليم لمعلمة') bal[key] -= qty;
+    else if (r['نوع العملية'] === 'إرجاع من معلمة') bal[key] += qty;
   });
   return { ok: true, balance: bal };
 }
 
-/* المعلمات اللي عندهم بطاقات لسا ما رجعوها (رصيدهم > صفر) - لمركز معيّن، أو لكل المراكز لو ما انمرّر center */
+/* الأشخاص اللي عندهم بطاقات لسا ما اتحسبت (لا رجعوها ولا استُبدلت من المستفيد) -
+   لمركز معيّن، أو لكل المراكز لو ما انمرّر center */
 function getTeacherOutstanding_(p) {
   let rows = sheetToObjects_('بطاقات التحفيز').filter(function (r) {
-    return r['نوع العملية'] === 'تسليم لمعلمة' || r['نوع العملية'] === 'إرجاع من معلمة';
+    return r['نوع العملية'] === 'تسليم لمعلمة' || r['نوع العملية'] === 'إرجاع من معلمة' || r['نوع العملية'] === 'استبدال';
   });
   if (p && p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
   const map = {};
   rows.forEach(function (r) {
     const center = String(r['اسم المركز']).trim();
-    const teacher = String(r['اسم المعلمة']).trim();
-    const key = center + '|' + teacher;
-    if (!map[key]) map[key] = { center: center, teacher: teacher, 'هدية': 0, 'مكافأة': 0 };
-    const cat = r['الفئة']; const qty = Number(r['العدد']) || 0;
-    if (!map[key].hasOwnProperty(cat)) return;
-    if (r['نوع العملية'] === 'تسليم لمعلمة') map[key][cat] += qty;
-    else map[key][cat] -= qty;
+    const person = String(r['اسم المعلمة']).trim();
+    const key = center + '|' + person;
+    if (!map[key]) map[key] = Object.assign({ center: center, teacher: person }, newCardBalanceObj_());
+    const bKey = cardBalanceKey_(r['الفئة'], Number(r['سعر البطاقة']));
+    const qty = Number(r['العدد']) || 0;
+    if (!map[key].hasOwnProperty(bKey)) return;
+    if (r['نوع العملية'] === 'تسليم لمعلمة') map[key][bKey] += qty;
+    else map[key][bKey] -= qty; // إرجاع أو استبدال، الاثنين يقفلون الرصيد بنفس الطريقة
   });
   const list = Object.keys(map).map(function (k) { return map[k]; })
-    .filter(function (t) { return (t['هدية'] || 0) > 0 || (t['مكافأة'] || 0) > 0; });
+    .filter(function (t) {
+      return Object.keys(newCardBalanceObj_()).some(function (bk) { return (t[bk] || 0) > 0; });
+    });
   return { ok: true, teachers: list };
 }
 
-/* ملخص شامل للإدارة: رصيد كل مركز + كل المعلمات اللي عليهم بطاقات لسا بكل المراكز */
+/* ملخص شامل للإدارة: رصيد كل مركز + كل الأشخاص اللي عليهم بطاقات لسا بكل المراكز */
 function getCardsAdminOverview_() {
   const rows = sheetToObjects_('بطاقات التحفيز');
   const centers = {};
   rows.forEach(function (r) {
     const c = String(r['اسم المركز']).trim();
     if (!c) return;
-    if (!centers[c]) centers[c] = { center: c, 'هدية': 0, 'مكافأة': 0 };
-    const cat = r['الفئة']; const qty = Number(r['العدد']) || 0;
-    if (!centers[c].hasOwnProperty(cat)) return;
-    if (r['نوع العملية'] === 'استلام عهدة') centers[c][cat] += qty;
-    else if (r['نوع العملية'] === 'تسليم لمعلمة') centers[c][cat] -= qty;
-    else if (r['نوع العملية'] === 'إرجاع من معلمة') centers[c][cat] += qty;
+    if (!centers[c]) centers[c] = Object.assign({ center: c }, newCardBalanceObj_());
+    const key = cardBalanceKey_(r['الفئة'], Number(r['سعر البطاقة']));
+    const qty = Number(r['العدد']) || 0;
+    if (!centers[c].hasOwnProperty(key)) return;
+    if (r['نوع العملية'] === 'استلام عهدة') centers[c][key] += qty;
+    else if (r['نوع العملية'] === 'تسليم لمعلمة') centers[c][key] -= qty;
+    else if (r['نوع العملية'] === 'إرجاع من معلمة') centers[c][key] += qty;
   });
   return {
     ok: true,

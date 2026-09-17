@@ -252,14 +252,23 @@
 
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">رصيدك الحالي</h3>
-        <div style="display:flex;gap:16px;flex-wrap:wrap;">
-          <div style="flex:1;min-width:140px;text-align:center;padding:10px;border:1px solid var(--gold-light);border-radius:10px;">
-            <div style="font-size:0.85rem;color:#8a7d76;">هدية (٣ ريال)</div>
-            <div style="font-size:1.6rem;font-weight:800;color:var(--maroon);" id="cardBalanceGift">0</div>
+        <p style="font-size:0.8rem;color:#8a7d76;margin-top:0;">كل فئة (هدية أو مكافأة) تصير بقيمة ٣ ريال أو ريالين</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:120px;text-align:center;padding:10px;border:1px solid var(--gold-light);border-radius:10px;">
+            <div style="font-size:0.8rem;color:#8a7d76;">هدية (٣ ريال)</div>
+            <div style="font-size:1.4rem;font-weight:800;color:var(--maroon);" id="cardBal_هدية_3">0</div>
           </div>
-          <div style="flex:1;min-width:140px;text-align:center;padding:10px;border:1px solid var(--gold-light);border-radius:10px;">
-            <div style="font-size:0.85rem;color:#8a7d76;">مكافأة (٢ ريال)</div>
-            <div style="font-size:1.6rem;font-weight:800;color:var(--maroon);" id="cardBalanceReward">0</div>
+          <div style="flex:1;min-width:120px;text-align:center;padding:10px;border:1px solid var(--gold-light);border-radius:10px;">
+            <div style="font-size:0.8rem;color:#8a7d76;">هدية (ريالين)</div>
+            <div style="font-size:1.4rem;font-weight:800;color:var(--maroon);" id="cardBal_هدية_2">0</div>
+          </div>
+          <div style="flex:1;min-width:120px;text-align:center;padding:10px;border:1px solid var(--gold-light);border-radius:10px;">
+            <div style="font-size:0.8rem;color:#8a7d76;">مكافأة (٣ ريال)</div>
+            <div style="font-size:1.4rem;font-weight:800;color:var(--maroon);" id="cardBal_مكافأة_3">0</div>
+          </div>
+          <div style="flex:1;min-width:120px;text-align:center;padding:10px;border:1px solid var(--gold-light);border-radius:10px;">
+            <div style="font-size:0.8rem;color:#8a7d76;">مكافأة (ريالين)</div>
+            <div style="font-size:1.4rem;font-weight:800;color:var(--maroon);" id="cardBal_مكافأة_2">0</div>
           </div>
         </div>
       </div>
@@ -268,28 +277,43 @@
         <h3 style="margin-top:0;color:var(--maroon);">استلام عهدة جديدة</h3>
         <div class="select-row">
           <div>
-            <label>عدد الهدية (٣ ريال)</label>
-            <input type="number" id="cardReceiveGift" placeholder="0" min="0" step="1">
+            <label>هدية (٣ ريال)</label>
+            <input type="number" id="cardReceive_هدية_3" placeholder="0" min="0" step="1">
           </div>
           <div>
-            <label>عدد المكافأة (٢ ريال)</label>
-            <input type="number" id="cardReceiveReward" placeholder="0" min="0" step="1">
+            <label>هدية (ريالين)</label>
+            <input type="number" id="cardReceive_هدية_2" placeholder="0" min="0" step="1">
           </div>
         </div>
-        <button class="btn" id="cardReceiveBtn" onclick="receiveCardCustody()">تأكيد الاستلام</button>
+        <div class="select-row">
+          <div>
+            <label>مكافأة (٣ ريال)</label>
+            <input type="number" id="cardReceive_مكافأة_3" placeholder="0" min="0" step="1">
+          </div>
+          <div>
+            <label>مكافأة (ريالين)</label>
+            <input type="number" id="cardReceive_مكافأة_2" placeholder="0" min="0" step="1">
+          </div>
+        </div>
+        <label>توقيعك على استلام هذي العهدة من الإدارة</label>
+        <div class="sig-wrap"><canvas id="cardReceiveSig" class="sig-pad"></canvas></div>
+        <button type="button" class="btn outline" onclick="clearCardSig_('cardReceiveSig')" style="width:auto;padding:6px 14px;margin-top:6px;">مسح التوقيع</button>
+        <button class="btn" id="cardReceiveBtn" onclick="receiveCardCustody()" style="margin-top:10px;">تأكيد الاستلام</button>
         <div class="success-msg" id="cardReceiveSuccess">تم تسجيل الاستلام بنجاح ✅</div>
       </div>
 
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">تسليم بطاقة لمعلمة</h3>
-        <label>اسم المعلمة</label>
-        <input type="text" id="cardDeliverTeacher" placeholder="اسم المعلمة">
+        <h3 style="margin-top:0;color:var(--maroon);">تسليم بطاقة (لمعلمة أو أي شخص بيهديها)</h3>
+        <label>اسم الشخص</label>
+        <input type="text" id="cardDeliverTeacher" placeholder="اسم المعلمة أو الشخص">
         <div class="select-row">
           <div>
             <label>نوع البطاقة</label>
             <select id="cardDeliverCategory">
-              <option value="هدية">هدية (٣ ريال)</option>
-              <option value="مكافأة">مكافأة (٢ ريال)</option>
+              <option value="هدية|3">هدية (٣ ريال)</option>
+              <option value="هدية|2">هدية (ريالين)</option>
+              <option value="مكافأة|3">مكافأة (٣ ريال)</option>
+              <option value="مكافأة|2">مكافأة (ريالين)</option>
             </select>
           </div>
           <div>
@@ -297,7 +321,7 @@
             <input type="number" id="cardDeliverQty" placeholder="0" min="1" step="1">
           </div>
         </div>
-        <label>توقيع المعلمة (تأكيد إنها استلمت)</label>
+        <label>توقيع الشخص (تأكيد إنه استلم)</label>
         <div class="sig-wrap"><canvas id="cardDeliverSig" class="sig-pad"></canvas></div>
         <button type="button" class="btn outline" onclick="clearCardSig_('cardDeliverSig')" style="width:auto;padding:6px 14px;margin-top:6px;">مسح التوقيع</button>
         <button class="btn" id="cardDeliverBtn" onclick="submitCardDelivery()" style="margin-top:10px;">تسجيل التسليم</button>
@@ -305,15 +329,17 @@
       </div>
 
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">إرجاع بطاقة من معلمة</h3>
-        <label>اسم المعلمة</label>
-        <input type="text" id="cardReturnTeacher" placeholder="اسم المعلمة">
+        <h3 style="margin-top:0;color:var(--maroon);">إرجاع بطاقة (ما اتوزّعت)</h3>
+        <label>اسم الشخص</label>
+        <input type="text" id="cardReturnTeacher" placeholder="اسم المعلمة أو الشخص">
         <div class="select-row">
           <div>
             <label>نوع البطاقة</label>
             <select id="cardReturnCategory">
-              <option value="هدية">هدية (٣ ريال)</option>
-              <option value="مكافأة">مكافأة (٢ ريال)</option>
+              <option value="هدية|3">هدية (٣ ريال)</option>
+              <option value="هدية|2">هدية (ريالين)</option>
+              <option value="مكافأة|3">مكافأة (٣ ريال)</option>
+              <option value="مكافأة|2">مكافأة (ريالين)</option>
             </select>
           </div>
           <div>
@@ -321,7 +347,7 @@
             <input type="number" id="cardReturnQty" placeholder="0" min="1" step="1">
           </div>
         </div>
-        <label>توقيع المعلمة (تأكيد إنها ترجّع)</label>
+        <label>توقيع الشخص (تأكيد إنه يرجّع)</label>
         <div class="sig-wrap"><canvas id="cardReturnSig" class="sig-pad"></canvas></div>
         <button type="button" class="btn outline" onclick="clearCardSig_('cardReturnSig')" style="width:auto;padding:6px 14px;margin-top:6px;">مسح التوقيع</button>
         <button class="btn" id="cardReturnBtn" onclick="submitCardReturn()" style="margin-top:10px;">تسجيل الإرجاع</button>
@@ -329,10 +355,36 @@
       </div>
 
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">معلمات عليهن بطاقات لسا</h3>
+        <h3 style="margin-top:0;color:var(--maroon);">استبدال بطاقة (المستفيد جا المقصف بمشترياته)</h3>
+        <p style="font-size:0.8rem;color:#8a7d76;margin-top:0;">هذي تقفل الرصيد اللي على الشخص اللي وزّع البطاقة، بدون ما تأثر على مخزون المركز</p>
+        <label>اسم الشخص اللي وزّع البطاقة أصلاً</label>
+        <input type="text" id="cardRedeemDistributor" placeholder="اسم المعلمة أو الشخص">
+        <label>اسم المستفيد اللي استبدلها الحين</label>
+        <input type="text" id="cardRedeemBeneficiary" placeholder="اسم الطالبة أو المستفيد">
+        <div class="select-row">
+          <div>
+            <label>نوع البطاقة</label>
+            <select id="cardRedeemCategory">
+              <option value="هدية|3">هدية (٣ ريال)</option>
+              <option value="هدية|2">هدية (ريالين)</option>
+              <option value="مكافأة|3">مكافأة (٣ ريال)</option>
+              <option value="مكافأة|2">مكافأة (ريالين)</option>
+            </select>
+          </div>
+          <div>
+            <label>العدد</label>
+            <input type="number" id="cardRedeemQty" placeholder="1" min="1" step="1" value="1">
+          </div>
+        </div>
+        <button class="btn" id="cardRedeemBtn" onclick="submitCardRedeem()">تسجيل الاستبدال</button>
+        <div class="success-msg" id="cardRedeemSuccess">تم تسجيل الاستبدال بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">عليهم بطاقات لسا (ما اتقفلت)</h3>
         <table class="log-table" id="cardOutstandingTable">
-          <thead><tr><th>المعلمة</th><th>هدية عليها</th><th>مكافأة عليها</th></tr></thead>
-          <tbody id="cardOutstandingTbody"><tr><td colspan="3">جاري التحميل...</td></tr></tbody>
+          <thead><tr><th>الاسم</th><th>هدية ٣</th><th>هدية ٢</th><th>مكافأة ٣</th><th>مكافأة ٢</th></tr></thead>
+          <tbody id="cardOutstandingTbody"><tr><td colspan="5">جاري التحميل...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -1401,14 +1453,16 @@ function refreshPendingBadge() {
 }
 
 /* -------- بطاقات التحفيز --------
-   عهدة: استلام من الإدارة (رصيد المركز)، ثم تسليم لمعلمة أو إرجاع منها - بتوقيعها هي بالذات
-   وقت التسليم/الإرجاع، عشان ما فيه مجال إنكار (لا حد يقدر يدّعي إرجاع بدون توقيعه الفعلي) */
+   عهدة: استلام من الإدارة (بتوقيع المسؤولة/المديرة نفسها)، ثم تسليم لشخص (معلمة أو غيرها) أو
+   إرجاع منه - بتوقيعه هو بالذات وقت التسليم/الإرجاع. الاستبدال (المستفيد جا المقصف بمشترياته)
+   ما يحتاج توقيع لأنه يصير بحضور المسؤولة مباشرة، ويقفل رصيد الشخص اللي وزّع البطاقة أصلاً. */
 let cardSigHandles_ = {};
 
 function initCardSigPads_() {
   loadCardBalance_();
   loadCardOutstanding_();
   setTimeout(function () {
+    cardSigHandles_['cardReceiveSig'] = initSignaturePad('cardReceiveSig');
     cardSigHandles_['cardDeliverSig'] = initSignaturePad('cardDeliverSig');
     cardSigHandles_['cardReturnSig'] = initSignaturePad('cardReturnSig');
   }, 50);
@@ -1418,11 +1472,21 @@ function clearCardSig_(id) {
   if (cardSigHandles_[id]) cardSigHandles_[id].clear();
 }
 
+/* قيم قائمة نوع البطاقة مكتوبة "الفئة|القيمة" (مثلاً "هدية|3") عشان تحمل الفئة والقيمة مع بعض */
+function parseCardCategoryValue_(selectId) {
+  const parts = document.getElementById(selectId).value.split('|');
+  return { category: parts[0], price: Number(parts[1]) };
+}
+
+const CARD_KEYS_ = ['هدية_3', 'هدية_2', 'مكافأة_3', 'مكافأة_2'];
+
 function loadCardBalance_() {
   callApi('getCardBalance', { center: currentCenter }).then(function (r) {
     if (!r.ok) return;
-    document.getElementById('cardBalanceGift').textContent = r.balance['هدية'] || 0;
-    document.getElementById('cardBalanceReward').textContent = r.balance['مكافأة'] || 0;
+    CARD_KEYS_.forEach(function (k) {
+      const el = document.getElementById('cardBal_' + k);
+      if (el) el.textContent = r.balance[k] || 0;
+    });
   });
 }
 
@@ -1431,28 +1495,37 @@ function loadCardOutstanding_() {
   callApi('getTeacherOutstanding', { center: currentCenter }).then(function (r) {
     if (!r.ok) return;
     tbody.innerHTML = '';
-    if (!r.teachers.length) { tbody.innerHTML = '<tr><td colspan="3">لا يوجد معلمات عليهن بطاقات حالياً 👍</td></tr>'; return; }
+    if (!r.teachers.length) { tbody.innerHTML = '<tr><td colspan="5">ما فيه أحد عليه بطاقات حالياً 👍</td></tr>'; return; }
     r.teachers.forEach(function (t) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + t.teacher + '</td><td>' + (t['هدية'] || 0) + '</td><td>' + (t['مكافأة'] || 0) + '</td>';
+      tr.innerHTML = '<td>' + t.teacher + '</td>' + CARD_KEYS_.map(function (k) { return '<td>' + (t[k] || 0) + '</td>'; }).join('');
       tbody.appendChild(tr);
     });
   });
 }
 
 function receiveCardCustody() {
-  const gift = Number(document.getElementById('cardReceiveGift').value) || 0;
-  const reward = Number(document.getElementById('cardReceiveReward').value) || 0;
-  if (!gift && !reward) { alert('اكتبي عدد الهدية أو المكافأة اللي تبين تستلمينها'); return; }
+  const amounts = {};
+  CARD_KEYS_.forEach(function (k) { amounts[k] = Number(document.getElementById('cardReceive_' + k).value) || 0; });
+  const hasAny = Object.keys(amounts).some(function (k) { return amounts[k] > 0; });
+  if (!hasAny) { alert('اكتبي عدد أي فئة تبين تستلمينها'); return; }
+  const sig = cardSigHandles_['cardReceiveSig'] ? getSignatureDataUrl('cardReceiveSig') : '';
+  if (!sig || isCanvasBlank_('cardReceiveSig')) { alert('لازم توقيعك على استلام العهدة'); return; }
   const btn = document.getElementById('cardReceiveBtn');
   setBtnBusy(btn, true);
   const calls = [];
-  if (gift) calls.push(callApi('recordCardTx', { center: currentCenter, opType: 'استلام عهدة', category: 'هدية', qty: gift }));
-  if (reward) calls.push(callApi('recordCardTx', { center: currentCenter, opType: 'استلام عهدة', category: 'مكافأة', qty: reward }));
+  CARD_KEYS_.forEach(function (k) {
+    if (!amounts[k]) return;
+    const parts = k.split('_');
+    calls.push(callApi('recordCardTx', {
+      center: currentCenter, opType: 'استلام عهدة', category: parts[0], price: Number(parts[1]),
+      qty: amounts[k], teacherSignature: sig
+    }));
+  });
   Promise.all(calls).then(function () {
     setBtnBusy(btn, false);
-    document.getElementById('cardReceiveGift').value = '';
-    document.getElementById('cardReceiveReward').value = '';
+    CARD_KEYS_.forEach(function (k) { document.getElementById('cardReceive_' + k).value = ''; });
+    clearCardSig_('cardReceiveSig');
     const s = document.getElementById('cardReceiveSuccess');
     s.style.display = 'block';
     setTimeout(function () { s.style.display = 'none'; }, 2500);
@@ -1462,16 +1535,16 @@ function receiveCardCustody() {
 
 function submitCardDelivery() {
   const teacher = document.getElementById('cardDeliverTeacher').value.trim();
-  const category = document.getElementById('cardDeliverCategory').value;
+  const cv = parseCardCategoryValue_('cardDeliverCategory');
   const qty = Number(document.getElementById('cardDeliverQty').value) || 0;
-  if (!teacher) { alert('اكتبي اسم المعلمة'); return; }
+  if (!teacher) { alert('اكتبي اسم الشخص'); return; }
   if (!qty) { alert('اكتبي العدد'); return; }
   const sig = cardSigHandles_['cardDeliverSig'] ? getSignatureDataUrl('cardDeliverSig') : '';
-  if (!sig || isCanvasBlank_('cardDeliverSig')) { alert('لازم المعلمة توقّع بنفسها إنها استلمت'); return; }
+  if (!sig || isCanvasBlank_('cardDeliverSig')) { alert('لازم الشخص يوقّع بنفسه إنه استلم'); return; }
   const btn = document.getElementById('cardDeliverBtn');
   setBtnBusy(btn, true);
   callApi('recordCardTx', {
-    center: currentCenter, opType: 'تسليم لمعلمة', category: category, qty: qty,
+    center: currentCenter, opType: 'تسليم لمعلمة', category: cv.category, price: cv.price, qty: qty,
     teacherName: teacher, teacherSignature: sig
   }).then(function (r) {
     setBtnBusy(btn, false);
@@ -1488,16 +1561,16 @@ function submitCardDelivery() {
 
 function submitCardReturn() {
   const teacher = document.getElementById('cardReturnTeacher').value.trim();
-  const category = document.getElementById('cardReturnCategory').value;
+  const cv = parseCardCategoryValue_('cardReturnCategory');
   const qty = Number(document.getElementById('cardReturnQty').value) || 0;
-  if (!teacher) { alert('اكتبي اسم المعلمة'); return; }
+  if (!teacher) { alert('اكتبي اسم الشخص'); return; }
   if (!qty) { alert('اكتبي العدد'); return; }
   const sig = cardSigHandles_['cardReturnSig'] ? getSignatureDataUrl('cardReturnSig') : '';
-  if (!sig || isCanvasBlank_('cardReturnSig')) { alert('لازم المعلمة توقّع بنفسها إنها ترجّعت'); return; }
+  if (!sig || isCanvasBlank_('cardReturnSig')) { alert('لازم الشخص يوقّع بنفسه إنه يرجّع'); return; }
   const btn = document.getElementById('cardReturnBtn');
   setBtnBusy(btn, true);
   callApi('recordCardTx', {
-    center: currentCenter, opType: 'إرجاع من معلمة', category: category, qty: qty,
+    center: currentCenter, opType: 'إرجاع من معلمة', category: cv.category, price: cv.price, qty: qty,
     teacherName: teacher, teacherSignature: sig
   }).then(function (r) {
     setBtnBusy(btn, false);
@@ -1512,7 +1585,35 @@ function submitCardReturn() {
   }).catch(function () { setBtnBusy(btn, false); });
 }
 
-/* تتأكد إن لوحة التوقيع مو فاضية (المعلمة رسمت فعلاً ولا لأ) قبل ما نقبل التسليم/الإرجاع */
+/* استبدال: المستفيد النهائي جا المقصف بمشترياته - يقفل رصيد الشخص اللي وزّعها أصلاً بدون توقيع
+   (يصير بحضور المسؤولة مباشرة بنقطة البيع، فتسجيلها هي كافٍ) */
+function submitCardRedeem() {
+  const distributor = document.getElementById('cardRedeemDistributor').value.trim();
+  const beneficiary = document.getElementById('cardRedeemBeneficiary').value.trim();
+  const cv = parseCardCategoryValue_('cardRedeemCategory');
+  const qty = Number(document.getElementById('cardRedeemQty').value) || 0;
+  if (!distributor) { alert('اكتبي اسم الشخص اللي وزّع البطاقة أصلاً'); return; }
+  if (!beneficiary) { alert('اكتبي اسم المستفيد اللي استبدلها'); return; }
+  if (!qty) { alert('اكتبي العدد'); return; }
+  const btn = document.getElementById('cardRedeemBtn');
+  setBtnBusy(btn, true);
+  callApi('recordCardTx', {
+    center: currentCenter, opType: 'استبدال', category: cv.category, price: cv.price, qty: qty,
+    teacherName: distributor, beneficiaryName: beneficiary
+  }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r.ok) { alert(r.error || 'تعذر تسجيل الاستبدال'); return; }
+    document.getElementById('cardRedeemDistributor').value = '';
+    document.getElementById('cardRedeemBeneficiary').value = '';
+    document.getElementById('cardRedeemQty').value = '1';
+    const s = document.getElementById('cardRedeemSuccess');
+    s.style.display = 'block';
+    setTimeout(function () { s.style.display = 'none'; }, 2500);
+    loadCardOutstanding_();
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+/* تتأكد إن لوحة التوقيع مو فاضية (وقّع فعلاً ولا لأ) قبل ما نقبل الاستلام/التسليم/الإرجاع */
 function isCanvasBlank_(canvasId) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return true;
