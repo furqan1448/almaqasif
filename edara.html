@@ -598,7 +598,7 @@
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">متابعة بطاقات التحفيز - منسوبات المركز (كل المراكز)</h3>
         <table class="log-table" id="cardsFollowupAllTable">
-          <thead><tr><th>المركز</th><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th><th>اسم المستفيدة</th><th>الحالة</th></tr></thead>
+          <thead><tr><th>المركز</th><th>اسم المستلمة</th><th>النوع</th><th>القيمة</th><th>الكمية الإجمالية</th><th>اسم المستفيدة</th><th>العدد</th><th>الحالة</th><th>التاريخ</th></tr></thead>
           <tbody id="cardsFollowupAllTbody"><tr><td colspan="9">جاري التحميل...</td></tr></tbody>
         </table>
       </div>
@@ -759,13 +759,20 @@ function loadCardsAdminOverview() {
     });
   });
 
-  callApi('getIncentiveEntries', { kind: 'تسليم' }).then(function (r) {
-    const list = (r.ok ? r.list : []) || [];
+  Promise.all([
+    callApi('getIncentiveEntries', { kind: 'تسليم' }),
+    callApi('getIncentiveFollowupSplits', {})
+  ]).then(function (results) {
+    const entries = (results[0].ok ? results[0].list : []) || [];
+    const splits = (results[1].ok ? results[1].list : []) || [];
     followupTbody.innerHTML = '';
-    if (!list.length) { followupTbody.innerHTML = '<tr><td colspan="9">لا يوجد بيانات</td></tr>'; }
-    list.forEach(function (row) {
+    if (!splits.length) { followupTbody.innerHTML = '<tr><td colspan="9">لا يوجد توزيعات مسجّلة بعد</td></tr>'; return; }
+    const byId = {};
+    entries.forEach(function (e) { byId[e['معرف']] = e; });
+    splits.forEach(function (s) {
+      const parent = byId[s['معرف السطر الأصلي']] || {};
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (row['اسم المركز'] || '') + '</td><td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + (row['اسم المستفيدة'] || '') + '</td><td>' + (row['حالة الاستبدال'] || '') + '</td>';
+      tr.innerHTML = '<td>' + (s['اسم المركز'] || '') + '</td><td>' + (parent['اسم المستلمة'] || '') + '</td><td>' + (parent['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(parent['القيمة']) + '</td><td>' + (parent['الكمية'] || '') + '</td><td>' + (s['اسم المستفيدة'] || '') + '</td><td>' + (s['العدد'] || '') + '</td><td>' + (s['الحالة'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td>';
       followupTbody.appendChild(tr);
     });
   });

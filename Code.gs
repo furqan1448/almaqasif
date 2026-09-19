@@ -51,10 +51,14 @@ function setup() {
     'الصعوبات والمقترحات': ['معرف', 'اسم المركز', 'من', 'النوع', 'النص', 'اليوم', 'التاريخ', 'الوقت'],
     'قائمة الدخل': ['معرف', 'البند', 'البيان', 'المبلغ', 'المبلغ كتابة', 'اليوم', 'التاريخ', 'الفصل الدراسي', 'رابط المرفق', 'اسم المرفق'],
     // بطاقات التحفيز: سجلّين منفصلين بنفس الشيت (نوع السجل: تسليم / استلام)، كل سطر بطاقة موقّعة
-    // (رسم أو صورة) من الشخص المستلم وقتها. متابعة الاستبدال تلحق سجل "تسليم" بعمودين إضافيين
-    // (اسم المستفيد وحالة الاستبدال) تتحدّث لاحقاً - بدون أرشفة تلقائية عشان الحقوق تفضل واضحة
+    // (رسم أو صورة) من الشخص المستلم وقتها. بدون أرشفة تلقائية عشان الحقوق تفضل واضحة
     'بطاقات التحفيز': ['معرف', 'اسم المركز', 'الدور', 'نوع السجل', 'نوع البطاقة', 'القيمة', 'الكمية',
-      'اسم المستلمة', 'اسم المستفيدة', 'حالة الاستبدال', 'التوقيع', 'اليوم', 'التاريخ', 'الوقت']
+      'اسم المستلمة', 'التوقيع', 'اليوم', 'التاريخ', 'الوقت'],
+    // متابعة بطاقات التحفيز: توزيع الكمية الواحدة (من سطر "تسليم") على أكثر من مستفيدة -
+    // كل سطر هنا = جزء من الكمية الأصلية باسم مستفيدة معيّنة وحالتها، ومجموعها ما يتجاوز
+    // الكمية المسجّلة بسطر التسليم الأصلي (يُتحقق منه بـ addIncentiveFollowupSplit_)
+    'متابعة بطاقات التحفيز': ['معرف', 'معرف السطر الأصلي', 'اسم المركز', 'اسم المستفيدة', 'العدد',
+      'الحالة', 'اليوم', 'التاريخ']
   };
 
   Object.keys(sheets).forEach(function (name) {
@@ -878,7 +882,9 @@ function handleRequest_(p) {
 
       case 'recordIncentiveEntry': return json_(recordIncentiveEntry_(p));
       case 'getIncentiveEntries': return json_(getIncentiveEntries_(p));
-      case 'updateIncentiveFollowup': return json_(updateIncentiveFollowup_(p));
+      case 'addIncentiveFollowupSplit': return json_(addIncentiveFollowupSplit_(p));
+      case 'getIncentiveFollowupSplits': return json_(getIncentiveFollowupSplits_(p));
+      case 'deleteIncentiveFollowupSplit': return json_(deleteIncentiveFollowupSplit_(p));
 
       case 'debugInfo': return json_(debugInfo_());
 
@@ -1145,8 +1151,10 @@ function deleteReturn_(p) {
    سجل "تسليم": المركز/المسؤولة يسلّمون بطاقة لشخص (معلمة أو غيرها) يوقّع هو بنفسه على الإقرار.
    سجل "استلام": المركز/المسؤولة نفسها تستلم من الإدارة وتوقّع بنفسها (الدور يوضّح مين وقّعت:
    مديرة المركز أو مسؤولة المقصف). كل سطر بطاقة موقّعة (رسم أو صورة)، بدون أرشفة تلقائية.
-   متابعة الاستبدال: تلحق فقط سطور "تسليم" بعمودين (اسم المستفيدة، حالة الاستبدال) تُحدَّث لاحقاً
-   من شاشة "متابعة بطاقات التحفيز" لمّا تجي المستفيدة تستبدل البطاقة فعلياً. */
+   متابعة الاستبدال: الكمية المسجّلة بسطر "تسليم" واحد ممكن تتوزّع على أكثر من مستفيدة (مثلاً
+   ٧ بطاقات وُزّعت على ٣ طالبات بأعداد مختلفة) - لذا نخزّنها بشيت منفصل "متابعة بطاقات التحفيز"
+   كأسطر متعددة لكل سطر تسليم أصلي، ونتحقق دايماً إن مجموع الأعداد الموزّعة ما يتجاوز الكمية
+   الأصلية (addIncentiveFollowupSplit_). */
 const INCENTIVE_CATEGORIES_ = ['مكافأة', 'هدية'];
 const INCENTIVE_PRICES_ = [3, 2];
 const INCENTIVE_KINDS_ = ['تسليم', 'استلام'];
@@ -1168,7 +1176,6 @@ function recordIncentiveEntry_(p) {
   appendRowByHeaders_(sh, {
     'معرف': id, 'اسم المركز': p.center, 'الدور': p.role || '', 'نوع السجل': p.kind,
     'نوع البطاقة': category, 'القيمة': price, 'الكمية': qty, 'اسم المستلمة': p.recipientName,
-    'اسم المستفيدة': '', 'حالة الاستبدال': p.kind === 'تسليم' ? 'لم يتم الاستبدال' : '',
     'التوقيع': p.signature, 'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
   });
   invalidateCache_('بطاقات التحفيز');
@@ -1183,16 +1190,46 @@ function getIncentiveEntries_(p) {
   return { ok: true, list: rows };
 }
 
-/* تحدّث سطر "تسليم" واحد بعد ما تجي المستفيدة تستبدل البطاقة فعلياً بالمقصف */
-function updateIncentiveFollowup_(p) {
-  const sh = sheet_('بطاقات التحفيز');
-  const row = Number(p.row);
-  if (!row) return { ok: false, error: 'صف غير صحيح' };
-  const beneficiaryCol = colIndex_(sh, 'اسم المستفيدة');
-  const statusCol = colIndex_(sh, 'حالة الاستبدال');
-  if (beneficiaryCol !== -1) sh.getRange(row, beneficiaryCol).setValue(p.beneficiaryName || '');
-  if (statusCol !== -1) sh.getRange(row, statusCol).setValue(p.status || 'لم يتم الاستبدال');
-  invalidateCache_('بطاقات التحفيز');
+/* تضيف جزء من الكمية الأصلية (سطر تسليم واحد) باسم مستفيدة معيّنة وحالتها - مع التحقق إن
+   المجموع (اللي سبق توزيعه + الجديد) ما يتجاوز الكمية الأصلية بالسطر */
+function addIncentiveFollowupSplit_(p) {
+  const parent = sheetToObjects_('بطاقات التحفيز').find(function (r) { return r['معرف'] === p.parentId; });
+  if (!parent) return { ok: false, error: 'السطر الأصلي غير موجود' };
+  const qty = Number(p.qty) || 0;
+  if (!qty || qty < 1) return { ok: false, error: 'العدد مطلوب' };
+  if (!p.beneficiaryName) return { ok: false, error: 'اسم المستفيدة مطلوب' };
+  const existing = sheetToObjects_('متابعة بطاقات التحفيز').filter(function (r) { return r['معرف السطر الأصلي'] === p.parentId; });
+  const allocated = existing.reduce(function (s, r) { return s + (Number(r['العدد']) || 0); }, 0);
+  const total = Number(parent['الكمية']) || 0;
+  if (allocated + qty > total) {
+    return { ok: false, error: 'المجموع الموزّع (' + (allocated + qty) + ') أكبر من الكمية الأصلية (' + total + ') - المتبقي غير الموزّع: ' + (total - allocated) };
+  }
+  const sh = sheet_('متابعة بطاقات التحفيز');
+  const id = Utilities.getUuid();
+  const now = nowParts_();
+  appendRowByHeaders_(sh, {
+    'معرف': id, 'معرف السطر الأصلي': p.parentId, 'اسم المركز': parent['اسم المركز'],
+    'اسم المستفيدة': p.beneficiaryName, 'العدد': qty, 'الحالة': p.status || 'لم يتم الاستبدال',
+    'اليوم': now.day, 'التاريخ': now.date
+  });
+  invalidateCache_('متابعة بطاقات التحفيز');
+  return { ok: true, id: id };
+}
+
+function getIncentiveFollowupSplits_(p) {
+  let rows = sheetToObjects_('متابعة بطاقات التحفيز');
+  if (p && p.parentId) rows = rows.filter(function (r) { return r['معرف السطر الأصلي'] === p.parentId; });
+  if (p && p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
+  return { ok: true, list: rows };
+}
+
+function deleteIncentiveFollowupSplit_(p) {
+  const rows = sheetToObjects_('متابعة بطاقات التحفيز');
+  const target = rows.find(function (r) { return r['معرف'] === p.id; });
+  if (!target) return { ok: false, error: 'السطر غير موجود' };
+  const sh = sheet_('متابعة بطاقات التحفيز');
+  sh.deleteRow(target._row);
+  invalidateCache_('متابعة بطاقات التحفيز');
   return { ok: true };
 }
 

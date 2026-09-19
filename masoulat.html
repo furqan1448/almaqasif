@@ -337,7 +337,7 @@
         <input type="text" inputmode="numeric" pattern="[0-9]*" id="cdQty" placeholder="اكتبي العدد">
         <label>اسم المستلمة</label>
         <input type="text" id="cdRecipient" placeholder="اسم المستلمة">
-        <div class="pledge-box">أقر أنا الموقعة أدناه باستلام بطاقات التحفيز الموضحة أعلاه، وأتعهد بالمحافظة عليها وصرفها وفق الغرض المخصص لها، وإعادة البطاقات كاملة إلى وحدة المقاصف عند الطلب.</div>
+        <div class="pledge-box">أقر أنا الموقعة أدناه باستلام بطاقات التحفيز الموضحة أعلاه، وأتعهد بالمحافظة عليها وتسليمها للغرض المخصص لها، وفي حال عدم استخدامها، أتعهد بمتابعة إعادتها.</div>
         <div class="checkline"><input type="checkbox" id="cdAgree"><label for="cdAgree" style="margin:0;font-weight:500;">أوافق على الإقرار أعلاه</label></div>
         <label>التوقيع</label>
         <div class="sig-mode-toggle">
@@ -386,7 +386,7 @@
         <input type="text" inputmode="numeric" pattern="[0-9]*" id="crQty" placeholder="اكتبي العدد">
         <label>اسم المستلمة</label>
         <input type="text" id="crRecipient" placeholder="اسم المستلمة">
-        <div class="pledge-box">أقر أنا الموقعة أدناه باستلام بطاقات التحفيز الموضحة أعلاه، وأتعهد بالمحافظة عليها وتسليمها للغرض المخصص لها، وفي حال عدم استخدامها، أتعهد بمتابعة إعادتها.</div>
+        <div class="pledge-box">أقر أنا الموقعة أدناه باستلام بطاقات التحفيز الموضحة أعلاه، وأتعهد بالمحافظة عليها وصرفها وفق الغرض المخصص لها، وإعادة البطاقات كاملة إلى وحدة المقاصف عند الطلب.</div>
         <div style="font-size:0.85rem;color:#8a7d76;margin:8px 0 0;">الصفة: مسؤولة المقصف</div>
         <div class="checkline"><input type="checkbox" id="crAgree"><label for="crAgree" style="margin:0;font-weight:500;">أوافق على الإقرار أعلاه</label></div>
         <label>التوقيع</label>
@@ -422,12 +422,9 @@
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">متابعة بطاقات التحفيز</h3>
-        <p style="font-size:0.85rem;color:#8a7d76;margin-top:0;">القائمة من سجل تسليم بطاقات التحفيز - منسوبات المركز — اكتبي اسم المستفيدة وحدّدي الحالة لما تجي تستبدل البطاقة</p>
-        <table class="log-table" id="cfTable">
-          <thead><tr><th>اسم المستلمة</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستفيدة</th><th>الحالة</th><th></th></tr></thead>
-          <tbody id="cfTbody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
-        </table>
+        <p style="font-size:0.85rem;color:#8a7d76;margin-top:0;">تُستقى هذه البيانات من سجل تسليم بطاقات التحفيز - منسوبات المركز. يُدرج اسم المستفيدة وتُحدَّد حالة الاستبدال عند استبدال البطاقة فعليًا، مع مراعاة أن الكمية الواحدة قد تُوزَّع على أكثر من مستفيدة، على ألا يتجاوز مجموع ما يُدرَج الكمية الأصلية المسلَّمة.</p>
       </div>
+      <div id="cfList"><div class="card">جاري التحميل...</div></div>
     </div>
 
     <!-- نموذج الإشعار (استلام/تسليم) -->
@@ -1882,36 +1879,72 @@ function printCardReceiveReport() {
   ], rows);
 }
 
-/* متابعة بطاقات التحفيز: من سجل التسليم - تكتبين اسم المستفيدة وتحدّدين الحالة لما تُستبدل البطاقة */
+/* متابعة بطاقات التحفيز: الكمية الواحدة (سطر تسليم) ممكن تتوزّع على أكثر من مستفيدة،
+   فنعرض لكل سطر تسليم قائمة التوزيعات الحالية + نموذج لإضافة توزيع جديد، على ألا يتجاوز
+   مجموع الموزّع الكمية الأصلية (السيرفر يتحقق من هذا أيضاً) */
 function loadCardsFollowup_() {
-  const tbody = document.getElementById('cfTbody');
-  tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
-  callApi('getIncentiveEntries', { center: currentCenter, kind: 'تسليم' }).then(function (r) {
-    const list = (r.ok ? r.list : []) || [];
-    if (!list.length) { tbody.innerHTML = '<tr><td colspan="7">لا يوجد سجل بعد</td></tr>'; return; }
-    tbody.innerHTML = '';
-    list.forEach(function (row) {
-      const tr = document.createElement('tr');
-      const rowNum = row._row;
-      tr.innerHTML =
-        '<td>' + (row['اسم المستلمة'] || '') + '</td>' +
-        '<td>' + (row['نوع البطاقة'] || '') + '</td>' +
-        '<td>' + cardPriceLabel_(row['القيمة']) + '</td>' +
-        '<td>' + (row['الكمية'] || '') + '</td>' +
-        '<td><input type="text" class="cf-beneficiary" data-row="' + rowNum + '" value="' + String(row['اسم المستفيدة'] || '').replace(/"/g, '&quot;') + '" placeholder="اسم المستفيدة"></td>' +
-        '<td><select class="cf-status" data-row="' + rowNum + '"><option value="لم يتم الاستبدال"' + (row['حالة الاستبدال'] !== 'تم الاستبدال' ? ' selected' : '') + '>لم يتم الاستبدال</option><option value="تم الاستبدال"' + (row['حالة الاستبدال'] === 'تم الاستبدال' ? ' selected' : '') + '>تم الاستبدال</option></select></td>' +
-        '<td><button type="button" class="btn outline" style="width:auto;padding:6px 12px;" onclick="saveCardFollowup_(' + rowNum + ')">حفظ</button></td>';
-      tbody.appendChild(tr);
+  const container = document.getElementById('cfList');
+  container.innerHTML = '<div class="card">جاري التحميل...</div>';
+  Promise.all([
+    callApi('getIncentiveEntries', { center: currentCenter, kind: 'تسليم' }),
+    callApi('getIncentiveFollowupSplits', { center: currentCenter })
+  ]).then(function (results) {
+    const entries = (results[0].ok ? results[0].list : []) || [];
+    const splits = (results[1].ok ? results[1].list : []) || [];
+    if (!entries.length) { container.innerHTML = '<div class="card">لا يوجد سجل بعد</div>'; return; }
+    container.innerHTML = '';
+    entries.forEach(function (entry) {
+      const parentId = entry['معرف'];
+      const mySplits = splits.filter(function (s) { return s['معرف السطر الأصلي'] === parentId; });
+      const allocated = mySplits.reduce(function (s, r) { return s + (Number(r['العدد']) || 0); }, 0);
+      const total = Number(entry['الكمية']) || 0;
+      const remaining = total - allocated;
+      const card = document.createElement('div');
+      card.className = 'card';
+      let splitsHtml = '';
+      if (mySplits.length) {
+        splitsHtml = '<table class="log-table" style="margin-top:10px;"><thead><tr><th>اسم المستفيدة</th><th>العدد</th><th>الحالة</th><th></th></tr></thead><tbody>' +
+          mySplits.map(function (s) {
+            return '<tr><td>' + (s['اسم المستفيدة'] || '') + '</td><td>' + (s['العدد'] || '') + '</td><td>' + (s['الحالة'] || '') + '</td><td><a href="#" onclick="deleteCardFollowupSplit_(\'' + s['معرف'] + '\'); return false;">حذف</a></td></tr>';
+          }).join('') + '</tbody></table>';
+      }
+      card.innerHTML =
+        '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">' +
+          '<strong style="color:var(--maroon);">اسم المستلمة: ' + (entry['اسم المستلمة'] || '') + '</strong>' +
+          '<span style="color:#8a7d76;font-size:0.85rem;">' + (entry['نوع البطاقة'] || '') + ' - ' + cardPriceLabel_(entry['القيمة']) + ' - الكمية: ' + total + ' - المتبقي غير الموزَّع: ' + remaining + '</span>' +
+        '</div>' +
+        splitsHtml +
+        (remaining > 0 ?
+          '<div class="select-row" style="margin-top:12px;">' +
+            '<div><label>اسم المستفيدة</label><input type="text" class="cf-new-name" placeholder="اسم المستفيدة"></div>' +
+            '<div><label>العدد</label><input type="text" inputmode="numeric" pattern="[0-9]*" class="cf-new-qty" placeholder="حتى ' + remaining + '"></div>' +
+            '<div><label>الحالة</label><select class="cf-new-status"><option value="لم يتم الاستبدال">لم يتم الاستبدال</option><option value="تم الاستبدال">تم الاستبدال</option></select></div>' +
+          '</div>' +
+          '<button type="button" class="btn outline" style="width:auto;padding:6px 14px;margin-top:6px;" onclick="addCardFollowupSplit_(this, \'' + parentId + '\')">إضافة توزيع</button>'
+          : '<div class="success-msg" style="display:block;margin-top:10px;">تم توزيع كامل الكمية ✅</div>');
+      container.appendChild(card);
     });
   });
 }
 
-function saveCardFollowup_(rowNum) {
-  const beneficiary = document.querySelector('.cf-beneficiary[data-row="' + rowNum + '"]').value.trim();
-  const status = document.querySelector('.cf-status[data-row="' + rowNum + '"]').value;
-  callApi('updateIncentiveFollowup', { row: rowNum, beneficiaryName: beneficiary, status: status }).then(function (r) {
-    if (!r.ok) { alert(r.error || 'تعذر الحفظ'); return; }
-    alert('تم الحفظ ✅');
+function addCardFollowupSplit_(btn, parentId) {
+  const card = btn.closest('.card');
+  const name = card.querySelector('.cf-new-name').value.trim();
+  const qty = Number(card.querySelector('.cf-new-qty').value) || 0;
+  const status = card.querySelector('.cf-new-status').value;
+  if (!name) { alert('اكتبي اسم المستفيدة'); return; }
+  if (!qty) { alert('اكتبي العدد'); return; }
+  callApi('addIncentiveFollowupSplit', { parentId: parentId, center: currentCenter, beneficiaryName: name, qty: qty, status: status }).then(function (r) {
+    if (!r.ok) { alert(r.error || 'تعذر الإضافة'); return; }
+    loadCardsFollowup_();
+  });
+}
+
+function deleteCardFollowupSplit_(id) {
+  if (!confirm('متأكدة تبين تحذفين هذا التوزيع؟')) return;
+  callApi('deleteIncentiveFollowupSplit', { id: id }).then(function (r) {
+    if (!r.ok) { alert(r.error || 'تعذر الحذف'); return; }
+    loadCardsFollowup_();
   });
 }
 </script>
