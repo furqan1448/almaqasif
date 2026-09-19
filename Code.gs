@@ -50,12 +50,11 @@ function setup() {
     'دخول الإشراف': ['البريد الإلكتروني', 'كلمة المرور', 'الاسم'],
     'الصعوبات والمقترحات': ['معرف', 'اسم المركز', 'من', 'النوع', 'النص', 'اليوم', 'التاريخ', 'الوقت'],
     'قائمة الدخل': ['معرف', 'البند', 'البيان', 'المبلغ', 'المبلغ كتابة', 'اليوم', 'التاريخ', 'الفصل الدراسي', 'رابط المرفق', 'اسم المرفق'],
-    // عهدة بطاقات التحفيز: كل سطر = عملية وحدة (استلام عهدة / تسليم لشخص / إرجاع من شخص / استبدال)
-    // كل فئة (هدية أو مكافأة) إلها قيمتين ممكنتين: ٣ ريال أو ريالين - القيمة منفصلة عن الفئة
-    // ما تُؤرشف تلقائياً مع نهاية الفصل الدراسي (عمداً) عشان أي بطاقة ما ترجعها معلمة
-    // تفضل ظاهرة باسمها للمسؤولة وللإدارة حتى لو دخلنا فصل جديد، لين تُسوّى فعلياً
-    'بطاقات التحفيز': ['معرف', 'اسم المركز', 'نوع العملية', 'الفئة', 'سعر البطاقة', 'العدد', 'القيمة',
-      'اسم المعلمة', 'توقيع المعلمة', 'اسم المستفيد', 'اليوم', 'التاريخ', 'الوقت', 'ملاحظات']
+    // بطاقات التحفيز: سجلّين منفصلين بنفس الشيت (نوع السجل: تسليم / استلام)، كل سطر بطاقة موقّعة
+    // (رسم أو صورة) من الشخص المستلم وقتها. متابعة الاستبدال تلحق سجل "تسليم" بعمودين إضافيين
+    // (اسم المستفيد وحالة الاستبدال) تتحدّث لاحقاً - بدون أرشفة تلقائية عشان الحقوق تفضل واضحة
+    'بطاقات التحفيز': ['معرف', 'اسم المركز', 'الدور', 'نوع السجل', 'نوع البطاقة', 'القيمة', 'الكمية',
+      'اسم المستلمة', 'اسم المستفيدة', 'حالة الاستبدال', 'التوقيع', 'اليوم', 'التاريخ', 'الوقت']
   };
 
   Object.keys(sheets).forEach(function (name) {
@@ -877,11 +876,9 @@ function handleRequest_(p) {
       case 'getDifficulties': return json_(getDifficulties_(p));
       case 'deleteDifficulty': return json_(deleteDifficulty_(p));
 
-      case 'recordCardTx': return json_(recordCardTx_(p));
-      case 'getCardTx': return json_(getCardTx_(p));
-      case 'getCardBalance': return json_(getCardBalance_(p));
-      case 'getTeacherOutstanding': return json_(getTeacherOutstanding_(p));
-      case 'getCardsAdminOverview': return json_(getCardsAdminOverview_());
+      case 'recordIncentiveEntry': return json_(recordIncentiveEntry_(p));
+      case 'getIncentiveEntries': return json_(getIncentiveEntries_(p));
+      case 'updateIncentiveFollowup': return json_(updateIncentiveFollowup_(p));
 
       case 'debugInfo': return json_(debugInfo_());
 
@@ -1144,30 +1141,17 @@ function deleteReturn_(p) {
   return { ok: true };
 }
 
-/* ------------------- بطاقات التحفيز (عهدة هدية/مكافأة لكل مركز، وتتبّع رصيد كل شخص وزّعها) -------------------
-   نوع العملية: 'استلام عهدة' (المركز/المسؤولة تستلم رصيد من الإدارة، بتوقيعها هي) |
-                'تسليم لمعلمة' (توزّع على شخص عشان يهديها لغيره، بتوقيع نفس هذا الشخص) |
-                'إرجاع من معلمة' (نفس الشخص يرجّع اللي ما وزّعه، بتوقيعه) |
-                'استبدال' (المستفيد النهائي يستبدلها بمشتريات عند المقصف - يقفل رصيد
-                           الشخص اللي وزّعها أصلاً، بدون توقيع لأنه استهلاك مباشر بحضور المسؤولة)
-   الفئة (هدية/مكافأة) والقيمة (٣ ريال أو ريالين) منفصلتين عن بعض - كل فئة تصير بأي وحدة القيمتين.
-   'اسم المعلمة' يُستخدم بشكل عام لاسم "الشخص" في كل عملية (معلمة أو أي شخص آخر). 'اسم المستفيد'
-   يُستخدم بعملية 'استبدال' بس، لتوثيق مين استفاد فعلياً.
-   عمداً بدون فصل دراسي/أرشفة (شوفي setup()) عشان رصيد أي شخص ما ترجعه يفضل ظاهر دايماً */
-const CARD_CATEGORIES_ = ['هدية', 'مكافأة'];
-const CARD_PRICES_ = [3, 2];
-const CARD_SIGNED_OPS_ = ['استلام عهدة', 'تسليم لمعلمة', 'إرجاع من معلمة'];
-const CARD_PERSON_REQUIRED_OPS_ = ['تسليم لمعلمة', 'إرجاع من معلمة', 'استبدال'];
+/* ------------------- بطاقات التحفيز -------------------
+   سجل "تسليم": المركز/المسؤولة يسلّمون بطاقة لشخص (معلمة أو غيرها) يوقّع هو بنفسه على الإقرار.
+   سجل "استلام": المركز/المسؤولة نفسها تستلم من الإدارة وتوقّع بنفسها (الدور يوضّح مين وقّعت:
+   مديرة المركز أو مسؤولة المقصف). كل سطر بطاقة موقّعة (رسم أو صورة)، بدون أرشفة تلقائية.
+   متابعة الاستبدال: تلحق فقط سطور "تسليم" بعمودين (اسم المستفيدة، حالة الاستبدال) تُحدَّث لاحقاً
+   من شاشة "متابعة بطاقات التحفيز" لمّا تجي المستفيدة تستبدل البطاقة فعلياً. */
+const INCENTIVE_CATEGORIES_ = ['مكافأة', 'هدية'];
+const INCENTIVE_PRICES_ = [3, 2];
+const INCENTIVE_KINDS_ = ['تسليم', 'استلام'];
 
-function cardBalanceKey_(category, price) { return category + '_' + price; }
-
-function newCardBalanceObj_() {
-  const o = {};
-  CARD_CATEGORIES_.forEach(function (c) { CARD_PRICES_.forEach(function (v) { o[cardBalanceKey_(c, v)] = 0; }); });
-  return o;
-}
-
-function recordCardTx_(p) {
+function recordIncentiveEntry_(p) {
   const sh = sheet_('بطاقات التحفيز');
   const id = Utilities.getUuid();
   const now = nowParts_();
@@ -1175,101 +1159,41 @@ function recordCardTx_(p) {
   const price = Number(p.price) || 0;
   const qty = Number(p.qty) || 0;
   if (!p.center) return { ok: false, error: 'اسم المركز مطلوب' };
-  if (CARD_CATEGORIES_.indexOf(category) === -1) return { ok: false, error: 'فئة البطاقة غير صحيحة' };
-  if (CARD_PRICES_.indexOf(price) === -1) return { ok: false, error: 'قيمة البطاقة غير صحيحة' };
-  if (!qty || qty < 1) return { ok: false, error: 'العدد مطلوب' };
-  if (CARD_PERSON_REQUIRED_OPS_.indexOf(p.opType) !== -1 && !p.teacherName) {
-    return { ok: false, error: 'اسم الشخص مطلوب' };
-  }
-  if (p.opType === 'استبدال' && !p.beneficiaryName) {
-    return { ok: false, error: 'اسم المستفيد (اللي استبدلها) مطلوب' };
-  }
-  if (CARD_SIGNED_OPS_.indexOf(p.opType) !== -1 && !p.teacherSignature) {
-    return { ok: false, error: 'لازم توقيع فعلي على هذي الخطوة' };
-  }
+  if (INCENTIVE_KINDS_.indexOf(p.kind) === -1) return { ok: false, error: 'نوع السجل غير صحيح' };
+  if (INCENTIVE_CATEGORIES_.indexOf(category) === -1) return { ok: false, error: 'نوع البطاقة غير صحيح' };
+  if (INCENTIVE_PRICES_.indexOf(price) === -1) return { ok: false, error: 'قيمة البطاقة غير صحيحة' };
+  if (!qty || qty < 1) return { ok: false, error: 'الكمية مطلوبة' };
+  if (!p.recipientName) return { ok: false, error: 'اسم المستلمة مطلوب' };
+  if (!p.signature) return { ok: false, error: 'لازم التوقيع' };
   appendRowByHeaders_(sh, {
-    'معرف': id, 'اسم المركز': p.center, 'نوع العملية': p.opType, 'الفئة': category,
-    'سعر البطاقة': price, 'العدد': qty, 'القيمة': qty * price, 'اسم المعلمة': p.teacherName || '',
-    'توقيع المعلمة': p.teacherSignature || '', 'اسم المستفيد': p.beneficiaryName || '',
-    'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time,
-    'ملاحظات': p.notes || ''
+    'معرف': id, 'اسم المركز': p.center, 'الدور': p.role || '', 'نوع السجل': p.kind,
+    'نوع البطاقة': category, 'القيمة': price, 'الكمية': qty, 'اسم المستلمة': p.recipientName,
+    'اسم المستفيدة': '', 'حالة الاستبدال': p.kind === 'تسليم' ? 'لم يتم الاستبدال' : '',
+    'التوقيع': p.signature, 'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
   });
   invalidateCache_('بطاقات التحفيز');
   return { ok: true, id: id };
 }
 
-function getCardTx_(p) {
+function getIncentiveEntries_(p) {
   let rows = sheetToObjects_('بطاقات التحفيز');
   if (p && p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
+  if (p && p.kind) rows = rows.filter(function (r) { return r['نوع السجل'] === p.kind; });
   rows.sort(function (a, b) { return String(b['التاريخ'] || '').localeCompare(String(a['التاريخ'] || '')); });
   return { ok: true, list: rows };
 }
 
-/* رصيد المخزون المتاح عند المركز/المسؤولة نفسها (اللي استلمته كعهدة - اللي وزّعته + اللي رجع لها)
-   مقسّم بمفتاح "الفئة_القيمة" (مثلاً هدية_3، مكافأة_2). عملية "استبدال" ما تُغيّر مخزون المركز -
-   البطاقة أصلاً خرجت من المخزون وقت "تسليم لمعلمة" */
-function getCardBalance_(p) {
-  const rows = sheetToObjects_('بطاقات التحفيز').filter(function (r) {
-    return String(r['اسم المركز']).trim() === String(p.center || '').trim();
-  });
-  const bal = newCardBalanceObj_();
-  rows.forEach(function (r) {
-    const key = cardBalanceKey_(r['الفئة'], Number(r['سعر البطاقة']));
-    const qty = Number(r['العدد']) || 0;
-    if (!bal.hasOwnProperty(key)) return;
-    if (r['نوع العملية'] === 'استلام عهدة') bal[key] += qty;
-    else if (r['نوع العملية'] === 'تسليم لمعلمة') bal[key] -= qty;
-    else if (r['نوع العملية'] === 'إرجاع من معلمة') bal[key] += qty;
-  });
-  return { ok: true, balance: bal };
-}
-
-/* الأشخاص اللي عندهم بطاقات لسا ما اتحسبت (لا رجعوها ولا استُبدلت من المستفيد) -
-   لمركز معيّن، أو لكل المراكز لو ما انمرّر center */
-function getTeacherOutstanding_(p) {
-  let rows = sheetToObjects_('بطاقات التحفيز').filter(function (r) {
-    return r['نوع العملية'] === 'تسليم لمعلمة' || r['نوع العملية'] === 'إرجاع من معلمة' || r['نوع العملية'] === 'استبدال';
-  });
-  if (p && p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
-  const map = {};
-  rows.forEach(function (r) {
-    const center = String(r['اسم المركز']).trim();
-    const person = String(r['اسم المعلمة']).trim();
-    const key = center + '|' + person;
-    if (!map[key]) map[key] = Object.assign({ center: center, teacher: person }, newCardBalanceObj_());
-    const bKey = cardBalanceKey_(r['الفئة'], Number(r['سعر البطاقة']));
-    const qty = Number(r['العدد']) || 0;
-    if (!map[key].hasOwnProperty(bKey)) return;
-    if (r['نوع العملية'] === 'تسليم لمعلمة') map[key][bKey] += qty;
-    else map[key][bKey] -= qty; // إرجاع أو استبدال، الاثنين يقفلون الرصيد بنفس الطريقة
-  });
-  const list = Object.keys(map).map(function (k) { return map[k]; })
-    .filter(function (t) {
-      return Object.keys(newCardBalanceObj_()).some(function (bk) { return (t[bk] || 0) > 0; });
-    });
-  return { ok: true, teachers: list };
-}
-
-/* ملخص شامل للإدارة: رصيد كل مركز + كل الأشخاص اللي عليهم بطاقات لسا بكل المراكز */
-function getCardsAdminOverview_() {
-  const rows = sheetToObjects_('بطاقات التحفيز');
-  const centers = {};
-  rows.forEach(function (r) {
-    const c = String(r['اسم المركز']).trim();
-    if (!c) return;
-    if (!centers[c]) centers[c] = Object.assign({ center: c }, newCardBalanceObj_());
-    const key = cardBalanceKey_(r['الفئة'], Number(r['سعر البطاقة']));
-    const qty = Number(r['العدد']) || 0;
-    if (!centers[c].hasOwnProperty(key)) return;
-    if (r['نوع العملية'] === 'استلام عهدة') centers[c][key] += qty;
-    else if (r['نوع العملية'] === 'تسليم لمعلمة') centers[c][key] -= qty;
-    else if (r['نوع العملية'] === 'إرجاع من معلمة') centers[c][key] += qty;
-  });
-  return {
-    ok: true,
-    centers: Object.keys(centers).map(function (k) { return centers[k]; }),
-    teachersOutstanding: getTeacherOutstanding_({}).teachers
-  };
+/* تحدّث سطر "تسليم" واحد بعد ما تجي المستفيدة تستبدل البطاقة فعلياً بالمقصف */
+function updateIncentiveFollowup_(p) {
+  const sh = sheet_('بطاقات التحفيز');
+  const row = Number(p.row);
+  if (!row) return { ok: false, error: 'صف غير صحيح' };
+  const beneficiaryCol = colIndex_(sh, 'اسم المستفيدة');
+  const statusCol = colIndex_(sh, 'حالة الاستبدال');
+  if (beneficiaryCol !== -1) sh.getRange(row, beneficiaryCol).setValue(p.beneficiaryName || '');
+  if (statusCol !== -1) sh.getRange(row, statusCol).setValue(p.status || 'لم يتم الاستبدال');
+  invalidateCache_('بطاقات التحفيز');
+  return { ok: true };
 }
 
 /* ------------------- بيان الفواتير ------------------- */

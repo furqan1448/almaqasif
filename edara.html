@@ -586,20 +586,27 @@
       </div>
     </div>
 
-    <!-- ===== تبويب: بطاقات التحفيز (عهدة الإدارة) ===== -->
+    <!-- ===== تبويب: بطاقات التحفيز (نظرة الإدارة) ===== -->
     <div id="cardsAdminTab" class="admin-tab-panel hidden">
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">رصيد كل مركز/مسؤولة</h3>
-        <table class="log-table" id="cardsCentersTable">
-          <thead><tr><th>المركز</th><th>هدية ٣</th><th>هدية ٢</th><th>مكافأة ٣</th><th>مكافأة ٢</th></tr></thead>
-          <tbody id="cardsCentersTbody"><tr><td colspan="5">جاري التحميل...</td></tr></tbody>
+        <h3 style="margin-top:0;color:var(--maroon);">بطاقات لسا ما اتستبدلت (من سجل التسليم بكل المراكز)</h3>
+        <table class="log-table" id="cardsPendingTable">
+          <thead><tr><th>المركز</th><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th><th>اسم المستفيدة</th></tr></thead>
+          <tbody id="cardsPendingTbody"><tr><td colspan="8">جاري التحميل...</td></tr></tbody>
         </table>
       </div>
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">أشخاص عليهم بطاقات لسا (ما اتقفلت بإرجاع أو استبدال)</h3>
-        <table class="log-table" id="cardsTeachersTable">
-          <thead><tr><th>المركز</th><th>الاسم</th><th>هدية ٣</th><th>هدية ٢</th><th>مكافأة ٣</th><th>مكافأة ٢</th></tr></thead>
-          <tbody id="cardsTeachersTbody"><tr><td colspan="6">جاري التحميل...</td></tr></tbody>
+        <h3 style="margin-top:0;color:var(--maroon);">آخر سجلات التسليم (كل المراكز)</h3>
+        <table class="log-table" id="cardsDeliverAllTable">
+          <thead><tr><th>المركز</th><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th><th>الحالة</th></tr></thead>
+          <tbody id="cardsDeliverAllTbody"><tr><td colspan="8">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">آخر سجلات الاستلام (كل المراكز)</h3>
+        <table class="log-table" id="cardsReceiveAllTable">
+          <thead><tr><th>المركز</th><th>الصفة</th><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th></tr></thead>
+          <tbody id="cardsReceiveAllTbody"><tr><td colspan="8">جاري التحميل...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -740,28 +747,44 @@ function showAdminTab(tabId) {
 }
 
 /* -------- بطاقات التحفيز: نظرة الإدارة -------- */
-const CARD_KEYS_ = ['هدية_3', 'هدية_2', 'مكافأة_3', 'مكافأة_2'];
+function cardPriceLabel_(p) { return Number(p) === 3 ? '3 ريال' : 'ريالين'; }
 
 function loadCardsAdminOverview() {
-  const centersTbody = document.getElementById('cardsCentersTbody');
-  const teachersTbody = document.getElementById('cardsTeachersTbody');
-  centersTbody.innerHTML = '<tr><td colspan="5">جاري التحميل...</td></tr>';
-  teachersTbody.innerHTML = '<tr><td colspan="6">جاري التحميل...</td></tr>';
-  callApi('getCardsAdminOverview', {}).then(function (r) {
-    if (!r.ok) return;
-    centersTbody.innerHTML = '';
-    if (!r.centers.length) { centersTbody.innerHTML = '<tr><td colspan="5">لا يوجد بيانات</td></tr>'; }
-    r.centers.forEach(function (c) {
+  const pendingTbody = document.getElementById('cardsPendingTbody');
+  const deliverTbody = document.getElementById('cardsDeliverAllTbody');
+  const receiveTbody = document.getElementById('cardsReceiveAllTbody');
+  pendingTbody.innerHTML = '<tr><td colspan="8">جاري التحميل...</td></tr>';
+  deliverTbody.innerHTML = '<tr><td colspan="8">جاري التحميل...</td></tr>';
+  receiveTbody.innerHTML = '<tr><td colspan="8">جاري التحميل...</td></tr>';
+
+  callApi('getIncentiveEntries', { kind: 'تسليم' }).then(function (r) {
+    const list = (r.ok ? r.list : []) || [];
+    const pending = list.filter(function (row) { return row['حالة الاستبدال'] !== 'تم الاستبدال'; });
+    pendingTbody.innerHTML = '';
+    if (!pending.length) { pendingTbody.innerHTML = '<tr><td colspan="8">ما فيه بطاقات معلّقة حالياً 👍</td></tr>'; }
+    pending.forEach(function (row) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + c.center + '</td>' + CARD_KEYS_.map(function (k) { return '<td>' + (c[k] || 0) + '</td>'; }).join('');
-      centersTbody.appendChild(tr);
+      tr.innerHTML = '<td>' + (row['اسم المركز'] || '') + '</td><td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + (row['اسم المستفيدة'] || '') + '</td>';
+      pendingTbody.appendChild(tr);
     });
-    teachersTbody.innerHTML = '';
-    if (!r.teachersOutstanding.length) { teachersTbody.innerHTML = '<tr><td colspan="6">ما فيه أحد عليه بطاقات حالياً 👍</td></tr>'; }
-    r.teachersOutstanding.forEach(function (t) {
+
+    deliverTbody.innerHTML = '';
+    if (!list.length) { deliverTbody.innerHTML = '<tr><td colspan="8">لا يوجد بيانات</td></tr>'; }
+    list.slice(0, 50).forEach(function (row) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + t.center + '</td><td>' + t.teacher + '</td>' + CARD_KEYS_.map(function (k) { return '<td>' + (t[k] || 0) + '</td>'; }).join('');
-      teachersTbody.appendChild(tr);
+      tr.innerHTML = '<td>' + (row['اسم المركز'] || '') + '</td><td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + (row['حالة الاستبدال'] || '') + '</td>';
+      deliverTbody.appendChild(tr);
+    });
+  });
+
+  callApi('getIncentiveEntries', { kind: 'استلام' }).then(function (r) {
+    const list = (r.ok ? r.list : []) || [];
+    receiveTbody.innerHTML = '';
+    if (!list.length) { receiveTbody.innerHTML = '<tr><td colspan="8">لا يوجد بيانات</td></tr>'; }
+    list.slice(0, 50).forEach(function (row) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + (row['اسم المركز'] || '') + '</td><td>' + (row['الدور'] || '') + '</td><td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td>';
+      receiveTbody.appendChild(tr);
     });
   });
 }
