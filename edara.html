@@ -598,11 +598,8 @@
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">متابعة الصرف</h3>
         <div id="cardsFollowupChart" style="margin-bottom:16px;">جاري التحميل...</div>
-        <table class="log-table" id="cardsFollowupAllTable">
-          <thead><tr><th>المركز</th><th>اسم المستلمة</th><th>النوع</th><th>القيمة</th><th>الكمية الإجمالية</th><th>اسم المستفيدة</th><th>العدد</th><th>الحالة</th><th>التاريخ</th></tr></thead>
-          <tbody id="cardsFollowupAllTbody"><tr><td colspan="9">جاري التحميل...</td></tr></tbody>
-        </table>
       </div>
+      <div id="cardsFollowupGroups"><div class="card">جاري التحميل...</div></div>
     </div>
 
     <!-- عنصر مخفي: يُستخدم داخليًا لتحويل تقرير الزيارة لملف PDF (حفظ/مشاركة) - لا يظهر بالشاشة
@@ -745,10 +742,10 @@ function cardPriceLabel_(p) { return Number(p) === 3 ? '3 ريال' : 'ريال�
 
 function loadCardsAdminOverview() {
   const managersTbody = document.getElementById('cardsManagersTbody');
-  const followupTbody = document.getElementById('cardsFollowupAllTbody');
+  const groupsWrap = document.getElementById('cardsFollowupGroups');
   const chartWrap = document.getElementById('cardsFollowupChart');
   managersTbody.innerHTML = '<tr><td colspan="8">جاري التحميل...</td></tr>';
-  followupTbody.innerHTML = '<tr><td colspan="9">جاري التحميل...</td></tr>';
+  groupsWrap.innerHTML = '<div class="card">جاري التحميل...</div>';
   chartWrap.innerHTML = 'جاري التحميل...';
 
   callApi('getIncentiveEntries', { kind: 'استلام' }).then(function (r) {
@@ -768,8 +765,6 @@ function loadCardsAdminOverview() {
   ]).then(function (results) {
     const entries = (results[0].ok ? results[0].list : []) || [];
     const splits = (results[1].ok ? results[1].list : []) || [];
-    const byId = {};
-    entries.forEach(function (e) { byId[e['معرف']] = e; });
 
     // -------- الرسم البياني: إجمالي الكميات حسب الحالة --------
     const totalDelivered = entries.reduce(function (s, e) { return s + (Number(e['الكمية']) || 0); }, 0);
@@ -794,14 +789,33 @@ function loadCardsAdminOverview() {
       chartWrap.appendChild(rowDiv);
     });
 
-    // -------- جدول تفصيلي بكل توزيع --------
-    followupTbody.innerHTML = '';
-    if (!splits.length) { followupTbody.innerHTML = '<tr><td colspan="9">لا يوجد توزيعات مسجّلة بعد</td></tr>'; return; }
-    splits.forEach(function (s) {
-      const parent = byId[s['معرف السطر الأصلي']] || {};
-      const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (s['اسم المركز'] || '') + '</td><td>' + (parent['اسم المستلمة'] || '') + '</td><td>' + (parent['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(parent['القيمة']) + '</td><td>' + (parent['الكمية'] || '') + '</td><td>' + (s['اسم المستفيدة'] || '') + '</td><td>' + (s['العدد'] || '') + '</td><td>' + (s['الحالة'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td>';
-      followupTbody.appendChild(tr);
+    // -------- كرت لكل سطر تسليم (الكمية الإجمالية تُكتب مرة وحدة بالكرت، مو مكررة بكل صف) --------
+    groupsWrap.innerHTML = '';
+    if (!entries.length) { groupsWrap.innerHTML = '<div class="card">لا يوجد سجل بعد</div>'; return; }
+    entries.forEach(function (entry) {
+      const parentId = entry['معرف'];
+      const mySplits = splits.filter(function (s) { return s['معرف السطر الأصلي'] === parentId; });
+      const total = Number(entry['الكمية']) || 0;
+      const allocated = mySplits.reduce(function (s, r) { return s + (Number(r['العدد']) || 0); }, 0);
+      const remaining = total - allocated;
+      const card = document.createElement('div');
+      card.className = 'card';
+      let splitsHtml = '';
+      if (mySplits.length) {
+        splitsHtml = '<table class="log-table" style="margin-top:10px;"><thead><tr><th>اسم المستفيدة</th><th>العدد</th><th>الحالة</th><th>التاريخ</th></tr></thead><tbody>' +
+          mySplits.map(function (s) {
+            return '<tr><td>' + (s['اسم المستفيدة'] || '') + '</td><td>' + (s['العدد'] || '') + '</td><td>' + (s['الحالة'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td></tr>';
+          }).join('') + '</tbody></table>';
+      } else {
+        splitsHtml = '<p style="color:#8a7d76;font-size:0.85rem;margin:8px 0 0;">ما فيه توزيعات مسجّلة بعد لهذا السطر</p>';
+      }
+      card.innerHTML =
+        '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">' +
+          '<strong style="color:var(--maroon);">' + (entry['اسم المركز'] || '') + ' - اسم المستلمة: ' + (entry['اسم المستلمة'] || '') + '</strong>' +
+          '<span style="color:#8a7d76;font-size:0.85rem;">' + (entry['نوع البطاقة'] || '') + ' - ' + cardPriceLabel_(entry['القيمة']) + ' - الكمية الإجمالية: ' + total + ' - المتبقي: ' + remaining + '</span>' +
+        '</div>' +
+        splitsHtml;
+      groupsWrap.appendChild(card);
     });
   });
 }
