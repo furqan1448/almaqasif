@@ -589,24 +589,17 @@
     <!-- ===== تبويب: بطاقات التحفيز (نظرة الإدارة) ===== -->
     <div id="cardsAdminTab" class="admin-tab-panel hidden">
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">بطاقات لسا ما اتستبدلت (من سجل التسليم بكل المراكز)</h3>
-        <table class="log-table" id="cardsPendingTable">
-          <thead><tr><th>المركز</th><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th><th>اسم المستفيدة</th></tr></thead>
-          <tbody id="cardsPendingTbody"><tr><td colspan="8">جاري التحميل...</td></tr></tbody>
-        </table>
-      </div>
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">آخر سجلات التسليم (كل المراكز)</h3>
-        <table class="log-table" id="cardsDeliverAllTable">
-          <thead><tr><th>المركز</th><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th><th>الحالة</th></tr></thead>
-          <tbody id="cardsDeliverAllTbody"><tr><td colspan="8">جاري التحميل...</td></tr></tbody>
-        </table>
-      </div>
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">آخر سجلات الاستلام (كل المراكز)</h3>
-        <table class="log-table" id="cardsReceiveAllTable">
+        <h3 style="margin-top:0;color:var(--maroon);">تسليم بطاقات التحفيز - المديرات (كل المراكز)</h3>
+        <table class="log-table" id="cardsManagersTable">
           <thead><tr><th>المركز</th><th>الصفة</th><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th></tr></thead>
-          <tbody id="cardsReceiveAllTbody"><tr><td colspan="8">جاري التحميل...</td></tr></tbody>
+          <tbody id="cardsManagersTbody"><tr><td colspan="8">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">متابعة بطاقات التحفيز - منسوبات المركز (كل المراكز)</h3>
+        <table class="log-table" id="cardsFollowupAllTable">
+          <thead><tr><th>المركز</th><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th><th>اسم المستفيدة</th><th>الحالة</th></tr></thead>
+          <tbody id="cardsFollowupAllTbody"><tr><td colspan="9">جاري التحميل...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -750,41 +743,30 @@ function showAdminTab(tabId) {
 function cardPriceLabel_(p) { return Number(p) === 3 ? '3 ريال' : 'ريالين'; }
 
 function loadCardsAdminOverview() {
-  const pendingTbody = document.getElementById('cardsPendingTbody');
-  const deliverTbody = document.getElementById('cardsDeliverAllTbody');
-  const receiveTbody = document.getElementById('cardsReceiveAllTbody');
-  pendingTbody.innerHTML = '<tr><td colspan="8">جاري التحميل...</td></tr>';
-  deliverTbody.innerHTML = '<tr><td colspan="8">جاري التحميل...</td></tr>';
-  receiveTbody.innerHTML = '<tr><td colspan="8">جاري التحميل...</td></tr>';
-
-  callApi('getIncentiveEntries', { kind: 'تسليم' }).then(function (r) {
-    const list = (r.ok ? r.list : []) || [];
-    const pending = list.filter(function (row) { return row['حالة الاستبدال'] !== 'تم الاستبدال'; });
-    pendingTbody.innerHTML = '';
-    if (!pending.length) { pendingTbody.innerHTML = '<tr><td colspan="8">ما فيه بطاقات معلّقة حالياً 👍</td></tr>'; }
-    pending.forEach(function (row) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (row['اسم المركز'] || '') + '</td><td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + (row['اسم المستفيدة'] || '') + '</td>';
-      pendingTbody.appendChild(tr);
-    });
-
-    deliverTbody.innerHTML = '';
-    if (!list.length) { deliverTbody.innerHTML = '<tr><td colspan="8">لا يوجد بيانات</td></tr>'; }
-    list.slice(0, 50).forEach(function (row) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (row['اسم المركز'] || '') + '</td><td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + (row['حالة الاستبدال'] || '') + '</td>';
-      deliverTbody.appendChild(tr);
-    });
-  });
+  const managersTbody = document.getElementById('cardsManagersTbody');
+  const followupTbody = document.getElementById('cardsFollowupAllTbody');
+  managersTbody.innerHTML = '<tr><td colspan="8">جاري التحميل...</td></tr>';
+  followupTbody.innerHTML = '<tr><td colspan="9">جاري التحميل...</td></tr>';
 
   callApi('getIncentiveEntries', { kind: 'استلام' }).then(function (r) {
     const list = (r.ok ? r.list : []) || [];
-    receiveTbody.innerHTML = '';
-    if (!list.length) { receiveTbody.innerHTML = '<tr><td colspan="8">لا يوجد بيانات</td></tr>'; }
-    list.slice(0, 50).forEach(function (row) {
+    managersTbody.innerHTML = '';
+    if (!list.length) { managersTbody.innerHTML = '<tr><td colspan="8">لا يوجد بيانات</td></tr>'; }
+    list.forEach(function (row) {
       const tr = document.createElement('tr');
       tr.innerHTML = '<td>' + (row['اسم المركز'] || '') + '</td><td>' + (row['الدور'] || '') + '</td><td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td>';
-      receiveTbody.appendChild(tr);
+      managersTbody.appendChild(tr);
+    });
+  });
+
+  callApi('getIncentiveEntries', { kind: 'تسليم' }).then(function (r) {
+    const list = (r.ok ? r.list : []) || [];
+    followupTbody.innerHTML = '';
+    if (!list.length) { followupTbody.innerHTML = '<tr><td colspan="9">لا يوجد بيانات</td></tr>'; }
+    list.forEach(function (row) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + (row['اسم المركز'] || '') + '</td><td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + (row['اسم المستفيدة'] || '') + '</td><td>' + (row['حالة الاستبدال'] || '') + '</td>';
+      followupTbody.appendChild(tr);
     });
   });
 }

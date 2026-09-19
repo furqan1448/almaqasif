@@ -126,11 +126,11 @@
           </div>
           <div class="icon-btn" onclick="showView('cardsDeliverView')">
             <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="7.5" cy="14" r="1"/></svg></div>
-            <span class="label">تسليم بطاقات التحفيز</span>
+            <span class="label">تسليم بطاقات التحفيز - منسوبات المركز</span>
           </div>
           <div class="icon-btn" onclick="showView('cardsReceiveView')">
             <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="16.5" cy="14" r="1"/></svg></div>
-            <span class="label">استلام بطاقات التحفيز</span>
+            <span class="label">تسليم بطاقات التحفيز - مسؤولة المقصف</span>
           </div>
           <div class="icon-btn" onclick="showView('cardsFollowupView')">
             <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10"/></svg></div>
@@ -322,7 +322,7 @@
     <div id="cardsDeliverView" class="hidden">
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">تسجيل تسليم بطاقة تحفيز</h3>
+        <h3 style="margin-top:0;color:var(--maroon);">تسجيل تسليم بطاقة تحفيز - منسوبات المركز</h3>
         <label>نوع البطاقة</label>
         <select id="cdCategory">
           <option value="مكافأة">مكافأة</option>
@@ -355,7 +355,7 @@
       </div>
 
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">سجل تسليم بطاقات التحفيز</h3>
+        <h3 style="margin-top:0;color:var(--maroon);">سجل تسليم بطاقات التحفيز - منسوبات المركز</h3>
         <table class="log-table" id="cdTable">
           <thead><tr><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th></tr></thead>
           <tbody id="cdTbody"><tr><td colspan="6">جاري التحميل...</td></tr></tbody>
@@ -371,7 +371,7 @@
     <div id="cardsReceiveView" class="hidden">
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">تسجيل استلام بطاقة تحفيز</h3>
+        <h3 style="margin-top:0;color:var(--maroon);">تسجيل تسليم بطاقة تحفيز - مسؤولة المقصف</h3>
         <label>نوع البطاقة</label>
         <select id="crCategory">
           <option value="مكافأة">مكافأة</option>
@@ -405,7 +405,7 @@
       </div>
 
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">سجل استلام بطاقات التحفيز</h3>
+        <h3 style="margin-top:0;color:var(--maroon);">سجل تسليم بطاقات التحفيز - مسؤولة المقصف</h3>
         <table class="log-table" id="crTable">
           <thead><tr><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th></tr></thead>
           <tbody id="crTbody"><tr><td colspan="6">جاري التحميل...</td></tr></tbody>
@@ -422,7 +422,7 @@
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">متابعة بطاقات التحفيز</h3>
-        <p style="font-size:0.85rem;color:#8a7d76;margin-top:0;">القائمة من سجل تسليم بطاقات التحفيز — اكتبي اسم المستفيدة وحدّدي الحالة لما تجي تستبدل البطاقة</p>
+        <p style="font-size:0.85rem;color:#8a7d76;margin-top:0;">القائمة من سجل تسليم بطاقات التحفيز - منسوبات المركز — اكتبي اسم المستفيدة وحدّدي الحالة لما تجي تستبدل البطاقة</p>
         <table class="log-table" id="cfTable">
           <thead><tr><th>اسم المستلمة</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستفيدة</th><th>الحالة</th><th></th></tr></thead>
           <tbody id="cfTbody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
@@ -1851,14 +1851,14 @@ function exportCardDeliverReport() {
   const rows = currentCdData_.map(function (row) {
     return { 'اليوم': row['اليوم'] || '', 'التاريخ': toHijriStr(row['التاريخ']), 'نوع البطاقة': row['نوع البطاقة'] || '', 'القيمة': cardPriceLabel_(row['القيمة']), 'الكمية': row['الكمية'] || '', 'اسم المستلمة': row['اسم المستلمة'] || '' };
   });
-  exportToExcel(rows, 'تسليم-بطاقات-التحفيز-' + currentCenter, 'تسليم بطاقات التحفيز');
+  exportToExcel(rows, 'تسليم-بطاقات-التحفيز-منسوبات-' + currentCenter, 'تسليم بطاقات - منسوبات المركز');
 }
 
 function printCardDeliverReport() {
   const rows = currentCdData_.map(function (row) {
     return { day: row['اليوم'] || '', date: toHijriStr(row['التاريخ']), cat: row['نوع البطاقة'] || '', price: cardPriceLabel_(row['القيمة']), qty: row['الكمية'] || '', recipient: row['اسم المستلمة'] || '' };
   });
-  printReport('سجل تسليم بطاقات التحفيز', currentCenter, [
+  printReport('سجل تسليم بطاقات التحفيز - منسوبات المركز', currentCenter, [
     { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'cat', label: 'النوع' },
     { key: 'price', label: 'القيمة' }, { key: 'qty', label: 'الكمية' }, { key: 'recipient', label: 'اسم المستلمة' }
   ], rows);
@@ -1869,14 +1869,14 @@ function exportCardReceiveReport() {
   const rows = currentCrData_.map(function (row) {
     return { 'اليوم': row['اليوم'] || '', 'التاريخ': toHijriStr(row['التاريخ']), 'نوع البطاقة': row['نوع البطاقة'] || '', 'القيمة': cardPriceLabel_(row['القيمة']), 'الكمية': row['الكمية'] || '', 'اسم المستلمة': row['اسم المستلمة'] || '' };
   });
-  exportToExcel(rows, 'استلام-بطاقات-التحفيز-' + currentCenter, 'استلام بطاقات التحفيز');
+  exportToExcel(rows, 'تسليم-بطاقات-التحفيز-مسؤولة-المقصف-' + currentCenter, 'تسليم بطاقات - مسؤولة المقصف');
 }
 
 function printCardReceiveReport() {
   const rows = currentCrData_.map(function (row) {
     return { day: row['اليوم'] || '', date: toHijriStr(row['التاريخ']), cat: row['نوع البطاقة'] || '', price: cardPriceLabel_(row['القيمة']), qty: row['الكمية'] || '', recipient: row['اسم المستلمة'] || '' };
   });
-  printReport('سجل استلام بطاقات التحفيز', currentCenter, [
+  printReport('سجل تسليم بطاقات التحفيز - مسؤولة المقصف', currentCenter, [
     { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'cat', label: 'النوع' },
     { key: 'price', label: 'القيمة' }, { key: 'qty', label: 'الكمية' }, { key: 'recipient', label: 'اسم المستلمة' }
   ], rows);
