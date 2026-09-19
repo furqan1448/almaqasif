@@ -588,20 +588,7 @@
 
     <!-- ===== تبويب: بطاقات التحفيز (نظرة الإدارة) ===== -->
     <div id="cardsAdminTab" class="admin-tab-panel hidden">
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">تسليم بطاقات التحفيز - المديرات (كل المراكز)</h3>
-        <table class="log-table" id="cardsManagersTable">
-          <thead><tr><th>المركز</th><th>الصفة</th><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th></tr></thead>
-          <tbody id="cardsManagersTbody"><tr><td colspan="8">جاري التحميل...</td></tr></tbody>
-        </table>
-      </div>
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">متابعة بطاقات التحفيز - منسوبات المركز (كل المراكز)</h3>
-        <table class="log-table" id="cardsFollowupAllTable">
-          <thead><tr><th>المركز</th><th>اسم المستلمة</th><th>النوع</th><th>القيمة</th><th>الكمية الإجمالية</th><th>اسم المستفيدة</th><th>العدد</th><th>الحالة</th><th>التاريخ</th></tr></thead>
-          <tbody id="cardsFollowupAllTbody"><tr><td colspan="9">جاري التحميل...</td></tr></tbody>
-        </table>
-      </div>
+      <div id="cardsSummaryList"><div class="card">جاري التحميل...</div></div>
     </div>
 
     <!-- عنصر مخفي: يُستخدم داخليًا لتحويل تقرير الزيارة لملف PDF (حفظ/مشاركة) - لا يظهر بالشاشة
@@ -743,37 +730,62 @@ function showAdminTab(tabId) {
 function cardPriceLabel_(p) { return Number(p) === 3 ? '3 ريال' : 'ريالين'; }
 
 function loadCardsAdminOverview() {
-  const managersTbody = document.getElementById('cardsManagersTbody');
-  const followupTbody = document.getElementById('cardsFollowupAllTbody');
-  managersTbody.innerHTML = '<tr><td colspan="8">جاري التحميل...</td></tr>';
-  followupTbody.innerHTML = '<tr><td colspan="9">جاري التحميل...</td></tr>';
-
-  callApi('getIncentiveEntries', { kind: 'استلام' }).then(function (r) {
-    const list = (r.ok ? r.list : []) || [];
-    managersTbody.innerHTML = '';
-    if (!list.length) { managersTbody.innerHTML = '<tr><td colspan="8">لا يوجد بيانات</td></tr>'; }
-    list.forEach(function (row) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (row['اسم المركز'] || '') + '</td><td>' + (row['الدور'] || '') + '</td><td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td>';
-      managersTbody.appendChild(tr);
-    });
-  });
+  const container = document.getElementById('cardsSummaryList');
+  container.innerHTML = '<div class="card">جاري التحميل...</div>';
 
   Promise.all([
+    callApi('getIncentiveEntries', { kind: 'استلام' }),
     callApi('getIncentiveEntries', { kind: 'تسليم' }),
     callApi('getIncentiveFollowupSplits', {})
   ]).then(function (results) {
-    const entries = (results[0].ok ? results[0].list : []) || [];
-    const splits = (results[1].ok ? results[1].list : []) || [];
-    followupTbody.innerHTML = '';
-    if (!splits.length) { followupTbody.innerHTML = '<tr><td colspan="9">لا يوجد توزيعات مسجّلة بعد</td></tr>'; return; }
-    const byId = {};
-    entries.forEach(function (e) { byId[e['معرف']] = e; });
-    splits.forEach(function (s) {
-      const parent = byId[s['معرف السطر الأصلي']] || {};
-      const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (s['اسم المركز'] || '') + '</td><td>' + (parent['اسم المستلمة'] || '') + '</td><td>' + (parent['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(parent['القيمة']) + '</td><td>' + (parent['الكمية'] || '') + '</td><td>' + (s['اسم المستفيدة'] || '') + '</td><td>' + (s['العدد'] || '') + '</td><td>' + (s['الحالة'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td>';
-      followupTbody.appendChild(tr);
+    const managerEntries = (results[0].ok ? results[0].list : []) || [];
+    const staffEntries = (results[1].ok ? results[1].list : []) || [];
+    const splits = (results[2].ok ? results[2].list : []) || [];
+
+    const centers = {};
+    managerEntries.forEach(function (e) {
+      const c = e['اسم المركز'] || '';
+      if (!centers[c]) centers[c] = { manager: [], staff: [] };
+      centers[c].manager.push(e);
+    });
+    staffEntries.forEach(function (e) {
+      const c = e['اسم المركز'] || '';
+      if (!centers[c]) centers[c] = { manager: [], staff: [] };
+      centers[c].staff.push(e);
+    });
+
+    const centerNames = Object.keys(centers);
+    if (!centerNames.length) { container.innerHTML = '<div class="card">لا يوجد بيانات</div>'; return; }
+    container.innerHTML = '';
+
+    centerNames.forEach(function (centerName) {
+      const data = centers[centerName];
+      const card = document.createElement('div');
+      card.className = 'card';
+      let html = '<h3 style="margin-top:0;color:var(--maroon);">' + centerName + '</h3>';
+
+      html += '<ul style="margin:0;padding-inline-start:20px;line-height:2;">';
+      data.manager.forEach(function (m) {
+        html += '<li>تم توزيع ' + (m['الكمية'] || 0) + ' بطاقة ' + (m['نوع البطاقة'] || '') + ' (' + cardPriceLabel_(m['القيمة']) + ') إلى ' + (m['الدور'] || '') + ' - بتاريخ ' + toHijriStr(m['التاريخ']) + '.</li>';
+      });
+      html += '</ul>';
+
+      if (data.staff.length) {
+        html += '<ul style="margin:10px 0 0;padding-inline-start:20px;line-height:2;">';
+        data.staff.forEach(function (s) {
+          const mySplits = splits.filter(function (sp) { return sp['معرف السطر الأصلي'] === s['معرف']; });
+          const redeemed = mySplits.filter(function (sp) { return sp['الحالة'] === 'تم الاستبدال'; }).reduce(function (sum, sp) { return sum + (Number(sp['العدد']) || 0); }, 0);
+          const allocated = mySplits.reduce(function (sum, sp) { return sum + (Number(sp['العدد']) || 0); }, 0);
+          const total = Number(s['الكمية']) || 0;
+          const remaining = total - allocated;
+          html += '<li>تم تسليم ' + total + ' بطاقة ' + (s['نوع البطاقة'] || '') + ' (' + cardPriceLabel_(s['القيمة']) + ') للمستلمة: ' + (s['اسم المستلمة'] || '') +
+            ' - تم استبدال ' + redeemed + ' - المتبقي: ' + remaining + '.</li>';
+        });
+        html += '</ul>';
+      }
+
+      card.innerHTML = html;
+      container.appendChild(card);
     });
   });
 }

@@ -337,7 +337,7 @@
         <input type="text" inputmode="numeric" pattern="[0-9]*" id="cdQty" placeholder="اكتبي العدد">
         <label>اسم المستلمة</label>
         <input type="text" id="cdRecipient" placeholder="اسم المستلمة">
-        <div class="pledge-box">أقر أنا الموقعة أدناه باستلام بطاقات التحفيز الموضحة أعلاه، وأتعهد بالمحافظة عليها وتسليمها للغرض المخصص لها، وفي حال عدم استخدامها، أتعهد بمتابعة إعادتها.</div>
+        <div class="pledge-box">أقر أنا الموقعة أدناه باستلام بطاقات التحفيز الموضحة أعلاه، وأتعهد بالمحافظة عليها وتسليمها للغرض المخصص لها، وفي حال عدم استخدامها، أتعهد بمتابعة إعادتها إلى مسؤولة المقصف.</div>
         <div class="checkline"><input type="checkbox" id="cdAgree"><label for="cdAgree" style="margin:0;font-weight:500;">أوافق على الإقرار أعلاه</label></div>
         <label>التوقيع</label>
         <div class="sig-mode-toggle">
@@ -357,8 +357,8 @@
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">سجل تسليم بطاقات التحفيز - منسوبات المركز</h3>
         <table class="log-table" id="cdTable">
-          <thead><tr><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th></tr></thead>
-          <tbody id="cdTbody"><tr><td colspan="6">جاري التحميل...</td></tr></tbody>
+          <thead><tr><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th><th>التوقيع</th></tr></thead>
+          <tbody id="cdTbody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportCardDeliverReport()">⬇️ Excel</button>
@@ -407,8 +407,8 @@
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">سجل تسليم بطاقات التحفيز - مسؤولة المقصف</h3>
         <table class="log-table" id="crTable">
-          <thead><tr><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th></tr></thead>
-          <tbody id="crTbody"><tr><td colspan="6">جاري التحميل...</td></tr></tbody>
+          <thead><tr><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th><th>التوقيع</th></tr></thead>
+          <tbody id="crTbody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportCardReceiveReport()">⬇️ Excel</button>
@@ -1819,11 +1819,11 @@ function loadCardsDeliverLog_() {
   const tbody = document.getElementById('cdTbody');
   callApi('getIncentiveEntries', { center: currentCenter, kind: 'تسليم' }).then(function (r) {
     currentCdData_ = (r.ok ? r.list : []) || [];
-    if (!currentCdData_.length) { tbody.innerHTML = '<tr><td colspan="6">لا يوجد سجل بعد</td></tr>'; return; }
+    if (!currentCdData_.length) { tbody.innerHTML = '<tr><td colspan="7">لا يوجد سجل بعد</td></tr>'; return; }
     tbody.innerHTML = '';
     currentCdData_.forEach(function (row) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td>';
+      tr.innerHTML = '<td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + (row['التوقيع'] ? '<img src="' + row['التوقيع'] + '" alt="توقيع" style="max-width:70px;max-height:36px;">' : '') + '</td>';
       tbody.appendChild(tr);
     });
   });
@@ -1833,11 +1833,11 @@ function loadCardsReceiveLog_() {
   const tbody = document.getElementById('crTbody');
   callApi('getIncentiveEntries', { center: currentCenter, kind: 'استلام' }).then(function (r) {
     currentCrData_ = (r.ok ? r.list : []) || [];
-    if (!currentCrData_.length) { tbody.innerHTML = '<tr><td colspan="6">لا يوجد سجل بعد</td></tr>'; return; }
+    if (!currentCrData_.length) { tbody.innerHTML = '<tr><td colspan="7">لا يوجد سجل بعد</td></tr>'; return; }
     tbody.innerHTML = '';
     currentCrData_.forEach(function (row) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td>';
+      tr.innerHTML = '<td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + (row['التوقيع'] ? '<img src="' + row['التوقيع'] + '" alt="توقيع" style="max-width:70px;max-height:36px;">' : '') + '</td>';
       tbody.appendChild(tr);
     });
   });
@@ -1916,7 +1916,7 @@ function loadCardsFollowup_() {
         splitsHtml +
         (remaining > 0 ?
           '<div class="select-row" style="margin-top:12px;">' +
-            '<div><label>اسم المستفيدة</label><input type="text" class="cf-new-name" placeholder="اسم المستفيدة"></div>' +
+            '<div><label>اسم المستفيدة (اختياري)</label><input type="text" class="cf-new-name" placeholder="اسم المستفيدة"></div>' +
             '<div><label>العدد</label><input type="text" inputmode="numeric" pattern="[0-9]*" class="cf-new-qty" placeholder="حتى ' + remaining + '"></div>' +
             '<div><label>الحالة</label><select class="cf-new-status"><option value="لم يتم الاستبدال">لم يتم الاستبدال</option><option value="تم الاستبدال">تم الاستبدال</option></select></div>' +
           '</div>' +
@@ -1932,7 +1932,6 @@ function addCardFollowupSplit_(btn, parentId) {
   const name = card.querySelector('.cf-new-name').value.trim();
   const qty = Number(card.querySelector('.cf-new-qty').value) || 0;
   const status = card.querySelector('.cf-new-status').value;
-  if (!name) { alert('اكتبي اسم المستفيدة'); return; }
   if (!qty) { alert('اكتبي العدد'); return; }
   callApi('addIncentiveFollowupSplit', { parentId: parentId, center: currentCenter, beneficiaryName: name, qty: qty, status: status }).then(function (r) {
     if (!r.ok) { alert(r.error || 'تعذر الإضافة'); return; }

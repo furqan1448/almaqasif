@@ -1197,7 +1197,6 @@ function addIncentiveFollowupSplit_(p) {
   if (!parent) return { ok: false, error: 'السطر الأصلي غير موجود' };
   const qty = Number(p.qty) || 0;
   if (!qty || qty < 1) return { ok: false, error: 'العدد مطلوب' };
-  if (!p.beneficiaryName) return { ok: false, error: 'اسم المستفيدة مطلوب' };
   const existing = sheetToObjects_('متابعة بطاقات التحفيز').filter(function (r) { return r['معرف السطر الأصلي'] === p.parentId; });
   const allocated = existing.reduce(function (s, r) { return s + (Number(r['العدد']) || 0); }, 0);
   const total = Number(parent['الكمية']) || 0;
