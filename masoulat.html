@@ -347,6 +347,7 @@
 
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">سجل تسليم بطاقات التحفيز - منسوبات المركز</h3>
+        <div style="font-weight:700;color:var(--maroon);margin-bottom:8px;">إجمالي بطاقات التحفيز: <span id="cdTotal">0</span></div>
         <table class="log-table" id="cdTable">
           <thead><tr><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th><th>التوقيع</th></tr></thead>
           <tbody id="cdTbody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
@@ -388,6 +389,7 @@
 
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">سجل تسليم بطاقات التحفيز - مسؤولة المقصف</h3>
+        <div style="font-weight:700;color:var(--maroon);margin-bottom:8px;">إجمالي بطاقات التحفيز: <span id="crTotal">0</span></div>
         <table class="log-table" id="crTable">
           <thead><tr><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th><th>التوقيع</th></tr></thead>
           <tbody id="crTbody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
@@ -1848,8 +1850,11 @@ function cardPriceLabel_(p) { return Number(p) === 3 ? '3 ريال' : 'ريال�
 
 function loadCardsDeliverLog_() {
   const tbody = document.getElementById('cdTbody');
+  const totalEl = document.getElementById('cdTotal');
   callApi('getIncentiveEntries', { center: currentCenter, kind: 'تسليم' }).then(function (r) {
     currentCdData_ = (r.ok ? r.list : []) || [];
+    const total = currentCdData_.reduce(function (s, row) { return s + (Number(row['الكمية']) || 0); }, 0);
+    if (totalEl) totalEl.textContent = total;
     if (!currentCdData_.length) { tbody.innerHTML = '<tr><td colspan="7">لا يوجد سجل بعد</td></tr>'; return; }
     tbody.innerHTML = '';
     currentCdData_.forEach(function (row) {
@@ -1862,8 +1867,11 @@ function loadCardsDeliverLog_() {
 
 function loadCardsReceiveLog_() {
   const tbody = document.getElementById('crTbody');
+  const totalEl = document.getElementById('crTotal');
   callApi('getIncentiveEntries', { center: currentCenter, kind: 'استلام' }).then(function (r) {
     currentCrData_ = (r.ok ? r.list : []) || [];
+    const total = currentCrData_.reduce(function (s, row) { return s + (Number(row['الكمية']) || 0); }, 0);
+    if (totalEl) totalEl.textContent = total;
     if (!currentCrData_.length) { tbody.innerHTML = '<tr><td colspan="7">لا يوجد سجل بعد</td></tr>'; return; }
     tbody.innerHTML = '';
     currentCrData_.forEach(function (row) {
