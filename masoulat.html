@@ -323,20 +323,9 @@
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">تسجيل تسليم بطاقة تحفيز - منسوبات المركز</h3>
-        <label>نوع البطاقة</label>
-        <select id="cdCategory">
-          <option value="" selected disabled>اختاري</option>
-          <option value="مكافأة">مكافأة</option>
-          <option value="هدية">هدية</option>
-        </select>
-        <label>القيمة</label>
-        <select id="cdPrice">
-          <option value="" selected disabled>اختاري</option>
-          <option value="3">3 ريال</option>
-          <option value="2">ريالين</option>
-        </select>
-        <label>الكمية</label>
-        <input type="text" inputmode="numeric" pattern="[0-9]*" id="cdQty" placeholder="اكتبي العدد">
+        <label>البطاقات المسلَّمة (يمكن إضافة أكثر من نوع/قيمة بنفس التسليم)</label>
+        <div id="cdLinesList"></div>
+        <button type="button" class="btn outline" onclick="addCdLine_()" style="width:auto;padding:6px 14px;margin:4px 0 12px;">+ إضافة نوع/قيمة أخرى</button>
         <label>اسم المستلمة</label>
         <input type="text" id="cdRecipient" placeholder="اسم المستلمة">
         <div class="pledge-box">أقر أنا الموقعة أدناه باستلام بطاقات التحفيز الموضحة أعلاه، وأتعهد بالمحافظة عليها وتسليمها للغرض المخصص لها، وفي حال عدم استخدامها، أتعهد بمتابعة إعادتها إلى مسؤولة المقصف.</div>
@@ -374,20 +363,9 @@
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">تسجيل تسليم بطاقة تحفيز - مسؤولة المقصف</h3>
-        <label>نوع البطاقة</label>
-        <select id="crCategory">
-          <option value="" selected disabled>اختاري</option>
-          <option value="مكافأة">مكافأة</option>
-          <option value="هدية">هدية</option>
-        </select>
-        <label>القيمة</label>
-        <select id="crPrice">
-          <option value="" selected disabled>اختاري</option>
-          <option value="3">3 ريال</option>
-          <option value="2">ريالين</option>
-        </select>
-        <label>الكمية</label>
-        <input type="text" inputmode="numeric" pattern="[0-9]*" id="crQty" placeholder="اكتبي العدد">
+        <label>البطاقات المستلَمة (يمكن إضافة أكثر من نوع/قيمة بنفس الاستلام)</label>
+        <div id="crLinesList"></div>
+        <button type="button" class="btn outline" onclick="addCrLine_()" style="width:auto;padding:6px 14px;margin:4px 0 12px;">+ إضافة نوع/قيمة أخرى</button>
         <label>اسم المستلمة</label>
         <input type="text" id="crRecipient" placeholder="اسم المستلمة">
         <div class="pledge-box">أقر أنا الموقعة أدناه باستلام بطاقات التحفيز الموضحة أعلاه، وأتعهد بالمحافظة عليها وصرفها وفق الغرض المخصص لها، وإعادة البطاقات كاملة إلى وحدة المقاصف عند الطلب.</div>
@@ -1731,9 +1709,53 @@ function refreshPendingBadge() {
 const CARD_ROLE_LABEL_ = 'مسؤولة المقصف';
 let cdSigReady_ = false, crSigReady_ = false;
 let currentCdData_ = [], currentCrData_ = [];
+let cdLineIdx_ = 0, crLineIdx_ = 0;
+
+/* بند نوع/قيمة/كمية واحد - نبنيه بـ JS عشان تقدر المديرة/المسؤولة تضيف أكثر من نوع بنفس
+   الاستلام أو التسليم، وتوقّع مرة وحدة بس على الكل بدل ما تكرر الإقرار والتوقيع لكل نوع */
+function cardLineRowHtml_(prefix, idx) {
+  return '<div class="select-row card-line-row" data-idx="' + idx + '">' +
+    '<div><label>النوع</label><select class="' + prefix + '-line-cat"><option value="مكافأة">مكافأة</option><option value="هدية">هدية</option></select></div>' +
+    '<div><label>القيمة</label><select class="' + prefix + '-line-price"><option value="3">3 ريال</option><option value="2">ريالين</option></select></div>' +
+    '<div><label>الكمية</label><input type="text" inputmode="numeric" pattern="[0-9]*" class="' + prefix + '-line-qty" placeholder="العدد"></div>' +
+    '<div style="display:flex;align-items:flex-end;"><button type="button" class="btn outline" style="width:auto;padding:8px 12px;" onclick="removeCardLine_(this)">حذف</button></div>' +
+  '</div>';
+}
+
+function addCdLine_() {
+  const wrap = document.createElement('div');
+  wrap.innerHTML = cardLineRowHtml_('cd', cdLineIdx_++);
+  document.getElementById('cdLinesList').appendChild(wrap.firstElementChild);
+}
+
+function addCrLine_() {
+  const wrap = document.createElement('div');
+  wrap.innerHTML = cardLineRowHtml_('cr', crLineIdx_++);
+  document.getElementById('crLinesList').appendChild(wrap.firstElementChild);
+}
+
+function removeCardLine_(btn) {
+  const row = btn.closest('.card-line-row');
+  const list = row.parentElement;
+  row.remove();
+  if (!list.querySelector('.card-line-row')) {
+    if (list.id === 'cdLinesList') addCdLine_(); else addCrLine_();
+  }
+}
+
+function readCardLines_(prefix) {
+  return Array.from(document.querySelectorAll('#' + prefix + 'LinesList .card-line-row')).map(function (row) {
+    return {
+      category: row.querySelector('.' + prefix + '-line-cat').value,
+      price: Number(row.querySelector('.' + prefix + '-line-price').value),
+      qty: Number(row.querySelector('.' + prefix + '-line-qty').value) || 0
+    };
+  }).filter(function (l) { return l.qty > 0; });
+}
 
 function initCardsDeliverView_() {
   loadCardsDeliverLog_();
+  if (!document.querySelector('#cdLinesList .card-line-row')) addCdLine_();
   if (!cdSigReady_) {
     cdSigReady_ = true;
     setTimeout(function () { setupSignatureWidget('cdSig'); }, 50);
@@ -1742,6 +1764,7 @@ function initCardsDeliverView_() {
 
 function initCardsReceiveView_() {
   loadCardsReceiveLog_();
+  if (!document.querySelector('#crLinesList .card-line-row')) addCrLine_();
   if (!crSigReady_) {
     crSigReady_ = true;
     setTimeout(function () { setupSignatureWidget('crSig'); }, 50);
@@ -1760,28 +1783,26 @@ function isSigWidgetBlank_(id) {
 }
 
 function submitCardDeliver() {
-  const category = document.getElementById('cdCategory').value;
-  const price = Number(document.getElementById('cdPrice').value);
-  const qty = Number(document.getElementById('cdQty').value) || 0;
+  const lines = readCardLines_('cd');
   const recipient = document.getElementById('cdRecipient').value.trim();
-  if (!category) { alert('اختاري نوع البطاقة'); return; }
-  if (!price) { alert('اختاري القيمة'); return; }
-  if (!qty) { alert('اكتبي الكمية'); return; }
+  if (!lines.length) { alert('اكتبي كمية لنوع واحد على الأقل'); return; }
   if (!recipient) { alert('اكتبي اسم المستلمة'); return; }
   if (!document.getElementById('cdAgree').checked) { alert('لازم توافقي على الإقرار'); return; }
   if (isSigWidgetBlank_('cdSig')) { alert('لازم توقيع المستلمة'); return; }
   const sig = getSignatureDataUrl('cdSig');
   const btn = document.getElementById('cdSubmitBtn');
   setBtnBusy(btn, true);
-  callApi('recordIncentiveEntry', {
-    center: currentCenter, role: CARD_ROLE_LABEL_, kind: 'تسليم', category: category, price: price,
-    qty: qty, recipientName: recipient, signature: sig
-  }).then(function (r) {
+  Promise.all(lines.map(function (l) {
+    return callApi('recordIncentiveEntry', {
+      center: currentCenter, role: CARD_ROLE_LABEL_, kind: 'تسليم', category: l.category, price: l.price,
+      qty: l.qty, recipientName: recipient, signature: sig
+    });
+  })).then(function (results) {
     setBtnBusy(btn, false);
-    if (!r.ok) { alert(r.error || 'تعذر تسجيل التسليم'); return; }
-    document.getElementById('cdCategory').selectedIndex = 0;
-    document.getElementById('cdPrice').selectedIndex = 0;
-    document.getElementById('cdQty').value = '';
+    const failed = results.find(function (r) { return !r.ok; });
+    if (failed) { alert(failed.error || 'تعذر تسجيل بعض الأنواع'); }
+    document.getElementById('cdLinesList').innerHTML = '';
+    addCdLine_();
     document.getElementById('cdRecipient').value = '';
     document.getElementById('cdAgree').checked = false;
     clearSignatureWidget('cdSig');
@@ -1793,28 +1814,26 @@ function submitCardDeliver() {
 }
 
 function submitCardReceive() {
-  const category = document.getElementById('crCategory').value;
-  const price = Number(document.getElementById('crPrice').value);
-  const qty = Number(document.getElementById('crQty').value) || 0;
+  const lines = readCardLines_('cr');
   const recipient = document.getElementById('crRecipient').value.trim();
-  if (!category) { alert('اختاري نوع البطاقة'); return; }
-  if (!price) { alert('اختاري القيمة'); return; }
-  if (!qty) { alert('اكتبي الكمية'); return; }
+  if (!lines.length) { alert('اكتبي كمية لنوع واحد على الأقل'); return; }
   if (!recipient) { alert('اكتبي اسم المستلمة'); return; }
   if (!document.getElementById('crAgree').checked) { alert('لازم توافقي على الإقرار'); return; }
   if (isSigWidgetBlank_('crSig')) { alert('لازم التوقيع'); return; }
   const sig = getSignatureDataUrl('crSig');
   const btn = document.getElementById('crSubmitBtn');
   setBtnBusy(btn, true);
-  callApi('recordIncentiveEntry', {
-    center: currentCenter, role: CARD_ROLE_LABEL_, kind: 'استلام', category: category, price: price,
-    qty: qty, recipientName: recipient, signature: sig
-  }).then(function (r) {
+  Promise.all(lines.map(function (l) {
+    return callApi('recordIncentiveEntry', {
+      center: currentCenter, role: CARD_ROLE_LABEL_, kind: 'استلام', category: l.category, price: l.price,
+      qty: l.qty, recipientName: recipient, signature: sig
+    });
+  })).then(function (results) {
     setBtnBusy(btn, false);
-    if (!r.ok) { alert(r.error || 'تعذر تسجيل الاستلام'); return; }
-    document.getElementById('crCategory').selectedIndex = 0;
-    document.getElementById('crPrice').selectedIndex = 0;
-    document.getElementById('crQty').value = '';
+    const failed = results.find(function (r) { return !r.ok; });
+    if (failed) { alert(failed.error || 'تعذر تسجيل بعض الأنواع'); }
+    document.getElementById('crLinesList').innerHTML = '';
+    addCrLine_();
     document.getElementById('crRecipient').value = '';
     document.getElementById('crAgree').checked = false;
     clearSignatureWidget('crSig');
@@ -1932,7 +1951,7 @@ function loadCardsFollowup_() {
             '<div><label>العدد</label><input type="text" inputmode="numeric" pattern="[0-9]*" class="cf-new-qty" placeholder="حتى ' + remaining + '"></div>' +
             '<div><label>الحالة</label><select class="cf-new-status"><option value="" selected disabled>اختاري</option><option value="تم استبدال القيمة">تم استبدال القيمة</option><option value="تم إرجاع البطاقة">تم إرجاع البطاقة</option></select></div>' +
           '</div>' +
-          '<button type="button" class="btn outline" style="width:auto;padding:6px 14px;margin-top:6px;" onclick="addCardFollowupSplit_(this, \'' + parentId + '\')">إضافة توزيع</button>'
+          '<button type="button" class="btn outline" style="width:auto;padding:6px 14px;margin-top:6px;" onclick="addCardFollowupSplit_(this, \'' + parentId + '\')">حفظ</button>'
           : '<div class="success-msg" style="display:block;margin-top:10px;">تم توزيع كامل الكمية ✅</div>');
       container.appendChild(card);
     });
