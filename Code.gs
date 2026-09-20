@@ -1182,7 +1182,7 @@ function recordIncentiveEntry_(p) {
     const deliveredSoFar = centerRows.filter(function (r) { return r['نوع السجل'] === 'تسليم'; }).reduce(function (s, r) { return s + (Number(r['الكمية']) || 0); }, 0);
     if (deliveredSoFar + qty > received) {
       const remaining = Math.max(0, received - deliveredSoFar);
-      return { ok: false, error: 'ما يصير تسلَّم أكثر من اللي استُلم من ' + category + ' (' + cardPriceLabelForServer_(price) + ') - المتبقي المتاح للتسليم: ' + remaining };
+      return { ok: false, error: 'لا يمكن تسليم كمية أكبر من الكمية المستلَمة من فئة ' + category + ' بقيمة (' + cardPriceLabelForServer_(price) + '). الكمية المتبقية المتاحة للتسليم: ' + remaining + '.' };
     }
   }
   appendRowByHeaders_(sh, {
