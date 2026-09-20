@@ -183,6 +183,67 @@
         <div class="card hidden" id="alreadySignedCard">
           <div class="success-msg" style="display:block;">تم الاطلاع على هذا الإشعار</div>
           <img id="signedNoticeImg" class="notice-preview">
+          <button class="btn outline" onclick="openEditSigned()" style="margin-top:14px;">✏️ تعديل الإشعار</button>
+        </div>
+
+        <div class="card hidden" id="editSignedCard">
+          <h3 style="margin-top:0;color:var(--maroon);">تعديل الإشعار بعد توقيعه</h3>
+          <p style="font-size:0.82rem;color:#8a7d76;margin-top:0;">عدّلي اللي تبينه واضغطي حفظ، وتنرسم صورة الإشعار من جديد بالبيانات المعدّلة (مع توقيع المركز وتوقيعك).</p>
+          <div class="select-row">
+            <div>
+              <label>المركز</label>
+              <select id="esCenter"></select>
+            </div>
+            <div>
+              <label>تاريخ الإرسال</label>
+              <input type="date" id="esDate" onchange="esDateChanged()">
+            </div>
+          </div>
+          <label>يوم الإرسال</label>
+          <select id="esDay">
+            <option>الأحد</option><option>الاثنين</option><option>الثلاثاء</option><option>الأربعاء</option><option>الخميس</option><option>الجمعة</option><option>السبت</option>
+          </select>
+          <div class="select-row">
+            <div>
+              <label>نوع الإشعار</label>
+              <select id="esType"><option value="استلام">استلام</option><option value="تسليم">تسليم</option></select>
+            </div>
+            <div>
+              <label>المبلغ (ريال)</label>
+              <input type="number" id="esAmount" min="0" step="0.01">
+            </div>
+          </div>
+          <div class="select-row">
+            <div><label>اسم المسلّمة</label><input type="text" id="esSender"></div>
+            <div><label>اسم المستلمة</label><input type="text" id="esReceiver"></div>
+          </div>
+          <label>الأشهر (افصلي بينها بفاصلة، مثال: محرم، صفر)</label>
+          <input type="text" id="esMonths">
+          <div class="select-row">
+            <div><label>الفصل الدراسي</label><input type="text" id="esTerm"></div>
+            <div><label>العام</label><input type="text" id="esYear"></div>
+          </div>
+          <label>بيان مخصص (اتركيه فاضي للبيان التلقائي)</label>
+          <textarea id="esReason" rows="2"></textarea>
+
+          <label style="margin-top:12px;">توقيعك (الاطلاع)</label>
+          <p id="esSigHint" style="font-size:0.8rem;color:#8a7d76;margin:2px 0 6px;"></p>
+          <div class="sig-mode-toggle">
+            <button type="button" class="sig-mode-btn active" data-sigtoggle="editSigPad" data-mode="draw" onclick="setSigMode('editSigPad','draw')">رسم التوقيع</button>
+            <button type="button" class="sig-mode-btn" data-sigtoggle="editSigPad" data-mode="upload" onclick="setSigMode('editSigPad','upload')">رفع صورة توقيع</button>
+          </div>
+          <div class="sig-wrap" id="editSigPad_drawWrap"><canvas id="editSigPad" class="sig-pad"></canvas></div>
+          <div class="sig-upload-wrap hidden" id="editSigPad_uploadWrap">
+            <input type="file" accept="image/*" id="editSigPad_file">
+            <img id="editSigPad_preview" class="sig-upload-preview hidden">
+          </div>
+          <div class="sig-actions"><button onclick="clearSignatureWidget('editSigPad')">مسح التوقيع</button></div>
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
+            <button class="btn" id="esSaveBtn" onclick="saveEditSigned()">حفظ التعديل</button>
+            <button class="btn outline" onclick="closeEditSigned()">إلغاء</button>
+          </div>
+          <div class="error-msg" id="esError"></div>
         </div>
       </div>
     </div>
@@ -1039,6 +1100,130 @@ function openDetail(notice) {
   document.getElementById('detailView').classList.remove('hidden');
   setSigMode('adminSigPad', 'draw');
   setTimeout(function () { setupSignatureWidget('adminSigPad'); }, 50);
+  document.getElementById('editSignedCard').classList.add('hidden');
+}
+
+/* -------- تعديل إشعار بعد توقيعه -------- */
+function openEditSigned() {
+  const n = currentNotice;
+  if (!n) return;
+  document.getElementById('esType').value = n['النوع'] || 'استلام';
+  document.getElementById('esAmount').value = n['المبلغ'] || '';
+  document.getElementById('esSender').value = n['اسم المسلّمة'] || '';
+  document.getElementById('esReceiver').value = n['اسم المستلمة'] || '';
+  document.getElementById('esMonths').value = n['الشهر'] || '';
+  document.getElementById('esTerm').value = n['الفصل الدراسي'] || '';
+  document.getElementById('esYear').value = n['العام'] || '';
+  document.getElementById('esReason').value = n['بيان مخصص'] || '';
+  document.getElementById('esError').style.display = 'none';
+  const centerSel = document.getElementById('esCenter');
+  centerSel.innerHTML = '<option>' + (n['اسم المركز'] || '') + '</option>';
+  callApi('getCenters').then(function (rc) {
+    const names = (rc && rc.ok && rc.centers) ? rc.centers.slice() : [];
+    if (names.indexOf(n['اسم المركز']) === -1 && n['اسم المركز']) names.unshift(n['اسم المركز']);
+    centerSel.innerHTML = '';
+    names.forEach(function (nm) {
+      const o = document.createElement('option'); o.value = nm; o.textContent = nm; centerSel.appendChild(o);
+    });
+    centerSel.value = n['اسم المركز'] || names[0] || '';
+  });
+  const dm = String(n['تاريخ الإرسال'] || '').match(/^(\d{4}-\d{2}-\d{2})/);
+  document.getElementById('esDate').value = dm ? dm[1] : '';
+  document.getElementById('esDay').value = n['يوم الإرسال'] || (dm ? dayNameFor(dm[1]) : 'الأحد');
+  const hasStored = !!n['رابط توقيع الإدارة'];
+  document.getElementById('esSigHint').textContent = hasStored
+    ? 'توقيعك محفوظ من قبل، اتركي الخانة فاضية لاستخدامه، أو ارسمي/ارفعي توقيع جديد.'
+    : 'هذا الإشعار ما انحفظ له توقيعك (أو تم توقيعه قبل التحديث)، ارسمي توقيعك هنا مرة وحدة وبنحفظه لتعديلاتك الجاية.';
+  document.getElementById('editSignedCard').classList.remove('hidden');
+  setSigMode('editSigPad', 'draw');
+  setTimeout(function () {
+    setupSignatureWidget('editSigPad');
+    clearSignatureWidget('editSigPad');
+    document.getElementById('editSignedCard').scrollIntoView({ behavior: 'smooth' });
+  }, 50);
+}
+
+function esDateChanged() {
+  const v = document.getElementById('esDate').value;
+  if (v) document.getElementById('esDay').value = dayNameFor(v);
+}
+
+function closeEditSigned() {
+  document.getElementById('editSignedCard').classList.add('hidden');
+}
+
+function editSigHasInk_() {
+  const w = _sigWidgets['editSigPad'];
+  if (!w) return false;
+  if (w.mode === 'upload') return !!w.uploadDataUrl;
+  const canvas = document.getElementById('editSigPad');
+  const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let i = 3; i < data.length; i += 4) { if (data[i] !== 0) return true; }
+  return false;
+}
+
+async function saveEditSigned() {
+  const errBox = document.getElementById('esError');
+  errBox.style.display = 'none';
+  const n = currentNotice;
+  const showErr = function (m) { errBox.textContent = m; errBox.style.display = 'block'; };
+  const amount = document.getElementById('esAmount').value;
+  if (!(Number(amount) > 0)) { showErr('أدخلي مبلغ صحيح'); return; }
+  const type = document.getElementById('esType').value;
+  const centerName = document.getElementById('esCenter').value || n['اسم المركز'];
+  const sendDate = document.getElementById('esDate').value || n['تاريخ الإرسال'];
+  const sendDay = document.getElementById('esDay').value || n['يوم الإرسال'];
+  const sender = document.getElementById('esSender').value.trim();
+  const receiver = document.getElementById('esReceiver').value.trim();
+  const monthsText = document.getElementById('esMonths').value.trim();
+  const term = document.getElementById('esTerm').value.trim();
+  const year = document.getElementById('esYear').value.trim();
+  const reason = document.getElementById('esReason').value.trim();
+
+  const btn = document.getElementById('esSaveBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    // توقيع الإدارة: الجديد لو انرسم/انرفع، وإلا المحفوظ سابقًا
+    let adminSig = '';
+    let newAdminSig = '';
+    if (editSigHasInk_()) {
+      adminSig = getSignatureDataUrl('editSigPad');
+      newAdminSig = adminSig;
+    } else if (n['رابط توقيع الإدارة']) {
+      const r0 = await callApi('getNoticeAdminSignature', { id: n['معرف'] });
+      adminSig = (r0 && r0.ok && r0.dataUrl) ? r0.dataUrl : '';
+    }
+    if (!adminSig) { showErr('ارسمي توقيعك أو ارفعي صورته أولًا'); btn.disabled = false; btn.textContent = 'حفظ التعديل'; return; }
+
+    const months = monthsText.split(/[،,]\s*/).filter(Boolean);
+    const composed = await generateNoticeImage({
+      type: type, center: centerName, amount: amount,
+      sigDataUrl: n['بيانات توقيع المركز'], adminSigDataUrl: adminSig, adminLabel: 'توقيع المستلمة',
+      senderName: sender, receiverName: receiver,
+      day: sendDay, date: sendDate,
+      months: months, term: term, year: year, reason: reason
+    });
+    const r = await callApi('updateSignedNotice', {
+      id: n['معرف'], type: type, center: centerName, date: sendDate, day: sendDay,
+      amount: amount, senderName: sender, receiverName: receiver,
+      month: months.join('، '), term: term, year: year, reason: reason,
+      signedNoticeImage: composed, adminSignature: newAdminSig
+    });
+    btn.disabled = false; btn.textContent = 'حفظ التعديل';
+    if (!r || !r.ok) { showErr((r && r.error) || 'تعذّر حفظ التعديل، حاولي مرة أخرى'); return; }
+    n['اسم المركز'] = centerName; n['تاريخ الإرسال'] = sendDate; n['يوم الإرسال'] = sendDay;
+    n['النوع'] = type; n['المبلغ'] = amount; n['اسم المسلّمة'] = sender; n['اسم المستلمة'] = receiver;
+    n['الشهر'] = months.join('، '); n['الفصل الدراسي'] = term; n['العام'] = year; n['بيان مخصص'] = reason;
+    if (r.signedImageUrl) n['رابط صورة الإشعار الموقع'] = r.signedImageUrl;
+    if (r.adminSigUrl) n['رابط توقيع الإدارة'] = r.adminSigUrl;
+    document.getElementById('signedNoticeImg').src = composed;
+    document.getElementById('detailNoticeImg').src = composed;
+    closeEditSigned();
+    alert('تم حفظ التعديل ✅');
+  } catch (err) {
+    btn.disabled = false; btn.textContent = 'حفظ التعديل';
+    showErr('صار خطأ أثناء الحفظ: ' + (err && err.message ? err.message : err));
+  }
 }
 
 function backToList() {

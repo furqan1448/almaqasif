@@ -902,6 +902,8 @@ function handleRequest_(p) {
       case 'getPendingNoticesCount': return json_(getPendingNoticesCount_());
       case 'getAllNotices': return json_(getAllNotices_(p));
       case 'adminSignNotice': return json_(adminSignNotice_(p));
+      case 'updateSignedNotice': return json_(updateSignedNotice_(p));
+      case 'getNoticeAdminSignature': return json_(getNoticeAdminSignature_(p));
       case 'updateNotice': return json_(updateNotice_(p));
       case 'deleteNotice': return json_(deleteNotice_(p));
 
@@ -1754,6 +1756,74 @@ function adminSignNotice_(p) {
   invalidateCache_('الإشعارات');
 
   return { ok: true };
+}
+
+/* -------- تعديل إشعار بعد توقيعه (الإدارة) --------
+   يحدّث بيانات الإشعار بالشيت، ويحفظ صورة الإشعار الموقعة الجديدة (اللي تولّدها الصفحة من البيانات المعدّلة
+   + توقيع المركز + توقيع الإدارة) ويستبدل رابطها. لو أرسلت الصفحة p.adminSignature نحفظه بـ Drive
+   ونحط رابطه بعمود "رابط توقيع الإدارة" عشان التعديلات الجاية ما تحتاج تعيدين التوقيع. */
+function setNoticeCell_(sh, row, header, value) {
+  const c = colIndex_(sh, header);
+  if (c > 0) sh.getRange(row, c).setValue(value);
+}
+
+function updateSignedNotice_(p) {
+  const sh = sheet_('الإشعارات');
+  const rows = sheetToObjects_('الإشعارات');
+  const target = rows.find(function (r) { return r['معرف'] === p.id; });
+  if (!target) return { ok: false, error: 'الإشعار غير موجود' };
+  const amount = Number(p.amount);
+  if (!(amount > 0)) return { ok: false, error: 'المبلغ غير صحيح' };
+
+  // المركز الجديد لازم يكون موجود بشيت المراكز (نتحقق قبل ما نحفظ أي صورة)
+  let newCenter = '';
+  if (p.center) {
+    newCenter = String(p.center).trim();
+    const known = sheetToObjects_('المراكز', CACHE_SECONDS_LONG).map(function (r) { return String(r['اسم المركز']).trim(); });
+    if (known.indexOf(newCenter) === -1) return { ok: false, error: 'المركز غير موجود بقائمة المراكز: ' + newCenter };
+  }
+
+  const row = target._row;
+  const stamp = new Date().getTime();
+  const signedImageUrl = p.signedNoticeImage ? saveImage_(p.signedNoticeImage, 'إشعار-موقع-' + p.id + '-' + stamp) : '';
+  const adminSigUrl = p.adminSignature ? saveImage_(p.adminSignature, 'توقيع-إدارة-' + p.id + '-' + stamp) : '';
+
+  if (p.type) setNoticeCell_(sh, row, 'النوع', p.type);
+  if (newCenter) setNoticeCell_(sh, row, 'اسم المركز', newCenter);
+  if (p.date) {
+    setNoticeCell_(sh, row, 'تاريخ الإرسال', String(p.date).trim());
+    setNoticeCell_(sh, row, 'يوم الإرسال', p.day || dayNameForDateStr_(p.date));
+  } else if (p.day) {
+    setNoticeCell_(sh, row, 'يوم الإرسال', p.day);
+  }
+  setNoticeCell_(sh, row, 'المبلغ', amount);
+  if (p.senderName !== undefined) setNoticeCell_(sh, row, 'اسم المسلّمة', p.senderName);
+  if (p.receiverName !== undefined) setNoticeCell_(sh, row, 'اسم المستلمة', p.receiverName);
+  if (p.month !== undefined) setNoticeCell_(sh, row, 'الشهر', p.month);
+  if (p.term !== undefined) setNoticeCell_(sh, row, 'الفصل الدراسي', p.term);
+  if (p.year !== undefined) setNoticeCell_(sh, row, 'العام', p.year);
+  if (p.reason !== undefined) setNoticeCell_(sh, row, 'بيان مخصص', p.reason);
+  if (signedImageUrl) setNoticeCell_(sh, row, 'رابط صورة الإشعار الموقع', signedImageUrl);
+  if (adminSigUrl) setNoticeCell_(sh, row, 'رابط توقيع الإدارة', adminSigUrl);
+  invalidateCache_('الإشعارات');
+  return { ok: true, signedImageUrl: signedImageUrl, adminSigUrl: adminSigUrl };
+}
+
+/* ترجع توقيع الإدارة المحفوظ سابقًا (كصورة base64) عشان الصفحة تعيد رسم الإشعار بدون ما تطلب توقيع جديد.
+   القراءة من Drive بالسيرفر تتجنب مشكلة منع المتصفح لقراءة صور من موقع ثاني. */
+function getNoticeAdminSignature_(p) {
+  const rows = sheetToObjects_('الإشعارات');
+  const target = rows.find(function (r) { return r['معرف'] === p.id; });
+  if (!target) return { ok: false, error: 'الإشعار غير موجود' };
+  const link = String(target['رابط توقيع الإدارة'] || '');
+  const m = link.match(/[-\w]{25,}/);
+  if (!m) return { ok: true, dataUrl: '' };
+  try {
+    const blob = DriveApp.getFileById(m[0]).getBlob();
+    return { ok: true, dataUrl: 'data:' + (blob.getContentType() || 'image/png') + ';base64,' + Utilities.base64Encode(blob.getBytes()) };
+  } catch (e) {
+    return { ok: true, dataUrl: '' };
+  }
 }
 
 /* ------------------- الإحصائيات (إيرادات المقاصف) ------------------- */
