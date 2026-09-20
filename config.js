@@ -829,6 +829,39 @@ function visitReportPdfWorker_(host, fileName) {
 /* توليد ملف PDF (Blob) من التقرير.
    الطريقة الأساسية: مكتبة html-to-image ترسم الصفحة بمحرك المتصفح نفسه، فيطلع العربي بنفس شكل الطباعة
    (حروف متصلة، النقطتين والأرقام بمكانها الصحيح). لو المكتبة ما تحمّلت نرجع للطريقة القديمة. */
+/* تجهيز خطوط الموقع (Tajawal وAmiri) مضمّنة كنص Base64 عشان تنرسم بالـPDF بنفس السماكة والشكل اللي تشوفينه بالموقع.
+   بدون هذا الرسم يستخدم خط بديل بسماكة مختلفة. يتحمّل مرة وحدة ويُخزّن. */
+let vrFontCssPromise_ = null;
+function vrFontEmbedCss_() {
+  if (vrFontCssPromise_) return vrFontCssPromise_;
+  vrFontCssPromise_ = (async function () {
+    const link = document.querySelector('link[href*="fonts.googleapis.com/css"]');
+    const cssUrl = link ? link.href : 'https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap';
+    const css = await (await fetch(cssUrl)).text();
+    const blocks = css.split('/* ').slice(1).map(function (b) { return '/* ' + b; })
+      .filter(function (b) { return /^\/\* (arabic|latin) \*\//.test(b); });
+    let out = '';
+    for (const blk of blocks) {
+      const m = blk.match(/url\(([^)]+)\)/);
+      if (!m) continue;
+      const fontUrl = m[1].replace(/["']/g, '');
+      const fontBlob = await (await fetch(fontUrl)).blob();
+      const dataUrl = await new Promise(function (resolve) {
+        const fr = new FileReader();
+        fr.onload = function () { resolve(fr.result); };
+        fr.readAsDataURL(fontBlob);
+      });
+      out += blk.replace(m[0], 'url(' + dataUrl + ')');
+    }
+    return out;
+  })().catch(function (e) {
+    console.warn('font embed failed', e);
+    vrFontCssPromise_ = null;
+    return '';
+  });
+  return vrFontCssPromise_;
+}
+
 async function visitReportPdfBlob_(host, fileName) {
   // العنصر vrPdfHost ممكن يكون داخل تبويب مخفي (حجمه صفر)، فنجهّز نسخة مؤقتة خارج الشاشة بعرض A4 عشان القياس والرسم يكونون صحيحين
   const tmp = document.createElement('div');
@@ -848,13 +881,16 @@ async function visitReportPdfBlob_(host, fileName) {
 
     if (typeof htmlToImage !== 'undefined') {
       try {
-        const canvas = await htmlToImage.toCanvas(el, {
+        const imgOpts = {
           pixelRatio: 2,
           backgroundColor: '#ffffff',
           width: 1123,
           imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAACAkQBADs=',
           style: { width: '1123px', margin: '0' }
-        });
+        };
+        const fontCss = await vrFontEmbedCss_();
+        if (fontCss) imgOpts.fontEmbedCSS = fontCss;
+        const canvas = await htmlToImage.toCanvas(el, imgOpts);
         return await html2pdf().set(visitReportPdfOptions_(fileName)).from(canvas, 'canvas').outputPdf('blob');
       } catch (e) {
         console.warn('html-to-image failed, falling back to html2canvas', e);
