@@ -32,7 +32,7 @@ function setup() {
     'الحضور': ['الاسم', 'اليوم', 'التاريخ', 'الوقت'],
     'التعهد': ['الاسم', 'نص التعهد', 'اليوم', 'التاريخ', 'الوقت', 'الحالة'],
     'المهام': ['الاسم', 'البريد الإلكتروني', 'نص المهام', 'اليوم', 'التاريخ', 'الوقت', 'الحالة'],
-    'المراكز': ['اسم المركز', 'كلمة المرور', 'وضع العرض فقط'],
+    'المراكز': ['اسم المركز', 'كلمة المرور', 'وضع العرض فقط', 'الاسم المعروض'],
     'المبيعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'الوقت', 'المبلغ', 'ملاحظات', 'الفصل الدراسي'],
     'المرتجعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'وصف الصنف', 'الكمية', 'القيمة', 'ملاحظات', 'الفصل الدراسي'],
     'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'مصدر الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح', 'ملاحظات', 'الفصل الدراسي'],
@@ -776,7 +776,65 @@ function sheetToObjects_(name, cacheSeconds) {
   return rows;
 }
 
+/* ------------------- الاسم المعروض للمركز (بدون تغيير الاسم الأصلي) -------------------
+   الاسم الأصلي بعمود "اسم المركز" بشيت المراكز هو المفتاح اللي تنربط فيه كل البيانات، فما نلمسه.
+   لو عبّيتي عمود "الاسم المعروض" لأي مركز (مثلاً: الأصلي "معهد النور" والمعروض "مركز النور")،
+   الموقع يعرض الاسم المعروض بكل مكان، والبيانات تبقى مربوطة بالاسم الأصلي.
+   الفكرة: عند دخول أي طلب نحوّل الاسم المعروض إلى الأصلي، وعند خروج أي ردّ نحوّل الأصلي إلى المعروض. */
+let DISPLAY_MAP_ = null;   // أصلي -> معروض (للردود الخارجة) - يُضبط بكل طلب
+
+function centerAliasMaps_() {
+  const maps = { toReal: {}, toDisplay: {}, any: false };
+  try {
+    const rows = sheetToObjects_('المراكز', CACHE_SECONDS_LONG);
+    rows.forEach(function (r) {
+      const real = String(r['اسم المركز'] || '').trim();
+      const shown = String(r['الاسم المعروض'] || '').trim();
+      if (real && shown && shown !== real) {
+        maps.toDisplay[real] = shown;
+        maps.toReal[shown] = real;
+        maps.any = true;
+      }
+    });
+  } catch (e) { /* لو صار خطأ نكمل بدون أسماء معروضة */ }
+  return maps;
+}
+
+function mapCenterName_(str, dict) {
+  const t = str.trim();
+  if (Object.prototype.hasOwnProperty.call(dict, t)) return dict[t];
+  // استهداف الإعلانات: "مركز:الاسم|مسؤولة:الاسم"
+  if (str.indexOf('مركز:') !== -1 && str.length < 500) {
+    return str.split('|').map(function (tok) {
+      const t2 = tok.trim();
+      if (t2.indexOf('مركز:') === 0) {
+        const nm = t2.slice(5);
+        if (Object.prototype.hasOwnProperty.call(dict, nm)) return 'مركز:' + dict[nm];
+      }
+      return tok;
+    }).join('|');
+  }
+  return str;
+}
+
+function mapStringsDeep_(v, dict) {
+  if (typeof v === 'string') return mapCenterName_(v, dict);
+  if (Array.isArray(v)) return v.map(function (x) { return mapStringsDeep_(x, dict); });
+  if (v && Object.prototype.toString.call(v) === '[object Object]') {
+    const o = {};
+    Object.keys(v).forEach(function (k) { o[k] = mapStringsDeep_(v[k], dict); });
+    return o;
+  }
+  return v;
+}
+
+function centerDisplay_(name) {
+  const n = String(name || '').trim();
+  return (DISPLAY_MAP_ && Object.prototype.hasOwnProperty.call(DISPLAY_MAP_, n)) ? DISPLAY_MAP_[n] : name;
+}
+
 function json_(obj) {
+  if (DISPLAY_MAP_ && Object.keys(DISPLAY_MAP_).length) obj = mapStringsDeep_(obj, DISPLAY_MAP_);
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
 }
@@ -797,6 +855,9 @@ function doPost(e) {
 
 function handleRequest_(p) {
   try {
+    const aliasMaps = centerAliasMaps_();
+    DISPLAY_MAP_ = aliasMaps.any ? aliasMaps.toDisplay : null;
+    if (aliasMaps.any) p = mapStringsDeep_(p, aliasMaps.toReal);   // الاسم المعروض -> الأصلي قبل المعالجة
     const action = p.action;
     switch (action) {
       case 'getCenters': return json_(getCenters_());
@@ -875,7 +936,6 @@ function handleRequest_(p) {
 
       case 'loginSupervision': return json_(loginSupervision_(p));
       case 'loginAdmin': return json_(loginAdmin_(p));
-      case 'renameCenter': return json_(renameCenter_(p));
 
       case 'recordDifficulty': return json_(recordDifficulty_(p));
       case 'getDifficulties': return json_(getDifficulties_(p));
@@ -894,108 +954,6 @@ function handleRequest_(p) {
   } catch (err) {
     return json_({ ok: false, error: err.message });
   }
-}
-
-/* ------------------- تغيير اسم مركز بدون فقد البيانات -------------------
-   الموقع يربط كل البيانات باسم المركز (نصًا). فلو تغيّر الاسم بشيت "المراكز" فقط تنفصل عنه بياناته القديمة.
-   هذي الدالة تغيّر الاسم بكل الأماكن اللي يظهر فيها مرة وحدة: الشيتات الحيّة وشيتات الأرشيف (أرشيف_...)،
-   وتحدّث استهداف الإعلانات (مركز:الاسم). تتطلب كلمة مرور الإدارة للتأكيد. */
-const CENTER_NAME_COLUMNS_ = {
-  'المراكز': ['اسم المركز'],
-  'المسؤولات': ['اسم المركز'],
-  'المبيعات': ['اسم المركز'],
-  'المرتجعات': ['اسم المركز'],
-  'الفواتير': ['اسم المركز'],
-  'الإشعارات': ['اسم المركز'],
-  'الصعوبات والمقترحات': ['اسم المركز', 'من'],
-  'بطاقات التحفيز': ['اسم المركز'],
-  'متابعة بطاقات التحفيز': ['اسم المركز'],
-  'المرفقات': ['المالك', 'من']
-};
-
-function renameCenter_(p) {
-  const auth = loginAdmin_({ password: p.password });
-  if (!auth.ok) return auth;
-
-  const oldName = String(p.oldName || '').trim();
-  const newName = String(p.newName || '').trim();
-  if (!oldName || !newName) return { ok: false, error: 'اكتبي الاسم القديم والاسم الجديد' };
-  if (oldName === newName) return { ok: false, error: 'الاسم الجديد نفس الاسم القديم' };
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const centersSh = ss.getSheetByName('المراكز');
-  if (!centersSh) return { ok: false, error: 'شيت المراكز غير موجود' };
-
-  const cHeaders = centersSh.getRange(1, 1, 1, Math.max(1, centersSh.getLastColumn())).getValues()[0]
-    .map(function (h) { return String(h).trim(); });
-  const cIdx = cHeaders.indexOf('اسم المركز');
-  if (cIdx < 0) return { ok: false, error: 'عمود "اسم المركز" غير موجود بشيت المراكز' };
-  const existing = centersSh.getLastRow() < 2 ? [] :
-    centersSh.getRange(2, cIdx + 1, centersSh.getLastRow() - 1, 1).getValues()
-      .map(function (r) { return String(r[0]).trim(); });
-  if (existing.indexOf(oldName) === -1) return { ok: false, error: 'ما لقيت مركز بهذا الاسم: ' + oldName };
-  if (existing.indexOf(newName) !== -1) return { ok: false, error: 'فيه مركز موجود بنفس الاسم الجديد، اختاري اسم ثاني' };
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  const report = [];
-  let total = 0;
-  try {
-    ss.getSheets().forEach(function (sh) {
-      const sheetName = sh.getName();
-      const base = sheetName.indexOf(ARCHIVE_PREFIX) === 0 ? sheetName.slice(ARCHIVE_PREFIX.length) : sheetName;
-      const cols = CENTER_NAME_COLUMNS_[base] || [];
-      const isAnnouncements = base === 'الإعلانات الهامة';
-      if (!cols.length && !isAnnouncements) return;
-      const lastRow = sh.getLastRow();
-      const lastCol = sh.getLastColumn();
-      if (lastRow < 2 || lastCol < 1) return;
-      const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return String(h).trim(); });
-      let changed = 0;
-
-      cols.forEach(function (h) {
-        const idx = headers.indexOf(h);
-        if (idx < 0) return;
-        const range = sh.getRange(2, idx + 1, lastRow - 1, 1);
-        const vals = range.getValues();
-        let c = 0;
-        vals.forEach(function (row) {
-          if (String(row[0]).trim() === oldName) { row[0] = newName; c++; }
-        });
-        if (c) { range.setValues(vals); changed += c; }
-      });
-
-      if (isAnnouncements) {
-        const idx = headers.indexOf('استهداف');
-        if (idx >= 0) {
-          const range = sh.getRange(2, idx + 1, lastRow - 1, 1);
-          const vals = range.getValues();
-          let c = 0;
-          vals.forEach(function (row) {
-            const cell = String(row[0] || '');
-            if (cell.indexOf('مركز:' + oldName) === -1) return;
-            const parts = cell.split('|').map(function (t) { return t === 'مركز:' + oldName ? 'مركز:' + newName : t; });
-            row[0] = parts.join('|');
-            c++;
-          });
-          if (c) { range.setValues(vals); changed += c; }
-        }
-      }
-
-      if (changed) { report.push(sheetName + ': ' + changed); total += changed; }
-    });
-    SpreadsheetApp.flush();
-  } finally {
-    lock.releaseLock();
-  }
-
-  // نفرّغ الكاش عشان الموقع يقرأ الاسم الجديد فورًا
-  try {
-    const cache = getCache_();
-    ss.getSheets().forEach(function (sh) { cache.remove('sheet_' + sh.getName()); });
-  } catch (e) { /* ما يهم */ }
-
-  return { ok: true, total: total, updated: report };
 }
 
 /* ------------------- المراكز والمسؤولات: تسجيل الدخول ------------------- */
@@ -1630,6 +1588,7 @@ function submitNotice_(p) {
 }
 
 function notifyAdminNewNotice_(type, center, amount, now, noticeImageUrl, senderName) {
+  center = centerDisplay_(center);
   if (!ADMIN_NOTIFY_EMAIL || ADMIN_NOTIFY_EMAIL.indexOf('@example.com') !== -1) return;
   try {
     MailApp.sendEmail({
@@ -1667,6 +1626,8 @@ function recordDifficulty_(p) {
 }
 
 function notifyAdminNewDifficulty_(type, center, from, text, now) {
+  center = centerDisplay_(center);
+  from = centerDisplay_(from);
   if (!ADMIN_NOTIFY_EMAIL || ADMIN_NOTIFY_EMAIL.indexOf('@example.com') !== -1) return;
   try {
     MailApp.sendEmail({
