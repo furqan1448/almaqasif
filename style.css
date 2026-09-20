@@ -424,6 +424,8 @@ canvas.sig-pad { width: 100%; height: 160px; display: block; touch-action: none;
 
 /* -------- نموذج/مستند "تقرير الزيارة اليومي" (يُستخدم بالطباعة وبحفظ/مشاركة PDF) -------- */
 .vr-doc { width: 100%; background: #fff; margin: 0; padding: 0; }
+/* مهم: بدون هذا السطر، حرف التباعد (letter-spacing) بالـbody يفكّك الحروف العربية عند التحويل لـ PDF */
+.vr-doc, .vr-doc * { letter-spacing: normal !important; }
 .vr-letterhead { width: 100%; height: auto; display: block; margin: 0; padding: 0; border: 0; }
 .vr-content { --z: 1; padding: calc(10px * var(--z)) 30px calc(24px * var(--z)); font-family: "Tajawal", sans-serif; direction: rtl; color: #2b2321; }
 .vr-title { font-family: "Amiri", serif; color: #8C1A2C; margin: calc(10px * var(--z)) 0 calc(14px * var(--z)); font-size: calc(1.55rem * var(--z)); text-align: center; }

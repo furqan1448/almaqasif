@@ -695,6 +695,7 @@ function buildVisitReportHTML(opts) {
    ما توصل لملف style.css (نفس أسلوب بقية دوال الطباعة بهذا الملف) */
 const VR_DOC_CSS_ =
   '.vr-doc{width:100%;margin:0;padding:0;}' +
+  '.vr-doc,.vr-doc *{letter-spacing:normal !important;}' +
   '.vr-letterhead{width:100%;height:auto;display:block;margin:0;padding:0;border:0;}' +
   '@media print{ .vr-letterhead{ -webkit-print-color-adjust:exact; print-color-adjust:exact; } }' +
   '.vr-content{--z:1;padding:calc(10px * var(--z)) 30px calc(24px * var(--z));}' +
@@ -744,34 +745,7 @@ function fitVisitReportToPage_(root, done) {
 }
 
 /* -------- طباعة "تقرير الزيارة اليومي" (فتح نافذة طباعة، تقدري منها "حفظ كـ PDF" أيضًا) -------- */
-/* الطباعة: نجهّز التقرير كملف PDF (نفس مسار «حفظ PDF» المثبّت بأعلى الصفحة تمامًا) ونفتحه بتبويب جديد،
-   ومنه تطبعين (Ctrl+P). هذا يتجنب هوامش نافذة الطباعة اللي تختلف من متصفح لمتصفح وتسبب مسافة فاضية فوق الكليشة.
-   لو مكتبة الـPDF ما اشتغلت، نرجع لطريقة الطباعة المباشرة القديمة. */
-async function printVisitReportWindow(opts) {
-  if (typeof html2pdf === 'undefined' || !document.getElementById('vrPdfHost')) {
-    printVisitReportWindowLegacy_(opts);
-    return;
-  }
-  const win = window.open('', '_blank');
-  if (!win) {
-    alert('يرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع عشان تقدري تطبعي التقرير');
-    return;
-  }
-  try { win.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>جاري تجهيز التقرير</title></head><body style="font-family:sans-serif;text-align:center;padding-top:80px;">جاري تجهيز التقرير للطباعة...</body></html>'); } catch (e) {}
-  try {
-    const host = renderVisitReportToHost_(opts);
-    if (!host) { win.close(); return; }
-    await new Promise(function (resolve) { fitVisitReportToPage_(host.querySelector('.vr-doc'), resolve); });
-    const fileName = visitReportFileName_(opts);
-    const blob = await visitReportPdfWorker_(host, fileName).outputPdf('blob');
-    win.location.href = URL.createObjectURL(blob);
-  } catch (e) {
-    try { win.close(); } catch (e2) {}
-    printVisitReportWindowLegacy_(opts);
-  }
-}
-
-function printVisitReportWindowLegacy_(opts) {
+function printVisitReportWindow(opts) {
   const win = window.open('', '_blank');
   if (!win) {
     alert('يرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع عشان تقدري تطبعي التقرير');
