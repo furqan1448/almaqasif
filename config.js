@@ -784,12 +784,27 @@ function renderVisitReportToHost_(opts) {
   return host;
 }
 
+/* مكتبة تحويل الصفحة لصورة (html2canvas) ترسم كل نص كأنه إنجليزي (يسار→يمين)، فتنعكس النقطتين (:) والأرقام
+   والرموز بجانب الكلمات العربية. نلف كل نص عربي بعلامة اتجاه (RTL) داخل النسخة المؤقتة فقط، وما تتأثر الشاشة. */
+function vrFixBidiForCanvas_(doc) {
+  const root = doc.querySelector('.vr-doc');
+  if (!root) return;
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  const nodes = [];
+  let n;
+  while ((n = walker.nextNode())) nodes.push(n);
+  nodes.forEach(function (t) {
+    const v = t.nodeValue;
+    if (v && /[\u0600-\u06FF0-9]/.test(v)) t.nodeValue = '\u202B' + v + '\u202C';
+  });
+}
+
 function visitReportPdfOptions_(fileName) {
   return {
     margin: 0,
     filename: fileName,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 1123 },
+    html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 1123, onclone: vrFixBidiForCanvas_ },
     jsPDF: { unit: 'mm', format: [297, 210], orientation: 'landscape' }
   };
 }
@@ -811,6 +826,55 @@ function visitReportPdfWorker_(host, fileName) {
     }).toCanvas().toPdf();
 }
 
+/* توليد ملف PDF (Blob) من التقرير.
+   الطريقة الأساسية: مكتبة html-to-image ترسم الصفحة بمحرك المتصفح نفسه، فيطلع العربي بنفس شكل الطباعة
+   (حروف متصلة، النقطتين والأرقام بمكانها الصحيح). لو المكتبة ما تحمّلت نرجع للطريقة القديمة. */
+async function visitReportPdfBlob_(host, fileName) {
+  // العنصر vrPdfHost ممكن يكون داخل تبويب مخفي (حجمه صفر)، فنجهّز نسخة مؤقتة خارج الشاشة بعرض A4 عشان القياس والرسم يكونون صحيحين
+  const tmp = document.createElement('div');
+  tmp.style.cssText = 'position:fixed;left:-20000px;top:0;width:1123px;background:#fff;pointer-events:none;';
+  tmp.innerHTML = host.innerHTML;
+  document.body.appendChild(tmp);
+  try {
+    const el = tmp.querySelector('.vr-doc');
+    await Promise.all(Array.from(tmp.querySelectorAll('img')).map(function (im) {
+      return im.complete ? Promise.resolve() : new Promise(function (res) { im.onload = im.onerror = res; });
+    }));
+    await new Promise(function (resolve) { fitVisitReportToPage_(el, resolve); });
+    // نرجّع نفس نسبة التصغير للنسخة الأصلية (تحتاجها الطريقة الاحتياطية)
+    const z = el.querySelector('.vr-content').style.getPropertyValue('--z') || '1';
+    const hostContent = host.querySelector('.vr-content');
+    if (hostContent) hostContent.style.setProperty('--z', z);
+
+    if (typeof htmlToImage !== 'undefined') {
+      try {
+        const canvas = await htmlToImage.toCanvas(el, {
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+          width: 1123,
+          imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAACAkQBADs=',
+          style: { width: '1123px', margin: '0' }
+        });
+        return await html2pdf().set(visitReportPdfOptions_(fileName)).from(canvas, 'canvas').outputPdf('blob');
+      } catch (e) {
+        console.warn('html-to-image failed, falling back to html2canvas', e);
+      }
+    }
+  } finally {
+    tmp.remove();
+  }
+  return await visitReportPdfWorker_(host, fileName).outputPdf('blob');
+}
+
+function vrDownloadBlob_(blob, fileName) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+
 /* حفظ التقرير مباشرة كملف PDF بجهاز المستخدمة */
 function saveVisitReportPdf(opts) {
   const host = renderVisitReportToHost_(opts);
@@ -818,7 +882,9 @@ function saveVisitReportPdf(opts) {
   if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة ثانية'); return; }
   const fileName = visitReportFileName_(opts);
   fitVisitReportToPage_(host.querySelector('.vr-doc'), function () {
-    visitReportPdfWorker_(host, fileName).save().catch(function () {
+    visitReportPdfBlob_(host, fileName).then(function (blob) {
+      vrDownloadBlob_(blob, fileName);
+    }).catch(function () {
       alert('صار خطأ أثناء إنشاء ملف الـPDF، حاولي مرة أخرى');
     });
   });
@@ -832,7 +898,7 @@ async function shareVisitReportPdf(opts) {
   const fileName = visitReportFileName_(opts);
   try {
     await new Promise(function (resolve) { fitVisitReportToPage_(host.querySelector('.vr-doc'), resolve); });
-    const blob = await visitReportPdfWorker_(host, fileName).outputPdf('blob');
+    const blob = await visitReportPdfBlob_(host, fileName);
     const file = new File([blob], fileName, { type: 'application/pdf' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({
@@ -842,7 +908,7 @@ async function shareVisitReportPdf(opts) {
       });
     } else {
       alert('جهازك ما يدعم مشاركة الملفات مباشرة من المتصفح. راح نحفظ التقرير كملف PDF بدلاً من ذلك، وبعدها افتحي واتساب وأرفقيه يدويًا.');
-      visitReportPdfWorker_(host, fileName).save();
+      vrDownloadBlob_(blob, fileName);
     }
   } catch (e) {
     if (e && e.name === 'AbortError') return; // ألغت المستخدمة نافذة المشاركة، ما فيه خطأ فعلي
