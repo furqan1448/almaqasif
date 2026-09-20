@@ -646,7 +646,7 @@ function buildVisitReportHTML(opts) {
 
   let html = '<div class="vr-doc">';
   const letterheadUrl = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
-  if (letterheadUrl) html += '<img class="vr-letterhead" src="' + letterheadUrl + '" alt="كليشة جمعية فرقان">';
+  if (letterheadUrl) html += '<img class="vr-letterhead" src="' + letterheadUrl + '" width="1600" height="281" alt="كليشة جمعية فرقان">';
 
   html += '<div class="vr-content">';
   html += '<h1 class="vr-title">تقرير الزيارة اليومي</h1>';
@@ -669,7 +669,7 @@ function buildVisitReportHTML(opts) {
   html += '<table class="vr-notes-table"><tr class="vr-hdr-row"><td class="vr-mcell">م</td><td>الملاحظة</td><td>التوصية</td></tr>';
   for (let i = 0; i < rowsCount; i++) {
     const note = (opts.notesLines && opts.notesLines[i]) ? opts.notesLines[i] : '';
-    html += '<tr><td class="vr-mcell vr-value">' + toArabicDigits(i + 1) + '</td><td class="vr-notecell" style="height:56px;">' + note + '</td>';
+    html += '<tr><td class="vr-mcell vr-value">' + toArabicDigits(i + 1) + '</td><td class="vr-notecell" style="height:calc(56px * var(--z, 1));">' + note + '</td>';
     if (i === 0) {
       html += '<td class="vr-reccell" rowspan="' + rowsCount + '">' + (opts.recommendation || '') + '</td>';
     }
@@ -683,7 +683,7 @@ function buildVisitReportHTML(opts) {
   const sigH = Math.round(80 * sigScale);
   html += '<div class="vr-footer">';
   html += '<span class="vr-footer-col"><span>رئيسة وحدة المقاصف</span><span>' + (opts.headName || 'فاطمة مبارك الكثيري') + '</span>';
-  if (sigUrl) html += '<img class="vr-sig" style="max-width:' + sigW + 'px;max-height:' + sigH + 'px;" src="' + sigUrl + '" alt="توقيع" onerror="this.style.display=\'none\';">';
+  if (sigUrl) html += '<img class="vr-sig" style="max-width:calc(' + sigW + 'px * var(--z, 1));max-height:calc(' + sigH + 'px * var(--z, 1));" src="' + sigUrl + '" alt="توقيع" onerror="this.style.display=\'none\';">';
   html += '</span>';
   html += '<span class="vr-footer-col"><span>مديرة المركز</span><span>' + (opts.centerHeadName || '') + '</span></span>';
   html += '</div>';
@@ -694,23 +694,54 @@ function buildVisitReportHTML(opts) {
 /* نفس ستايل .vr-* الموجود بـ style.css، بس مكرر هنا كنص عشان نافذة الطباعة صفحة منفصلة
    ما توصل لملف style.css (نفس أسلوب بقية دوال الطباعة بهذا الملف) */
 const VR_DOC_CSS_ =
-  '.vr-doc{width:100%;}' +
-  '.vr-letterhead{width:100%;display:block;}' +
+  '.vr-doc{width:100%;margin:0;padding:0;}' +
+  '.vr-letterhead{width:100%;height:auto;display:block;margin:0;padding:0;border:0;}' +
   '@media print{ .vr-letterhead{ -webkit-print-color-adjust:exact; print-color-adjust:exact; } }' +
-  '.vr-content{padding:14px 30px 30px;}' +
-  '.vr-title{font-family:"Amiri",serif;color:#8C1A2C;margin:14px 0 18px;font-size:1.55rem;text-align:center;}' +
-  '.vr-infoline{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:0.95rem;margin-bottom:10px;flex-wrap:wrap;gap:8px;}' +
-  '.vr-subject{font-weight:800;margin:6px 0 14px;font-size:0.95rem;color:#8C1A2C;}' +
-  '.vr-info-table,.vr-notes-table{width:100%;border-collapse:collapse;font-size:0.88rem;margin-bottom:0;}' +
-  '.vr-info-table td,.vr-notes-table td{border:1px solid #2b2321;padding:9px 10px;text-align:center;vertical-align:middle;}' +
+  '.vr-content{--z:1;padding:calc(10px * var(--z)) 30px calc(24px * var(--z));}' +
+  '.vr-title{font-family:"Amiri",serif;color:#8C1A2C;margin:calc(10px * var(--z)) 0 calc(14px * var(--z));font-size:calc(1.55rem * var(--z));text-align:center;}' +
+  '.vr-infoline{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:calc(0.95rem * var(--z));margin-bottom:calc(10px * var(--z));flex-wrap:wrap;gap:8px;}' +
+  '.vr-subject{font-weight:800;margin:calc(6px * var(--z)) 0 calc(12px * var(--z));font-size:calc(0.95rem * var(--z));color:#8C1A2C;}' +
+  '.vr-info-table,.vr-notes-table{width:100%;border-collapse:collapse;font-size:calc(0.88rem * var(--z));margin-bottom:0;}' +
+  '.vr-info-table td,.vr-notes-table td{border:1px solid #2b2321;padding:calc(9px * var(--z)) 10px;text-align:center;vertical-align:middle;}' +
   '.vr-hdr-row td{background:#F2F2F2;font-weight:800;}' +
   '.vr-value{color:#8C1A2C;font-weight:800;}' +
-  '.vr-notecell{text-align:right;padding-right:14px;min-height:44px;}' +
+  '.vr-notecell{text-align:right;padding-right:14px;}' +
   '.vr-mcell{width:5%;font-weight:800;}' +
   '.vr-reccell{width:38%;text-align:right;padding-right:14px;font-weight:700;color:#2b2321;}' +
-  '.vr-footer{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:40px;font-weight:800;}' +
+  '.vr-footer{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:calc(28px * var(--z));font-weight:800;font-size:calc(1em * var(--z));break-inside:avoid;}' +
   '.vr-footer-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;text-align:center;}' +
   '.vr-sig{object-fit:contain;}';
+
+/* -------- تصغير محتوى التقرير تلقائيًا ليكفي بصفحة A4 عرضية واحدة --------
+   الكليشة تبقى بحجمها الكامل ملتصقة بأعلى الصفحة، والذي يتصغّر هو المحتوى (الجدول والنص) فقط،
+   عن طريق المتغير --z (1 = الحجم الطبيعي). لو الملاحظات كثيرة جدًا وما كفى التصغير
+   (أقل من 55%) يكمل على صفحة ثانية عادي. */
+function fitVisitReportToPage_(root, done) {
+  const content = root ? root.querySelector('.vr-content') : null;
+  const img = root ? root.querySelector('.vr-letterhead') : null;
+  function run() {
+    if (content) {
+      const prevW = root.style.width;
+      root.style.width = '1123px';            // عرض A4 العرضي بالبكسل، عشان القياس يطابق الطباعة
+      content.style.setProperty('--z', '1');
+      const pageH = 794 - 6;                  // ارتفاع A4 العرضي (210مم) مع هامش أمان صغير
+      const lhH = img ? img.offsetHeight : 0;
+      let z = 1;
+      for (let i = 0; i < 40 && z > 0.55 && (lhH + content.offsetHeight) > pageH; i++) {
+        z = Math.max(0.55, z - 0.02);
+        content.style.setProperty('--z', String(z));
+      }
+      root.style.width = prevW;
+    }
+    if (done) done();
+  }
+  if (img && !img.complete) {
+    img.addEventListener('load', run);
+    img.addEventListener('error', run);
+  } else {
+    run();
+  }
+}
 
 /* -------- طباعة "تقرير الزيارة اليومي" (فتح نافذة طباعة، تقدري منها "حفظ كـ PDF" أيضًا) -------- */
 function printVisitReportWindow(opts) {
@@ -730,7 +761,8 @@ function printVisitReportWindow(opts) {
   html += VR_DOC_CSS_;
   html += '</style></head><body>';
   html += buildVisitReportHTML(opts);
-  html += '<script>window.onload = function(){ setTimeout(function(){ window.print(); }, 350); };<\/script>';
+  html += '<script>' + fitVisitReportToPage_.toString() +
+          ';window.onload = function(){ fitVisitReportToPage_(document.querySelector(".vr-doc"), function(){ setTimeout(function(){ window.print(); }, 350); }); };<\/script>';
   html += '</body></html>';
   win.document.write(html);
   win.document.close();
@@ -761,14 +793,33 @@ function visitReportPdfOptions_(fileName) {
   };
 }
 
+/* تجهيز عامل html2pdf مع تثبيت موضع التقرير بأعلى-يسار الحاوية المؤقتة بعرض A4 بالضبط.
+   السبب: الموقع كله RTL، ومكتبة html2pdf تحط حاويتها بـ margin:auto وحسب عرض الشاشة، فكانت
+   الصفحة تنزاح (مسافة بيضاء + الكليشة تنقص) خصوصًا بالجوال. هنا نلغي هذا الاعتماد على عرض الشاشة. */
+function visitReportPdfWorker_(host, fileName) {
+  return html2pdf().set(visitReportPdfOptions_(fileName)).from(host)
+    .toContainer().get('container').then(function (c) {
+      if (c.parentElement) c.parentElement.style.direction = 'ltr';
+      c.style.position = 'absolute';
+      c.style.top = '0';
+      c.style.left = '0';
+      c.style.right = 'auto';
+      c.style.margin = '0';
+      c.style.width = '1123px';
+      c.style.direction = 'rtl';
+    }).toCanvas().toPdf();
+}
+
 /* حفظ التقرير مباشرة كملف PDF بجهاز المستخدمة */
 function saveVisitReportPdf(opts) {
   const host = renderVisitReportToHost_(opts);
   if (!host) return;
   if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة ثانية'); return; }
   const fileName = visitReportFileName_(opts);
-  html2pdf().set(visitReportPdfOptions_(fileName)).from(host).save().catch(function () {
-    alert('صار خطأ أثناء إنشاء ملف الـPDF، حاولي مرة أخرى');
+  fitVisitReportToPage_(host.querySelector('.vr-doc'), function () {
+    visitReportPdfWorker_(host, fileName).save().catch(function () {
+      alert('صار خطأ أثناء إنشاء ملف الـPDF، حاولي مرة أخرى');
+    });
   });
 }
 
@@ -779,7 +830,8 @@ async function shareVisitReportPdf(opts) {
   if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة ثانية'); return; }
   const fileName = visitReportFileName_(opts);
   try {
-    const blob = await html2pdf().set(visitReportPdfOptions_(fileName)).from(host).outputPdf('blob');
+    await new Promise(function (resolve) { fitVisitReportToPage_(host.querySelector('.vr-doc'), resolve); });
+    const blob = await visitReportPdfWorker_(host, fileName).outputPdf('blob');
     const file = new File([blob], fileName, { type: 'application/pdf' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({
@@ -789,7 +841,7 @@ async function shareVisitReportPdf(opts) {
       });
     } else {
       alert('جهازك ما يدعم مشاركة الملفات مباشرة من المتصفح. راح نحفظ التقرير كملف PDF بدلاً من ذلك، وبعدها افتحي واتساب وأرفقيه يدويًا.');
-      html2pdf().set(visitReportPdfOptions_(fileName)).from(host).save();
+      visitReportPdfWorker_(host, fileName).save();
     }
   } catch (e) {
     if (e && e.name === 'AbortError') return; // ألغت المستخدمة نافذة المشاركة، ما فيه خطأ فعلي

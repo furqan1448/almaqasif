@@ -423,19 +423,19 @@ canvas.sig-pad { width: 100%; height: 160px; display: block; touch-action: none;
 }
 
 /* -------- نموذج/مستند "تقرير الزيارة اليومي" (يُستخدم بالطباعة وبحفظ/مشاركة PDF) -------- */
-.vr-doc { width: 100%; background: #fff; }
-.vr-letterhead { width: 100%; display: block; }
-.vr-content { padding: 14px 30px 30px; font-family: "Tajawal", sans-serif; direction: rtl; color: #2b2321; }
-.vr-title { font-family: "Amiri", serif; color: #8C1A2C; margin: 14px 0 18px; font-size: 1.55rem; text-align: center; }
-.vr-infoline { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 0.95rem; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
-.vr-subject { font-weight: 800; margin: 6px 0 14px; font-size: 0.95rem; color: #8C1A2C; }
+.vr-doc { width: 100%; background: #fff; margin: 0; padding: 0; }
+.vr-letterhead { width: 100%; height: auto; display: block; margin: 0; padding: 0; border: 0; }
+.vr-content { --z: 1; padding: calc(10px * var(--z)) 30px calc(24px * var(--z)); font-family: "Tajawal", sans-serif; direction: rtl; color: #2b2321; }
+.vr-title { font-family: "Amiri", serif; color: #8C1A2C; margin: calc(10px * var(--z)) 0 calc(14px * var(--z)); font-size: calc(1.55rem * var(--z)); text-align: center; }
+.vr-infoline { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: calc(0.95rem * var(--z)); margin-bottom: calc(10px * var(--z)); flex-wrap: wrap; gap: 8px; }
+.vr-subject { font-weight: 800; margin: calc(6px * var(--z)) 0 calc(12px * var(--z)); font-size: calc(0.95rem * var(--z)); color: #8C1A2C; }
 .vr-value { color: #8C1A2C; font-weight: 800; }
-.vr-info-table, .vr-notes-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-bottom: 0; }
-.vr-info-table td, .vr-notes-table td { border: 1px solid #2b2321; padding: 9px 10px; text-align: center; vertical-align: middle; }
+.vr-info-table, .vr-notes-table { width: 100%; border-collapse: collapse; font-size: calc(0.88rem * var(--z)); margin-bottom: 0; }
+.vr-info-table td, .vr-notes-table td { border: 1px solid #2b2321; padding: calc(9px * var(--z)) 10px; text-align: center; vertical-align: middle; }
 .vr-hdr-row td { background: #F2F2F2; font-weight: 800; }
-.vr-notecell { text-align: right; padding-right: 14px; min-height: 44px; }
+.vr-notecell { text-align: right; padding-right: 14px; }
 .vr-mcell { width: 5%; font-weight: 800; }
 .vr-reccell { width: 38%; text-align: right; padding-right: 14px; font-weight: 700; color: #2b2321; }
-.vr-footer { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 40px; font-weight: 800; }
+.vr-footer { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: calc(28px * var(--z)); font-weight: 800; font-size: calc(1em * var(--z)); break-inside: avoid; }
 .vr-footer-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px; text-align: center; }
 .vr-sig { object-fit: contain; }
