@@ -589,6 +589,10 @@
     <!-- ===== تبويب: بطاقات التحفيز (نظرة الإدارة) ===== -->
     <div id="cardsAdminTab" class="admin-tab-panel hidden">
       <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">إجمالي بطاقات المديرات والمسؤولات</h3>
+        <div id="cardsManagersSummary">جاري التحميل...</div>
+      </div>
+      <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">سجل المديرة والمسؤولة</h3>
         <table class="log-table" id="cardsManagersTable">
           <thead><tr><th>المركز</th><th>الصفة</th><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th></tr></thead>
@@ -742,42 +746,70 @@ function cardPriceLabel_(p) { return Number(p) === 3 ? '3 ريال' : 'ريال�
 
 function loadCardsAdminOverview() {
   const managersTbody = document.getElementById('cardsManagersTbody');
+  const managersSummary = document.getElementById('cardsManagersSummary');
   const groupsWrap = document.getElementById('cardsFollowupGroups');
   const chartWrap = document.getElementById('cardsFollowupChart');
   managersTbody.innerHTML = '<tr><td colspan="8">جاري التحميل...</td></tr>';
+  managersSummary.innerHTML = 'جاري التحميل...';
   groupsWrap.innerHTML = '<div class="card">جاري التحميل...</div>';
   chartWrap.innerHTML = 'جاري التحميل...';
 
-  callApi('getIncentiveEntries', { kind: 'استلام' }).then(function (r) {
-    const list = (r.ok ? r.list : []) || [];
+  Promise.all([
+    callApi('getIncentiveEntries', { kind: 'استلام' }),
+    callApi('getIncentiveEntries', { kind: 'تسليم' }),
+    callApi('getIncentiveFollowupSplits', {})
+  ]).then(function (results) {
+    const managerEntries = (results[0].ok ? results[0].list : []) || [];
+    const entries = (results[1].ok ? results[1].list : []) || [];
+    const splits = (results[2].ok ? results[2].list : []) || [];
+
+    // -------- جدول سجل المديرة والمسؤولة --------
     managersTbody.innerHTML = '';
-    if (!list.length) { managersTbody.innerHTML = '<tr><td colspan="8">لا يوجد بيانات</td></tr>'; }
-    list.forEach(function (row) {
+    if (!managerEntries.length) { managersTbody.innerHTML = '<tr><td colspan="8">لا يوجد بيانات</td></tr>'; }
+    managerEntries.forEach(function (row) {
       const tr = document.createElement('tr');
       tr.innerHTML = '<td>' + (row['اسم المركز'] || '') + '</td><td>' + (row['الدور'] || '') + '</td><td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td>';
       managersTbody.appendChild(tr);
     });
-  });
 
-  Promise.all([
-    callApi('getIncentiveEntries', { kind: 'تسليم' }),
-    callApi('getIncentiveFollowupSplits', {})
-  ]).then(function (results) {
-    const entries = (results[0].ok ? results[0].list : []) || [];
-    const splits = (results[1].ok ? results[1].list : []) || [];
+    // -------- إجمالي بطاقات كل مديرة/مسؤولة (مجمّعة حسب المركز + الصفة) --------
+    const byManager = {};
+    managerEntries.forEach(function (e) {
+      const key = (e['اسم المركز'] || '') + '|' + (e['الدور'] || '');
+      if (!byManager[key]) byManager[key] = { center: e['اسم المركز'] || '', role: e['الدور'] || '', total: 0, breakdown: {} };
+      const qty = Number(e['الكمية']) || 0;
+      byManager[key].total += qty;
+      const bKey = (e['نوع البطاقة'] || '') + ' - ' + cardPriceLabel_(e['القيمة']);
+      byManager[key].breakdown[bKey] = (byManager[key].breakdown[bKey] || 0) + qty;
+    });
+    const managerKeys = Object.keys(byManager);
+    if (!managerKeys.length) {
+      managersSummary.innerHTML = '<p style="color:#8a7d76;">لا يوجد بيانات</p>';
+    } else {
+      managersSummary.innerHTML = '<ul style="margin:0;padding-inline-start:20px;line-height:2;">' +
+        managerKeys.map(function (k) {
+          const m = byManager[k];
+          const parts = Object.keys(m.breakdown).map(function (bk) { return m.breakdown[bk] + ' ' + bk; }).join(' و');
+          return '<li><strong>' + m.center + ' - ' + m.role + '</strong>: إجمالي بطاقات التحفيز ' + m.total + ' (' + parts + ')</li>';
+        }).join('') + '</ul>';
+    }
 
-    // -------- الرسم البياني: إجمالي الكميات حسب الحالة --------
+    // -------- الرسم البياني: إجمالي الكميات حسب الحالة والصفة --------
     const totalDelivered = entries.reduce(function (s, e) { return s + (Number(e['الكمية']) || 0); }, 0);
     const totalRedeemed = splits.filter(function (s) { return s['الحالة'] === 'تم استبدال القيمة'; }).reduce(function (s, r) { return s + (Number(r['العدد']) || 0); }, 0);
     const totalReturned = splits.filter(function (s) { return s['الحالة'] === 'تم إرجاع البطاقة'; }).reduce(function (s, r) { return s + (Number(r['العدد']) || 0); }, 0);
     const totalPending = Math.max(0, totalDelivered - totalRedeemed - totalReturned);
+    const totalManagersRole = managerEntries.filter(function (e) { return e['الدور'] === 'مديرة المركز'; }).reduce(function (s, e) { return s + (Number(e['الكمية']) || 0); }, 0);
+    const totalSupervisorsRole = managerEntries.filter(function (e) { return e['الدور'] === 'مسؤولة المقصف'; }).reduce(function (s, e) { return s + (Number(e['الكمية']) || 0); }, 0);
     const chartRows = [
+      { label: 'إجمالي بطاقات المديرات', value: totalManagersRole },
+      { label: 'إجمالي بطاقات المسؤولات', value: totalSupervisorsRole },
       { label: 'إجمالي المسلَّم للمنسوبات', value: totalDelivered },
       { label: 'تم استبدال القيمة', value: totalRedeemed },
       { label: 'تم إرجاع البطاقة', value: totalReturned },
       { label: 'متبقٍ غير محسوم', value: totalPending }
     ];
-    const maxVal = Math.max(1, chartRows[0].value);
+    const maxVal = Math.max(1, totalManagersRole, totalSupervisorsRole, totalDelivered);
     chartWrap.innerHTML = '';
     chartRows.forEach(function (row) {
       const pct = Math.max(4, Math.round((row.value / maxVal) * 100));

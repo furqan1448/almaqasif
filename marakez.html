@@ -1660,7 +1660,7 @@ function loadCardsFollowup_() {
         splitsHtml +
         (remaining > 0 ?
           '<div class="select-row" style="margin-top:12px;">' +
-            '<div><label>اسم المستفيدة (اختياري)</label><input type="text" class="cf-new-name" placeholder="اسم المستفيدة"></div>' +
+            '<div><label>اسم المستفيدة</label><input type="text" class="cf-new-name" placeholder="اسم المستفيدة"></div>' +
             '<div><label>العدد</label><input type="text" inputmode="numeric" pattern="[0-9]*" class="cf-new-qty" placeholder="حتى ' + remaining + '"></div>' +
             '<div><label>الحالة</label><select class="cf-new-status"><option value="" selected disabled>اختاري</option><option value="تم استبدال القيمة">تم استبدال القيمة</option><option value="تم إرجاع البطاقة">تم إرجاع البطاقة</option></select></div>' +
           '</div>' +
@@ -1678,10 +1678,11 @@ function addCardFollowupSplit_(btn, parentId) {
   const status = card.querySelector('.cf-new-status').value;
   if (!qty) { alert('اكتبي العدد'); return; }
   if (!status) { alert('اختاري الحالة'); return; }
+  setBtnBusy(btn, true);
   callApi('addIncentiveFollowupSplit', { parentId: parentId, center: currentCenter, beneficiaryName: name, qty: qty, status: status }).then(function (r) {
-    if (!r.ok) { alert(r.error || 'تعذر الإضافة'); return; }
+    if (!r.ok) { setBtnBusy(btn, false); alert(r.error || 'تعذر الإضافة'); return; }
     loadCardsFollowup_();
-  });
+  }).catch(function () { setBtnBusy(btn, false); });
 }
 
 function deleteCardFollowupSplit_(id) {
