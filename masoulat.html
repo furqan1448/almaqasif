@@ -63,7 +63,8 @@
         <div id="pledgeAlreadySigned" class="hidden">
           <div class="success-msg" style="display:block;">تم توقيع التعهد بتاريخ <span id="pledgeDate"></span></div>
         </div>
-        <div id="pledgeFormWrap">
+        <p id="pledgeLoading" style="color:#8a7d76;">جاري التحميل...</p>
+        <div id="pledgeFormWrap" class="hidden">
           <div class="pledge-box" id="pledgeText">
             أنا الموقّعة أدناه أتعهد بالالتزام بالآتي:<br>
             ١. الالتزام بالحجاب الشرعي الساتر والزي الرسمي المحتشم.<br>
@@ -558,7 +559,8 @@
         <div id="tasksAlreadySigned" class="hidden">
           <div class="success-msg" style="display:block;">تم الاطلاع على المهام بتاريخ <span id="tasksDate"></span></div>
         </div>
-        <div id="tasksActionWrap">
+        <p id="tasksLoading" style="color:#8a7d76;">جاري التحميل...</p>
+        <div id="tasksActionWrap" class="hidden">
           <div class="checkline">
             <input type="checkbox" id="tasksCheck">
             <label for="tasksCheck" style="margin:0;font-weight:500;">تم الاطلاع على المهام</label>
@@ -723,6 +725,7 @@ function loadDashboardData() {
     }
 
     // التعهد
+    document.getElementById('pledgeLoading').classList.add('hidden');
     if (r.pledge) {
       document.getElementById('pledgeAlreadySigned').classList.remove('hidden');
       document.getElementById('pledgeFormWrap').classList.add('hidden');
@@ -733,6 +736,7 @@ function loadDashboardData() {
     }
 
     // المهام
+    document.getElementById('tasksLoading').classList.add('hidden');
     if (r.tasksAck) {
       document.getElementById('tasksAlreadySigned').classList.remove('hidden');
       document.getElementById('tasksActionWrap').classList.add('hidden');
