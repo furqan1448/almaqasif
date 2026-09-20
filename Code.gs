@@ -236,17 +236,55 @@ function getOrCreateFolder_() {
   return DriveApp.createFolder(FOLDER_NAME);
 }
 
-function saveImage_(base64Data, fileName) {
+/* ينظّف اسم مجلد/ملف من الرموز الممنوعة بـ Drive */
+function safeName_(s) {
+  return String(s || '').replace(/[\\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim() || 'بدون اسم';
+}
+
+/* يرجّع مجلد فرعي داخل المجلد الرئيسي حسب المسار (مثلاً ['الإشعارات', 'اسم المركز']) وينشئه لو مو موجود.
+   نخزّن معرّف كل مجلد بالكاش عشان ما نبحث بـ Drive كل مرة (أسرع بالحفظ). */
+function getOrCreateSubFolder_(pathArr) {
+  const cache = CacheService.getScriptCache();
+  let parent = getOrCreateFolder_();
+  let key = 'fld';
+  for (let i = 0; i < pathArr.length; i++) {
+    const name = safeName_(pathArr[i]);
+    key += '/' + name;
+    const ck = key.length > 240 ? key.slice(0, 240) : key;
+    let folder = null;
+    const cachedId = cache.get(ck);
+    if (cachedId) {
+      try { folder = DriveApp.getFolderById(cachedId); } catch (e) { folder = null; }
+    }
+    if (!folder) {
+      const it = parent.getFoldersByName(name);
+      folder = it.hasNext() ? it.next() : parent.createFolder(name);
+      cache.put(ck, folder.getId(), 21600);
+    }
+    parent = folder;
+  }
+  return parent;
+}
+
+/* subPath (اختياري): مسار المجلد الفرعي، مثلاً ['الإشعارات', 'اسم المركز'].
+   لو ما انمرّر تنحفظ الصورة بالمجلد الرئيسي مثل قبل. */
+function saveImage_(base64Data, fileName, subPath) {
   if (!base64Data) return '';
   const cleaned = base64Data.replace(/^data:image\/\w+;base64,/, '');
   const bytes = Utilities.base64Decode(cleaned);
-  const blob = Utilities.newBlob(bytes, 'image/png', fileName + '.png');
-  const folder = getOrCreateFolder_();
+  const blob = Utilities.newBlob(bytes, 'image/png', safeName_(fileName) + '.png');
+  const folder = (subPath && subPath.length) ? getOrCreateSubFolder_(subPath) : getOrCreateFolder_();
   const file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   // file.getUrl() ترجع رابط صفحة عرض بقوقل درايف، وما تشتغل مباشرة داخل <img src>.
   // هذا الرابط هو الصيغة الصحيحة لعرض الصورة مباشرة بالمتصفح (وبتاق <img>)
   return 'https://lh3.googleusercontent.com/d/' + file.getId();
+}
+
+/* اسم ملف واضح للإشعار: النوع - المركز - التاريخ - جزء من المعرف */
+function noticeFileName_(prefix, type, center, date, id) {
+  return [prefix, type, center, date, String(id || '').slice(0, 6)]
+    .filter(function (x) { return String(x || '').trim(); }).join(' - ');
 }
 
 /* نفس فكرة saveImage_ بس لأي نوع ملف (PDF، Word، صورة...) مو بس PNG -
@@ -1571,7 +1609,9 @@ function submitNotice_(p) {
   const now = nowParts_();
 
   // نحفظ صورة الإشعار الكاملة بس (فيها التوقيع أصلاً) - توفير وقت بعدم رفع صورتين لكل إشعار
-  const noticeImageUrl = saveImage_(p.noticeImage, 'إشعار-' + id);
+  const noticeImageUrl = saveImage_(p.noticeImage,
+    noticeFileName_('إشعار', p.type, p.center, now.date, id),
+    ['الإشعارات', p.center]);
 
   appendRowByHeaders_(sh, {
     'معرف': id, 'النوع': p.type, 'اسم المركز': p.center,
@@ -1743,7 +1783,9 @@ function adminSignNotice_(p) {
   const now = nowParts_();
 
   // نحفظ الصورة النهائية الموقعة بس (فيها توقيع المركز + توقيع الإدارة سوا) - توفير وقت
-  const signedImageUrl = saveImage_(p.signedNoticeImage, 'إشعار-موقع-' + p.id);
+  const signedImageUrl = saveImage_(p.signedNoticeImage,
+    noticeFileName_('إشعار موقع', target['النوع'], target['اسم المركز'], target['تاريخ الإرسال'], p.id),
+    ['الإشعارات', target['اسم المركز']]);
 
   const row = target._row;
   sh.getRange(row, colIndex_(sh, 'رابط توقيع الإدارة')).setValue('');            // لم يعد يُحفظ لوحده
@@ -1785,8 +1827,18 @@ function updateSignedNotice_(p) {
 
   const row = target._row;
   const stamp = new Date().getTime();
-  const signedImageUrl = p.signedNoticeImage ? saveImage_(p.signedNoticeImage, 'إشعار-موقع-' + p.id + '-' + stamp) : '';
-  const adminSigUrl = p.adminSignature ? saveImage_(p.adminSignature, 'توقيع-إدارة-' + p.id + '-' + stamp) : '';
+  const effCenter = newCenter || target['اسم المركز'];
+  const effType = p.type || target['النوع'];
+  const effDate = p.date ? String(p.date).trim() : target['تاريخ الإرسال'];
+  const signedImageUrl = p.signedNoticeImage
+    ? saveImage_(p.signedNoticeImage,
+        noticeFileName_('إشعار موقع', effType, effCenter, effDate, p.id) + ' (' + stamp + ')',
+        ['الإشعارات', effCenter])
+    : '';
+  const adminSigUrl = p.adminSignature
+    ? saveImage_(p.adminSignature, 'توقيع إدارة - ' + String(p.id).slice(0, 6) + ' (' + stamp + ')',
+        ['الإشعارات', 'توقيعات الإدارة'])
+    : '';
 
   if (p.type) setNoticeCell_(sh, row, 'النوع', p.type);
   if (newCenter) setNoticeCell_(sh, row, 'اسم المركز', newCenter);
@@ -1824,6 +1876,47 @@ function getNoticeAdminSignature_(p) {
   } catch (e) {
     return { ok: true, dataUrl: '' };
   }
+}
+
+/* تشغيل مرة وحدة يدوياً من المحرر: ترتّب صور الإشعارات القديمة (اللي انحفظت سابقاً مبعثرة بالمجلد الرئيسي)
+   داخل مجلد "الإشعارات" > اسم المركز، وتعيد تسميتها باسم واضح. آمنة لو انشغلت أكثر من مرة
+   (تتخطّى الملفات المرتّبة). لو وقفت بسبب الوقت، شغّليها مرة ثانية وتكمل. */
+function organizeExistingNoticeFiles_() {
+  const start = Date.now();
+  const rows = sheetToObjects_('الإشعارات');
+  const cols = [
+    { header: 'رابط صورة الإشعار', prefix: 'إشعار', sig: false },
+    { header: 'رابط صورة الإشعار الموقع', prefix: 'إشعار موقع', sig: false },
+    { header: 'رابط توقيع الإدارة', prefix: 'توقيع إدارة', sig: true }
+  ];
+  let moved = 0, skipped = 0, failed = 0, stoppedEarly = false;
+  for (let i = 0; i < rows.length && !stoppedEarly; i++) {
+    const r = rows[i];
+    for (let c = 0; c < cols.length; c++) {
+      if (Date.now() - start > 270000) { stoppedEarly = true; break; }
+      const link = String(r[cols[c].header] || '');
+      const m = link.match(/[-\w]{25,}/);
+      if (!m) continue;
+      try {
+        const target = cols[c].sig
+          ? getOrCreateSubFolder_(['الإشعارات', 'توقيعات الإدارة'])
+          : getOrCreateSubFolder_(['الإشعارات', r['اسم المركز']]);
+        const file = DriveApp.getFileById(m[0]);
+        const parents = file.getParents();
+        if (parents.hasNext() && parents.next().getId() === target.getId()) { skipped++; continue; }
+        file.moveTo(target);
+        file.setName(cols[c].sig
+          ? 'توقيع إدارة - ' + String(r['معرف'] || '').slice(0, 6)
+          : noticeFileName_(cols[c].prefix, r['النوع'], r['اسم المركز'], r['تاريخ الإرسال'], r['معرف']) + '.png');
+        moved++;
+      } catch (e) {
+        failed++;
+        Logger.log('تعذر ترتيب ملف: ' + link + ' - ' + e);
+      }
+    }
+  }
+  Logger.log('تم نقل: ' + moved + ' | كانت مرتّبة: ' + skipped + ' | فشل: ' + failed +
+    (stoppedEarly ? ' | توقفت بسبب الوقت، شغّليها مرة ثانية' : ' | اكتمل الترتيب ✅'));
 }
 
 /* ------------------- الإحصائيات (إيرادات المقاصف) ------------------- */
