@@ -745,7 +745,32 @@ function fitVisitReportToPage_(root, done) {
 }
 
 /* -------- طباعة "تقرير الزيارة اليومي" (فتح نافذة طباعة، تقدري منها "حفظ كـ PDF" أيضًا) -------- */
-function printVisitReportWindow(opts) {
+/* معاينة وطباعة: نجهّز التقرير كـPDF (نفس مسار «حفظ PDF» بالضبط: الكليشة ملتصقة بأعلى الصفحة وبنفس الخطوط)
+   ونفتحه بتبويب جديد، ومنه تطبعين بـ Ctrl+P. هذا يتجنب هوامش نافذة الطباعة اللي كانت تسبب مسافة فاضية فوق الكليشة.
+   لو مكتبة الـPDF ما اشتغلت نرجع للطباعة المباشرة القديمة. */
+async function printVisitReportWindow(opts) {
+  if (typeof html2pdf === 'undefined' || !document.getElementById('vrPdfHost')) {
+    printVisitReportWindowLegacy_(opts);
+    return;
+  }
+  const win = window.open('', '_blank');
+  if (!win) {
+    alert('يرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع عشان تقدري تطبعي التقرير');
+    return;
+  }
+  try { win.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>جاري تجهيز التقرير</title></head><body style="font-family:sans-serif;text-align:center;padding-top:80px;">جاري تجهيز التقرير للطباعة...</body></html>'); } catch (e) {}
+  try {
+    const host = renderVisitReportToHost_(opts);
+    if (!host) { win.close(); return; }
+    const blob = await visitReportPdfBlob_(host, visitReportFileName_(opts));
+    win.location.href = URL.createObjectURL(blob);
+  } catch (e) {
+    try { win.close(); } catch (e2) {}
+    printVisitReportWindowLegacy_(opts);
+  }
+}
+
+function printVisitReportWindowLegacy_(opts) {
   const win = window.open('', '_blank');
   if (!win) {
     alert('يرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع عشان تقدري تطبعي التقرير');
@@ -885,7 +910,7 @@ async function visitReportPdfBlob_(host, fileName) {
           pixelRatio: 2,
           backgroundColor: '#ffffff',
           width: 1123,
-          imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAACAkQBADs=',
+          imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
           style: { width: '1123px', margin: '0' }
         };
         const fontCss = await vrFontEmbedCss_();
@@ -1096,13 +1121,16 @@ async function generateNoticeImage(opts) {
   ctx.fillText('توقيع المسلّمة' + (opts.senderName ? (': ' + opts.senderName) : ''), W * 0.28, 508);
   ctx.fillText((opts.adminLabel || 'توقيع المستلمة') + (opts.receiverName ? (': ' + opts.receiverName) : ''), W * 0.72, 508);
 
-  if (sigImg) ctx.drawImage(sigImg, W * 0.28 - 130, 518, 260, 85);
-  if (adminImg) ctx.drawImage(adminImg, W * 0.72 - 130, 518, 260, 85);
+  // صندوق التوقيع 300×110 (أكبر من قبل)، والصورة تنرسم داخله بنسبتها الأصلية بدون تمطيط
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  drawSignatureFit_(ctx, sigImg, W * 0.28, 514, 300, 110);
+  drawSignatureFit_(ctx, adminImg, W * 0.72, 514, 300, 110);
 
   ctx.strokeStyle = '#e8dcc8';
   ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(60, 615); ctx.lineTo(W * 0.28 + 130, 615); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(W * 0.72 - 130, 615); ctx.lineTo(W - 60, 615); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(60, 634); ctx.lineTo(W * 0.28 + 150, 634); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W * 0.72 - 150, 634); ctx.lineTo(W - 60, 634); ctx.stroke();
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#8a7d76';
@@ -1212,12 +1240,91 @@ function initSignaturePad(canvasId) {
   return { clear: function () { ctx.clearRect(0, 0, canvas.width, canvas.height); } };
 }
 
+/* -------- معالجة صورة التوقيع (نفس أسلوب تقرير الزيارة) --------
+   1) نقص المسافات الفاضية/البيضاء حوالين التوقيع، ونخلي الخلفية البيضاء شفافة
+   2) نرسم التوقيع بنسبته الأصلية داخل صندوق ثابت بحجم صندوق التوقيع بالإشعار
+   3) شريط "حجم التوقيع" يتحكم بحجمه داخل الصندوق (100% = أكبر حجم يسمح به الصندوق) */
+const SIG_OUT_W_ = 900;   // نسبة 30:11 = نسبة صندوق التوقيع بصورة الإشعار (300×110)
+const SIG_OUT_H_ = 330;
+
+function trimToCanvas_(srcCanvas) {
+  const w = srcCanvas.width, h = srcCanvas.height;
+  if (!w || !h) return null;
+  const work = document.createElement('canvas');
+  work.width = w; work.height = h;
+  const wctx = work.getContext('2d');
+  wctx.drawImage(srcCanvas, 0, 0);
+  const img = wctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      let a = d[i + 3];
+      if (a > 0) {
+        const m = Math.min(d[i], d[i + 1], d[i + 2]);
+        if (m >= 235) a = 0;                            // ورق أبيض/فاتح -> شفاف
+        else if (m > 200) a = Math.round(a * (235 - m) / 35); // حافة ناعمة
+        d[i + 3] = a;
+      }
+      if (a > 12) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return null;                            // ما فيه توقيع فعلي
+  wctx.putImageData(img, 0, 0);
+  const pad = 3;
+  minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+  maxX = Math.min(w - 1, maxX + pad); maxY = Math.min(h - 1, maxY + pad);
+  const cw = maxX - minX + 1, ch = maxY - minY + 1;
+  const out = document.createElement('canvas');
+  out.width = cw; out.height = ch;
+  out.getContext('2d').drawImage(work, minX, minY, cw, ch, 0, 0, cw, ch);
+  return out;
+}
+
+function composeSignature_(trimmed, scale) {
+  const out = document.createElement('canvas');
+  out.width = SIG_OUT_W_; out.height = SIG_OUT_H_;
+  const ctx = out.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  const padRatio = 0.05;
+  const maxW = SIG_OUT_W_ * (1 - 2 * padRatio), maxH = SIG_OUT_H_ * (1 - 2 * padRatio);
+  const k = Math.min(maxW / trimmed.width, maxH / trimmed.height) * (scale > 0 ? scale : 1);
+  const dw = trimmed.width * k, dh = trimmed.height * k;
+  ctx.drawImage(trimmed, (SIG_OUT_W_ - dw) / 2, (SIG_OUT_H_ - dh) / 2, dw, dh);
+  return out.toDataURL('image/png');
+}
+
+/* يرسم صورة التوقيع داخل صندوق (cx = منتصف الصندوق أفقيًا، top = أعلاه) بنسبتها الأصلية */
+function drawSignatureFit_(ctx, img, cx, top, boxW, boxH) {
+  if (!img || !img.width || !img.height) return;
+  const k = Math.min(boxW / img.width, boxH / img.height);
+  const dw = img.width * k, dh = img.height * k;
+  ctx.drawImage(img, cx - dw / 2, top + (boxH - dh) / 2, dw, dh);
+}
+
 /* -------- توقيع بخيارين: رسم بالإصبع أو رفع صورة جاهزة --------
    يتطلب وجود عنصرين بجانب الـ canvas بنفس الـ id: id_file (input file) و id_preview (img) و id_drawWrap و id_uploadWrap */
 const _sigWidgets = {};
 
 function setupSignatureWidget(id) {
-  _sigWidgets[id] = { mode: 'draw', uploadDataUrl: null, pad: initSignaturePad(id) };
+  _sigWidgets[id] = { mode: 'draw', uploadDataUrl: null, uploadTrimmed: null, scale: 1, pad: initSignaturePad(id) };
+  const w = _sigWidgets[id];
+
+  function refreshUploadPreview() {
+    const img = document.getElementById(id + '_preview');
+    if (!img || !w.uploadTrimmed) return;
+    w.uploadDataUrl = composeSignature_(w.uploadTrimmed, w.scale);
+    img.src = w.uploadDataUrl;
+    img.classList.remove('hidden');
+  }
+
   const fileInput = document.getElementById(id + '_file');
   if (fileInput) {
     fileInput.addEventListener('change', function (e) {
@@ -1225,15 +1332,45 @@ function setupSignatureWidget(id) {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = function (ev) {
-        _sigWidgets[id].uploadDataUrl = ev.target.result;
-        const img = document.getElementById(id + '_preview');
-        img.src = ev.target.result;
-        img.classList.remove('hidden');
+        const src = new Image();
+        src.onload = function () {
+          try {
+            const c = document.createElement('canvas');
+            c.width = src.naturalWidth; c.height = src.naturalHeight;
+            c.getContext('2d').drawImage(src, 0, 0);
+            w.uploadTrimmed = trimToCanvas_(c) || c;
+            refreshUploadPreview();
+          } catch (err) {
+            // لو صار خطأ بالمعالجة نستخدم الصورة كما هي
+            w.uploadTrimmed = null;
+            w.uploadDataUrl = ev.target.result;
+            const img = document.getElementById(id + '_preview');
+            if (img) { img.src = ev.target.result; img.classList.remove('hidden'); }
+          }
+        };
+        src.src = ev.target.result;
       };
       reader.readAsDataURL(file);
     });
   }
-  return _sigWidgets[id];
+
+  // شريط حجم التوقيع (يُضاف تلقائيًا تحت خيارات الرسم/الرفع)
+  const uploadWrap = document.getElementById(id + '_uploadWrap');
+  if (uploadWrap && !document.getElementById(id + '_sizeRow')) {
+    const row = document.createElement('div');
+    row.id = id + '_sizeRow';
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;margin:8px 0;';
+    row.innerHTML = '<label style="margin:0;white-space:nowrap;">حجم التوقيع</label>' +
+      '<input type="range" min="40" max="100" value="100" step="5" style="width:160px;" id="' + id + '_size">' +
+      '<span id="' + id + '_sizeLabel" style="font-weight:700;color:var(--maroon,#8C1A2C);">100%</span>';
+    uploadWrap.parentNode.insertBefore(row, uploadWrap.nextSibling);
+    document.getElementById(id + '_size').addEventListener('input', function (ev) {
+      w.scale = (Number(ev.target.value) || 100) / 100;
+      document.getElementById(id + '_sizeLabel').textContent = ev.target.value + '%';
+      refreshUploadPreview();
+    });
+  }
+  return w;
 }
 
 function setSigMode(id, mode) {
@@ -1253,6 +1390,7 @@ function clearSignatureWidget(id) {
   if (!w) return;
   if (w.pad) w.pad.clear();
   w.uploadDataUrl = null;
+  w.uploadTrimmed = null;
   const img = document.getElementById(id + '_preview');
   if (img) { img.src = ''; img.classList.add('hidden'); }
   const inp = document.getElementById(id + '_file');
@@ -1261,7 +1399,16 @@ function clearSignatureWidget(id) {
 
 function getSignatureDataUrl(id) {
   const w = _sigWidgets[id];
-  if (w && w.mode === 'upload') return w.uploadDataUrl || '';
+  const scale = w ? w.scale : 1;
+  if (w && w.mode === 'upload') {
+    if (w.uploadTrimmed) return composeSignature_(w.uploadTrimmed, scale);
+    return w.uploadDataUrl || '';
+  }
   const canvas = document.getElementById(id);
-  return canvas ? canvas.toDataURL('image/png') : '';
+  if (!canvas) return '';
+  try {
+    const trimmed = trimToCanvas_(canvas);
+    if (trimmed) return composeSignature_(trimmed, scale);
+  } catch (e) { /* لو ما قدرنا نقص التوقيع نرجع الصورة كاملة */ }
+  return canvas.toDataURL('image/png');
 }
