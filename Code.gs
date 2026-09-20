@@ -1173,16 +1173,24 @@ function recordIncentiveEntry_(p) {
   if (!qty || qty < 1) return { ok: false, error: 'الكمية مطلوبة' };
   if (!p.recipientName) return { ok: false, error: 'اسم المستلمة مطلوب' };
   if (!p.signature) return { ok: false, error: 'لازم التوقيع' };
-  // ما يصير توزَّع على المنسوبات أكثر من اللي استلمته المديرة/المسؤولة من نفس النوع والقيمة
+  // البطاقة اللي اتحسمت (سواء بالاستبدال أو بالإرجاع) ترجع متاحة من جديد لمنسوبة ثانية -
+  // فالمتاح للتسليم = المستلَم - (المسلَّم كله - المحسوم منه عن طريق المتابعة)
   if (p.kind === 'تسليم') {
-    const centerRows = sheetToObjects_('بطاقات التحفيز').filter(function (r) {
+    const allRows = sheetToObjects_('بطاقات التحفيز');
+    const centerRows = allRows.filter(function (r) {
       return String(r['اسم المركز']).trim() === String(p.center).trim() && r['نوع البطاقة'] === category && Number(r['القيمة']) === price;
     });
     const received = centerRows.filter(function (r) { return r['نوع السجل'] === 'استلام'; }).reduce(function (s, r) { return s + (Number(r['الكمية']) || 0); }, 0);
-    const deliveredSoFar = centerRows.filter(function (r) { return r['نوع السجل'] === 'تسليم'; }).reduce(function (s, r) { return s + (Number(r['الكمية']) || 0); }, 0);
-    if (deliveredSoFar + qty > received) {
-      const remaining = Math.max(0, received - deliveredSoFar);
-      return { ok: false, error: 'لا يمكن تسليم كمية أكبر من الكمية المستلَمة من فئة ' + category + ' بقيمة (' + cardPriceLabelForServer_(price) + '). الكمية المتبقية المتاحة للتسليم: ' + remaining + '.' };
+    const deliveredRows = centerRows.filter(function (r) { return r['نوع السجل'] === 'تسليم'; });
+    const deliveredTotal = deliveredRows.reduce(function (s, r) { return s + (Number(r['الكمية']) || 0); }, 0);
+    const deliveredIds = deliveredRows.map(function (r) { return r['معرف']; });
+    const resolved = sheetToObjects_('متابعة بطاقات التحفيز')
+      .filter(function (s) { return deliveredIds.indexOf(s['معرف السطر الأصلي']) !== -1; })
+      .reduce(function (s, r) { return s + (Number(r['العدد']) || 0); }, 0);
+    const outstanding = deliveredTotal - resolved;
+    const available = received - outstanding;
+    if (qty > available) {
+      return { ok: false, error: 'لا يمكن تسليم كمية أكبر من الكمية المتاحة من فئة ' + category + ' بقيمة (' + cardPriceLabelForServer_(price) + '). الكمية المتاحة حالياً للتسليم: ' + Math.max(0, available) + '.' };
     }
   }
   appendRowByHeaders_(sh, {
