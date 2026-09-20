@@ -1173,6 +1173,18 @@ function recordIncentiveEntry_(p) {
   if (!qty || qty < 1) return { ok: false, error: 'الكمية مطلوبة' };
   if (!p.recipientName) return { ok: false, error: 'اسم المستلمة مطلوب' };
   if (!p.signature) return { ok: false, error: 'لازم التوقيع' };
+  // ما يصير توزَّع على المنسوبات أكثر من اللي استلمته المديرة/المسؤولة من نفس النوع والقيمة
+  if (p.kind === 'تسليم') {
+    const centerRows = sheetToObjects_('بطاقات التحفيز').filter(function (r) {
+      return String(r['اسم المركز']).trim() === String(p.center).trim() && r['نوع البطاقة'] === category && Number(r['القيمة']) === price;
+    });
+    const received = centerRows.filter(function (r) { return r['نوع السجل'] === 'استلام'; }).reduce(function (s, r) { return s + (Number(r['الكمية']) || 0); }, 0);
+    const deliveredSoFar = centerRows.filter(function (r) { return r['نوع السجل'] === 'تسليم'; }).reduce(function (s, r) { return s + (Number(r['الكمية']) || 0); }, 0);
+    if (deliveredSoFar + qty > received) {
+      const remaining = Math.max(0, received - deliveredSoFar);
+      return { ok: false, error: 'ما يصير تسلَّم أكثر من اللي استُلم من ' + category + ' (' + cardPriceLabelForServer_(price) + ') - المتبقي المتاح للتسليم: ' + remaining };
+    }
+  }
   appendRowByHeaders_(sh, {
     'معرف': id, 'اسم المركز': p.center, 'الدور': p.role || '', 'نوع السجل': p.kind,
     'نوع البطاقة': category, 'القيمة': price, 'الكمية': qty, 'اسم المستلمة': p.recipientName,
@@ -1181,6 +1193,8 @@ function recordIncentiveEntry_(p) {
   invalidateCache_('بطاقات التحفيز');
   return { ok: true, id: id };
 }
+
+function cardPriceLabelForServer_(p) { return Number(p) === 3 ? '3 ريال' : 'ريالين'; }
 
 function getIncentiveEntries_(p) {
   let rows = sheetToObjects_('بطاقات التحفيز');
