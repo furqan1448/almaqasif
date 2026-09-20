@@ -875,6 +875,7 @@ function handleRequest_(p) {
 
       case 'loginSupervision': return json_(loginSupervision_(p));
       case 'loginAdmin': return json_(loginAdmin_(p));
+      case 'renameCenter': return json_(renameCenter_(p));
 
       case 'recordDifficulty': return json_(recordDifficulty_(p));
       case 'getDifficulties': return json_(getDifficulties_(p));
@@ -893,6 +894,108 @@ function handleRequest_(p) {
   } catch (err) {
     return json_({ ok: false, error: err.message });
   }
+}
+
+/* ------------------- تغيير اسم مركز بدون فقد البيانات -------------------
+   الموقع يربط كل البيانات باسم المركز (نصًا). فلو تغيّر الاسم بشيت "المراكز" فقط تنفصل عنه بياناته القديمة.
+   هذي الدالة تغيّر الاسم بكل الأماكن اللي يظهر فيها مرة وحدة: الشيتات الحيّة وشيتات الأرشيف (أرشيف_...)،
+   وتحدّث استهداف الإعلانات (مركز:الاسم). تتطلب كلمة مرور الإدارة للتأكيد. */
+const CENTER_NAME_COLUMNS_ = {
+  'المراكز': ['اسم المركز'],
+  'المسؤولات': ['اسم المركز'],
+  'المبيعات': ['اسم المركز'],
+  'المرتجعات': ['اسم المركز'],
+  'الفواتير': ['اسم المركز'],
+  'الإشعارات': ['اسم المركز'],
+  'الصعوبات والمقترحات': ['اسم المركز', 'من'],
+  'بطاقات التحفيز': ['اسم المركز'],
+  'متابعة بطاقات التحفيز': ['اسم المركز'],
+  'المرفقات': ['المالك', 'من']
+};
+
+function renameCenter_(p) {
+  const auth = loginAdmin_({ password: p.password });
+  if (!auth.ok) return auth;
+
+  const oldName = String(p.oldName || '').trim();
+  const newName = String(p.newName || '').trim();
+  if (!oldName || !newName) return { ok: false, error: 'اكتبي الاسم القديم والاسم الجديد' };
+  if (oldName === newName) return { ok: false, error: 'الاسم الجديد نفس الاسم القديم' };
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const centersSh = ss.getSheetByName('المراكز');
+  if (!centersSh) return { ok: false, error: 'شيت المراكز غير موجود' };
+
+  const cHeaders = centersSh.getRange(1, 1, 1, Math.max(1, centersSh.getLastColumn())).getValues()[0]
+    .map(function (h) { return String(h).trim(); });
+  const cIdx = cHeaders.indexOf('اسم المركز');
+  if (cIdx < 0) return { ok: false, error: 'عمود "اسم المركز" غير موجود بشيت المراكز' };
+  const existing = centersSh.getLastRow() < 2 ? [] :
+    centersSh.getRange(2, cIdx + 1, centersSh.getLastRow() - 1, 1).getValues()
+      .map(function (r) { return String(r[0]).trim(); });
+  if (existing.indexOf(oldName) === -1) return { ok: false, error: 'ما لقيت مركز بهذا الاسم: ' + oldName };
+  if (existing.indexOf(newName) !== -1) return { ok: false, error: 'فيه مركز موجود بنفس الاسم الجديد، اختاري اسم ثاني' };
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  const report = [];
+  let total = 0;
+  try {
+    ss.getSheets().forEach(function (sh) {
+      const sheetName = sh.getName();
+      const base = sheetName.indexOf(ARCHIVE_PREFIX) === 0 ? sheetName.slice(ARCHIVE_PREFIX.length) : sheetName;
+      const cols = CENTER_NAME_COLUMNS_[base] || [];
+      const isAnnouncements = base === 'الإعلانات الهامة';
+      if (!cols.length && !isAnnouncements) return;
+      const lastRow = sh.getLastRow();
+      const lastCol = sh.getLastColumn();
+      if (lastRow < 2 || lastCol < 1) return;
+      const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return String(h).trim(); });
+      let changed = 0;
+
+      cols.forEach(function (h) {
+        const idx = headers.indexOf(h);
+        if (idx < 0) return;
+        const range = sh.getRange(2, idx + 1, lastRow - 1, 1);
+        const vals = range.getValues();
+        let c = 0;
+        vals.forEach(function (row) {
+          if (String(row[0]).trim() === oldName) { row[0] = newName; c++; }
+        });
+        if (c) { range.setValues(vals); changed += c; }
+      });
+
+      if (isAnnouncements) {
+        const idx = headers.indexOf('استهداف');
+        if (idx >= 0) {
+          const range = sh.getRange(2, idx + 1, lastRow - 1, 1);
+          const vals = range.getValues();
+          let c = 0;
+          vals.forEach(function (row) {
+            const cell = String(row[0] || '');
+            if (cell.indexOf('مركز:' + oldName) === -1) return;
+            const parts = cell.split('|').map(function (t) { return t === 'مركز:' + oldName ? 'مركز:' + newName : t; });
+            row[0] = parts.join('|');
+            c++;
+          });
+          if (c) { range.setValues(vals); changed += c; }
+        }
+      }
+
+      if (changed) { report.push(sheetName + ': ' + changed); total += changed; }
+    });
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
+
+  // نفرّغ الكاش عشان الموقع يقرأ الاسم الجديد فورًا
+  try {
+    const cache = getCache_();
+    ss.getSheets().forEach(function (sh) { cache.remove('sheet_' + sh.getName()); });
+  } catch (e) { /* ما يهم */ }
+
+  return { ok: true, total: total, updated: report };
 }
 
 /* ------------------- المراكز والمسؤولات: تسجيل الدخول ------------------- */

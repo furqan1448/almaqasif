@@ -108,6 +108,10 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="7.5" cy="14" r="1"/></svg></div>
           <span class="label">بطاقات التحفيز</span>
         </div>
+        <div class="icon-btn" onclick="showAdminTab('renameCenterTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></div>
+          <span class="label">تغيير اسم مركز</span>
+        </div>
       </div>
     </div>
   </div>
@@ -613,6 +617,23 @@
       <div id="vrPdfHost" style="width:1123px;background:#fff;"></div>
     </div>
 
+    <!-- ===== تبويب: تغيير اسم مركز ===== -->
+    <div id="renameCenterTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">تغيير اسم مركز</h3>
+        <p style="font-size:0.85rem;color:#8a7d76;margin-top:0;">يغيّر الاسم بكل مكان يظهر فيه (المبيعات، الفواتير، المرتجعات، الإشعارات، البطاقات، المرفقات، الإعلانات، وشيتات الأرشيف)، فما تنفقد أي بيانات قديمة. كلمة مرور المركز ما تتغير.</p>
+        <label>المركز الحالي</label>
+        <select id="renameCenterOld"></select>
+        <label>الاسم الجديد</label>
+        <input type="text" id="renameCenterNew" placeholder="مثال: مركز النور">
+        <label>كلمة مرور الإدارة (للتأكيد)</label>
+        <input type="password" id="renameCenterPass" autocomplete="off">
+        <button class="btn" id="renameCenterBtn" onclick="submitRenameCenter()" style="margin-top:12px;">تغيير الاسم</button>
+        <div class="error-msg" id="renameCenterError"></div>
+        <div class="success-msg" id="renameCenterSuccess"></div>
+      </div>
+    </div>
+
     <!-- ===== تبويب: قائمة الأسعار ===== -->
     <div id="priceListTab" class="admin-tab-panel hidden">
       <div class="card">
@@ -740,6 +761,57 @@ function showAdminTab(tabId) {
   if (tabId === 'priceListTab') { loadPriceManagerSelect(); loadPriceItemsAdmin(); loadPriceListFileAdmin(); }
   if (tabId === 'visitReportTab') { initVisitReportTab_(); }
   if (tabId === 'cardsAdminTab') { loadCardsAdminOverview(); }
+  if (tabId === 'renameCenterTab') { loadRenameCenterSelect(); }
+}
+
+/* -------- تغيير اسم مركز (يحدّث كل الشيتات بدون فقد بيانات) -------- */
+function loadRenameCenterSelect() {
+  const sel = document.getElementById('renameCenterOld');
+  sel.innerHTML = '<option value="">جاري التحميل...</option>';
+  callApi('getCenters').then(function (r) {
+    sel.innerHTML = '';
+    const names = (r && r.ok && r.centers) ? r.centers : [];
+    if (!names.length) { sel.innerHTML = '<option value="">لا يوجد مراكز</option>'; return; }
+    names.forEach(function (n) {
+      const o = document.createElement('option');
+      o.value = n; o.textContent = n;
+      sel.appendChild(o);
+    });
+  });
+}
+
+function submitRenameCenter() {
+  const errBox = document.getElementById('renameCenterError');
+  const okBox = document.getElementById('renameCenterSuccess');
+  errBox.style.display = 'none'; okBox.style.display = 'none';
+  const oldName = document.getElementById('renameCenterOld').value;
+  const newName = document.getElementById('renameCenterNew').value.trim();
+  const password = document.getElementById('renameCenterPass').value;
+  if (!oldName) { errBox.textContent = 'اختاري المركز'; errBox.style.display = 'block'; return; }
+  if (!newName) { errBox.textContent = 'اكتبي الاسم الجديد'; errBox.style.display = 'block'; return; }
+  if (!password) { errBox.textContent = 'أدخلي كلمة مرور الإدارة للتأكيد'; errBox.style.display = 'block'; return; }
+  if (!confirm('تغيير اسم المركز من:\n' + oldName + '\nإلى:\n' + newName + '\n\nيتم تغييره بكل الشيتات. متأكدة؟')) return;
+
+  const btn = document.getElementById('renameCenterBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  callApi('renameCenter', { password: password, oldName: oldName, newName: newName }).then(function (r) {
+    btn.disabled = false; btn.textContent = 'تغيير الاسم';
+    if (r && r.ok) {
+      okBox.textContent = 'تم تغيير الاسم ✅ (' + r.total + ' سجل) — ' + (r.updated || []).join('، ');
+      okBox.style.display = 'block';
+      document.getElementById('renameCenterNew').value = '';
+      document.getElementById('renameCenterPass').value = '';
+      loadRenameCenterSelect();
+      if (typeof loadCentersDropdowns === 'function') loadCentersDropdowns();
+    } else {
+      errBox.textContent = (r && r.error) || 'تعذّر تغيير الاسم، حاولي مرة أخرى';
+      errBox.style.display = 'block';
+    }
+  }).catch(function () {
+    btn.disabled = false; btn.textContent = 'تغيير الاسم';
+    errBox.textContent = 'تعذّر الاتصال، حاولي مرة أخرى';
+    errBox.style.display = 'block';
+  });
 }
 
 /* -------- بطاقات التحفيز: نظرة الإدارة -------- */
