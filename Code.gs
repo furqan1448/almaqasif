@@ -2165,6 +2165,12 @@ function getSmartAnalysis_(p) {
     const name = String(r['اسم المركز'] || '').trim();
     if (name && centers.indexOf(name) === -1) centers.push(name);
   });
+  // أي اسم مركز له مبيعات مسجّلة بس ما هو بأي من الشيتين (مثلاً مكتوب باختلاف بسيط) ما نخليه يختفي
+  const salesRows = allRowsIncludingArchive_('المبيعات');
+  salesRows.forEach(function (r) {
+    const name = String(r['اسم المركز'] || '').trim();
+    if (name && centers.indexOf(name) === -1) centers.push(name);
+  });
 
   const stats = {};
   centers.forEach(function (c) {
@@ -2173,7 +2179,7 @@ function getSmartAnalysis_(p) {
 
   // ---- المبيعات ----
   let rangeRows = 0, stampedRows = 0;
-  allRowsIncludingArchive_('المبيعات').forEach(function (r) {
+  salesRows.forEach(function (r) {
     const c = String(r['اسم المركز'] || '').trim();
     const st = stats[c];
     if (!st) return;
