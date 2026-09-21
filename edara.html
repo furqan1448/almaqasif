@@ -2560,12 +2560,13 @@ function smartTableHtml_(r) {
       '<td>' + m.recorded + '/' + m.expected + '</td>' +
       '<td>' + todayCell + '</td>' +
       '<td>' + last + '</td>' +
+      '<td>' + (m.invoices ? '✅ ' + m.invoices : '❌') + '</td>' +
       '</tr>';
 
     const chips = m.missing.length
       ? m.missing.map(function (d) { return '<span class="sm-chip">' + smartDateShort_(d) + '</span>'; }).join('')
       : '<span class="sm-sub">لا توجد أيام ناقصة 👏</span>';
-    rows += '<tr id="smartDetail_' + i + '" class="sm-detail hidden"><td colspan="5">' +
+    rows += '<tr id="smartDetail_' + i + '" class="sm-detail hidden"><td colspan="6">' +
       '<div class="sm-facts">' +
         '<span>الالتزام: <b>' + (m.compliance === null ? '—' : m.compliance + '%') + '</b></span>' +
         '<span>أول بأول: <b>' + (m.knownTiming ? m.onTime + ' من ' + m.knownTiming : '—') + '</b></span>' +
@@ -2580,7 +2581,7 @@ function smartTableHtml_(r) {
     '<div class="sm-summary">الالتزام العام: <b>' + (r.summary.overallCompliance === null ? '—' : r.summary.overallCompliance + '%') + '</b>' +
     ' · سجّلوا اليوم: <b>' + r.todaySnap.filter(function (t) { return t.recorded; }).length + '/' + r.todaySnap.length + '</b></div>' +
     '<div class="sm-scroll"><table class="log-table sm-table"><thead><tr>' +
-      '<th>المركز</th><th>الحالة</th><th>سجّل</th><th>اليوم</th><th>آخر تسجيل</th>' +
+      '<th>المركز</th><th>الحالة</th><th>سجّل</th><th>اليوم</th><th>آخر تسجيل</th><th>الفواتير</th>' +
     '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
     '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;">اضغطي على أي مركز لعرض الأيام التي لم يسجّل فيها.</p>' +
     '<div class="export-row" style="margin-top:12px;">' +
@@ -2592,7 +2593,7 @@ function smartTableHtml_(r) {
 
 function smartNoteHtml_(r) {
   const q = r.dataQuality;
-  let n = '«سجّل» = مبيعات مسجّلة بتاريخ اليوم. «أول بأول» يُقاس من وقت التسجيل الفعلي ويبدأ بعد تحديث النظام';
+  let n = '«سجّل» = مبيعات مسجّلة بتاريخ اليوم في سجل البيع اليومي. «الفواتير» = عدد الفواتير اللي أدخلها المركز خلال الفترة (❌ = ما أدخل شيئاً). «أول بأول» يُقاس من وقت التسجيل الفعلي ويبدأ بعد تحديث النظام';
   if (q.rangeRows && q.stampedRows === 0) n += ' (لم يبدأ القياس بعد).';
   else n += '.';
   if (r.offDays.length) n += ' أيام اعتُبرت إجازة لأن لا مركز سجّل فيها: ' + r.offDays.map(smartDateShort_).join('، ') + '.';
@@ -2631,6 +2632,7 @@ function smartExportRows_() {
       'متوسط وقت التسجيل': m.avgTime || '',
       'آخر تسجيل': m.lastRecord ? (dayNameFor(m.lastRecord) + ' ' + toHijriNumericStr(m.lastRecord)) : '',
       'إجمالي المبيعات': Number(m.total.toFixed(2)),
+      'عدد الفواتير المُدخلة': m.invoices,
       'الأيام التي لم يسجّل فيها': m.missing.map(function (d) { return dayNameFor(d) + ' ' + toHijriNumericStr(d); }).join(' ، ')
     };
   });
@@ -2653,6 +2655,7 @@ function printSmartReport() {
       rec: m.recorded + ' / ' + m.expected,
       missing: m.missingCount,
       ontime: m.knownTiming ? (m.onTime + '/' + m.knownTiming) : '—',
+      inv: m.invoices || 'لم يُدخل',
       last: m.lastRecord ? (dayNameFor(m.lastRecord) + ' ' + toHijriNumericStr(m.lastRecord)) : 'لا يوجد',
       total: Number(m.total).toFixed(2)
     };
@@ -2660,7 +2663,7 @@ function printSmartReport() {
   printReport('التحليل الذكي لالتزام المراكز', 'من ' + toHijriStr(r.from) + ' إلى ' + toHijriStr(r.to), [
     { key: 'n', label: '#' }, { key: 'center', label: 'المركز' }, { key: 'status', label: 'الحالة' },
     { key: 'comp', label: 'الالتزام' }, { key: 'rec', label: 'سجّل / المطلوب' }, { key: 'missing', label: 'لم يسجّل' },
-    { key: 'ontime', label: 'أول بأول' }, { key: 'last', label: 'آخر تسجيل' }, { key: 'total', label: 'المبيعات' }
+    { key: 'ontime', label: 'أول بأول' }, { key: 'inv', label: 'الفواتير' }, { key: 'last', label: 'آخر تسجيل' }, { key: 'total', label: 'المبيعات' }
   ], rows, { key: 'total', label: 'إجمالي المبيعات' });
 }
 
