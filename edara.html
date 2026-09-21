@@ -8,6 +8,32 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;700;800&display=swap">
 <link rel="stylesheet" href="style.css">
+<style id="gradesStyles">
+/* درجات المسؤولات */
+.grade-hint { color:#8a7d76; font-size:0.88rem; margin:0 0 4px; }
+.grade-legend { font-size:0.8rem; color:#8a7d76; margin-top:10px; line-height:1.9; }
+.grade-toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.grade-toolbar button { flex:1; min-width:120px; margin:0; }
+.grade-summary { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+.grade-summary > div { flex:1; min-width:110px; background:var(--cream); border:1px solid var(--gold-light); border-radius:12px; padding:10px 8px; text-align:center; }
+.grade-summary .v { font-family:'Amiri',serif; font-size:1.5rem; font-weight:700; color:var(--maroon); line-height:1.2; }
+.grade-summary .l { font-size:0.75rem; color:#8a7d76; margin-top:2px; }
+.grade-card { background:#fff; border:1px solid var(--gold-light); border-radius:14px; padding:12px 14px; margin-top:12px; box-shadow:var(--shadow); }
+.grade-head { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.grade-name { font-weight:800; color:var(--maroon-dark); }
+.grade-meta { font-size:0.8rem; color:#8a7d76; margin-top:2px; }
+.grade-score { font-family:'Amiri',serif; font-size:1.8rem; font-weight:700; color:var(--success); line-height:1; white-space:nowrap; }
+.grade-score small { font-family:'Tajawal',sans-serif; font-size:0.85rem; color:#8a7d76; font-weight:500; }
+.grade-score.part { color:var(--pending); }
+.grade-chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.grade-chip { font-family:inherit; font-size:0.82rem; font-weight:700; border-radius:999px; padding:7px 12px; cursor:pointer; border:1.5px solid var(--success); background:#e2f4e9; color:var(--success); }
+.grade-chip small { font-weight:500; opacity:0.85; margin-right:4px; }
+.grade-chip.miss { border-color:#b3261e; background:#fdeceb; color:#b3261e; }
+.grade-foot { margin-top:8px; font-size:0.83rem; font-weight:700; }
+.grade-foot .ok { color:var(--success); }
+.grade-foot .miss { color:#b3261e; }
+.grade-foot .unsaved { color:#8a7d76; font-weight:500; font-size:0.75rem; margin-right:8px; }
+</style>
 </head>
 <body>
 
@@ -111,6 +137,10 @@
         <div class="icon-btn" onclick="showAdminTab('cardsAdminTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="7.5" cy="14" r="1"/></svg></div>
           <span class="label">بطاقات التحفيز</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('gradesTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 3.5h6v2H9z"/><path d="M9 13.5l2 2 4-4.5"/></svg></div>
+          <span class="label">درجات المسؤولات</span>
         </div>
       </div>
     </div>
@@ -530,6 +560,31 @@
       </div>
     </div>
 
+    <!-- ===== تبويب: درجات المسؤولات (تقييم نهاية الفصل من 13) ===== -->
+    <div id="gradesTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">درجات المسؤولات (من ١٣)</h3>
+        <p class="grade-hint">كل البنود «مكتملة» افتراضياً، اضغطي على البند الناقص فقط وتنحسب الدرجة تلقائياً. بعد المراجعة اضغطي «حفظ الدرجات».</p>
+        <div class="select-row">
+          <div>
+            <label>الفصل الدراسي</label>
+            <select id="gradesTermNum" onchange="onGradesTermChange_()">
+              <option value="">اختاري...</option>
+              <option value="الأول">الأول</option>
+              <option value="الثاني">الثاني</option>
+              <option value="الثالث">الثالث</option>
+            </select>
+          </div>
+          <div>
+            <label>السنة الهجرية</label>
+            <input type="text" id="gradesTermYear" placeholder="مثال: ١٤٤٨" onchange="onGradesTermChange_()">
+          </div>
+        </div>
+        <div class="grade-legend">توزيع الدرجات: تسجيل المبيعات ٤ · الفواتير ٣ · إشعار الاستلام ٢ · توقيع التعهد ٢ · تأكيد الاطلاع على المهام ٢</div>
+      </div>
+      <div id="gradesBody"></div>
+    </div>
+
     <!-- ===== تبويب: قائمة الدخل ===== -->
     <div id="incomeTab" class="admin-tab-panel hidden">
       <div class="card">
@@ -844,6 +899,7 @@ function showAdminTab(tabId) {
   if (tabId === 'priceListTab') { loadPriceManagerSelect(); loadPriceItemsAdmin(); loadPriceListFileAdmin(); }
   if (tabId === 'visitReportTab') { initVisitReportTab_(); }
   if (tabId === 'cardsAdminTab') { loadCardsAdminOverview(); }
+  if (tabId === 'gradesTab') { initGradesTab_(); }
 }
 
 /* -------- بطاقات التحفيز: نظرة الإدارة -------- */
@@ -2043,6 +2099,204 @@ function loadTasksStatus() {
       tbody.appendChild(tr);
     });
   });
+}
+
+/* ==================== درجات المسؤولات (تقييم نهاية الفصل من 13) ==================== */
+const GRADE_ITEMS_ = [
+  { key: 'تسجيل المبيعات', max: 4 },
+  { key: 'الفواتير', max: 3 },
+  { key: 'إشعار الاستلام', max: 2 },
+  { key: 'توقيع التعهد', max: 2 },
+  { key: 'تأكيد الاطلاع على المهام', max: 2 }
+];
+const GRADE_TOTAL_ = 13;
+let gradesState_ = { term: '', list: [], touched: false };
+
+function gradesEsc_(s) {
+  return String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function gradesDefaultYear_() {
+  try {
+    const parts = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', { year: 'numeric' }).formatToParts(new Date());
+    const y = parts.filter(function (x) { return x.type === 'year'; })[0];
+    return y ? toArabicDigits(y.value).replace(/[^٠-٩]/g, '') : '';
+  } catch (e) { return ''; }
+}
+
+function initGradesTab_() {
+  const yearEl = document.getElementById('gradesTermYear');
+  if (!yearEl.value) yearEl.value = gradesDefaultYear_();
+  if (!gradesState_.list.length) {
+    document.getElementById('gradesBody').innerHTML = '<div class="card" style="color:#8a7d76;">اختاري الفصل الدراسي لعرض المسؤولات.</div>';
+  }
+}
+
+/* اسم الفصل بنفس صيغة الأرشفة: «الفصل الدراسي الأول ١٤٤٨هـ» (الأرقام دايماً عربية عشان ما يختلف الاسم لو انكتب بأرقام لاتينية) */
+function gradesTermLabel_() {
+  const num = document.getElementById('gradesTermNum').value;
+  const year = toArabicDigits(document.getElementById('gradesTermYear').value.trim()).replace(/\s*هـ\s*$/, '');
+  if (!num || !year) return '';
+  return 'الفصل الدراسي ' + num + ' ' + year + 'هـ';
+}
+
+function onGradesTermChange_() {
+  const label = gradesTermLabel_();
+  if (!label) return;
+  if (gradesState_.touched && gradesState_.term && gradesState_.term !== label) {
+    if (!confirm('فيه تعديلات ما انحفظت لـ «' + gradesState_.term + '». تبين تتجاهلينها وتنتقلين للفصل الجديد؟')) return;
+  }
+  loadGrades_(label);
+}
+
+function loadGrades_(label) {
+  const body = document.getElementById('gradesBody');
+  body.innerHTML = '<div class="card">جاري التحميل...</div>';
+  callApi('getMasoulaGrades', { term: label }).then(function (r) {
+    if (!r || !r.ok) {
+      body.innerHTML = '<div class="card">تعذّر تحميل الدرجات' + (r && r.error ? ': ' + gradesEsc_(r.error) : '') +
+        '<br><span style="font-size:0.8rem;color:#8a7d76;">تأكدي أنك نشرتِ إصداراً جديداً من Apps Script بعد تحديث Code.gs.</span></div>';
+      return;
+    }
+    gradesState_ = {
+      term: label,
+      touched: false,
+      list: r.list.map(function (m) {
+        return { name: m.name, center: m.center, saved: !!m.saved, items: m.items };
+      })
+    };
+    renderGrades_();
+  }).catch(function () {
+    body.innerHTML = '<div class="card">تعذّر الاتصال بالسيرفر، حاولي مرة ثانية.</div>';
+  });
+}
+
+function gradeCalc_(m) {
+  let score = GRADE_TOTAL_;
+  const missing = [];
+  GRADE_ITEMS_.forEach(function (it) {
+    if (m.items[it.key] === 'ناقص') { score -= it.max; missing.push(it.key); }
+  });
+  return { score: score, missing: missing };
+}
+
+function gradeCardInner_(i) {
+  const m = gradesState_.list[i];
+  const c = gradeCalc_(m);
+  const chips = GRADE_ITEMS_.map(function (it, k) {
+    const miss = m.items[it.key] === 'ناقص';
+    return '<button type="button" class="grade-chip' + (miss ? ' miss' : '') + '" onclick="toggleGradeItem_(' + i + ',' + k + ')">' +
+      (miss ? '✗ ' : '✓ ') + gradesEsc_(it.key) + '<small>' + it.max + '</small></button>';
+  }).join('');
+  const status = c.missing.length
+    ? '<span class="miss">الناقص: ' + c.missing.map(gradesEsc_).join('، ') + '</span>'
+    : '<span class="ok">مكتمل</span>';
+  return '<div class="grade-head"><div><div class="grade-name">' + gradesEsc_(m.name) + '</div>' +
+    '<div class="grade-meta">' + gradesEsc_(m.center || 'بدون مركز') + '</div></div>' +
+    '<div class="grade-score' + (c.score < GRADE_TOTAL_ ? ' part' : '') + '">' + toArabicDigits(c.score) + '<small> / ' + toArabicDigits(GRADE_TOTAL_) + '</small></div></div>' +
+    '<div class="grade-chips">' + chips + '</div>' +
+    '<div class="grade-foot">' + status + (m.saved ? '' : '<span class="unsaved">● لم تُحفظ بعد</span>') + '</div>';
+}
+
+function gradesSummaryHtml_() {
+  const list = gradesState_.list;
+  const scores = list.map(function (m) { return gradeCalc_(m).score; });
+  const complete = scores.filter(function (x) { return x === GRADE_TOTAL_; }).length;
+  const avg = scores.length ? (scores.reduce(function (a, b) { return a + b; }, 0) / scores.length) : 0;
+  return '<div><div class="v">' + toArabicDigits(list.length) + '</div><div class="l">عدد المسؤولات</div></div>' +
+    '<div><div class="v">' + toArabicDigits(complete) + '</div><div class="l">مكتملات (١٣/١٣)</div></div>' +
+    '<div><div class="v">' + toArabicDigits(avg.toFixed(1)) + '</div><div class="l">متوسط الدرجات</div></div>';
+}
+
+function renderGrades_() {
+  const body = document.getElementById('gradesBody');
+  const list = gradesState_.list;
+  if (!list.length) {
+    body.innerHTML = '<div class="card">لا توجد مسؤولات مسجّلات بشيت «المسؤولات».</div>';
+    return;
+  }
+  let html = '<div class="card">' +
+    '<div style="font-weight:800;color:var(--maroon-dark);">' + gradesEsc_(gradesState_.term) + '</div>' +
+    '<div class="grade-summary" id="gradesSummary">' + gradesSummaryHtml_() + '</div>' +
+    '<input type="text" id="gradesSearch" placeholder="بحث باسم المسؤولة أو المركز..." oninput="filterGrades_()" style="margin-top:12px;">' +
+    '<div class="grade-toolbar">' +
+      '<button class="btn" id="gradesSaveBtn" onclick="saveGrades_()">حفظ الدرجات</button>' +
+      '<button class="btn secondary" onclick="exportGradesExcel_()">Excel</button>' +
+      '<button class="btn secondary" onclick="printGrades_()">PDF / طباعة</button>' +
+    '</div></div>';
+  list.forEach(function (m, i) {
+    html += '<div class="grade-card" id="gradeCard_' + i + '" data-search="' + gradesEsc_((m.name + ' ' + m.center).toLowerCase()) + '">' + gradeCardInner_(i) + '</div>';
+  });
+  body.innerHTML = html;
+}
+
+function toggleGradeItem_(i, k) {
+  const m = gradesState_.list[i];
+  const key = GRADE_ITEMS_[k].key;
+  m.items[key] = m.items[key] === 'ناقص' ? 'مكتمل' : 'ناقص';
+  m.saved = false;
+  gradesState_.touched = true;
+  document.getElementById('gradeCard_' + i).innerHTML = gradeCardInner_(i);
+  document.getElementById('gradesSummary').innerHTML = gradesSummaryHtml_();
+}
+
+function filterGrades_() {
+  const q = document.getElementById('gradesSearch').value.trim().toLowerCase();
+  gradesState_.list.forEach(function (m, i) {
+    const el = document.getElementById('gradeCard_' + i);
+    if (el) el.classList.toggle('hidden', !!q && el.getAttribute('data-search').indexOf(q) === -1);
+  });
+}
+
+function saveGrades_() {
+  if (!gradesState_.term || !gradesState_.list.length) { alert('اختاري الفصل الدراسي أولاً'); return; }
+  const btn = document.getElementById('gradesSaveBtn');
+  setBtnBusy(btn, true);
+  const payload = gradesState_.list.map(function (m) {
+    return { name: m.name, center: m.center, items: m.items };
+  });
+  callApi('saveMasoulaGrades', { term: gradesState_.term, grades: payload }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (r && r.ok) {
+      gradesState_.list.forEach(function (m) { m.saved = true; });
+      gradesState_.touched = false;
+      renderGrades_();
+      alert('تم حفظ درجات ' + gradesState_.list.length + ' مسؤولة ✅');
+    } else {
+      alert('صار خطأ: ' + ((r && r.error) || 'غير معروف') + '\n\nتأكدي أنك نشرتِ إصداراً جديداً من Apps Script بعد تحديث Code.gs.');
+    }
+  }).catch(function () {
+    setBtnBusy(btn, false);
+    alert('تعذّر الاتصال بالسيرفر، حاولي مرة ثانية.');
+  });
+}
+
+function gradesRows_(forPrint) {
+  return gradesState_.list.map(function (m, i) {
+    const c = gradeCalc_(m);
+    const row = { 'م': i + 1, 'المسؤولة': m.name, 'المركز': m.center };
+    GRADE_ITEMS_.forEach(function (it) {
+      const miss = m.items[it.key] === 'ناقص';
+      row[it.key + ' (' + it.max + ')'] = forPrint ? (miss ? '✗' : '✓') : (miss ? 'ناقص' : 'مكتمل');
+    });
+    row['الدرجة من ' + GRADE_TOTAL_] = c.score;
+    row['الحالة'] = c.missing.length ? 'الناقص: ' + c.missing.join('، ') : 'مكتمل';
+    return row;
+  });
+}
+
+function exportGradesExcel_() {
+  if (!gradesState_.list.length) return;
+  exportToExcel(gradesRows_(false), 'درجات-المسؤولات-' + gradesState_.term.replace(/\s+/g, '-'), 'درجات المسؤولات');
+}
+
+function printGrades_() {
+  if (!gradesState_.list.length) return;
+  const rows = gradesRows_(true);
+  const columns = Object.keys(rows[0]).map(function (k) { return { key: k, label: k }; });
+  printReport('درجات المسؤولات', gradesState_.term, columns, rows);
 }
 
 /* -------- قائمة الدخل -------- */

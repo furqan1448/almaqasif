@@ -58,7 +58,9 @@ function setup() {
     // كل سطر هنا = جزء من الكمية الأصلية باسم مستفيدة معيّنة وحالتها، ومجموعها ما يتجاوز
     // الكمية المسجّلة بسطر التسليم الأصلي (يُتحقق منه بـ addIncentiveFollowupSplit_)
     'متابعة بطاقات التحفيز': ['معرف', 'معرف السطر الأصلي', 'اسم المركز', 'اسم المستفيدة', 'العدد',
-      'الحالة', 'اليوم', 'التاريخ']
+      'الحالة', 'اليوم', 'التاريخ'],
+    // درجات المسؤولات: تقييم نهاية الفصل من 13 (يدوي من لوحة الإدارة) - صف لكل (فصل + مسؤولة)
+    'درجات المسؤولات': GRADES_HEADERS_
   };
 
   Object.keys(sheets).forEach(function (name) {
@@ -912,6 +914,8 @@ function handleRequest_(p) {
       case 'loginCenter': return json_(loginCenter_(p));
       case 'loginMasoula': return json_(loginMasoula_(p));
       case 'getMasoulat': return json_(getMasoulat_());
+      case 'getMasoulaGrades': return json_(getMasoulaGrades_(p));
+      case 'saveMasoulaGrades': return json_(saveMasoulaGrades_(p));
 
       case 'recordSale': return json_(recordSale_(p));
       case 'getSales': return json_(getSales_(p));
@@ -1048,6 +1052,155 @@ function loginMasoula_(p) {
 function getMasoulat_() {
   const rows = sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG);
   return { ok: true, masoulat: rows.map(function (r) { return r['الاسم']; }).filter(Boolean) };
+}
+
+/* ------------------- درجات المسؤولات (تقييم نهاية الفصل من 13) -------------------
+   التقييم يدوي بالكامل من لوحة الإدارة (edara.html ← «درجات المسؤولات»): كل بند يكون
+   «مكتمل» أو «ناقص»، والدرجة = 13 ناقص درجات البنود الناقصة. تُحفظ بشيت «درجات المسؤولات»
+   بصف واحد لكل (فصل + مسؤولة)، ولو انحفظ نفس الفصل مرة ثانية تتحدّث الصفوف نفسها (ما تتكرر). */
+const GRADES_SHEET_ = 'درجات المسؤولات';
+const GRADES_ITEMS_ = [
+  { key: 'تسجيل المبيعات', max: 4 },
+  { key: 'الفواتير', max: 3 },
+  { key: 'إشعار الاستلام', max: 2 },
+  { key: 'توقيع التعهد', max: 2 },
+  { key: 'تأكيد الاطلاع على المهام', max: 2 }
+];
+const GRADES_TOTAL_ = 13;
+const GRADES_HEADERS_ = ['معرف', 'الفصل', 'اسم المسؤولة', 'اسم المركز']
+  .concat(GRADES_ITEMS_.map(function (i) { return i.key; }))
+  .concat(['الدرجة', 'الناقص', 'اليوم', 'التاريخ']);
+
+/* تنشئ الشيت تلقائياً لو ما كان موجود (فما يلزم تشغيل setup() عشان تشتغل الميزة) */
+function getGradesSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(GRADES_SHEET_);
+  if (!sh) {
+    sh = ss.insertSheet(GRADES_SHEET_);
+    sh.appendRow(GRADES_HEADERS_);
+    sh.getRange(1, 1, 1, GRADES_HEADERS_.length).setFontWeight('bold');
+    sh.setRightToLeft(true);
+    ['اليوم', 'التاريخ'].forEach(function (h) {
+      const idx = GRADES_HEADERS_.indexOf(h) + 1;
+      sh.getRange(2, idx, Math.max(sh.getMaxRows() - 1, 1), 1).setNumberFormat('@');
+    });
+  }
+  return sh;
+}
+
+/* تحسب الدرجة والناقص من حالات البنود (أي قيمة غير «ناقص» تُعتبر «مكتمل») */
+function computeGrade_(items) {
+  const state = {};
+  const missing = [];
+  let score = GRADES_TOTAL_;
+  GRADES_ITEMS_.forEach(function (it) {
+    const isMissing = String((items || {})[it.key] || '').trim() === 'ناقص';
+    state[it.key] = isMissing ? 'ناقص' : 'مكتمل';
+    if (isMissing) { score -= it.max; missing.push(it.key); }
+  });
+  return { state: state, missing: missing, score: score };
+}
+
+/* p.term: اسم الفصل، مثال «الفصل الدراسي الأول ١٤٤٨هـ».
+   ترجع كل المسؤولات (من شيت المسؤولات) ومعها درجاتهم المحفوظة لهذا الفصل،
+   والمسؤولة اللي ما انحفظ لها شي تطلع «مكتمل» بكل البنود (saved: false). */
+function getMasoulaGrades_(p) {
+  const term = String(p.term || '').trim();
+  const masoulat = sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG).filter(function (r) {
+    return String(r['الاسم'] || '').trim();
+  });
+
+  const savedByName = {};
+  if (term) {
+    sheetToObjects_(GRADES_SHEET_).forEach(function (r) {
+      if (String(r['الفصل'] || '').trim() === term) savedByName[String(r['اسم المسؤولة'] || '').trim()] = r;
+    });
+  }
+
+  const list = masoulat.map(function (m) {
+    const name = String(m['الاسم']).trim();
+    const saved = savedByName[name];
+    const items = {};
+    GRADES_ITEMS_.forEach(function (it) { items[it.key] = saved ? saved[it.key] : 'مكتمل'; });
+    const g = computeGrade_(items);
+    return {
+      name: name,
+      center: String(m['اسم المركز'] || '').trim(),
+      saved: !!saved,
+      items: g.state,
+      score: g.score,
+      missing: g.missing
+    };
+  });
+
+  return { ok: true, term: term, total: GRADES_TOTAL_, items: GRADES_ITEMS_, list: list };
+}
+
+/* p.term + p.grades: [{ name, center, items: { «تسجيل المبيعات»: 'مكتمل'|'ناقص', ... } }]
+   تحدّث الصف الموجود لنفس (الفصل + المسؤولة) أو تضيف صف جديد، والدرجة تنحسب هنا بالسيرفر. */
+function saveMasoulaGrades_(p) {
+  const term = String(p.term || '').trim();
+  if (!term) return { ok: false, error: 'اسم الفصل الدراسي مطلوب' };
+  const grades = p.grades || [];
+  if (!grades.length) return { ok: false, error: 'لا يوجد درجات للحفظ' };
+
+  const sh = getGradesSheet_();
+
+  // نتأكد أن كل الأعمدة المطلوبة موجودة (لو انضاف الشيت يدوياً أو نقص منه عمود)
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (h) { return String(h).trim(); });
+  GRADES_HEADERS_.forEach(function (h) {
+    if (headers.indexOf(h) === -1) {
+      sh.getRange(1, sh.getLastColumn() + 1).setValue(h).setFontWeight('bold');
+      headers.push(h);
+    }
+  });
+  const termCol = headers.indexOf('الفصل');
+  const nameCol = headers.indexOf('اسم المسؤولة');
+  const idCol = headers.indexOf('معرف');
+
+  const lastRow = sh.getLastRow();
+  const values = lastRow > 1 ? sh.getRange(2, 1, lastRow - 1, headers.length).getValues() : [];
+  const rowIndexByKey = {};
+  values.forEach(function (row, i) {
+    rowIndexByKey[String(row[termCol]).trim() + '||' + String(row[nameCol]).trim()] = i;
+  });
+
+  const now = nowParts_();
+  const newRows = [];
+  let updated = 0;
+
+  grades.forEach(function (g) {
+    const name = String(g.name || '').trim();
+    if (!name) return;
+    const calc = computeGrade_(g.items);
+    const fields = {
+      'الفصل': term,
+      'اسم المسؤولة': name,
+      'اسم المركز': String(g.center || '').trim(),
+      'الدرجة': calc.score,
+      'الناقص': calc.missing.length ? calc.missing.join('، ') : 'مكتمل',
+      'اليوم': now.day,
+      'التاريخ': now.date
+    };
+    GRADES_ITEMS_.forEach(function (it) { fields[it.key] = calc.state[it.key]; });
+
+    const key = term + '||' + name;
+    if (rowIndexByKey.hasOwnProperty(key)) {
+      const row = values[rowIndexByKey[key]];
+      headers.forEach(function (h, c) { if (fields.hasOwnProperty(h)) row[c] = fields[h]; });
+      updated++;
+    } else {
+      const row = headers.map(function (h) { return fields.hasOwnProperty(h) ? fields[h] : ''; });
+      row[idCol] = Utilities.getUuid();
+      newRows.push(row);
+    }
+  });
+
+  if (updated && values.length) sh.getRange(2, 1, values.length, headers.length).setValues(values);
+  if (newRows.length) sh.getRange(sh.getLastRow() + 1, 1, newRows.length, headers.length).setValues(newRows);
+
+  invalidateCache_(GRADES_SHEET_);
+  return { ok: true, added: newRows.length, updated: updated };
 }
 
 /* تسجيل دخول مكتب إشراف الداخل (eshraf.html) بالبريد الإلكتروني وكلمة المرور -
