@@ -22,7 +22,7 @@ const ADMIN_NOTIFY_EMAIL = 'fainal.almqasif@gmail.com';
 // لما قوقل شيتس يحوّل نص التاريخ/الوقت تلقائياً إلى كائن Date داخلي.
 const TEXT_COLUMNS_ = ['اليوم', 'التاريخ', 'الوقت', 'تاريخ الإرسال', 'يوم الإرسال', 'وقت الإرسال',
   'يوم اطلاع الإدارة', 'تاريخ اطلاع الإدارة', 'وقت اطلاع الإدارة', 'تاريخ توقيع الإدارة',
-  'رقم الفاتورة', 'العام'];
+  'رقم الفاتورة', 'العام', 'وقت التسجيل الفعلي'];
 
 function setup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -33,7 +33,7 @@ function setup() {
     'التعهد': ['الاسم', 'نص التعهد', 'اليوم', 'التاريخ', 'الوقت', 'الحالة'],
     'المهام': ['الاسم', 'البريد الإلكتروني', 'نص المهام', 'اليوم', 'التاريخ', 'الوقت', 'الحالة'],
     'المراكز': ['اسم المركز', 'كلمة المرور', 'وضع العرض فقط', 'الاسم المعروض'],
-    'المبيعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'الوقت', 'المبلغ', 'ملاحظات', 'الفصل الدراسي'],
+    'المبيعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'الوقت', 'المبلغ', 'ملاحظات', 'الفصل الدراسي', 'وقت التسجيل الفعلي'],
     'المرتجعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'وصف الصنف', 'الكمية', 'القيمة', 'ملاحظات', 'الفصل الدراسي'],
     'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'مصدر الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح', 'ملاحظات', 'الفصل الدراسي'],
     'الإشعارات': ['معرف', 'النوع', 'اسم المركز', 'يوم الإرسال', 'تاريخ الإرسال', 'وقت الإرسال',
@@ -712,6 +712,16 @@ function archiveRowsMatching_(sh, archiveSh, colIdx, matchFn, newLabel) {
     }
   }
   if (toArchive.length) {
+    // لو انضاف عمود جديد للشيت الحيّ بعد ما انعمل شيت الأرشيف (مثل عمود «وقت التسجيل الفعلي»)،
+    // نضيف نفس العمود لآخر الأرشيف قبل النقل، وإلا النقل ينهار بسبب اختلاف عدد الأعمدة
+    const archCols = archiveSh.getLastColumn();
+    if (archCols < numCols) {
+      const liveHeaders = sh.getRange(1, 1, 1, numCols).getValues()[0];
+      if (archiveSh.getMaxColumns() < numCols) {
+        archiveSh.insertColumnsAfter(archiveSh.getMaxColumns(), numCols - archiveSh.getMaxColumns());
+      }
+      archiveSh.getRange(1, archCols + 1, 1, numCols - archCols).setValues([liveHeaders.slice(archCols)]);
+    }
     archiveSh.getRange(archiveSh.getLastRow() + 1, 1, toArchive.length, numCols).setValues(toArchive);
   }
   sh.getRange(2, 1, lastRow - 1, numCols).clearContent();
@@ -946,6 +956,7 @@ function handleRequest_(p) {
       case 'deleteNotice': return json_(deleteNotice_(p));
 
       case 'getStats': return json_(getStats_());
+      case 'getSmartAnalysis': return json_(getSmartAnalysis_(p));
 
       case 'archiveCurrentTerm': return json_(archiveCurrentTerm_(p));
       case 'getTermsList': return json_(getTermsList_());
@@ -1088,7 +1099,8 @@ function recordSale_(p) {
   const day = dayNameForDateStr_(date);
   appendRowByHeaders_(sh, {
     'معرف': id, 'اسم المركز': p.center, 'اليوم': day, 'التاريخ': date, 'الوقت': time, 'المبلغ': Number(p.amount),
-    'ملاحظات': p.notes || ''
+    'ملاحظات': p.notes || '',
+    'وقت التسجيل الفعلي': entryStamp_()   // وقت التسجيل الحقيقي من السيرفر (يعتمد عليه التحليل الذكي لقياس «التسجيل أول بأول»)
   });
   invalidateCache_('المبيعات');
   return { ok: true, id: id };
@@ -2052,4 +2064,297 @@ function getStats_() {
   centersArr.sort(function (a, b) { return b.total - a.total; });
   const grandTotal = centersArr.reduce(function (s, c) { return s + c.total; }, 0);
   return { ok: true, totalRevenue: grandTotal, centers: centersArr };
+}
+
+
+/* ------------------- التحليل الذكي: التزام المراكز بتسجيل المبيعات ------------------- *
+ * يجاوب على: مين يسجّل أول بأول؟ مين متأخر؟ مين ما يسجّل؟ ومن متى؟
+ *
+ * فكرة القياس:
+ *  - «سجّل اليوم» = يوجد سطر بشيت المبيعات لهذا التاريخ للمركز.
+ *  - «أول بأول» = تاريخ التسجيل الفعلي (عمود «وقت التسجيل الفعلي» اللي يكتبه السيرفر) هو نفس تاريخ المبيعات.
+ *    الصفوف القديمة (قبل إضافة هذا العمود) تُحسب «مسجّلة» لكن بدون حكم على التأخير.
+ *  - أيام العمل تُحدَّد من الواجهة (الافتراضي الأحد-الخميس)، واليوم اللي ما سجّل فيه أي مركز
+ *    نهائياً يُعتبر إجازة تلقائياً (لو عدد المراكز 3 أو أكثر) ولا يُحسب غياب على أحد.
+ *  - المراكز بوضع «العرض فقط» تُستثنى لأنها أصلاً ما تقدر تسجّل. */
+
+const ENTRY_STAMP_COL_ = 'وقت التسجيل الفعلي';
+
+function entryStamp_() {
+  const n = nowParts_();
+  return n.date + ' ' + n.time;
+}
+
+function pad2_(n) { return (n < 10 ? '0' : '') + n; }
+
+/* ترجع yyyy-MM-dd من أي نص يبدأ بتاريخ بهالصيغة (أو فاضي) */
+function dateOnly_(v) {
+  const m = String(v === undefined || v === null ? '' : v).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? (m[1] + '-' + m[2] + '-' + m[3]) : '';
+}
+
+function ymdToUtc_(s) {
+  const a = s.split('-');
+  return Date.UTC(Number(a[0]), Number(a[1]) - 1, Number(a[2]));
+}
+
+function utcToYmd_(ms) {
+  const d = new Date(ms);
+  return d.getUTCFullYear() + '-' + pad2_(d.getUTCMonth() + 1) + '-' + pad2_(d.getUTCDate());
+}
+
+function daysBetween_(a, b) {
+  return Math.round((ymdToUtc_(b) - ymdToUtc_(a)) / 86400000);
+}
+
+/* «HH:mm» -> عدد الدقائق من منتصف الليل (أو null) */
+function timeToMin_(v) {
+  const m = String(v === undefined || v === null ? '' : v).match(/(\d{1,2}):(\d{2})/);
+  return m ? (Number(m[1]) * 60 + Number(m[2])) : null;
+}
+
+function minToTime_(min) {
+  if (min === null || min === undefined) return '';
+  return pad2_(Math.floor(min / 60)) + ':' + pad2_(min % 60);
+}
+
+function allRowsIncludingArchive_(name) {
+  return sheetToObjects_(name).concat(sheetToObjects_(ARCHIVE_PREFIX + name));
+}
+
+function smartStatus_(m) {
+  if (!m.expected) return 'nodata';
+  if (m.recorded === 0 || m.trailingMissing >= 3) return 'stopped';
+  if (m.compliance < 60) return 'follow';
+  if (m.onTimeRate !== null && m.onTimeRate < 60) return 'late';
+  if (m.compliance >= 90 && (m.onTimeRate === null || m.onTimeRate >= 80)) return 'excellent';
+  return 'good';
+}
+
+function getSmartAnalysis_(p) {
+  p = p || {};
+  const today = nowParts_().date;
+
+  // ---- الفترة ----
+  let to = dateOnly_(p.to) || today;
+  if (to > today) to = today;
+  let from = dateOnly_(p.from) || utcToYmd_(ymdToUtc_(to) - 29 * 86400000);
+  if (from > to) from = to;
+  if (daysBetween_(from, to) > 365) from = utcToYmd_(ymdToUtc_(to) - 365 * 86400000);
+  const spanLen = daysBetween_(from, to) + 1;
+  const prevTo = utcToYmd_(ymdToUtc_(from) - 86400000);
+  const prevFrom = utcToYmd_(ymdToUtc_(prevTo) - (spanLen - 1) * 86400000);
+
+  // ---- أيام العمل (0=الأحد ... 6=السبت) ----
+  let workdays = [0, 1, 2, 3, 4];
+  if (p.workdays !== undefined && p.workdays !== null && p.workdays !== '') {
+    const raw = Array.isArray(p.workdays) ? p.workdays : String(p.workdays).split(',');
+    const parsed = raw.map(function (x) { return Number(x); }).filter(function (n) { return !isNaN(n) && n >= 0 && n <= 6; });
+    if (parsed.length) workdays = parsed;
+  }
+  const autoOff = !(p.autoOff === false || p.autoOff === 'false');
+
+  // ---- المراكز الفعّالة (بدون وضع العرض فقط) ----
+  const centers = [];
+  sheetToObjects_('المراكز', CACHE_SECONDS_LONG).forEach(function (r) {
+    const name = String(r['اسم المركز'] || '').trim();
+    if (!name) return;
+    if (String(r['وضع العرض فقط'] || '').trim() === 'نعم') return;
+    if (centers.indexOf(name) === -1) centers.push(name);
+  });
+
+  const stats = {};
+  centers.forEach(function (c) {
+    stats[c] = { days: {}, last: '', prevTotal: 0, today: null };
+  });
+
+  // ---- المبيعات ----
+  let rangeRows = 0, stampedRows = 0;
+  allRowsIncludingArchive_('المبيعات').forEach(function (r) {
+    const c = String(r['اسم المركز'] || '').trim();
+    const st = stats[c];
+    if (!st) return;
+    const d = dateOnly_(r['التاريخ']);
+    if (!d || d > today) return;
+    const amt = Number(r['المبلغ']) || 0;
+    const stamp = String(r[ENTRY_STAMP_COL_] || '');
+    const stampDate = dateOnly_(stamp);
+    const rawMin = timeToMin_(r['الوقت']);
+    const stampMin = stampDate ? timeToMin_(stamp.slice(10)) : null;
+
+    if (d > st.last) st.last = d;
+
+    if (d === today) {
+      if (!st.today) st.today = { total: 0, count: 0, min: null };
+      st.today.total += amt;
+      st.today.count++;
+      const tm = (stampDate === today && stampMin !== null) ? stampMin : rawMin;
+      if (tm !== null && (st.today.min === null || tm < st.today.min)) st.today.min = tm;
+    }
+
+    if (d >= prevFrom && d <= prevTo) { st.prevTotal += amt; return; }
+    if (d < from || d > to) return;
+
+    rangeRows++;
+    let day = st.days[d];
+    if (!day) day = st.days[d] = { total: 0, count: 0, lag: null, firstMin: null };
+    day.total += amt;
+    day.count++;
+    if (stampDate) {
+      stampedRows++;
+      const lag = Math.max(0, daysBetween_(d, stampDate));
+      if (day.lag === null || lag < day.lag) day.lag = lag;
+      if (lag === 0 && stampMin !== null && (day.firstMin === null || stampMin < day.firstMin)) day.firstMin = stampMin;
+    }
+  });
+
+  // ---- الفواتير والمرتجعات (أعداد فقط) ----
+  const inv = {}, ret = {}, retValue = {};
+  allRowsIncludingArchive_('الفواتير').forEach(function (r) {
+    const c = String(r['اسم المركز'] || '').trim();
+    const d = dateOnly_(r['التاريخ']);
+    if (!stats[c] || !d || d < from || d > to) return;
+    inv[c] = (inv[c] || 0) + 1;
+  });
+  allRowsIncludingArchive_('المرتجعات').forEach(function (r) {
+    const c = String(r['اسم المركز'] || '').trim();
+    const d = dateOnly_(r['التاريخ']);
+    if (!stats[c] || !d || d < from || d > to) return;
+    ret[c] = (ret[c] || 0) + 1;
+    retValue[c] = (retValue[c] || 0) + (Number(r['القيمة']) || 0);
+  });
+
+  // ---- أيام العمل الفعلية للفترة (مع استثناء الإجازات التقديرية) ----
+  const candidates = [];
+  for (let t = ymdToUtc_(from); t <= ymdToUtc_(to); t += 86400000) {
+    if (workdays.indexOf(new Date(t).getUTCDay()) !== -1) candidates.push(utcToYmd_(t));
+  }
+  const offDays = [];
+  const effective = [];
+  candidates.forEach(function (d) {
+    if (d === today) { effective.push(d); return; }   // اليوم الحالي يُحكم عليه لكل مركز على حدة (ما انتهى بعد)
+    if (autoOff && centers.length >= 3) {
+      const anyone = centers.some(function (c) { return !!stats[c].days[d]; });
+      if (!anyone) { offDays.push(d); return; }
+    }
+    effective.push(d);
+  });
+
+  // ---- مقاييس كل مركز ----
+  const list = centers.map(function (c) {
+    const st = stats[c];
+    const eff = effective.filter(function (d) { return d !== today || !!st.days[d]; });
+    const missing = [];
+    let recorded = 0, onTime = 0, late = 0, lagSum = 0, known = 0, timeSum = 0, timeCnt = 0;
+    eff.forEach(function (d) {
+      const day = st.days[d];
+      if (!day) { missing.push(d); return; }
+      recorded++;
+      if (day.lag !== null) {
+        known++;
+        if (day.lag === 0) {
+          onTime++;
+          if (day.firstMin !== null) { timeSum += day.firstMin; timeCnt++; }
+        } else {
+          late++;
+          lagSum += day.lag;
+        }
+      }
+    });
+
+    let trailingMissing = 0;
+    for (let i = eff.length - 1; i >= 0 && !st.days[eff[i]]; i--) trailingMissing++;
+    let streak = 0;
+    for (let j = eff.length - 1; j >= 0 && st.days[eff[j]]; j--) streak++;
+
+    let total = 0, recordDaysAll = 0;
+    Object.keys(st.days).forEach(function (d) { total += st.days[d].total; recordDaysAll++; });
+
+    const expected = eff.length;
+    const m = {
+      center: c,
+      expected: expected,
+      recorded: recorded,
+      missing: missing,
+      missingCount: missing.length,
+      compliance: expected ? Math.round(recorded / expected * 100) : null,
+      onTime: onTime,
+      late: late,
+      knownTiming: known,
+      onTimeRate: known ? Math.round(onTime / known * 100) : null,
+      avgLagDays: late ? Math.round(lagSum / late * 10) / 10 : 0,
+      avgTime: timeCnt ? minToTime_(Math.round(timeSum / timeCnt)) : '',
+      lastRecord: st.last,
+      trailingMissing: trailingMissing,
+      streak: streak,
+      total: total,
+      avgPerDay: recordDaysAll ? Math.round(total / recordDaysAll * 100) / 100 : 0,
+      prevTotal: st.prevTotal,
+      changePct: st.prevTotal > 0 ? Math.round((total - st.prevTotal) / st.prevTotal * 100) : null,
+      invoices: inv[c] || 0,
+      returns: ret[c] || 0,
+      returnsValue: retValue[c] || 0
+    };
+    m.status = smartStatus_(m);
+    return m;
+  });
+
+  list.sort(function (a, b) {
+    const ca = a.compliance === null ? -1 : a.compliance;
+    const cb = b.compliance === null ? -1 : b.compliance;
+    if (cb !== ca) return cb - ca;
+    const oa = a.onTimeRate === null ? -1 : a.onTimeRate;
+    const ob = b.onTimeRate === null ? -1 : b.onTimeRate;
+    if (ob !== oa) return ob - oa;
+    return a.center < b.center ? -1 : 1;
+  });
+
+  // ---- لقطة اليوم ----
+  const todayDow = new Date(ymdToUtc_(today)).getUTCDay();
+  const todaySnap = centers.map(function (c) {
+    const t = stats[c].today;
+    return { center: c, recorded: !!t, amount: t ? t.total : 0, time: t ? minToTime_(t.min) : '' };
+  });
+
+  // ---- نمط المبيعات حسب اليوم (متوسط مبلغ التسجيل الواحد لكل مركز باليوم) ----
+  const dowAgg = {};
+  centers.forEach(function (c) {
+    Object.keys(stats[c].days).forEach(function (d) {
+      const dow = new Date(ymdToUtc_(d)).getUTCDay();
+      if (!dowAgg[dow]) dowAgg[dow] = { total: 0, n: 0 };
+      dowAgg[dow].total += stats[c].days[d].total;
+      dowAgg[dow].n++;
+    });
+  });
+  const byDow = Object.keys(dowAgg).map(function (k) {
+    const dow = Number(k);
+    return { dow: dow, name: AR_DAYS_[dow], avg: Math.round(dowAgg[k].total / dowAgg[k].n * 100) / 100, n: dowAgg[k].n };
+  }).sort(function (a, b) { return a.dow - b.dow; });
+
+  // ---- ملخص عام ----
+  let sumExpected = 0, sumRecorded = 0, totalSales = 0, prevSales = 0;
+  list.forEach(function (m) {
+    sumExpected += m.expected; sumRecorded += m.recorded;
+    totalSales += m.total; prevSales += m.prevTotal;
+  });
+
+  return {
+    ok: true,
+    from: from, to: to, prevFrom: prevFrom, prevTo: prevTo, today: today,
+    todayIsWorkday: workdays.indexOf(todayDow) !== -1,
+    workdays: workdays, autoOff: autoOff,
+    centers: list,
+    todaySnap: todaySnap,
+    byDow: byDow,
+    offDays: offDays,
+    effectiveDays: effective.length,
+    summary: {
+      activeCenters: centers.length,
+      overallCompliance: sumExpected ? Math.round(sumRecorded / sumExpected * 100) : null,
+      totalSales: totalSales,
+      prevSales: prevSales,
+      salesChangePct: prevSales > 0 ? Math.round((totalSales - prevSales) / prevSales * 100) : null
+    },
+    dataQuality: { rangeRows: rangeRows, stampedRows: stampedRows }
+  };
 }
