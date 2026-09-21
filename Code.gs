@@ -2076,7 +2076,7 @@ function getStats_() {
  *    الصفوف القديمة (قبل إضافة هذا العمود) تُحسب «مسجّلة» لكن بدون حكم على التأخير.
  *  - أيام العمل تُحدَّد من الواجهة (الافتراضي الأحد-الخميس)، واليوم اللي ما سجّل فيه أي مركز
  *    نهائياً يُعتبر إجازة تلقائياً (لو عدد المراكز 3 أو أكثر) ولا يُحسب غياب على أحد.
- *  - المراكز بوضع «العرض فقط» تُستثنى لأنها أصلاً ما تقدر تسجّل. */
+ *  - كل المراكز تُحسب، ومنها مراكز «العرض فقط» (تسجّل لها مسؤولة المقصف). */
 
 const ENTRY_STAMP_COL_ = 'وقت التسجيل الفعلي';
 
@@ -2154,13 +2154,16 @@ function getSmartAnalysis_(p) {
   }
   const autoOff = !(p.autoOff === false || p.autoOff === 'false');
 
-  // ---- المراكز الفعّالة (بدون وضع العرض فقط) ----
+  // ---- كل المراكز (تشمل مراكز «العرض فقط» لأن مسؤولة المقصف هي اللي تسجّل لها) ----
   const centers = [];
   sheetToObjects_('المراكز', CACHE_SECONDS_LONG).forEach(function (r) {
     const name = String(r['اسم المركز'] || '').trim();
-    if (!name) return;
-    if (String(r['وضع العرض فقط'] || '').trim() === 'نعم') return;
-    if (centers.indexOf(name) === -1) centers.push(name);
+    if (name && centers.indexOf(name) === -1) centers.push(name);
+  });
+  // مراكز مربوطة بمسؤولة بشيت المسؤولات وما هي مكتوبة بشيت المراكز
+  sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG).forEach(function (r) {
+    const name = String(r['اسم المركز'] || '').trim();
+    if (name && centers.indexOf(name) === -1) centers.push(name);
   });
 
   const stats = {};

@@ -499,3 +499,4 @@ tr.sm-detail td { background: #fbf8f2; text-align: right; }
 .sm-mini > div { height: 100%; background: linear-gradient(90deg, var(--maroon-dark), var(--maroon)); }
 
 .sm-notes { margin: 0; padding-inline-start: 20px; color: #6d625c; font-size: 0.82rem; line-height: 2; }
+.sm-summary { font-size: 0.9rem; margin-bottom: 8px; color: var(--maroon-dark); }

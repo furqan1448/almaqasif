@@ -2543,203 +2543,69 @@ function loadSmartAnalysis() {
   });
 }
 
-/* ---------- التنبيهات الذكية ---------- */
-function smartBuildAlerts_(r) {
-  const items = [];
-  r.centers.forEach(function (m) {
-    const n = smartEsc_(m.center);
-    if (m.status === 'stopped') {
-      if (m.recorded === 0) {
-        items.push({ sev: 3, text: '🔴 <b>' + n + '</b> لم يسجّل أي مبيعات خلال الفترة (' + smartDays_(m.expected) + ' عمل).' });
-      } else {
-        items.push({ sev: 3, text: '🔴 <b>' + n + '</b> لم يسجّل منذ ' + smartDays_(m.trailingMissing) + ' عمل متتالية (آخر تسجيل: ' + smartDateShort_(m.lastRecord) + ').' });
-      }
-    } else if (m.status === 'follow') {
-      items.push({ sev: 2, text: '🟡 <b>' + n + '</b> سجّل ' + m.recorded + ' من ' + smartDays_(m.expected) + ' فقط (' + m.compliance + '%).' });
-    } else if (m.status === 'late') {
-      items.push({ sev: 2, text: '🟠 <b>' + n + '</b> يسجّل متأخراً في ' + m.late + ' من ' + smartDays_(m.knownTiming) + ' (متوسط التأخير ' + m.avgLagDays + ' يوم).' });
-    }
-    if (m.changePct !== null && m.prevTotal > 0 && m.changePct <= -30) {
-      items.push({ sev: 1, text: '📉 مبيعات <b>' + n + '</b> انخفضت ' + Math.abs(m.changePct) + '% عن الفترة السابقة.' });
-    }
-  });
-  if (r.todayIsWorkday) {
-    const notYet = r.todaySnap.filter(function (t) { return !t.recorded; });
-    if (notYet.length) items.push({ sev: 1, text: '⏳ لم يسجّل اليوم بعد: ' + notYet.length + ' من ' + r.todaySnap.length + ' مراكز.' });
-  }
-  const perfect = r.centers.filter(function (m) { return m.compliance === 100 && (m.onTimeRate === null || m.onTimeRate >= 90); });
-  if (perfect.length) {
-    items.push({ sev: 0, text: '🏆 التزام كامل بالتسجيل: ' + perfect.map(function (m) { return smartEsc_(m.center); }).join('، ') + '.' });
-  }
-  items.sort(function (a, b) { return b.sev - a.sev; });
-  return items;
-}
-
-/* ---------- أقسام العرض ---------- */
-function smartKpisHtml_(r) {
-  const s = r.summary;
-  const recToday = r.todaySnap.filter(function (t) { return t.recorded; }).length;
-  let salesDelta = '';
-  if (s.salesChangePct !== null) {
-    salesDelta = '<div class="d ' + (s.salesChangePct >= 0 ? 'sm-up' : 'sm-down') + '">' + (s.salesChangePct >= 0 ? '▲ ' : '▼ ') + Math.abs(s.salesChangePct) + '% عن الفترة السابقة</div>';
-  }
-  return '<div class="sm-kpis">' +
-    '<div class="sm-kpi"><div class="v">' + (s.overallCompliance === null ? '—' : s.overallCompliance + '%') + '</div><div class="l">الالتزام العام بالتسجيل</div></div>' +
-    '<div class="sm-kpi"><div class="v">' + recToday + ' / ' + r.todaySnap.length + '</div><div class="l">سجّلوا اليوم' + (r.todayIsWorkday ? '' : ' (اليوم خارج أيام العمل)') + '</div></div>' +
-    '<div class="sm-kpi"><div class="v">' + Number(s.totalSales).toFixed(0) + '</div><div class="l">إجمالي المبيعات (ريال)</div>' + salesDelta + '</div>' +
-    '<div class="sm-kpi"><div class="v">' + r.effectiveDays + '</div><div class="l">أيام العمل المحسوبة</div></div>' +
-    '</div>';
-}
-
-function smartAlertsHtml_(r) {
-  const items = smartBuildAlerts_(r);
-  if (!items.length) return '';
-  return '<div class="card"><h3 style="margin-top:0;color:var(--maroon);">تنبيهات ذكية</h3>' +
-    items.map(function (a) { return '<div class="sm-alert">' + a.text + '</div>'; }).join('') + '</div>';
-}
-
-function smartTodayHtml_(r) {
-  const done = r.todaySnap.filter(function (t) { return t.recorded; }).sort(function (a, b) {
-    return (a.time || '99:99') < (b.time || '99:99') ? -1 : 1;
-  });
-  const notYet = r.todaySnap.filter(function (t) { return !t.recorded; });
-  let first = '';
-  if (done.length && done[0].time) first = '<div class="sm-first">🥇 الأول تسجيلاً اليوم: <b>' + smartEsc_(done[0].center) + '</b> (' + smartEsc_(done[0].time) + ')</div>';
-  const doneHtml = done.length
-    ? done.map(function (t, i) {
-        return '<div class="sm-row"><span>' + (i + 1) + '. ' + smartEsc_(t.center) + '</span><span class="sm-sub">' + smartEsc_(t.time || '') + ' · ' + Number(t.amount).toFixed(2) + ' ريال</span></div>';
-      }).join('')
-    : '<div class="sm-empty">لم يسجّل أي مركز بعد</div>';
-  const notYetHtml = notYet.length
-    ? notYet.map(function (t) { return '<div class="sm-row"><span>' + smartEsc_(t.center) + '</span></div>'; }).join('')
-    : '<div class="sm-empty">الكل سجّل ✅</div>';
-  return '<div class="card"><h3 style="margin-top:0;color:var(--maroon);">لقطة اليوم — ' + smartDateShort_(r.today) + '</h3>' + first +
-    '<div class="sm-two">' +
-      '<div><div class="sm-col-title ok">سجّلوا (' + done.length + ')</div>' + doneHtml + '</div>' +
-      '<div><div class="sm-col-title no">لم يسجّلوا بعد (' + notYet.length + ')</div>' + notYetHtml + '</div>' +
-    '</div></div>';
-}
-
-function smartGroupsHtml_(r) {
-  const g = { ok: [], late: [], follow: [], stopped: [] };
-  r.centers.forEach(function (m) {
-    if (m.status === 'excellent' || m.status === 'good') g.ok.push(m);
-    else if (m.status === 'late') g.late.push(m);
-    else if (m.status === 'follow') g.follow.push(m);
-    else if (m.status === 'stopped') g.stopped.push(m);
-  });
-  function block(cls, title, arr, detailFn) {
-    if (!arr.length) return '';
-    return '<div class="sm-group ' + cls + '"><div class="sm-group-title">' + title + ' <span class="sm-count">' + arr.length + '</span></div>' +
-      arr.map(function (m) {
-        return '<div class="sm-row"><span>' + smartEsc_(m.center) + '</span><span class="sm-sub">' + detailFn(m) + '</span></div>';
-      }).join('') + '</div>';
-  }
-  const html =
-    block('ok', 'يسجّلون أول بأول', g.ok, function (m) {
-      return m.compliance + '%' + (m.streak > 1 ? ' · ' + smartDays_(m.streak) + ' متتالية' : '');
-    }) +
-    block('late', 'يسجّلون لكن متأخرين', g.late, function (m) {
-      return 'متأخر ' + m.late + ' من ' + m.knownTiming + ' · متوسط التأخير ' + m.avgLagDays + ' يوم';
-    }) +
-    block('follow', 'يحتاجون متابعة', g.follow, function (m) {
-      return 'سجّل ' + m.recorded + ' من ' + m.expected + ' (' + m.compliance + '%)';
-    }) +
-    block('stopped', 'متوقفون / لا يسجّلون', g.stopped, function (m) {
-      return m.recorded === 0 ? 'لم يسجّل نهائياً' : 'منذ ' + smartDays_(m.trailingMissing) + ' عمل · آخر تسجيل ' + smartDateShort_(m.lastRecord);
-    });
-  if (!html) return '';
-  return '<div class="card"><h3 style="margin-top:0;color:var(--maroon);">تصنيف المراكز</h3>' + html + '</div>';
-}
-
+/* ---------- العرض المختصر ---------- */
 function smartTableHtml_(r) {
   const today = r.today;
+  const todayMap = {};
+  r.todaySnap.forEach(function (t) { todayMap[t.center] = t; });
   let rows = '';
   r.centers.forEach(function (m, i) {
     const st = SMART_STATUS_[m.status] || SMART_STATUS_.nodata;
-    const comp = m.compliance === null ? '—' : m.compliance + '%';
-    const timing = m.knownTiming ? (m.onTime + '/' + m.knownTiming) : '—';
-    const last = m.lastRecord ? (smartDateShort_(m.lastRecord) + '<div class="sm-sub">' + smartAgo_(m.lastRecord, today) + '</div>') : 'لا يوجد';
+    const t = todayMap[m.center];
+    const todayCell = t && t.recorded ? '✅' : (r.todayIsWorkday ? '❌' : '—');
+    const last = m.lastRecord ? smartAgo_(m.lastRecord, today) : 'لا يوجد';
     rows += '<tr class="sm-tr" onclick="toggleSmartDetail_(' + i + ')">' +
-      '<td>' + (i + 1) + '</td>' +
       '<td style="text-align:right;font-weight:700;">' + smartEsc_(m.center) + '</td>' +
       '<td><span class="sm-pill ' + m.status + '">' + st.label + '</span></td>' +
-      '<td><div class="sm-mini"><div style="width:' + (m.compliance || 0) + '%"></div></div>' + comp + '</td>' +
-      '<td>' + m.recorded + ' / ' + m.expected + '</td>' +
-      '<td>' + timing + '</td>' +
+      '<td>' + m.recorded + '/' + m.expected + '</td>' +
+      '<td>' + todayCell + '</td>' +
       '<td>' + last + '</td>' +
-      '<td>' + Number(m.total).toFixed(2) + '</td>' +
       '</tr>';
 
     const chips = m.missing.length
       ? m.missing.map(function (d) { return '<span class="sm-chip">' + smartDateShort_(d) + '</span>'; }).join('')
       : '<span class="sm-sub">لا توجد أيام ناقصة 👏</span>';
-    const change = m.changePct === null ? '—' : ((m.changePct >= 0 ? '▲ ' : '▼ ') + Math.abs(m.changePct) + '%');
-    rows += '<tr id="smartDetail_' + i + '" class="sm-detail hidden"><td colspan="8">' +
+    rows += '<tr id="smartDetail_' + i + '" class="sm-detail hidden"><td colspan="5">' +
       '<div class="sm-facts">' +
-        '<span>متوسط وقت التسجيل (بنفس اليوم): <b>' + (m.avgTime || '—') + '</b></span>' +
-        '<span>متوسط التأخير: <b>' + (m.late ? m.avgLagDays + ' يوم' : '—') + '</b></span>' +
-        '<span>أيام التسجيل المتتالية حالياً: <b>' + m.streak + '</b></span>' +
-        '<span>متوسط المبيعات بيوم التسجيل: <b>' + Number(m.avgPerDay).toFixed(2) + '</b></span>' +
-        '<span>التغيّر عن الفترة السابقة: <b>' + change + '</b></span>' +
-        '<span>الفواتير: <b>' + m.invoices + '</b></span>' +
-        '<span>المرتجعات: <b>' + m.returns + '</b>' + (m.returnsValue ? ' (' + Number(m.returnsValue).toFixed(2) + ' ريال)' : '') + '</span>' +
+        '<span>الالتزام: <b>' + (m.compliance === null ? '—' : m.compliance + '%') + '</b></span>' +
+        '<span>أول بأول: <b>' + (m.knownTiming ? m.onTime + ' من ' + m.knownTiming : '—') + '</b></span>' +
+        (m.late ? '<span>متوسط التأخير: <b>' + m.avgLagDays + ' يوم</b></span>' : '') +
+        '<span>المبيعات: <b>' + Number(m.total).toFixed(2) + '</b></span>' +
       '</div>' +
-      '<div style="margin-top:8px;font-weight:700;color:var(--maroon-dark);font-size:0.82rem;">الأيام التي لم يسجّل فيها (' + m.missingCount + '):</div>' +
+      '<div style="margin-top:8px;font-weight:700;color:var(--maroon-dark);font-size:0.82rem;">لم يسجّل في (' + m.missingCount + '):</div>' +
       '<div class="sm-chips">' + chips + '</div>' +
       '</td></tr>';
   });
-  return '<div class="card"><h3 style="margin-top:0;color:var(--maroon);">تفاصيل كل مركز</h3>' +
-    '<p style="color:#8a7d76;font-size:0.8rem;margin:0 0 6px;">اضغطي على أي صف لعرض التفاصيل والأيام التي لم يسجّل فيها المركز.</p>' +
+  return '<div class="card">' +
+    '<div class="sm-summary">الالتزام العام: <b>' + (r.summary.overallCompliance === null ? '—' : r.summary.overallCompliance + '%') + '</b>' +
+    ' · سجّلوا اليوم: <b>' + r.todaySnap.filter(function (t) { return t.recorded; }).length + '/' + r.todaySnap.length + '</b></div>' +
     '<div class="sm-scroll"><table class="log-table sm-table"><thead><tr>' +
-      '<th>#</th><th>المركز</th><th>الحالة</th><th>الالتزام</th><th>سجّل / المطلوب</th><th>أول بأول</th><th>آخر تسجيل</th><th>المبيعات</th>' +
+      '<th>المركز</th><th>الحالة</th><th>سجّل</th><th>اليوم</th><th>آخر تسجيل</th>' +
     '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    '<div class="export-row" style="margin-top:14px;">' +
+    '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;">اضغطي على أي مركز لعرض الأيام التي لم يسجّل فيها.</p>' +
+    '<div class="export-row" style="margin-top:12px;">' +
       '<button class="btn outline" onclick="exportSmartExcel()">⬇️ Excel</button>' +
-      '<button class="btn outline" onclick="printSmartReport()">🖨️ طباعة / PDF</button>' +
-      '<button class="btn outline" onclick="copySmartSummary(this)">📋 نسخ ملخص</button>' +
+      '<button class="btn outline" onclick="printSmartReport()">🖨️ طباعة</button>' +
+      '<button class="btn outline" onclick="copySmartSummary(this)">📋 نسخ</button>' +
     '</div></div>';
 }
 
-function smartDowHtml_(r) {
-  if (!r.byDow || r.byDow.length < 2) return '';
-  const max = Math.max.apply(null, r.byDow.map(function (d) { return d.avg; })) || 1;
-  const best = r.byDow.reduce(function (a, b) { return b.avg > a.avg ? b : a; });
-  return '<div class="card"><h3 style="margin-top:0;color:var(--maroon);">المبيعات حسب اليوم</h3>' +
-    '<p style="color:#8a7d76;font-size:0.8rem;margin:0 0 12px;">متوسط مبيعات المركز الواحد في كل يوم — أعلى يوم: <b>' + best.name + '</b>.</p>' +
-    r.byDow.map(function (d) {
-      const pct = Math.max(4, Math.round(d.avg / max * 100));
-      return '<div class="bar-row"><div class="bar-head"><span>' + d.name + '</span><span>' + d.avg.toFixed(2) + ' ريال</span></div>' +
-        '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;"></div></div></div>';
-    }).join('') + '</div>';
-}
-
-function smartFooterHtml_(r) {
+function smartNoteHtml_(r) {
   const q = r.dataQuality;
-  let notes = '<li>الفترة: من ' + smartDateShort_(r.from) + ' إلى ' + smartDateShort_(r.to) + '، والمقارنة مع فترة مماثلة قبلها.</li>';
-  notes += '<li>«سجّل» = وجود مبيعات مسجّلة بتاريخ ذلك اليوم. «أول بأول» = تم تسجيلها في نفس اليوم (تُقاس من وقت التسجيل الفعلي في النظام).</li>';
-  if (r.offDays.length) {
-    notes += '<li>أيام اعتُبرت إجازة تلقائياً لأن أي مركز لم يسجّل فيها: ' +
-      r.offDays.map(function (d) { return smartDateShort_(d); }).join('، ') + '.</li>';
-  }
-  if (q.rangeRows === 0) {
-    notes += '<li>لا توجد مبيعات مسجّلة في هذه الفترة.</li>';
-  } else if (q.stampedRows === 0) {
-    notes += '<li><b>قياس «أول بأول» لم يبدأ بعد:</b> السجلات الحالية قديمة (بدون وقت تسجيل فعلي). سيبدأ القياس تلقائياً مع أول تسجيلات جديدة بعد تحديث النظام.</li>';
-  } else if (q.stampedRows < q.rangeRows) {
-    notes += '<li>قياس «أول بأول» يعتمد على ' + q.stampedRows + ' من ' + q.rangeRows + ' سجلاً فقط (السجلات القديمة قبل التحديث لا تحمل وقت التسجيل الفعلي).</li>';
-  }
-  notes += '<li>المراكز بوضع «العرض فقط» غير محسوبة.</li>';
-  return '<div class="card"><h3 style="margin-top:0;color:var(--maroon);">كيف يُحسب التحليل؟</h3><ul class="sm-notes">' + notes + '</ul></div>';
+  let n = '«سجّل» = مبيعات مسجّلة بتاريخ اليوم. «أول بأول» يُقاس من وقت التسجيل الفعلي ويبدأ بعد تحديث النظام';
+  if (q.rangeRows && q.stampedRows === 0) n += ' (لم يبدأ القياس بعد).';
+  else n += '.';
+  if (r.offDays.length) n += ' أيام اعتُبرت إجازة لأن لا مركز سجّل فيها: ' + r.offDays.map(smartDateShort_).join('، ') + '.';
+  return '<p style="color:#8a7d76;font-size:0.76rem;line-height:1.8;margin:0 4px;">' + n + '</p>';
 }
 
 function renderSmartAnalysis_(r) {
   const out = document.getElementById('smartResult');
   if (!r.centers || !r.centers.length) {
-    out.innerHTML = '<div class="card">لا توجد مراكز فعّالة للتحليل.</div>';
+    out.innerHTML = '<div class="card">لا توجد مراكز للتحليل.</div>';
     return;
   }
-  out.innerHTML = smartKpisHtml_(r) + smartAlertsHtml_(r) + smartTodayHtml_(r) + smartGroupsHtml_(r) + smartTableHtml_(r) + smartDowHtml_(r) + smartFooterHtml_(r);
+  out.innerHTML = smartTableHtml_(r) + smartNoteHtml_(r);
 }
 
 function toggleSmartDetail_(i) {
