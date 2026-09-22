@@ -858,6 +858,7 @@
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
           <button class="btn" id="mmPublishBtn" onclick="publishMeetingMinutes()">✅ نشر المحضر</button>
+          <button class="btn outline" onclick="saveMmDraft()">💾 حفظ مسودة</button>
           <button class="btn outline" onclick="clearMmForm()">🗑️ مسح النموذج</button>
         </div>
         <div class="success-msg" id="mmPublishSuccess">تم نشر المحضر بنجاح ✅</div>
@@ -2235,10 +2236,10 @@ function loadTasksStatus() {
 /* ==================== درجات المسؤولات (تقييم نهاية الفصل من 13) ==================== */
 const GRADE_ITEMS_ = [
   { key: 'تسجيل المبيعات', max: 4 },
-  { key: 'الفواتير', max: 3 },
-  { key: 'إشعار الاستلام', max: 2 },
-  { key: 'توقيع التعهد', max: 2 },
-  { key: 'تأكيد الاطلاع على المهام', max: 2 }
+  { key: 'الفواتير', max: 4 },
+  { key: 'إشعار الاستلام', max: 3 },
+  { key: 'توقيع التعهد', max: 1 },
+  { key: 'تأكيد الاطلاع على المهام', max: 1 }
 ];
 const GRADE_TOTAL_ = 13;
 let gradesState_ = { term: '', list: [], touched: false };
@@ -2912,8 +2913,79 @@ function addMmLinkRow(type, url) {
 function initMeetingMinutesTab_() {
   if (mmInited_) return;
   mmInited_ = true;
-  addMmPointRow('');
-  addMmParticipantRow('');
+  const hasDraft = loadMmDraft_();
+  if (!hasDraft) {
+    addMmPointRow('');
+    addMmParticipantRow('');
+  }
+}
+
+/* -------- حفظ/استرجاع مسودة محضر الاجتماع (بدون التوقيعين) -------- */
+const MM_DRAFT_KEY_ = 'mmMeetingDraft';
+
+function saveMmDraft() {
+  const points = Array.from(document.querySelectorAll('#mmPointsContainer textarea')).map(function (t) { return t.value; });
+  const participants = Array.from(document.querySelectorAll('#mmParticipantsContainer input[type="text"]')).map(function (t) { return t.value; });
+  const links = Array.from(document.querySelectorAll('#mmLinksContainer > div')).map(function (row) {
+    return { type: row.querySelector('.mm-link-type').value, url: row.querySelector('.mm-link-url').value };
+  });
+  const draft = {
+    number: document.getElementById('mmNumber').value,
+    method: document.getElementById('mmMethod').value,
+    day: document.getElementById('mmDayName').value,
+    hijriDay: document.getElementById('mmHijriDay').value,
+    hijriMonth: document.getElementById('mmHijriMonth').value,
+    hijriYear: document.getElementById('mmHijriYear').value,
+    points: points,
+    participants: participants,
+    links: links,
+    headName: document.getElementById('mmHeadName').value,
+    headSigScale: document.getElementById('mmHeadSigSize').value,
+    assistantName: document.getElementById('mmAssistantName').value,
+    assistantSigScale: document.getElementById('mmAssistantSigSize').value
+  };
+  try {
+    localStorage.setItem(MM_DRAFT_KEY_, JSON.stringify(draft));
+    alert('تم حفظ المسودة، وبتلقينها جاهزة لما ترجعين لهذا التبويب');
+  } catch (e) {
+    alert('تعذّر حفظ المسودة بهذا المتصفح');
+  }
+}
+
+/* يرجع true لو فيه مسودة محفوظة وتم تحميلها، false لو ما فيه */
+function loadMmDraft_() {
+  let draft;
+  try {
+    const raw = localStorage.getItem(MM_DRAFT_KEY_);
+    if (!raw) return false;
+    draft = JSON.parse(raw);
+  } catch (e) { return false; }
+  if (!draft) return false;
+  document.getElementById('mmNumber').value = draft.number || '';
+  document.getElementById('mmMethod').value = draft.method || 'عبر برنامج الزوم';
+  document.getElementById('mmDayName').value = draft.day || 'الأحد';
+  document.getElementById('mmHijriDay').value = draft.hijriDay || '';
+  document.getElementById('mmHijriMonth').value = draft.hijriMonth || '١';
+  document.getElementById('mmHijriYear').value = draft.hijriYear || '';
+  document.getElementById('mmHeadName').value = draft.headName || 'فاطمة مبارك الكثيري';
+  document.getElementById('mmAssistantName').value = draft.assistantName || 'مرام فوزي محسن النفاعي';
+  if (draft.headSigScale) {
+    document.getElementById('mmHeadSigSize').value = draft.headSigScale;
+    document.getElementById('mmHeadSigSizeLabel').textContent = draft.headSigScale + '%';
+  }
+  if (draft.assistantSigScale) {
+    document.getElementById('mmAssistantSigSize').value = draft.assistantSigScale;
+    document.getElementById('mmAssistantSigSizeLabel').textContent = draft.assistantSigScale + '%';
+  }
+  document.getElementById('mmPointsContainer').innerHTML = '';
+  const points = (draft.points && draft.points.length) ? draft.points : [''];
+  points.forEach(function (p) { addMmPointRow(p); });
+  document.getElementById('mmParticipantsContainer').innerHTML = '';
+  const participants = (draft.participants && draft.participants.length) ? draft.participants : [''];
+  participants.forEach(function (p) { addMmParticipantRow(p); });
+  document.getElementById('mmLinksContainer').innerHTML = '';
+  (draft.links || []).forEach(function (l) { addMmLinkRow(l.type, l.url); });
+  return true;
 }
 
 function handleMmSigUpload(evt, who) {
@@ -3077,6 +3149,8 @@ function clearMmForm() {
   document.getElementById('mmAllCheck').checked = true;
   toggleMmTargets();
   document.querySelectorAll('.mm-center-check, .mm-masoula-check').forEach(function (el) { el.checked = false; });
+  try { localStorage.removeItem(MM_DRAFT_KEY_); } catch (e) { /* تجاهل */ }
+  /* التوقيعان عن قصد ما يتصفّران */
 }
 
 function mmTargetLabel_(target) {
