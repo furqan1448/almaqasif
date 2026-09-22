@@ -22,7 +22,7 @@ const ADMIN_NOTIFY_EMAIL = 'fainal.almqasif@gmail.com';
 // لما قوقل شيتس يحوّل نص التاريخ/الوقت تلقائياً إلى كائن Date داخلي.
 const TEXT_COLUMNS_ = ['اليوم', 'التاريخ', 'الوقت', 'تاريخ الإرسال', 'يوم الإرسال', 'وقت الإرسال',
   'يوم اطلاع الإدارة', 'تاريخ اطلاع الإدارة', 'وقت اطلاع الإدارة', 'تاريخ توقيع الإدارة',
-  'رقم الفاتورة', 'العام', 'وقت التسجيل الفعلي'];
+  'رقم الفاتورة', 'العام', 'وقت التسجيل الفعلي', 'يوم الاجتماع', 'تاريخ الاجتماع الهجري', 'رقم الاجتماع'];
 
 function setup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -45,6 +45,12 @@ function setup() {
     'المرفقات': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'المالك', 'اليوم', 'التاريخ', 'الوقت'],
     'مرفقات الإشراف': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
     'الإعلانات الهامة': ['معرف', 'النص', 'استهداف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
+    // محاضر الاجتماعات: كل الحقول التي تُطبع بالمحضر + استهداف (زي الإعلانات الهامة) يحدد مين يشوفه بالمراكز/المسؤولات
+    'محاضر الاجتماعات': ['معرف', 'رقم الاجتماع', 'يوم الاجتماع', 'تاريخ الاجتماع الهجري', 'طريقة الانعقاد',
+      'نقاط الاجتماع', 'المشاركات', 'الروابط',
+      'اسم الرئيسة', 'توقيع الرئيسة', 'حجم توقيع الرئيسة',
+      'اسم المساعدة', 'توقيع المساعدة', 'حجم توقيع المساعدة',
+      'استهداف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
     'قائمة الأسعار': ['معرف', 'التصنيف', 'اسم الصنف', 'السعر', 'ترتيب'],
     'الإعدادات': ['المفتاح', 'القيمة'],
     'دخول الإشراف': ['البريد الإلكتروني', 'كلمة المرور', 'الاسم'],
@@ -401,6 +407,73 @@ function deleteAnnouncement_(p) {
   const sh = sheet_('الإعلانات الهامة');
   sh.deleteRow(Number(p.row));
   invalidateCache_('الإعلانات الهامة');
+  return { ok: true };
+}
+
+/* ------------------- محاضر الاجتماعات (إدارة → مراكز/مسؤولات) -------------------
+   نفس منطق استهداف الإعلانات الهامة بالضبط (p.all أو p.centers/p.masoulat).
+   نقاط الاجتماع والمشاركات والروابط تُحفظ كنص JSON بعمود واحد، وتُفكّ بالواجهة عند العرض/الطباعة. */
+function recordMeetingMinutes_(p) {
+  const sh = sheet_('محاضر الاجتماعات');
+  const id = Utilities.getUuid();
+  const now = nowParts_();
+  let targets = 'الكل';
+  if (!p.all) {
+    const list = [];
+    (p.centers || []).forEach(function (c) { if (c) list.push('مركز:' + c); });
+    (p.masoulat || []).forEach(function (m) { if (m) list.push('مسؤولة:' + m); });
+    targets = list.length ? list.join('|') : 'الكل';
+  }
+  appendRowByHeaders_(sh, {
+    'معرف': id,
+    'رقم الاجتماع': p.number || '',
+    'يوم الاجتماع': p.day || '',
+    'تاريخ الاجتماع الهجري': p.hijriDate || '',
+    'طريقة الانعقاد': p.method || '',
+    'نقاط الاجتماع': JSON.stringify(p.points || []),
+    'المشاركات': JSON.stringify(p.participants || []),
+    'الروابط': JSON.stringify(p.links || []),
+    'اسم الرئيسة': p.headName || '',
+    'توقيع الرئيسة': p.headSignature || '',
+    'حجم توقيع الرئيسة': p.headSigScale || '',
+    'اسم المساعدة': p.assistantName || '',
+    'توقيع المساعدة': p.assistantSignature || '',
+    'حجم توقيع المساعدة': p.assistantSigScale || '',
+    'استهداف': targets, 'من': p.from || 'الإدارة',
+    'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
+  });
+  invalidateCache_('محاضر الاجتماعات');
+  return { ok: true, id: id };
+}
+
+/* لوحة الإدارة: كل المحاضر بدون فلترة، لعرضها وحذفها */
+function getAllMeetingMinutes_() {
+  const rows = sheetToObjects_('محاضر الاجتماعات');
+  return { ok: true, minutes: rows.reverse() };
+}
+
+/* p.center و/أو p.masoula: ترجع بس المحاضر اللي تخص هذا المركز/المسؤولة، أو اللي استهدافها "الكل" */
+function getMeetingMinutesFor_(p) {
+  const rows = sheetToObjects_('محاضر الاجتماعات');
+  const center = p && p.center ? String(p.center).trim() : '';
+  const masoula = p && p.masoula ? String(p.masoula).trim() : '';
+  const matched = rows.filter(function (r) {
+    const target = String(r['استهداف'] || '').trim();
+    if (target === 'الكل' || !target) return true;
+    const tokens = target.split('|');
+    return tokens.some(function (t) {
+      if (center && t === 'مركز:' + center) return true;
+      if (masoula && t === 'مسؤولة:' + masoula) return true;
+      return false;
+    });
+  });
+  return { ok: true, minutes: matched.reverse() };
+}
+
+function deleteMeetingMinutes_(p) {
+  const sh = sheet_('محاضر الاجتماعات');
+  sh.deleteRow(Number(p.row));
+  invalidateCache_('محاضر الاجتماعات');
   return { ok: true };
 }
 
@@ -978,6 +1051,10 @@ function handleRequest_(p) {
       case 'getAllAnnouncements': return json_(getAllAnnouncements_());
       case 'getAnnouncementsFor': return json_(getAnnouncementsFor_(p));
       case 'deleteAnnouncement': return json_(deleteAnnouncement_(p));
+      case 'recordMeetingMinutes': return json_(recordMeetingMinutes_(p));
+      case 'getAllMeetingMinutes': return json_(getAllMeetingMinutes_());
+      case 'getMeetingMinutesFor': return json_(getMeetingMinutesFor_(p));
+      case 'deleteMeetingMinutes': return json_(deleteMeetingMinutes_(p));
 
       case 'getPriceItems': return json_(getPriceItems_());
       case 'addPriceItem': return json_(addPriceItem_(p));

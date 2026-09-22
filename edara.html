@@ -142,6 +142,10 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 3.5h6v2H9z"/><path d="M9 13.5l2 2 4-4.5"/></svg></div>
           <span class="label">درجات المسؤولات</span>
         </div>
+        <div class="icon-btn" onclick="showAdminTab('meetingMinutesTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v2M16 3v2"/><rect x="4" y="4.5" width="16" height="16" rx="1.5"/><path d="M4 9.5h16"/><path d="M8.5 13.5l2 2 4-4.5"/><path d="M8.5 17.5h4"/></svg></div>
+          <span class="label">محضر اجتماع</span>
+        </div>
       </div>
     </div>
   </div>
@@ -744,6 +748,132 @@
       </div>
     </div>
 
+    <!-- ===== تبويب: محضر اجتماع ===== -->
+    <div id="meetingMinutesTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">محضر اجتماع جديد</h3>
+        <div class="select-row">
+          <div>
+            <label>رقم الاجتماع</label>
+            <input type="text" id="mmNumber" placeholder="مثال: ١">
+          </div>
+          <div>
+            <label>طريقة الانعقاد</label>
+            <input type="text" id="mmMethod" value="عبر برنامج الزوم">
+          </div>
+        </div>
+        <div class="select-row">
+          <div>
+            <label>يوم الاجتماع</label>
+            <select id="mmDayName">
+              <option value="الأحد">الأحد</option>
+              <option value="الاثنين">الاثنين</option>
+              <option value="الثلاثاء">الثلاثاء</option>
+              <option value="الأربعاء">الأربعاء</option>
+              <option value="الخميس">الخميس</option>
+              <option value="الجمعة">الجمعة</option>
+              <option value="السبت">السبت</option>
+            </select>
+          </div>
+          <div>
+            <label>التاريخ الهجري (يوم / شهر / سنة)</label>
+            <div style="display:flex;gap:8px;">
+              <input type="number" id="mmHijriDay" min="1" max="30" placeholder="اليوم" style="width:28%;">
+              <select id="mmHijriMonth" style="width:38%;">
+                <option value="١">١</option><option value="٢">٢</option><option value="٣">٣</option>
+                <option value="٤">٤</option><option value="٥">٥</option><option value="٦">٦</option>
+                <option value="٧">٧</option><option value="٨">٨</option><option value="٩">٩</option>
+                <option value="١٠">١٠</option><option value="١١">١١</option><option value="١٢">١٢</option>
+              </select>
+              <input type="text" id="mmHijriYear" placeholder="١٤٤٧" style="width:34%;">
+            </div>
+          </div>
+        </div>
+
+        <label>نقاط الاجتماع — كل نقطة بسطر مستقل، وتترقم تلقائي</label>
+        <div id="mmPointsContainer"></div>
+        <button type="button" class="btn outline" onclick="addMmPointRow()" style="width:auto;padding:6px 14px;margin-top:6px;">➕ إضافة نقطة</button>
+
+        <label style="margin-top:14px;">المشاركات في الاجتماع — اسم كل مشاركة بسطر مستقل</label>
+        <div id="mmParticipantsContainer"></div>
+        <button type="button" class="btn outline" onclick="addMmParticipantRow()" style="width:auto;padding:6px 14px;margin-top:6px;">➕ إضافة مشاركة</button>
+
+        <label style="margin-top:14px;">روابط إضافية (اختياري) — فيديو، عرض تقديمي، أو أي رابط آخر</label>
+        <div id="mmLinksContainer"></div>
+        <button type="button" class="btn outline" onclick="addMmLinkRow()" style="width:auto;padding:6px 14px;margin-top:6px;">➕ إضافة رابط</button>
+
+        <label style="margin-top:14px;">اسم رئيسة وحدة المقاصف</label>
+        <input type="text" id="mmHeadName" value="فاطمة مبارك الكثيري">
+        <label>توقيع رئيسة وحدة المقاصف (اختياري)</label>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <input type="file" id="mmHeadSigUpload" accept="image/*" onchange="handleMmSigUpload(event,'head')" style="width:auto;">
+          <img id="mmHeadSigPreview" class="hidden" alt="معاينة التوقيع" style="max-width:100px;max-height:55px;object-fit:contain;border:1px solid var(--gold-light);border-radius:6px;padding:2px;">
+          <button type="button" class="btn outline" id="mmHeadSigClearBtn" onclick="clearMmSigUpload('head')" style="width:auto;padding:6px 14px;display:none;">مسح</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+          <label style="margin:0;white-space:nowrap;">حجم التوقيع</label>
+          <input type="range" id="mmHeadSigSize" min="50" max="400" value="100" step="10" style="width:160px;" oninput="document.getElementById('mmHeadSigSizeLabel').textContent=this.value+'%'">
+          <span id="mmHeadSigSizeLabel" style="font-weight:700;color:var(--maroon);">100%</span>
+        </div>
+
+        <label style="margin-top:14px;">اسم مساعدة وحدة المقاصف</label>
+        <input type="text" id="mmAssistantName" value="مرام فوزي محسن النفاعي">
+        <label>توقيع مساعدة وحدة المقاصف (اختياري)</label>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <input type="file" id="mmAssistantSigUpload" accept="image/*" onchange="handleMmSigUpload(event,'assistant')" style="width:auto;">
+          <img id="mmAssistantSigPreview" class="hidden" alt="معاينة التوقيع" style="max-width:100px;max-height:55px;object-fit:contain;border:1px solid var(--gold-light);border-radius:6px;padding:2px;">
+          <button type="button" class="btn outline" id="mmAssistantSigClearBtn" onclick="clearMmSigUpload('assistant')" style="width:auto;padding:6px 14px;display:none;">مسح</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+          <label style="margin:0;white-space:nowrap;">حجم التوقيع</label>
+          <input type="range" id="mmAssistantSigSize" min="50" max="400" value="100" step="10" style="width:160px;" oninput="document.getElementById('mmAssistantSigSizeLabel').textContent=this.value+'%'">
+          <span id="mmAssistantSigSizeLabel" style="font-weight:700;color:var(--maroon);">100%</span>
+        </div>
+
+        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:16px;">
+          <input type="checkbox" id="mmAllCheck" checked onchange="toggleMmTargets()">
+          <span>يظهر لكل المراكز والمسؤولات</span>
+        </label>
+        <div id="mmTargetsBox" class="hidden" style="margin-top:10px;">
+          <label style="display:flex;align-items:center;justify-content:space-between;">
+            <span>مراكز محددة</span>
+            <span style="display:flex;align-items:center;gap:6px;font-weight:normal;font-size:0.85rem;">
+              <input type="checkbox" id="mmCentersAllCheck" onchange="toggleMmGroupAll('center')"> تحديد الكل
+            </span>
+          </label>
+          <div id="mmCentersList" style="max-height:160px;overflow-y:auto;border:1.5px solid var(--gold-light);border-radius:8px;padding:8px 10px;margin-bottom:12px;">جاري التحميل...</div>
+          <label style="display:flex;align-items:center;justify-content:space-between;">
+            <span>مسؤولات محددات</span>
+            <span style="display:flex;align-items:center;gap:6px;font-weight:normal;font-size:0.85rem;">
+              <input type="checkbox" id="mmMasoulatAllCheck" onchange="toggleMmGroupAll('masoula')"> تحديد الكل
+            </span>
+          </label>
+          <div id="mmMasoulatList" style="max-height:160px;overflow-y:auto;border:1.5px solid var(--gold-light);border-radius:8px;padding:8px 10px;">جاري التحميل...</div>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+          <button class="btn outline" onclick="printMeetingMinutes()">🖨️ معاينة وطباعة</button>
+          <button class="btn outline" onclick="saveMeetingMinutes()">📄 حفظ PDF</button>
+          <button class="btn outline" onclick="shareMeetingMinutes()">📤 إرسال واتساب</button>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
+          <button class="btn" id="mmPublishBtn" onclick="publishMeetingMinutes()">✅ نشر المحضر</button>
+          <button class="btn outline" onclick="clearMmForm()">🗑️ مسح النموذج</button>
+        </div>
+        <div class="success-msg" id="mmPublishSuccess">تم نشر المحضر بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">المحاضر المنشورة</h3>
+        <div id="mmAdminList">جاري التحميل...</div>
+      </div>
+    </div>
+
+    <!-- عنصر مخفي: يُستخدم داخليًا لتحويل محضر الاجتماع لملف PDF (حفظ/مشاركة) - لا يظهر بالشاشة -->
+    <div style="position:fixed;top:0;left:0;width:0;height:0;overflow:hidden;z-index:-1;">
+      <div id="mmPdfHost" style="width:794px;background:#fff;"></div>
+    </div>
+
     <!-- ===== تبويب: بطاقات التحفيز (نظرة الإدارة) ===== -->
     <div id="cardsAdminTab" class="admin-tab-panel hidden">
       <div class="card">
@@ -898,6 +1028,7 @@ function showAdminTab(tabId) {
   if (tabId === 'announcementsTab') { renderAnnounceTargetLists(); loadAnnouncementsAdmin(); }
   if (tabId === 'priceListTab') { loadPriceManagerSelect(); loadPriceItemsAdmin(); loadPriceListFileAdmin(); }
   if (tabId === 'visitReportTab') { initVisitReportTab_(); }
+  if (tabId === 'meetingMinutesTab') { initMeetingMinutesTab_(); renderMmTargetLists(); loadMeetingMinutesAdmin(); }
   if (tabId === 'cardsAdminTab') { loadCardsAdminOverview(); }
   if (tabId === 'gradesTab') { initGradesTab_(); }
 }
@@ -2680,6 +2811,310 @@ function saveVisitReport() {
 function shareVisitReport() {
   const opts = collectVisitReportOpts_();
   if (opts) shareVisitReportPdf(opts);
+}
+
+/* ==================== محضر اجتماع ==================== */
+let mmHeadSignatureDataUrl = null;
+let mmAssistantSignatureDataUrl = null;
+let mmInited_ = false;
+
+function addMmPointRow(value) {
+  const container = document.getElementById('mmPointsContainer');
+  const row = document.createElement('div');
+  row.className = 'vr-note-row';
+  row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;';
+  const num = document.createElement('span');
+  num.className = 'mm-point-num';
+  num.style.cssText = 'font-weight:800;color:var(--maroon);min-width:22px;text-align:center;margin-top:8px;';
+  const input = document.createElement('textarea');
+  input.rows = 1;
+  input.placeholder = 'اكتبي النقطة...';
+  input.style.cssText = 'flex:1;resize:none;overflow:hidden;min-height:38px;';
+  input.value = value || '';
+  input.addEventListener('input', function () { autoResizeVrNote_(input); });
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.textContent = '✕';
+  removeBtn.style.cssText = 'width:auto;padding:4px 10px;background:transparent;border:1px solid var(--gold-light);border-radius:6px;color:#8a7d76;cursor:pointer;flex:none;margin-top:2px;';
+  removeBtn.onclick = function () { row.remove(); renumberMmPointRows_(); };
+  row.appendChild(num);
+  row.appendChild(input);
+  row.appendChild(removeBtn);
+  container.appendChild(row);
+  renumberMmPointRows_();
+  autoResizeVrNote_(input);
+}
+function renumberMmPointRows_() {
+  document.querySelectorAll('#mmPointsContainer .mm-point-num').forEach(function (el, i) {
+    el.textContent = toArabicDigits(i + 1) + '.';
+  });
+}
+
+function addMmParticipantRow(value) {
+  const container = document.getElementById('mmParticipantsContainer');
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;';
+  const num = document.createElement('span');
+  num.className = 'mm-participant-num';
+  num.style.cssText = 'font-weight:800;color:var(--maroon);min-width:22px;text-align:center;';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'اسم المشاركة...';
+  input.style.cssText = 'flex:1;margin:0;';
+  input.value = value || '';
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.textContent = '✕';
+  removeBtn.style.cssText = 'width:auto;padding:4px 10px;background:transparent;border:1px solid var(--gold-light);border-radius:6px;color:#8a7d76;cursor:pointer;flex:none;';
+  removeBtn.onclick = function () { row.remove(); renumberMmParticipantRows_(); };
+  row.appendChild(num);
+  row.appendChild(input);
+  row.appendChild(removeBtn);
+  container.appendChild(row);
+  renumberMmParticipantRows_();
+}
+function renumberMmParticipantRows_() {
+  document.querySelectorAll('#mmParticipantsContainer .mm-participant-num').forEach(function (el, i) {
+    el.textContent = toArabicDigits(i + 1) + '.';
+  });
+}
+
+function addMmLinkRow(type, url) {
+  const container = document.getElementById('mmLinksContainer');
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;';
+  const sel = document.createElement('select');
+  sel.className = 'mm-link-type';
+  sel.style.cssText = 'width:150px;flex:none;margin:0;';
+  ['فيديو', 'عرض تقديمي', 'ملف آخر', 'رابط عام'].forEach(function (t) {
+    const o = document.createElement('option');
+    o.value = t; o.textContent = t;
+    sel.appendChild(o);
+  });
+  sel.value = type || 'فيديو';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'mm-link-url';
+  input.placeholder = 'https://...';
+  input.style.cssText = 'flex:1;margin:0;';
+  input.value = url || '';
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.textContent = '✕';
+  removeBtn.style.cssText = 'width:auto;padding:4px 10px;background:transparent;border:1px solid var(--gold-light);border-radius:6px;color:#8a7d76;cursor:pointer;flex:none;';
+  removeBtn.onclick = function () { row.remove(); };
+  row.appendChild(sel);
+  row.appendChild(input);
+  row.appendChild(removeBtn);
+  container.appendChild(row);
+}
+
+function initMeetingMinutesTab_() {
+  if (mmInited_) return;
+  mmInited_ = true;
+  addMmPointRow('');
+  addMmParticipantRow('');
+}
+
+function handleMmSigUpload(evt, who) {
+  const file = evt.target.files && evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const img = new Image();
+    img.onload = function () {
+      let finalUrl = e.target.result;
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        finalUrl = trimSignatureCanvas_(canvas);
+      } catch (err) { /* لو صار خطأ بالقص، نستخدم الصورة الأصلية بدون تعديل */ }
+      if (who === 'head') mmHeadSignatureDataUrl = finalUrl; else mmAssistantSignatureDataUrl = finalUrl;
+      const preview = document.getElementById(who === 'head' ? 'mmHeadSigPreview' : 'mmAssistantSigPreview');
+      preview.src = finalUrl;
+      preview.classList.remove('hidden');
+      document.getElementById(who === 'head' ? 'mmHeadSigClearBtn' : 'mmAssistantSigClearBtn').style.display = 'inline-block';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearMmSigUpload(who) {
+  if (who === 'head') mmHeadSignatureDataUrl = null; else mmAssistantSignatureDataUrl = null;
+  document.getElementById(who === 'head' ? 'mmHeadSigUpload' : 'mmAssistantSigUpload').value = '';
+  const preview = document.getElementById(who === 'head' ? 'mmHeadSigPreview' : 'mmAssistantSigPreview');
+  preview.src = '';
+  preview.classList.add('hidden');
+  document.getElementById(who === 'head' ? 'mmHeadSigClearBtn' : 'mmAssistantSigClearBtn').style.display = 'none';
+}
+
+function toggleMmTargets() {
+  const all = document.getElementById('mmAllCheck').checked;
+  document.getElementById('mmTargetsBox').classList.toggle('hidden', all);
+}
+function toggleMmGroupAll(type) {
+  const selector = type === 'center' ? '.mm-center-check' : '.mm-masoula-check';
+  const allCheckId = type === 'center' ? 'mmCentersAllCheck' : 'mmMasoulatAllCheck';
+  const checked = document.getElementById(allCheckId).checked;
+  document.querySelectorAll(selector).forEach(function (el) { el.checked = checked; });
+}
+function syncMmGroupAllCheck_(type) {
+  const selector = type === 'center' ? '.mm-center-check' : '.mm-masoula-check';
+  const allCheckId = type === 'center' ? 'mmCentersAllCheck' : 'mmMasoulatAllCheck';
+  const boxes = Array.from(document.querySelectorAll(selector));
+  const allChecked = boxes.length > 0 && boxes.every(function (el) { return el.checked; });
+  document.getElementById(allCheckId).checked = allChecked;
+}
+function renderMmTargetLists() {
+  const centersBox = document.getElementById('mmCentersList');
+  const masoulatBox = document.getElementById('mmMasoulatList');
+  function render() {
+    centersBox.innerHTML = centersListCache.length ? '' : 'لا يوجد مراكز';
+    centersListCache.forEach(function (c) {
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:6px;';
+      label.innerHTML = '<input type="checkbox" class="mm-center-check" value="' + c + '" onchange="syncMmGroupAllCheck_(\'center\')"> <span>' + c + '</span>';
+      centersBox.appendChild(label);
+    });
+    masoulatBox.innerHTML = masoulatListCache.length ? '' : 'لا يوجد مسؤولات';
+    masoulatListCache.forEach(function (m) {
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:6px;';
+      label.innerHTML = '<input type="checkbox" class="mm-masoula-check" value="' + m + '" onchange="syncMmGroupAllCheck_(\'masoula\')"> <span>' + m + '</span>';
+      masoulatBox.appendChild(label);
+    });
+    document.getElementById('mmCentersAllCheck').checked = false;
+    document.getElementById('mmMasoulatAllCheck').checked = false;
+  }
+  if (centersListCache.length || masoulatListCache.length) { render(); return; }
+  Promise.all([callApi('getCenters'), callApi('getMasoulat')]).then(function (results) {
+    centersListCache = results[0].centers || [];
+    masoulatListCache = results[1].masoulat || [];
+    render();
+  });
+}
+
+function collectMeetingMinutesOpts_() {
+  const number = document.getElementById('mmNumber').value.trim();
+  if (!number) { alert('اكتبي رقم الاجتماع أولاً'); return null; }
+  const hijriDay = document.getElementById('mmHijriDay').value.trim();
+  const hijriMonth = document.getElementById('mmHijriMonth').value;
+  const hijriYear = document.getElementById('mmHijriYear').value.trim();
+  const hijriDate = (hijriDay ? toArabicDigits(hijriDay) : '  ') + ' / ' + (hijriMonth || '') +
+    (hijriYear ? ' / ' + toArabicDigits(hijriYear) + 'هـ' : 'هـ');
+  const points = Array.from(document.querySelectorAll('#mmPointsContainer textarea')).map(function (t) { return t.value.trim(); }).filter(Boolean);
+  const participants = Array.from(document.querySelectorAll('#mmParticipantsContainer input[type="text"]')).map(function (t) { return t.value.trim(); }).filter(Boolean);
+  const links = [];
+  document.querySelectorAll('#mmLinksContainer > div').forEach(function (row) {
+    const type = row.querySelector('.mm-link-type').value;
+    const url = row.querySelector('.mm-link-url').value.trim();
+    if (url) links.push({ type: type, url: url });
+  });
+  return {
+    number: number,
+    day: document.getElementById('mmDayName').value || '',
+    hijriDate: hijriDate,
+    method: document.getElementById('mmMethod').value.trim(),
+    points: points,
+    participants: participants,
+    links: links,
+    headName: document.getElementById('mmHeadName').value || 'فاطمة مبارك الكثيري',
+    headSignature: mmHeadSignatureDataUrl || '',
+    headSigScale: (Number(document.getElementById('mmHeadSigSize').value) || 100) / 100,
+    assistantName: document.getElementById('mmAssistantName').value || '',
+    assistantSignature: mmAssistantSignatureDataUrl || '',
+    assistantSigScale: (Number(document.getElementById('mmAssistantSigSize').value) || 100) / 100
+  };
+}
+
+function printMeetingMinutes() { const o = collectMeetingMinutesOpts_(); if (o) printMeetingMinutesWindow(o); }
+function saveMeetingMinutes() { const o = collectMeetingMinutesOpts_(); if (o) saveMeetingMinutesPdf(o); }
+function shareMeetingMinutes() { const o = collectMeetingMinutesOpts_(); if (o) shareMeetingMinutesPdf(o); }
+
+function publishMeetingMinutes() {
+  const opts = collectMeetingMinutesOpts_();
+  if (!opts) return;
+  const all = document.getElementById('mmAllCheck').checked;
+  const payload = Object.assign({}, opts, { all: all, from: 'الإدارة' });
+  if (!all) {
+    payload.centers = Array.from(document.querySelectorAll('.mm-center-check:checked')).map(function (el) { return el.value; });
+    payload.masoulat = Array.from(document.querySelectorAll('.mm-masoula-check:checked')).map(function (el) { return el.value; });
+    if (!payload.centers.length && !payload.masoulat.length) { alert('اختاري مركز أو مسؤولة واحدة على الأقل، أو فعّلي "يظهر لكل المراكز والمسؤولات"'); return; }
+  }
+  const btn = document.getElementById('mmPublishBtn');
+  setBtnBusy(btn, true);
+  callApi('recordMeetingMinutes', payload).then(function (r) {
+    setBtnBusy(btn, false);
+    if (r.ok) {
+      const s = document.getElementById('mmPublishSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+      loadMeetingMinutesAdmin();
+    } else {
+      alert('صار خطأ أثناء نشر المحضر:\n' + (r.error || 'خطأ غير معروف'));
+    }
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+function clearMmForm() {
+  if (!confirm('هل تبين تصفير كل حقول المحضر؟ (التوقيعان يضلّان كما هما)')) return;
+  document.getElementById('mmNumber').value = '';
+  document.getElementById('mmMethod').value = 'عبر برنامج الزوم';
+  document.getElementById('mmDayName').value = 'الأحد';
+  document.getElementById('mmHijriDay').value = '';
+  document.getElementById('mmHijriMonth').value = '١';
+  document.getElementById('mmHijriYear').value = '';
+  document.getElementById('mmPointsContainer').innerHTML = '';
+  document.getElementById('mmParticipantsContainer').innerHTML = '';
+  document.getElementById('mmLinksContainer').innerHTML = '';
+  addMmPointRow('');
+  addMmParticipantRow('');
+  document.getElementById('mmHeadName').value = 'فاطمة مبارك الكثيري';
+  document.getElementById('mmAssistantName').value = 'مرام فوزي محسن النفاعي';
+  document.getElementById('mmAllCheck').checked = true;
+  toggleMmTargets();
+  document.querySelectorAll('.mm-center-check, .mm-masoula-check').forEach(function (el) { el.checked = false; });
+}
+
+function mmTargetLabel_(target) {
+  if (!target || target === 'الكل') return 'الكل';
+  return target.split('|').map(function (t) {
+    const parts = t.split(':');
+    return parts[1] || t;
+  }).join('، ');
+}
+
+function loadMeetingMinutesAdmin() {
+  const box = document.getElementById('mmAdminList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getAllMeetingMinutes', {}).then(function (r) {
+    const list = r.minutes || [];
+    if (!r.ok || !list.length) { box.innerHTML = 'لا توجد محاضر بعد'; return; }
+    box.innerHTML = '';
+    list.forEach(function (m) {
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div>' +
+          '<div>محضر رقم ' + toArabicDigits(m['رقم الاجتماع'] || '') + '</div>' +
+          '<div class="meta">إلى: ' + mmTargetLabel_(m['استهداف']) + ' · ' + (m['اليوم'] || '') + ' ' + toHijriStr(m['التاريخ']) + '</div>' +
+          '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;">' +
+            '<a href="#" onclick="deleteMeetingMinutesRow(' + m._row + '); return false;">حذف</a>' +
+          '</div>' +
+        '</div>';
+      box.appendChild(div);
+    });
+  });
+}
+
+function deleteMeetingMinutesRow(row) {
+  if (!confirm('متأكدة تبين تحذفين هذا المحضر؟')) return;
+  callApi('deleteMeetingMinutes', { row: row }).then(function (r) {
+    if (r.ok) loadMeetingMinutesAdmin();
+  });
 }
 
 /* ==================== التحليل الذكي لالتزام المراكز ==================== */

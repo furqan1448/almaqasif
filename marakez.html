@@ -107,7 +107,25 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10"/></svg></div>
           <span class="label">متابعة بطاقات التحفيز</span>
         </div>
+        <div class="icon-btn" onclick="showView('meetingMinutesView')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v2M16 3v2"/><rect x="4" y="4.5" width="16" height="16" rx="1.5"/><path d="M4 9.5h16"/><path d="M8.5 13.5l2 2 4-4.5"/><path d="M8.5 17.5h4"/></svg></div>
+          <span class="label">محاضر الاجتماعات</span>
+        </div>
       </div>
+    </div>
+
+    <!-- محاضر الاجتماعات -->
+    <div id="meetingMinutesView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">محاضر الاجتماعات</h3>
+        <div id="meetingMinutesList">جاري التحميل...</div>
+      </div>
+    </div>
+
+    <!-- عنصر مخفي: يُستخدم داخليًا لتحويل محضر الاجتماع لملف PDF (حفظ/مشاركة) - لا يظهر بالشاشة -->
+    <div style="position:fixed;top:0;left:0;width:0;height:0;overflow:hidden;z-index:-1;">
+      <div id="mmPdfHost" style="width:794px;background:#fff;"></div>
     </div>
 
     <!-- قائمة الأسعار -->
@@ -483,6 +501,8 @@
 <!-- قالب مخفي لتركيب صورة الإشعار -->
 <canvas id="noticeCanvas" width="900" height="710" style="display:none;"></canvas>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
 <script>
@@ -611,7 +631,7 @@ function applyReadOnlyRestrictions() {
 }
 
 function showView(id) {
-  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'announcementsView', 'priceListView', 'cardsDeliverView', 'cardsReceiveView', 'cardsFollowupView'].forEach(function (v) {
+  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'announcementsView', 'priceListView', 'cardsDeliverView', 'cardsReceiveView', 'cardsFollowupView', 'meetingMinutesView'].forEach(function (v) {
     document.getElementById(v).classList.toggle('hidden', v !== id);
   });
   if (id === 'salesView') loadSales();
@@ -625,6 +645,7 @@ function showView(id) {
   if (id === 'cardsDeliverView') initCardsDeliverView_();
   if (id === 'cardsReceiveView') initCardsReceiveView_();
   if (id === 'cardsFollowupView') loadCardsFollowup_();
+  if (id === 'meetingMinutesView') loadMeetingMinutesList();
   if (id === 'homeView') refreshPendingBadge();
 }
 
@@ -1197,6 +1218,56 @@ function loadAnnouncementsList() {
     });
   });
 }
+
+/* -------- محاضر الاجتماعات -------- */
+let mmListCache_ = [];
+
+function mmOptsFromRow_(m) {
+  let points = [], participants = [], links = [];
+  try { points = JSON.parse(m['نقاط الاجتماع'] || '[]'); } catch (e) {}
+  try { participants = JSON.parse(m['المشاركات'] || '[]'); } catch (e) {}
+  try { links = JSON.parse(m['الروابط'] || '[]'); } catch (e) {}
+  return {
+    number: m['رقم الاجتماع'] || '',
+    day: m['يوم الاجتماع'] || '',
+    hijriDate: m['تاريخ الاجتماع الهجري'] || '',
+    method: m['طريقة الانعقاد'] || '',
+    points: points, participants: participants, links: links,
+    headName: m['اسم الرئيسة'] || '',
+    headSignature: m['توقيع الرئيسة'] || '',
+    headSigScale: Number(m['حجم توقيع الرئيسة']) || 1,
+    assistantName: m['اسم المساعدة'] || '',
+    assistantSignature: m['توقيع المساعدة'] || '',
+    assistantSigScale: Number(m['حجم توقيع المساعدة']) || 1
+  };
+}
+
+function loadMeetingMinutesList() {
+  const box = document.getElementById('meetingMinutesList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getMeetingMinutesFor', { center: currentCenter }).then(function (r) {
+    mmListCache_ = r.minutes || [];
+    if (!r.ok || !mmListCache_.length) { box.innerHTML = 'لا توجد محاضر حالياً'; return; }
+    box.innerHTML = '';
+    mmListCache_.forEach(function (m, i) {
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div style="width:100%;">' +
+          '<div>محضر اجتماع رقم ' + toArabicDigits(m['رقم الاجتماع'] || '') + '</div>' +
+          '<div class="meta">' + (m['يوم الاجتماع'] || '') + ' ' + (m['تاريخ الاجتماع الهجري'] || '') + '</div>' +
+          '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;gap:12px;">' +
+            '<a href="#" onclick="printMeetingMinutesFromList_(' + i + '); return false;">🖨️ عرض/طباعة</a>' +
+            '<a href="#" onclick="saveMeetingMinutesFromList_(' + i + '); return false;">📄 حفظ PDF</a>' +
+          '</div>' +
+        '</div>';
+      box.appendChild(div);
+    });
+  });
+}
+
+function printMeetingMinutesFromList_(i) { printMeetingMinutesWindow(mmOptsFromRow_(mmListCache_[i])); }
+function saveMeetingMinutesFromList_(i) { saveMeetingMinutesPdf(mmOptsFromRow_(mmListCache_[i])); }
 
 /* -------- قائمة الأسعار (عرض فقط) -------- */
 let currentPriceItemsCache_ = [];

@@ -977,6 +977,298 @@ async function shareVisitReportPdf(opts) {
   }
 }
 
+/* -------- بناء محتوى "محضر اجتماع" كـ HTML (نفس أسلوب تقرير الزيارة بالضبط) --------
+   opts: { number, day, hijriDate, method, points:[نص لكل نقطة], participants:[أسماء],
+           links:[{type,url}], headName, headSignature, headSigScale, assistantName,
+           assistantSignature, assistantSigScale } */
+function buildMeetingMinutesHTML(opts) {
+  const points = opts.points || [];
+  const participants = opts.participants || [];
+  const links = opts.links || [];
+  const linkIcon = function (t) {
+    if (t === 'فيديو') return '🎥';
+    if (t === 'عرض تقديمي') return '📊';
+    if (t === 'رابط عام') return '🔗';
+    return '📎';
+  };
+
+  let html = '<div class="mm-doc">';
+  const letterheadUrl = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
+  if (letterheadUrl) html += '<img class="mm-letterhead" src="' + letterheadUrl + '" width="1600" height="281" alt="كليشة جمعية فرقان">';
+
+  html += '<div class="mm-content">';
+  html += '<h1 class="mm-title">محضر اجتماع رقم ( ' + toArabicDigits(opts.number || '') + ' )</h1>';
+  html += '<p class="mm-basmala">الحمد لله رب العالمين، والصلاة والسلام على أشرف الأنبياء والمرسلين سيدنا محمد وعلى آله وصحبه وسلم تسليماً كثيراً، وبعد:</p>';
+  html += '<p class="mm-infoline">في يوم: <span class="mm-value">' + (opts.day || '') + '</span> الموافق ' +
+    '<span class="mm-value">' + (opts.hijriDate || '') + '</span> عُقد الاجتماع رقم ( ' +
+    '<span class="mm-value">' + toArabicDigits(opts.number || '') + '</span> )' +
+    (opts.method ? ' <span class="mm-value">' + opts.method + '</span>' : '') + '</p>';
+
+  html += '<div class="mm-section-title">وكانت نقاط الاجتماع كالتالي:</div>';
+  if (points.length) {
+    html += '<ol class="mm-list">';
+    points.forEach(function (pt) { html += '<li>' + pt + '</li>'; });
+    html += '</ol>';
+  } else {
+    html += '<div class="mm-empty">—</div>';
+  }
+
+  html += '<div class="mm-section-title">المشاركات في الاجتماع:</div>';
+  if (participants.length) {
+    html += '<ol class="mm-list mm-participants">';
+    participants.forEach(function (pn) { html += '<li>' + pn + '</li>'; });
+    html += '</ol>';
+  } else {
+    html += '<div class="mm-empty">—</div>';
+  }
+
+  if (links.length) {
+    html += '<div class="mm-section-title">روابط ذات صلة:</div>';
+    html += '<div class="mm-links">';
+    links.forEach(function (l) {
+      if (!l || !l.url) return;
+      html += '<a class="mm-link-btn" href="' + l.url + '" target="_blank" rel="noopener">' + linkIcon(l.type) + ' ' + (l.type || 'رابط') + '</a>';
+    });
+    html += '</div>';
+  }
+
+  const headSigW = Math.round(140 * ((opts.headSigScale && opts.headSigScale > 0) ? opts.headSigScale : 1));
+  const headSigH = Math.round(80 * ((opts.headSigScale && opts.headSigScale > 0) ? opts.headSigScale : 1));
+  const asstSigW = Math.round(140 * ((opts.assistantSigScale && opts.assistantSigScale > 0) ? opts.assistantSigScale : 1));
+  const asstSigH = Math.round(80 * ((opts.assistantSigScale && opts.assistantSigScale > 0) ? opts.assistantSigScale : 1));
+  html += '<div class="mm-footer">';
+  html += '<span class="mm-footer-col"><span>رئيسة وحدة المقاصف</span><span>' + (opts.headName || 'فاطمة مبارك الكثيري') + '</span>';
+  if (opts.headSignature) html += '<img class="mm-sig" style="max-width:calc(' + headSigW + 'px * var(--z, 1));max-height:calc(' + headSigH + 'px * var(--z, 1));" src="' + opts.headSignature + '" alt="توقيع" onerror="this.style.display=\'none\';">';
+  html += '</span>';
+  html += '<span class="mm-footer-col"><span>مساعدة وحدة المقاصف</span><span>' + (opts.assistantName || '') + '</span>';
+  if (opts.assistantSignature) html += '<img class="mm-sig" style="max-width:calc(' + asstSigW + 'px * var(--z, 1));max-height:calc(' + asstSigH + 'px * var(--z, 1));" src="' + opts.assistantSignature + '" alt="توقيع" onerror="this.style.display=\'none\';">';
+  html += '</span>';
+  html += '</div>';
+  html += '</div></div>';
+  return html;
+}
+
+const MM_DOC_CSS_ =
+  '.mm-doc{width:100%;margin:0;padding:0;}' +
+  '.mm-doc,.mm-doc *{letter-spacing:normal !important;}' +
+  '.mm-letterhead{width:100%;height:auto;display:block;margin:0;padding:0;border:0;}' +
+  '@media print{ .mm-letterhead{ -webkit-print-color-adjust:exact; print-color-adjust:exact; } }' +
+  '.mm-content{--z:1;padding:calc(10px * var(--z)) 30px calc(24px * var(--z));}' +
+  '.mm-title{font-family:"Amiri",serif;color:#8C1A2C;margin:calc(10px * var(--z)) 0 calc(14px * var(--z));font-size:calc(1.55rem * var(--z));text-align:center;}' +
+  '.mm-basmala{font-weight:700;font-size:calc(0.95rem * var(--z));margin:0 0 calc(12px * var(--z));text-align:justify;}' +
+  '.mm-infoline{font-weight:700;font-size:calc(0.95rem * var(--z));margin:0 0 calc(16px * var(--z));}' +
+  '.mm-value{color:#8C1A2C;font-weight:800;}' +
+  '.mm-section-title{font-weight:800;color:#8C1A2C;font-size:calc(1rem * var(--z));margin:calc(14px * var(--z)) 0 calc(6px * var(--z));}' +
+  '.mm-list{margin:0;padding-right:calc(22px * var(--z));font-size:calc(0.92rem * var(--z));}' +
+  '.mm-list li{margin-bottom:calc(6px * var(--z));}' +
+  '.mm-empty{color:#8a7d76;font-size:calc(0.9rem * var(--z));}' +
+  '.mm-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}' +
+  '.mm-link-btn{display:inline-block;border:1px solid #C2AA85;border-radius:8px;padding:6px 12px;font-size:calc(0.85rem * var(--z));color:#6e1523;text-decoration:none;background:#F7F1E6;}' +
+  '.mm-footer{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:calc(32px * var(--z));font-weight:800;font-size:calc(1em * var(--z));break-inside:avoid;}' +
+  '.mm-footer-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;text-align:center;}' +
+  '.mm-sig{object-fit:contain;}';
+
+/* تصغير محضر الاجتماع تلقائيًا ليكفي بصفحة A4 عمودية واحدة (نفس فكرة fitVisitReportToPage_) */
+function fitMeetingMinutesToPage_(root, done) {
+  const content = root ? root.querySelector('.mm-content') : null;
+  const img = root ? root.querySelector('.mm-letterhead') : null;
+  function run() {
+    if (content) {
+      const prevW = root.style.width;
+      root.style.width = '794px';             // عرض A4 عمودي بالبكسل
+      content.style.setProperty('--z', '1');
+      const pageH = 1123 - 6;                  // ارتفاع A4 عمودي (297مم) مع هامش أمان صغير
+      const lhH = img ? img.offsetHeight : 0;
+      let z = 1;
+      for (let i = 0; i < 40 && z > 0.55 && (lhH + content.offsetHeight) > pageH; i++) {
+        z = Math.max(0.55, z - 0.02);
+        content.style.setProperty('--z', String(z));
+      }
+      root.style.width = prevW;
+    }
+    if (done) done();
+  }
+  if (img && !img.complete) {
+    img.addEventListener('load', run);
+    img.addEventListener('error', run);
+  } else {
+    run();
+  }
+}
+
+function meetingMinutesFileName_(opts) {
+  const num = String(opts.number || 'محضر').replace(/[\\/:*?"<>|]/g, '').trim() || 'محضر';
+  return 'محضر-اجتماع-' + num + '.pdf';
+}
+
+function renderMeetingMinutesToHost_(opts) {
+  const host = document.getElementById('mmPdfHost');
+  if (!host) { alert('تعذّر تجهيز المحضر (عنصر mmPdfHost غير موجود بالصفحة)'); return null; }
+  host.innerHTML = buildMeetingMinutesHTML(opts);
+  return host;
+}
+
+function mmFixBidiForCanvas_(doc) {
+  const root = doc.querySelector('.mm-doc');
+  if (!root) return;
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  const nodes = [];
+  let n;
+  while ((n = walker.nextNode())) nodes.push(n);
+  nodes.forEach(function (t) {
+    const v = t.nodeValue;
+    if (v && /[\u0600-\u06FF0-9]/.test(v)) t.nodeValue = '\u202B' + v + '\u202C';
+  });
+}
+
+function meetingMinutesPdfOptions_(fileName) {
+  return {
+    margin: 0,
+    filename: fileName,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 794, onclone: mmFixBidiForCanvas_ },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+}
+
+function meetingMinutesPdfWorker_(host, fileName) {
+  return html2pdf().set(meetingMinutesPdfOptions_(fileName)).from(host)
+    .toContainer().get('container').then(function (c) {
+      if (c.parentElement) c.parentElement.style.direction = 'ltr';
+      c.style.position = 'absolute';
+      c.style.top = '0';
+      c.style.left = '0';
+      c.style.right = 'auto';
+      c.style.margin = '0';
+      c.style.width = '794px';
+      c.style.direction = 'rtl';
+    }).toCanvas().toPdf();
+}
+
+async function meetingMinutesPdfBlob_(host, fileName) {
+  const tmp = document.createElement('div');
+  tmp.style.cssText = 'position:fixed;left:-20000px;top:0;width:794px;background:#fff;pointer-events:none;';
+  tmp.innerHTML = host.innerHTML;
+  document.body.appendChild(tmp);
+  try {
+    const el = tmp.querySelector('.mm-doc');
+    await Promise.all(Array.from(tmp.querySelectorAll('img')).map(function (im) {
+      return im.complete ? Promise.resolve() : new Promise(function (res) { im.onload = im.onerror = res; });
+    }));
+    await new Promise(function (resolve) { fitMeetingMinutesToPage_(el, resolve); });
+    const z = el.querySelector('.mm-content').style.getPropertyValue('--z') || '1';
+    const hostContent = host.querySelector('.mm-content');
+    if (hostContent) hostContent.style.setProperty('--z', z);
+
+    if (typeof htmlToImage !== 'undefined') {
+      try {
+        const imgOpts = {
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+          width: 794,
+          imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+          style: { width: '794px', margin: '0' }
+        };
+        const fontCss = await vrFontEmbedCss_();
+        if (fontCss) imgOpts.fontEmbedCSS = fontCss;
+        const canvas = await htmlToImage.toCanvas(el, imgOpts);
+        return await html2pdf().set(meetingMinutesPdfOptions_(fileName)).from(canvas, 'canvas').outputPdf('blob');
+      } catch (e) {
+        console.warn('html-to-image failed, falling back to html2canvas', e);
+      }
+    }
+  } finally {
+    tmp.remove();
+  }
+  return await meetingMinutesPdfWorker_(host, fileName).outputPdf('blob');
+}
+
+/* معاينة وطباعة (نفس أسلوب تقرير الزيارة: نجهّز PDF ونفتحه بتبويب جديد) */
+async function printMeetingMinutesWindow(opts) {
+  if (typeof html2pdf === 'undefined' || !document.getElementById('mmPdfHost')) {
+    printMeetingMinutesWindowLegacy_(opts);
+    return;
+  }
+  const win = window.open('', '_blank');
+  if (!win) {
+    alert('يرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع عشان تقدري تطبعي المحضر');
+    return;
+  }
+  try { win.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>جاري تجهيز المحضر</title></head><body style="font-family:sans-serif;text-align:center;padding-top:80px;">جاري تجهيز المحضر للطباعة...</body></html>'); } catch (e) {}
+  try {
+    const host = renderMeetingMinutesToHost_(opts);
+    if (!host) { win.close(); return; }
+    const blob = await meetingMinutesPdfBlob_(host, meetingMinutesFileName_(opts));
+    win.location.href = URL.createObjectURL(blob);
+  } catch (e) {
+    try { win.close(); } catch (e2) {}
+    printMeetingMinutesWindowLegacy_(opts);
+  }
+}
+
+function printMeetingMinutesWindowLegacy_(opts) {
+  const win = window.open('', '_blank');
+  if (!win) {
+    alert('يرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع عشان تقدري تطبعي المحضر');
+    return;
+  }
+  let html = '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">';
+  html += '<title>محضر اجتماع رقم ' + (opts.number || '') + '</title>';
+  html += '<style>';
+  html += '@import url(\'https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Tajawal:wght@400;500;700;800&display=swap\');';
+  html += '@page { size: A4 portrait; margin: 0; }';
+  html += '*{box-sizing:border-box;}';
+  html += 'html,body{margin:0;padding:0;}';
+  html += 'body{font-family:"Tajawal",sans-serif;direction:rtl;color:#2b2321;}';
+  html += MM_DOC_CSS_;
+  html += '</style></head><body>';
+  html += buildMeetingMinutesHTML(opts);
+  html += '<script>' + fitMeetingMinutesToPage_.toString() +
+          ';window.onload = function(){ fitMeetingMinutesToPage_(document.querySelector(".mm-doc"), function(){ setTimeout(function(){ window.print(); }, 350); }); };<\/script>';
+  html += '</body></html>';
+  win.document.write(html);
+  win.document.close();
+}
+
+function saveMeetingMinutesPdf(opts) {
+  const host = renderMeetingMinutesToHost_(opts);
+  if (!host) return;
+  if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة ثانية'); return; }
+  const fileName = meetingMinutesFileName_(opts);
+  fitMeetingMinutesToPage_(host.querySelector('.mm-doc'), function () {
+    meetingMinutesPdfBlob_(host, fileName).then(function (blob) {
+      vrDownloadBlob_(blob, fileName);
+    }).catch(function () {
+      alert('صار خطأ أثناء إنشاء ملف الـPDF، حاولي مرة أخرى');
+    });
+  });
+}
+
+async function shareMeetingMinutesPdf(opts) {
+  const host = renderMeetingMinutesToHost_(opts);
+  if (!host) return;
+  if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة ثانية'); return; }
+  const fileName = meetingMinutesFileName_(opts);
+  try {
+    await new Promise(function (resolve) { fitMeetingMinutesToPage_(host.querySelector('.mm-doc'), resolve); });
+    const blob = await meetingMinutesPdfBlob_(host, fileName);
+    const file = new File([blob], fileName, { type: 'application/pdf' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'محضر اجتماع',
+        text: 'محضر اجتماع رقم ' + (opts.number || '')
+      });
+    } else {
+      alert('جهازك ما يدعم مشاركة الملفات مباشرة من المتصفح. راح نحفظ المحضر كملف PDF بدلاً من ذلك، وبعدها افتحي واتساب وأرفقيه يدويًا.');
+      vrDownloadBlob_(blob, fileName);
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;
+    alert('صار خطأ أثناء تجهيز المحضر للمشاركة، حاولي مرة أخرى');
+  }
+}
+
 /* -------- توليد صورة الإشعار (مشتركة بين صفحة المراكز والإدارة) --------
    تتطلب وجود عنصر: <canvas id="noticeCanvas" width="900" height="560" style="display:none;"></canvas> */
 
