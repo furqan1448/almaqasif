@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;700;800&display=swap">
 <link rel="stylesheet" href="style.css">
 <script src="logo-config.js"></script>
+<script src="config.js"></script>
 </head>
 <body>
   <div class="topbar">
@@ -79,7 +80,7 @@
 
     /* ---------- تواصل ---------- */
     (function () {
-      var C = (typeof FURQAN_CONTACTS !== 'undefined') ? FURQAN_CONTACTS : {};
+      var NAMES = (typeof FURQAN_CONTACTS !== 'undefined') ? FURQAN_CONTACTS : {};
       var WA_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38a9.9 9.9 0 0 0 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm5.8 14.09c-.24.68-1.42 1.3-1.95 1.34-.5.05-.97.23-3.27-.68-2.77-1.09-4.52-3.93-4.66-4.11-.13-.18-1.11-1.48-1.11-2.82 0-1.34.7-2 .95-2.27.25-.27.54-.34.72-.34h.52c.17 0 .39-.06.61.47.24.56.79 1.93.86 2.07.07.14.11.3.02.48-.09.18-.14.3-.27.46-.14.16-.29.36-.41.48-.14.14-.28.29-.12.56.16.27.71 1.17 1.52 1.9 1.05.93 1.93 1.22 2.2 1.36.27.14.43.11.59-.07.16-.18.68-.79.86-1.07.18-.27.36-.23.61-.14.25.09 1.59.75 1.86.89.27.14.45.2.52.32.07.11.07.66-.17 1.33z"/></svg>';
       var MAIL_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/></svg>';
 
@@ -100,21 +101,32 @@
           (name ? '<span class="c-name">' + esc(name) + '</span>' : '') +
           '<span class="c-val">' + esc(phone) + '</span></span></a>';
       }
-      var html = '';
-      html += waItem('رئيسة الوحدة', C.headName, C.headPhone);
-      html += waItem('مساعدة الوحدة', C.assistantName, C.assistantPhone);
-      if (C.unitEmail) {
-        // رابط إنشاء رسالة في Gmail مباشرة (يفتح تطبيق Gmail أو موقعه) - أضمن من mailto
-        // اللي ما يشتغل إذا الجهاز ما عليه تطبيق بريد مضبوط
-        var gmail = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(C.unitEmail);
-        html += '<a class="contact-item" href="' + gmail + '" target="_blank" rel="noopener">' +
-          '<span class="c-ic mail">' + MAIL_SVG + '</span>' +
-          '<span class="c-txt"><span class="c-role">إيميل الوحدة</span>' +
-          '<span class="c-val">' + esc(C.unitEmail) + '</span></span></a>';
-      }
-      if (html) {
+      function render(C) {
+        var html = '';
+        html += waItem('رئيسة الوحدة', NAMES.headName, C.headPhone);
+        html += waItem('مساعدة الوحدة', NAMES.assistantName, C.assistantPhone);
+        if (C.unitEmail) {
+          // رابط إنشاء رسالة في Gmail مباشرة (يفتح تطبيق Gmail أو موقعه)
+          var gmail = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(C.unitEmail);
+          html += '<a class="contact-item" href="' + gmail + '" target="_blank" rel="noopener">' +
+            '<span class="c-ic mail">' + MAIL_SVG + '</span>' +
+            '<span class="c-txt"><span class="c-role">إيميل الوحدة</span>' +
+            '<span class="c-val">' + esc(C.unitEmail) + '</span></span></a>';
+        }
         document.getElementById('contactList').innerHTML = html;
-        document.getElementById('contactCard').classList.remove('hidden');
+        document.getElementById('contactCard').classList.toggle('hidden', !html);
+      }
+
+      // نعرض آخر نسخة محفوظة بالجهاز فوراً (بدون انتظار)، وبعدين نحدّثها من السيرفر
+      var KEY = 'furqanContacts_v1';
+      try { var saved = JSON.parse(localStorage.getItem(KEY) || 'null'); if (saved) render(saved); } catch (e) {}
+      if (typeof callApi === 'function') {
+        callApi('getContacts', {}).then(function (r) {
+          if (!r || !r.ok) return;
+          var C = { headPhone: r.headPhone || '', assistantPhone: r.assistantPhone || '', unitEmail: r.unitEmail || '' };
+          try { localStorage.setItem(KEY, JSON.stringify(C)); } catch (e) {}
+          render(C);
+        }).catch(function () {});
       }
     })();
   </script>
