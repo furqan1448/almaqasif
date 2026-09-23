@@ -489,17 +489,10 @@ table.rs-table td { vertical-align: middle; }
 .rs-verify input { width: 22px; height: 22px; margin: 0; accent-color: var(--success); cursor: pointer; }
 .rs-verify span { display: none; }
 
-/* -------- تواصل (index.html) -------- */
-.contact-card { margin-top: 22px; }
-.contact-title { text-align: center; color: var(--maroon); font-size: 1.05rem; font-weight: 800; margin: 0 0 12px; }
-.contact-list { display: flex; flex-direction: column; gap: 10px; }
-.contact-item { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid var(--gold-light); border-radius: 14px; padding: 12px 14px; text-decoration: none; color: var(--ink); box-shadow: var(--shadow); transition: transform .15s ease, border-color .15s ease; }
-.contact-item:active { transform: scale(0.98); }
-.contact-item:hover { border-color: var(--maroon); }
-.contact-item .c-ic { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; }
-.contact-item .c-ic.wa { background: #25D366; }
-.contact-item .c-ic.mail { background: var(--maroon); }
-.contact-item .c-txt { display: flex; flex-direction: column; min-width: 0; }
-.contact-item .c-role { font-size: 0.78rem; color: #8a7d76; }
-.contact-item .c-name { font-weight: 800; font-size: 0.95rem; }
-.contact-item .c-val { font-size: 0.82rem; color: var(--maroon); direction: ltr; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* -------- تواصل (index.html) - شريط هادئ صغير أسفل الصفحة -------- */
+.contact-card { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--gold-light); text-align: center; }
+.contact-title { color: #8a7d76; font-size: 0.78rem; margin-bottom: 8px; }
+.contact-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 8px; }
+.contact-item { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border: 1px solid var(--gold-light); border-radius: 999px; background: transparent; color: var(--maroon); font-size: 0.78rem; font-weight: 500; text-decoration: none; transition: background .15s ease, border-color .15s ease; }
+.contact-item:hover, .contact-item:active { background: var(--cream); border-color: var(--gold); }
+.contact-item svg { opacity: 0.75; flex: 0 0 auto; }
