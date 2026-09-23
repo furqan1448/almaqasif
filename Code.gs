@@ -608,7 +608,9 @@ function vsCenterInfo_(name) {
 function vsCentersList_() {
   const seen = {};
   const list = [];
-  sheetToObjects_('المراكز', CACHE_SECONDS_LONG).forEach(function (r) {
+  const rows = sheetToObjects_('المراكز', CACHE_SECONDS_LONG)
+    .concat(sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG));   // المراكز المربوطة بمسؤولة تظهر بأيقونات الدخول أيضاً
+  rows.forEach(function (r) {
     const name = visitCenterKey_(r['اسم المركز']);
     if (!name || seen[name]) return;
     seen[name] = true;
@@ -620,17 +622,29 @@ function vsCentersList_() {
   return list;
 }
 
-/* يربط (الاسم المكتوب + الفترة المختارة) بالمركز الصحيح في شيت المراكز، أو null لو ما لقاه */
+/* يربط (الاسم المكتوب + الفترة المختارة) بالمركز الصحيح، أو null لو ما لقاه أبداً.
+   مثال: «أم عمار» + مسائية ← «أم عمار المسائية». ولو المركز له فترة وحدة بس، ينربط فيها حتى لو الفترة المختارة غير. */
 function vsResolveCenter_(typed, period, centers) {
   const info = vsCenterInfo_(typed);
+  if (!info.key) return null;
   const p = period || info.period;
-  const same = centers.filter(function (c) { return c.key === info.key; });
-  if (!same.length) return null;
-  const exact = same.find(function (c) { return c.period === p; });
-  if (exact) return exact;
-  const noPeriod = same.find(function (c) { return !c.period; });
-  if (noPeriod) return noPeriod;
-  return same.length === 1 && !p ? same[0] : null;
+  function pick(list) {
+    if (!list.length) return null;
+    return list.find(function (c) { return c.period === p; }) ||
+      list.find(function (c) { return !c.period; }) ||
+      (list.length === 1 ? list[0] : null);
+  }
+  // ١) نفس الاسم بالضبط (بعد حذف الفترة وكلمة «مركز»)
+  let found = pick(centers.filter(function (c) { return c.key === info.key; }));
+  if (found) return found;
+  // ٢) الاسم المكتوب جزء من اسم المركز أو العكس (مثل «أم عمار» و«دار أم عمار»)
+  const partial = centers.filter(function (c) {
+    return c.key && (c.key.indexOf(info.key) !== -1 || info.key.indexOf(c.key) !== -1);
+  });
+  const keys = {};
+  partial.forEach(function (c) { keys[c.key] = true; });
+  if (Object.keys(keys).length === 1) return pick(partial);
+  return null;
 }
 
 function vsFields_(p, centers) {
@@ -642,7 +656,7 @@ function vsFields_(p, centers) {
     matched: !!c,
     center: c ? c.name : typed,
     row: {
-      'اسم المركز': c ? c.name : typed, 'الفترة': p.period || '',
+      'اسم المركز': c ? c.name : typed, 'الفترة': (c && c.period) ? c.period : (p.period || ''),
       'التاريخ الهجري': p.hijriDate, 'مفتاح التاريخ': p.dateKey || ''
     }
   };
