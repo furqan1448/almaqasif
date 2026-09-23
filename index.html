@@ -132,9 +132,19 @@
         html += waItem('رئيسة الوحدة', NAMES.headName, C.headPhone);
         html += waItem('مساعدة الوحدة', NAMES.assistantName, C.assistantPhone);
         if (C.unitEmail) {
-          // رابط إنشاء رسالة في Gmail مباشرة (يفتح تطبيق Gmail أو موقعه)
-          var gmail = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(C.unitEmail);
-          html += '<a class="contact-item" href="' + gmail + '" target="_blank" rel="noopener" title="' + esc(C.unitEmail) + '">' +
+          // الجوال: mailto يفتح تطبيق البريد والمستلم معبّأ
+          // الكمبيوتر: نافذة إنشاء رسالة في Gmail
+          var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+          var mailHref, mailAttrs;
+          if (isMobile) {
+            mailHref = 'mailto:' + C.unitEmail;
+            mailAttrs = '';
+          } else {
+            mailHref = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(C.unitEmail);
+            mailAttrs = ' target="_blank" rel="noopener"';
+          }
+          html += '<a class="contact-item" href="' + esc(mailHref) + '"' + mailAttrs + ' title="' + esc(C.unitEmail) + '">' +
             MAIL_SVG + '<span>البريد</span></a>';
         }
         document.getElementById('contactList').innerHTML = html;
