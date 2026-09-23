@@ -66,7 +66,9 @@ function setup() {
     'متابعة بطاقات التحفيز': ['معرف', 'معرف السطر الأصلي', 'اسم المركز', 'اسم المستفيدة', 'العدد',
       'الحالة', 'اليوم', 'التاريخ'],
     // درجات المسؤولات: تقييم نهاية الفصل من 13 (يدوي من لوحة الإدارة) - صف لكل (فصل + مسؤولة)
-    'درجات المسؤولات': GRADES_HEADERS_
+    'درجات المسؤولات': GRADES_HEADERS_,
+    // اعتماد اكتمال التسجيل: صح يدوي من الإدارة لكل مركز (للفصل الحالي - يتفرّغ عند الأرشفة)
+    'اعتماد التسجيل': REG_VERIFY_HEADERS_
   };
 
   Object.keys(sheets).forEach(function (name) {
@@ -1133,6 +1135,7 @@ function handleRequest_(p) {
 
       case 'getStats': return json_(getStats_());
       case 'getRegistrationStats': return json_(getRegistrationStats_(p));
+      case 'setRegistrationVerified': return json_(setRegistrationVerified_(p));
 
       case 'archiveCurrentTerm': return json_(archiveCurrentTerm_(p));
       case 'getTermsList': return json_(getTermsList_());
@@ -2317,6 +2320,9 @@ function archiveCurrentTerm_(p) {
     invalidateCache_(ARCHIVE_PREFIX + entry.name);
   });
 
+  // اعتماد اكتمال التسجيل خاص بالفصل الحالي - يتفرّغ مع بداية الفصل الجديد
+  clearRegistrationVerified_();
+
   return { ok: true, counts: counts };
 }
 
@@ -2449,6 +2455,57 @@ function allRowsIncludingArchive_(name) {
    - أيام وعدد مرات تسجيل المبيعات (+ المجموع)
    - النواقص: مبالغ بدون فواتير، فواتير بدون مبالغ، لا يوجد أي تسجيل
    الفترة: period = 'term' (الفصل الحالي - الافتراضي) أو 'all' (كل الفصول) أو from/to (تواريخ). */
+/* ---- اعتماد اكتمال التسجيل (صح يدوي من الإدارة) ---- */
+const REG_VERIFY_SHEET_ = 'اعتماد التسجيل';
+const REG_VERIFY_HEADERS_ = ['اسم المركز', 'اليوم', 'التاريخ', 'الوقت'];
+
+function regVerifySheet_() {
+  let sh = sheet_(REG_VERIFY_SHEET_);
+  if (!sh) {
+    sh = SpreadsheetApp.getActiveSpreadsheet().insertSheet(REG_VERIFY_SHEET_);
+    sh.getRange(1, 1, 1, REG_VERIFY_HEADERS_.length).setValues([REG_VERIFY_HEADERS_]);
+    sh.getRange(2, 1, sh.getMaxRows() - 1, REG_VERIFY_HEADERS_.length).setNumberFormat('@');
+  }
+  return sh;
+}
+
+function getRegistrationVerifiedMap_() {
+  const map = {};
+  if (!sheet_(REG_VERIFY_SHEET_)) return map;
+  sheetToObjects_(REG_VERIFY_SHEET_).forEach(function (r) {
+    const c = String(r['اسم المركز'] || '').trim();
+    if (c) map[c] = true;
+  });
+  return map;
+}
+
+/* p.center + p.verified (true = إضافة صح، false = إزالته) */
+function setRegistrationVerified_(p) {
+  const center = String(p.center || '').trim();
+  if (!center) return { ok: false, error: 'اسم المركز مطلوب' };
+  const on = !(p.verified === false || p.verified === 'false');
+  const sh = regVerifySheet_();
+  const rows = sheetToObjects_(REG_VERIFY_SHEET_);
+  const existing = rows.filter(function (r) { return String(r['اسم المركز'] || '').trim() === center; })
+    .map(function (r) { return r._row; }).sort(function (a, b) { return b - a; });
+  if (on) {
+    if (!existing.length) {
+      const now = nowParts_();
+      appendRowByHeaders_(sh, { 'اسم المركز': center, 'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time });
+    }
+  } else {
+    existing.forEach(function (rowNum) { sh.deleteRow(rowNum); });
+  }
+  invalidateCache_(REG_VERIFY_SHEET_);
+  return { ok: true, center: center, verified: on };
+}
+
+function clearRegistrationVerified_() {
+  const sh = sheet_(REG_VERIFY_SHEET_);
+  if (sh && sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).clearContent();
+  invalidateCache_(REG_VERIFY_SHEET_);
+}
+
 function noticeKind_(r) {
   const t = String(r['النوع'] || '').trim();
   if (t === 'استلام') return 'receive';
@@ -2519,6 +2576,7 @@ function getRegistrationStats_(p) {
     m.salesTotal += Number(r['المبلغ']) || 0;
   });
 
+  const verified = getRegistrationVerifiedMap_();
   const list = centers.map(function (c) {
     const m = st[c];
     const days = Object.keys(m.salesDays).length;
@@ -2537,7 +2595,8 @@ function getRegistrationStats_(p) {
       salesEntries: m.salesEntries,
       salesDays: days,
       salesTotal: Math.round(m.salesTotal * 100) / 100,
-      issues: issues
+      issues: issues,
+      verified: !!verified[c]
     };
   });
 

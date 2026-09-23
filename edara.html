@@ -3293,10 +3293,7 @@ function renderRegStats_(r) {
 
   // ---- الجدول ----
   let rows = '';
-  r.centers.forEach(function (m) {
-    const st = m.issues.length
-      ? m.issues.map(function (k) { return '<span class="rs-pill ' + RS_ISSUES_[k].cls + '">' + RS_ISSUES_[k].label + '</span>'; }).join(' ')
-      : '<span class="rs-pill ok">مكتمل</span>';
+  r.centers.forEach(function (m, i) {
     rows += '<tr>' +
       '<td style="text-align:right;font-weight:700;">' + rsEsc_(m.center) + '</td>' +
       '<td>' + rsNum_(m.receive) + '</td>' +
@@ -3304,19 +3301,53 @@ function renderRegStats_(r) {
       '<td>' + rsNum_(m.fee) + '</td>' +
       '<td>' + rsNum_(m.invoices) + '</td>' +
       '<td>' + rsNum_(m.salesDays) + '</td>' +
-      '<td>' + st + '</td>' +
+      '<td id="rsStatus_' + i + '">' + rsStatusHtml_(m) + '</td>' +
+      '<td><label class="rs-verify"><input type="checkbox"' + (m.verified ? ' checked' : '') +
+        ' onchange="toggleRegVerified(' + i + ', this)"><span></span></label></td>' +
       '</tr>';
   });
   html += '<div class="card"><h3 style="margin-top:0;color:var(--maroon);font-size:1rem;">تفصيل المراكز</h3>' +
     '<div class="rs-scroll"><table class="log-table rs-table"><thead><tr>' +
-      '<th>المركز</th><th>استلام</th><th>تسليم المكافأة</th><th>رسوم الحفل</th><th>الفواتير</th><th>أيام المبيعات</th><th>الحالة</th>' +
+      '<th>المركز</th><th>استلام</th><th>تسليم المكافأة</th><th>رسوم الحفل</th><th>الفواتير</th><th>أيام المبيعات</th><th>الحالة</th><th>اعتماد</th>' +
     '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;line-height:1.8;">«أيام المبيعات» = عدد الأيام المسجّل فيها مبالغ بسجل البيع اليومي. «مبالغ بدون فواتير» = المركز سجّل مبيعات ولم يُدخل أي فاتورة في نفس الفترة، و«فواتير بدون مبالغ» العكس.</p>' +
+    '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;line-height:1.8;">«أيام المبيعات» = عدد الأيام المسجّل فيها مبالغ بسجل البيع اليومي. «مبالغ بدون فواتير» = المركز سجّل مبيعات ولم يُدخل أي فاتورة في نفس الفترة، و«فواتير بدون مبالغ» العكس. «مكتمل جزئي» = ما فيه نقص ظاهر بالأرقام، ولا تصير «مكتمل» إلا بعد ما تحطين ✔ في خانة «اعتماد» (الاعتماد خاص بالفصل الحالي ويتفرّغ عند أرشفة الفصل).</p>' +
     '<div class="export-row" style="margin-top:12px;">' +
       '<button class="btn outline" onclick="exportRegStatsExcel()">⬇️ Excel</button>' +
       '<button class="btn outline" onclick="printRegStats()">🖨️ طباعة</button>' +
     '</div></div>';
   out.innerHTML = html;
+}
+
+/* الحالة: «مكتمل» فقط بعد اعتماد الإدارة (✔)، وبدون نقص ظاهر = «مكتمل جزئي» */
+function rsStatusText_(m) {
+  if (m.verified) return 'مكتمل';
+  if (m.issues.length) return m.issues.map(function (k) { return RS_ISSUES_[k].label; }).join(' ، ');
+  return 'مكتمل جزئي';
+}
+
+function rsStatusHtml_(m) {
+  if (m.verified) return '<span class="rs-pill ok">مكتمل</span>';
+  if (m.issues.length) return m.issues.map(function (k) { return '<span class="rs-pill ' + RS_ISSUES_[k].cls + '">' + RS_ISSUES_[k].label + '</span>'; }).join(' ');
+  return '<span class="rs-pill part">مكتمل جزئي</span>';
+}
+
+function toggleRegVerified(i, box) {
+  const m = rsData_ && rsData_.centers[i];
+  if (!m) return;
+  const want = box.checked;
+  box.disabled = true;
+  m.verified = want;
+  document.getElementById('rsStatus_' + i).innerHTML = rsStatusHtml_(m);
+  callApi('setRegistrationVerified', { center: m.center, verified: want }).then(function (r) {
+    box.disabled = false;
+    if (!r || !r.ok) throw new Error((r && r.error) || '');
+  }).catch(function (err) {
+    box.disabled = false;
+    m.verified = !want;
+    box.checked = !want;
+    document.getElementById('rsStatus_' + i).innerHTML = rsStatusHtml_(m);
+    alert('تعذّر حفظ الاعتماد' + (err && err.message ? ': ' + err.message : '') + '، حاولي مرة أخرى.');
+  });
 }
 
 function rsExportRows_() {
@@ -3334,7 +3365,8 @@ function rsExportRows_() {
       'الربح': m.profit,
       'أيام المبيعات': m.salesDays,
       'إجمالي المبيعات': m.salesTotal,
-      'النواقص': m.issues.length ? m.issues.map(function (k) { return RS_ISSUES_[k].label; }).join(' ، ') : 'مكتمل'
+      'الحالة': rsStatusText_(m),
+      'اعتماد': m.verified ? '✔' : ''
     };
   });
 }
@@ -3347,7 +3379,7 @@ function exportRegStatsExcel() {
 function printRegStats() {
   if (!rsData_) return;
   const rows = rsExportRows_();
-  const cols = ['المركز', 'إشعار استلام', 'إشعار تسليم المكافأة', 'إشعار تسليم رسوم الحفل', 'عدد الفواتير', 'أيام المبيعات', 'النواقص'];
+  const cols = ['المركز', 'إشعار استلام', 'إشعار تسليم المكافأة', 'إشعار تسليم رسوم الحفل', 'عدد الفواتير', 'أيام المبيعات', 'الحالة', 'اعتماد'];
   const t = rsData_.totals;
   const w = window.open('', '_blank');
   if (!w) { alert('اسمحي بالنوافذ المنبثقة للطباعة'); return; }

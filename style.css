@@ -477,13 +477,17 @@ canvas.sig-pad { width: 100%; height: 160px; display: block; touch-action: none;
 .rs-chip { background: #fff; border: 1px solid var(--gold-light); border-radius: 999px; font-size: 0.8rem; font-weight: 700; padding: 4px 12px; color: var(--ink); }
 .rs-chip small { font-weight: 500; color: #8a7d76; }
 .rs-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -8px; padding: 0 8px; }
-table.rs-table { min-width: 620px; }
+table.rs-table { min-width: 700px; }
 table.rs-table td { vertical-align: middle; }
 .rs-zero { color: #c9bdb5; }
 .rs-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; margin: 1px 0; }
 .rs-pill.ok { background: #e2f4e9; color: var(--success); }
 .rs-pill.warn { background: #fdeed8; color: #b76a0c; }
 .rs-pill.bad { background: #fdecea; color: #b3261e; }
+.rs-pill.part { background: #e8f0fb; color: #2a5d9f; }
+.rs-verify { display: inline-flex; align-items: center; justify-content: center; margin: 0; cursor: pointer; }
+.rs-verify input { width: 22px; height: 22px; margin: 0; accent-color: var(--success); cursor: pointer; }
+.rs-verify span { display: none; }
 
 /* -------- تواصل (index.html) -------- */
 .contact-card { margin-top: 22px; }

@@ -104,7 +104,10 @@
       html += waItem('رئيسة الوحدة', C.headName, C.headPhone);
       html += waItem('مساعدة الوحدة', C.assistantName, C.assistantPhone);
       if (C.unitEmail) {
-        html += '<a class="contact-item" href="mailto:' + encodeURIComponent(C.unitEmail).replace(/%40/g, '@') + '">' +
+        // رابط إنشاء رسالة في Gmail مباشرة (يفتح تطبيق Gmail أو موقعه) - أضمن من mailto
+        // اللي ما يشتغل إذا الجهاز ما عليه تطبيق بريد مضبوط
+        var gmail = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(C.unitEmail);
+        html += '<a class="contact-item" href="' + gmail + '" target="_blank" rel="noopener">' +
           '<span class="c-ic mail">' + MAIL_SVG + '</span>' +
           '<span class="c-txt"><span class="c-role">إيميل الوحدة</span>' +
           '<span class="c-val">' + esc(C.unitEmail) + '</span></span></a>';
