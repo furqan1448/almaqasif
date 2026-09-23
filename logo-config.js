@@ -21,8 +21,8 @@ const FURQAN_UNIT_HEAD_SIGNATURE_URL = "fatima-signature.png";
 // أي خانة تتركينها فاضية "" ما تظهر بالصفحة.
 const FURQAN_CONTACTS = {
   headName: "فاطمة مبارك الكثيري",       // رئيسة الوحدة
-  headPhone: "",                          // ← رقم واتساب رئيسة الوحدة
+  headPhone: "0559206167",                          // ← رقم واتساب رئيسة الوحدة
   assistantName: "مرام فوزي محسن النفاعي", // مساعدة الوحدة
-  assistantPhone: "",                     // ← رقم واتساب مساعدة الوحدة
-  unitEmail: ""                           // ← إيميل الوحدة
+  assistantPhone: "0548108720",                     // ← رقم واتساب مساعدة الوحدة
+  unitEmail: "almuqasif1212@gmail.com"                           // ← إيميل الوحدة
 };
