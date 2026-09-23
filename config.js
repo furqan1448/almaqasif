@@ -3,7 +3,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwdti5dkX8ooOx9CF7hDSru
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
-   - أي إجراء اسمه يبدأ بـ "get" (قراءة بيانات) يُخزَّن لمدة قصيرة (20 ثانية) بنفس
+   - أي إجراء اسمه يبدأ بـ "get" (قراءة بيانات) يُخزَّن لمدة قصيرة (45 ثانية) بنفس
      معطياته بالضبط؛ لو تكرر نفس الطلب خلال هالمدة (مثلاً بالتنقل بين الشاشات) يرجع
      من الذاكرة فوراً بدل إعادة الاتصال بالسيرفر.
    - لو صار طلبان لنفس القراءة بنفس اللحظة (قبل ما يوصل ردّ الأول)، الثاني يشارك
@@ -12,7 +12,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwdti5dkX8ooOx9CF7hDSru
      فور نجاحه، عشان أي قراءة بعده ترجع البيانات المحدّثة دايماً ولا يصير تعارض. */
 const _apiCache_ = new Map();
 const _apiInFlight_ = new Map();
-const API_CACHE_MS = 20000;
+const API_CACHE_MS = 45000;
 
 function _apiCacheKey_(action, data) {
   const clean = Object.assign({}, data || {});
@@ -22,13 +22,17 @@ function _apiCacheKey_(action, data) {
   return action + '|' + JSON.stringify(sorted);
 }
 
-/* طلب واحد بمهلة زمنية (10 ثواني) - لو تأخر أكثر من كذا نعتبره فاشل ونعيد المحاولة،
-   بدل ما يظل معلّق للأبد بدون ما يوصل رد ولا خطأ (هذا اللي يسبب "أحياناً تطلع
-   وأحياناً لا" مع اتصالات الجوال المتذبذبة). */
+/* طلب واحد بمهلة زمنية - لو تأخر أكثر من المهلة نلغيه فعلياً (AbortController)
+   بدل ما يظل معلّق بدون رد ولا خطأ مع اتصالات الجوال المتذبذبة. */
 function _fetchWithTimeout_(url, opts, timeoutMs) {
+  const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  const o = Object.assign({}, opts, ctrl ? { signal: ctrl.signal } : {});
   return new Promise(function (resolve, reject) {
-    const timer = setTimeout(function () { reject(new Error('timeout')); }, timeoutMs);
-    fetch(url, opts).then(function (res) {
+    const timer = setTimeout(function () {
+      if (ctrl) { try { ctrl.abort(); } catch (e) {} }
+      const err = new Error('timeout'); err.isTimeout = true; reject(err);
+    }, timeoutMs);
+    fetch(url, o).then(function (res) {
       clearTimeout(timer); resolve(res);
     }, function (err) {
       clearTimeout(timer); reject(err);
@@ -36,17 +40,22 @@ function _fetchWithTimeout_(url, opts, timeoutMs) {
   });
 }
 
-/* تعيد تنفيذ نفس الطلب تلقائياً وبصمت (بدون ما تشوف المستخدمة أي خطأ) لين 3 محاولات
-   قبل ما نستسلم فعلاً - أغلب حالات التذبذب بشبكات الجوال (خصوصاً Private Relay بسفاري)
-   تنجح من المحاولة الثانية أو الثالثة مباشرة. */
-async function _fetchWithRetry_(url, opts, attempts) {
+/* إعادة المحاولة بصمت:
+   - طلبات القراءة: 3 محاولات بمهلة تكبر كل مرة (15 ← 25 ← 40 ثانية). قبل كانت المهلة 10 ثواني
+     ثابتة، فلو السيرفر مشغول (مثلاً شخصين فاتحين بنفس الوقت) ينقطع الطلب ويُعاد من جديد،
+     فيتضاعف الضغط على السيرفر ويزيد البطء أكثر. الحين ننتظر الرد الأول مدة معقولة.
+   - طلبات الحفظ: تُعاد فقط لو فشل الاتصال نفسه (ما وصل للسيرفر)، ولا تُعاد عند التأخير
+     عشان ما يتكرر حفظ نفس السجل مرتين. */
+async function _fetchWithRetry_(url, opts, attempts, isRead) {
+  const timeouts = isRead ? [15000, 25000, 40000] : [60000, 60000];
   let lastErr;
   for (let i = 0; i < attempts; i++) {
     try {
-      return await _fetchWithTimeout_(url, opts, 10000);
+      return await _fetchWithTimeout_(url, opts, timeouts[Math.min(i, timeouts.length - 1)]);
     } catch (err) {
       lastErr = err;
-      if (i < attempts - 1) await new Promise(function (r) { setTimeout(r, 400); });
+      if (!isRead && err && err.isTimeout) break;
+      if (i < attempts - 1) await new Promise(function (r) { setTimeout(r, 500 * (i + 1)); });
     }
   }
   throw lastErr;
@@ -66,7 +75,7 @@ async function callApi(action, data) {
   const requestPromise = _fetchWithRetry_(API_URL, {
     method: "POST",
     body: JSON.stringify(payload)
-  }, 3).then(function (res) { return res.json(); });
+  }, isRead ? 3 : 2, isRead).then(function (res) { return res.json(); });
 
   if (!isRead) {
     // أي طلب حفظ/تعديل/حذف: نفرّغ كل الكاش فور نجاحه عشان الشاشات التالية تجيب بيانات محدّثة

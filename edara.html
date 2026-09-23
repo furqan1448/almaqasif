@@ -98,9 +98,9 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="12" width="4" height="8"/><rect x="10" y="7" width="4" height="13"/><rect x="16" y="3" width="4" height="17"/></svg></div>
           <span class="label">الإحصائيات</span>
         </div>
-        <div class="icon-btn" onclick="showAdminTab('smartTab')">
-          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18l5-5 3.5 3.5L18 9"/><path d="M14 9h4v4"/><path d="M19 2.5v3M17.5 4h3"/><path d="M5 5.5v2M4 6.5h2"/></svg></div>
-          <span class="label">التحليل الذكي</span>
+        <div class="icon-btn" onclick="showAdminTab('regStatsTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 3.5h6v2H9z"/><path d="M8.5 16.5v-2.5M12 16.5v-5M15.5 16.5v-3.5"/></svg></div>
+          <span class="label">إحصائيات التسجيل</span>
         </div>
         <div class="icon-btn" onclick="showAdminTab('announcementsTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 8.5a4 4 0 0 1 0 7"/><path d="M18 6a8 8 0 0 1 0 12"/></svg></div>
@@ -397,42 +397,30 @@
       </div>
     </div>
 
-    <!-- ===== تبويب: التحليل الذكي ===== -->
-    <div id="smartTab" class="admin-tab-panel hidden">
+    <!-- ===== تبويب: إحصائيات التسجيل ===== -->
+    <div id="regStatsTab" class="admin-tab-panel hidden">
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">التحليل الذكي لالتزام المراكز</h3>
-        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;line-height:1.8;">يتابع تسجيل المبيعات اليومي لكل مركز: من يسجّل أول بأول، ومن يتأخر، ومن لم يسجّل، ومنذ متى.</p>
-
+        <h3 style="margin-top:0;color:var(--maroon);">إحصائيات التسجيل</h3>
+        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;line-height:1.8;">عدد الإشعارات لكل نوع، وعدد بيان الفواتير، والنواقص لكل مركز.</p>
         <div class="select-row">
           <div>
             <label>الفترة</label>
-            <select id="smartPeriod" onchange="onSmartPeriodChange()">
-              <option value="today">اليوم</option>
-              <option value="week">هذا الأسبوع (من الأحد)</option>
-              <option value="7">آخر 7 أيام</option>
-              <option value="30" selected>آخر 30 يوماً</option>
+            <select id="rsPeriod" onchange="onRsPeriodChange()">
+              <option value="term" selected>الفصل الحالي</option>
               <option value="month">هذا الشهر</option>
+              <option value="30">آخر 30 يوماً</option>
+              <option value="all">كل الفصول</option>
               <option value="custom">فترة مخصصة</option>
             </select>
           </div>
         </div>
-        <div class="select-row hidden" id="smartCustomRow">
-          <div><label>من تاريخ</label><input type="date" id="smartFrom"></div>
-          <div><label>إلى تاريخ</label><input type="date" id="smartTo"></div>
+        <div class="select-row hidden" id="rsCustomRow">
+          <div><label>من تاريخ</label><input type="date" id="rsFrom"></div>
+          <div><label>إلى تاريخ</label><input type="date" id="rsTo"></div>
         </div>
-
-        <label>أيام العمل المحسوبة</label>
-        <div class="sm-days" id="smartWorkdays"></div>
-
-        <label class="checkline" style="font-weight:normal;margin-top:12px;">
-          <input type="checkbox" id="smartAutoOff" checked>
-          <span style="font-size:0.85rem;">اعتبار اليوم الذي لم يسجّل فيه أي مركز إجازةً تلقائياً (لا يُحسب غياباً)</span>
-        </label>
-
-        <button class="btn" id="smartRunBtn" onclick="loadSmartAnalysis()">تحديث التحليل</button>
+        <button class="btn" id="rsRunBtn" onclick="loadRegStats(true)">تحديث</button>
       </div>
-
-      <div id="smartResult"></div>
+      <div id="rsResult"></div>
     </div>
 
     <!-- ===== تبويب: إشعارات هامة ===== -->
@@ -1015,7 +1003,7 @@ function showAdminTab(tabId) {
     el.classList.toggle('hidden', el.id !== tabId);
   });
   if (tabId === 'statsTab') loadStats();
-  if (tabId === 'smartTab') initSmartTab_();
+  if (tabId === 'regStatsTab') loadRegStats();
   if (tabId === 'noticesTab') loadPending();
   if (tabId === 'attendanceTab') loadAttendanceChecklist();
   if (tabId === 'salesTab') loadCenterSales();
@@ -3191,286 +3179,188 @@ function deleteMeetingMinutesRow(row) {
   });
 }
 
-/* ==================== التحليل الذكي لالتزام المراكز ==================== */
-let smartData_ = null;
+/* ==================== إحصائيات التسجيل ==================== */
+let rsData_ = null;
 
-const SMART_STATUS_ = {
-  excellent: { label: 'ممتاز', icon: '🟢' },
-  good:      { label: 'جيد', icon: '🔵' },
-  late:      { label: 'متأخر بالتسجيل', icon: '🟠' },
-  follow:    { label: 'يحتاج متابعة', icon: '🟡' },
-  stopped:   { label: 'متوقف عن التسجيل', icon: '🔴' },
-  nodata:    { label: 'لا بيانات', icon: '⚪' }
+const RS_ISSUES_ = {
+  salesNoInvoices: { label: 'مبالغ بدون فواتير', cls: 'warn' },
+  invoicesNoSales: { label: 'فواتير بدون مبالغ', cls: 'warn' },
+  nothing:         { label: 'لا يوجد أي تسجيل', cls: 'bad' }
 };
 
-function smartEsc_(s) {
+function rsEsc_(s) {
   return String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, function (c) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
   });
 }
 
-function smartAddDays_(ymd, n) {
+function rsAddDays_(ymd, n) {
   const p = ymd.split('-');
   const d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + n);
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
-function smartDiffDays_(a, b) {
-  const pa = a.split('-'), pb = b.split('-');
-  return Math.round((new Date(Number(pb[0]), Number(pb[1]) - 1, Number(pb[2])) - new Date(Number(pa[0]), Number(pa[1]) - 1, Number(pa[2]))) / 86400000);
-}
-
-/* «عدد + يوم» بصياغة عربية سليمة: يوم / يومان / 3 أيام ... 10 أيام / 11 يوماً */
-function smartDays_(n) {
-  n = Number(n) || 0;
-  if (n === 1) return 'يوم';
-  if (n === 2) return 'يومان';
-  if (n >= 3 && n <= 10) return n + ' أيام';
-  return n + ' يوماً';
-}
-
-/* «منذ ...» لآخر تسجيل */
-function smartAgo_(dateStr, today) {
-  const n = smartDiffDays_(dateStr, today);
-  return n <= 0 ? 'اليوم' : ('منذ ' + smartDays_(n));
-}
-
-function smartDateShort_(d) {
-  return d ? (dayNameFor(d) + ' ' + toHijriNumericStr(d)) : '';
-}
-
-function initSmartTab_() {
-  const wrap = document.getElementById('smartWorkdays');
-  if (!wrap.dataset.ready) {
-    wrap.innerHTML = AR_DAYS.map(function (n, i) {
-      return '<label class="sm-daychip"><input type="checkbox" value="' + i + '"' + (i <= 4 ? ' checked' : '') + '><span>' + n + '</span></label>';
-    }).join('');
-    wrap.dataset.ready = '1';
+function onRsPeriodChange() {
+  const custom = document.getElementById('rsPeriod').value === 'custom';
+  document.getElementById('rsCustomRow').classList.toggle('hidden', !custom);
+  if (custom && !document.getElementById('rsTo').value) {
+    document.getElementById('rsTo').value = todayStr();
+    document.getElementById('rsFrom').value = rsAddDays_(todayStr(), -29);
   }
-  if (!document.getElementById('smartTo').value) {
-    document.getElementById('smartTo').value = todayStr();
-    document.getElementById('smartFrom').value = smartAddDays_(todayStr(), -29);
-  }
-  loadSmartAnalysis();
+  if (!custom) loadRegStats();
 }
 
-function onSmartPeriodChange() {
-  const custom = document.getElementById('smartPeriod').value === 'custom';
-  document.getElementById('smartCustomRow').classList.toggle('hidden', !custom);
-  if (!custom) loadSmartAnalysis();
-}
-
-function smartRange_() {
-  const period = document.getElementById('smartPeriod').value;
+function rsParams_() {
+  const v = document.getElementById('rsPeriod').value;
   const today = todayStr();
-  if (period === 'today') return { from: today, to: today };
-  if (period === 'week') {
-    const dow = new Date().getDay();   // الأحد = 0
-    return { from: smartAddDays_(today, -dow), to: today };
-  }
-  if (period === '7') return { from: smartAddDays_(today, -6), to: today };
-  if (period === '30') return { from: smartAddDays_(today, -29), to: today };
-  if (period === 'month') return { from: today.slice(0, 8) + '01', to: today };
-  const from = document.getElementById('smartFrom').value;
-  const to = document.getElementById('smartTo').value;
+  if (v === 'term' || v === 'all') return { period: v };
+  if (v === 'month') return { period: 'range', from: today.slice(0, 8) + '01', to: today };
+  if (v === '30') return { period: 'range', from: rsAddDays_(today, -29), to: today };
+  const from = document.getElementById('rsFrom').value;
+  const to = document.getElementById('rsTo').value;
   if (!from || !to) { alert('اختاري تاريخ البداية والنهاية'); return null; }
   if (from > to) { alert('تاريخ البداية يجب أن يسبق تاريخ النهاية'); return null; }
-  return { from: from, to: to };
+  return { period: 'range', from: from, to: to };
 }
 
-function loadSmartAnalysis() {
-  const btn = document.getElementById('smartRunBtn');
-  const out = document.getElementById('smartResult');
-  const range = smartRange_();
-  if (!range) return;
-  const days = Array.from(document.querySelectorAll('#smartWorkdays input:checked')).map(function (el) { return el.value; });
-  if (!days.length) { alert('اختاري يوماً واحداً على الأقل من أيام العمل'); return; }
+function rsPeriodLabel_() {
+  const sel = document.getElementById('rsPeriod');
+  let t = sel.options[sel.selectedIndex].text;
+  if (rsData_ && rsData_.from) t += ' (' + toHijriNumericStr(rsData_.from) + ' - ' + toHijriNumericStr(rsData_.to) + ')';
+  return t;
+}
 
-  setBtnBusy(btn, true, 'جارِ التحليل...');
-  out.innerHTML = '<div class="card">جارِ التحليل...</div>';
-  callApi('getSmartAnalysis', {
-    from: range.from, to: range.to,
-    workdays: days.join(','),
-    autoOff: document.getElementById('smartAutoOff').checked
-  }).then(function (r) {
+function loadRegStats(force) {
+  const params = rsParams_();
+  if (!params) return;
+  const btn = document.getElementById('rsRunBtn');
+  const out = document.getElementById('rsResult');
+  if (force && typeof _apiCache_ !== 'undefined') _apiCache_.clear();
+  setBtnBusy(btn, true, 'جارِ التحميل...');
+  if (!rsData_) out.innerHTML = '<div class="card">جارِ التحميل...</div>';
+  callApi('getRegistrationStats', params).then(function (r) {
     setBtnBusy(btn, false);
     if (!r || !r.ok) {
-      out.innerHTML = '<div class="card">تعذّر تحميل التحليل' + (r && r.error ? ': ' + smartEsc_(r.error) : '') + '<br><span style="font-size:0.8rem;color:#8a7d76;">تأكدي أنك نشرتِ إصداراً جديداً من Apps Script بعد تحديث Code.gs.</span></div>';
+      out.innerHTML = '<div class="card">تعذّر تحميل الإحصائيات' + (r && r.error ? ': ' + rsEsc_(r.error) : '') +
+        '<br><span style="font-size:0.8rem;color:#8a7d76;">تأكدي أنك نشرتِ إصداراً جديداً من Apps Script بعد تحديث Code.gs.</span></div>';
       return;
     }
-    smartData_ = r;
-    renderSmartAnalysis_(r);
+    rsData_ = r;
+    renderRegStats_(r);
   }).catch(function () {
     setBtnBusy(btn, false);
     out.innerHTML = '<div class="card">تعذّر الاتصال بالخادم، حاولي مرة أخرى.</div>';
   });
 }
 
-/* ---------- العرض المختصر ---------- */
-function smartTableHtml_(r) {
-  const today = r.today;
-  const todayMap = {};
-  r.todaySnap.forEach(function (t) { todayMap[t.center] = t; });
-  let rows = '';
-  r.centers.forEach(function (m, i) {
-    const st = SMART_STATUS_[m.status] || SMART_STATUS_.nodata;
-    const t = todayMap[m.center];
-    const todayCell = t && t.recorded ? '✅' : (r.todayIsWorkday ? '❌' : '—');
-    const last = m.lastRecord ? smartAgo_(m.lastRecord, today) : 'لا يوجد';
-    rows += '<tr class="sm-tr" onclick="toggleSmartDetail_(' + i + ')">' +
-      '<td style="text-align:right;font-weight:700;">' + smartEsc_(m.center) + '</td>' +
-      '<td><span class="sm-pill ' + m.status + '">' + st.label + '</span></td>' +
-      '<td>' + m.recorded + '/' + m.expected + '</td>' +
-      '<td>' + todayCell + '</td>' +
-      '<td>' + last + '</td>' +
-      '<td>' + (m.invoices ? '✅ ' + m.invoices : '❌') + '</td>' +
-      '</tr>';
+function rsNum_(n) { return n ? String(n) : '<span class="rs-zero">0</span>'; }
 
-    const chips = m.missing.length
-      ? m.missing.map(function (d) { return '<span class="sm-chip">' + smartDateShort_(d) + '</span>'; }).join('')
-      : '<span class="sm-sub">لا توجد أيام ناقصة 👏</span>';
-    rows += '<tr id="smartDetail_' + i + '" class="sm-detail hidden"><td colspan="6">' +
-      '<div class="sm-facts">' +
-        '<span>الالتزام: <b>' + (m.compliance === null ? '—' : m.compliance + '%') + '</b></span>' +
-        '<span>أول بأول: <b>' + (m.knownTiming ? m.onTime + ' من ' + m.knownTiming : '—') + '</b></span>' +
-        (m.late ? '<span>متوسط التأخير: <b>' + m.avgLagDays + ' يوم</b></span>' : '') +
-        '<span>المبيعات: <b>' + Number(m.total).toFixed(2) + '</b></span>' +
-      '</div>' +
-      '<div style="margin-top:8px;font-weight:700;color:var(--maroon-dark);font-size:0.82rem;">لم يسجّل في (' + m.missingCount + '):</div>' +
-      '<div class="sm-chips">' + chips + '</div>' +
-      '</td></tr>';
-  });
-  return '<div class="card">' +
-    '<div class="sm-summary">الالتزام العام: <b>' + (r.summary.overallCompliance === null ? '—' : r.summary.overallCompliance + '%') + '</b>' +
-    ' · سجّلوا اليوم: <b>' + r.todaySnap.filter(function (t) { return t.recorded; }).length + '/' + r.todaySnap.length + '</b></div>' +
-    '<div class="sm-scroll"><table class="log-table sm-table"><thead><tr>' +
-      '<th>المركز</th><th>الحالة</th><th>سجّل</th><th>اليوم</th><th>آخر تسجيل</th><th>الفواتير</th>' +
-    '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;">اضغطي على أي مركز لعرض الأيام التي لم يسجّل فيها.</p>' +
-    '<div class="export-row" style="margin-top:12px;">' +
-      '<button class="btn outline" onclick="exportSmartExcel()">⬇️ Excel</button>' +
-      '<button class="btn outline" onclick="printSmartReport()">🖨️ طباعة</button>' +
-      '<button class="btn outline" onclick="copySmartSummary(this)">📋 نسخ</button>' +
-    '</div></div>';
-}
+function renderRegStats_(r) {
+  const out = document.getElementById('rsResult');
+  if (!r.centers || !r.centers.length) { out.innerHTML = '<div class="card">لا توجد مراكز.</div>'; return; }
+  const t = r.totals;
 
-function smartNoteHtml_(r) {
-  const q = r.dataQuality;
-  let n = '«سجّل» = مبيعات مسجّلة بتاريخ اليوم في سجل البيع اليومي. «الفواتير» = عدد الفواتير اللي أدخلها المركز خلال الفترة (❌ = ما أدخل شيئاً). «أول بأول» يُقاس من وقت التسجيل الفعلي ويبدأ بعد تحديث النظام';
-  if (q.rangeRows && q.stampedRows === 0) n += ' (لم يبدأ القياس بعد).';
-  else n += '.';
-  if (r.offDays.length) n += ' أيام اعتُبرت إجازة لأن لا مركز سجّل فيها: ' + r.offDays.map(smartDateShort_).join('، ') + '.';
-  return '<p style="color:#8a7d76;font-size:0.76rem;line-height:1.8;margin:0 4px;">' + n + '</p>';
-}
+  // ---- الملخص ----
+  let html = '<div class="rs-kpis">' +
+    '<div class="rs-kpi"><div class="v">' + t.receive + '</div><div class="l">إشعار استلام</div></div>' +
+    '<div class="rs-kpi"><div class="v">' + t.reward + '</div><div class="l">إشعار تسليم المكافأة</div></div>' +
+    '<div class="rs-kpi"><div class="v">' + t.fee + '</div><div class="l">إشعار تسليم رسوم حفل تحفيظ الصغار</div></div>' +
+    '<div class="rs-kpi"><div class="v">' + t.invoices + '</div><div class="l">بيان الفواتير</div></div>' +
+    '</div>';
+  if (t.pending) html += '<div class="rs-note-line">⏳ إشعارات بانتظار الاطلاع: <b>' + t.pending + '</b></div>';
 
-function renderSmartAnalysis_(r) {
-  const out = document.getElementById('smartResult');
-  if (!r.centers || !r.centers.length) {
-    out.innerHTML = '<div class="card">لا توجد مراكز للتحليل.</div>';
-    return;
+  // ---- النواقص ----
+  const groups = { salesNoInvoices: [], invoicesNoSales: [], nothing: [] };
+  r.centers.forEach(function (m) { m.issues.forEach(function (k) { if (groups[k]) groups[k].push(m); }); });
+  const anyIssue = groups.salesNoInvoices.length || groups.invoicesNoSales.length || groups.nothing.length;
+  html += '<div class="card"><h3 style="margin-top:0;color:var(--maroon);font-size:1rem;">النواقص</h3>';
+  if (!anyIssue) {
+    html += '<div class="rs-ok">لا توجد نواقص في هذه الفترة 👏</div>';
+  } else {
+    Object.keys(groups).forEach(function (k) {
+      if (!groups[k].length) return;
+      html += '<div class="rs-group ' + RS_ISSUES_[k].cls + '"><div class="rs-group-title">' + RS_ISSUES_[k].label +
+        ' <span class="rs-count">' + groups[k].length + '</span></div><div class="rs-chips">' +
+        groups[k].map(function (m) {
+          let extra = '';
+          if (k === 'salesNoInvoices') extra = ' · ' + m.salesDays + ' يوم مبيعات';
+          if (k === 'invoicesNoSales') extra = ' · ' + m.invoices + ' فاتورة';
+          return '<span class="rs-chip">' + rsEsc_(m.center) + '<small>' + extra + '</small></span>';
+        }).join('') + '</div></div>';
+    });
   }
-  out.innerHTML = smartTableHtml_(r) + smartNoteHtml_(r);
+  html += '</div>';
+
+  // ---- الجدول ----
+  let rows = '';
+  r.centers.forEach(function (m) {
+    const st = m.issues.length
+      ? m.issues.map(function (k) { return '<span class="rs-pill ' + RS_ISSUES_[k].cls + '">' + RS_ISSUES_[k].label + '</span>'; }).join(' ')
+      : '<span class="rs-pill ok">مكتمل</span>';
+    rows += '<tr>' +
+      '<td style="text-align:right;font-weight:700;">' + rsEsc_(m.center) + '</td>' +
+      '<td>' + rsNum_(m.receive) + '</td>' +
+      '<td>' + rsNum_(m.reward) + '</td>' +
+      '<td>' + rsNum_(m.fee) + '</td>' +
+      '<td>' + rsNum_(m.invoices) + '</td>' +
+      '<td>' + rsNum_(m.salesDays) + '</td>' +
+      '<td>' + st + '</td>' +
+      '</tr>';
+  });
+  html += '<div class="card"><h3 style="margin-top:0;color:var(--maroon);font-size:1rem;">تفصيل المراكز</h3>' +
+    '<div class="rs-scroll"><table class="log-table rs-table"><thead><tr>' +
+      '<th>المركز</th><th>استلام</th><th>تسليم المكافأة</th><th>رسوم الحفل</th><th>الفواتير</th><th>أيام المبيعات</th><th>الحالة</th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;line-height:1.8;">«أيام المبيعات» = عدد الأيام المسجّل فيها مبالغ بسجل البيع اليومي. «مبالغ بدون فواتير» = المركز سجّل مبيعات ولم يُدخل أي فاتورة في نفس الفترة، و«فواتير بدون مبالغ» العكس.</p>' +
+    '<div class="export-row" style="margin-top:12px;">' +
+      '<button class="btn outline" onclick="exportRegStatsExcel()">⬇️ Excel</button>' +
+      '<button class="btn outline" onclick="printRegStats()">🖨️ طباعة</button>' +
+    '</div></div>';
+  out.innerHTML = html;
 }
 
-function toggleSmartDetail_(i) {
-  const el = document.getElementById('smartDetail_' + i);
-  if (el) el.classList.toggle('hidden');
-}
-
-/* ---------- التصدير والطباعة والنسخ ---------- */
-function smartExportRows_() {
-  const r = smartData_;
-  return r.centers.map(function (m, i) {
+function rsExportRows_() {
+  return rsData_.centers.map(function (m, i) {
     return {
       '#': i + 1,
       'المركز': m.center,
-      'الحالة': (SMART_STATUS_[m.status] || SMART_STATUS_.nodata).label,
-      'نسبة الالتزام %': m.compliance === null ? '' : m.compliance,
-      'أيام سجّل': m.recorded,
-      'أيام العمل المطلوبة': m.expected,
-      'أيام لم يسجّل': m.missingCount,
-      'سجّل بنفس اليوم': m.onTime,
-      'سجّل متأخراً': m.late,
-      'متوسط التأخير (يوم)': m.late ? m.avgLagDays : '',
-      'متوسط وقت التسجيل': m.avgTime || '',
-      'آخر تسجيل': m.lastRecord ? (dayNameFor(m.lastRecord) + ' ' + toHijriNumericStr(m.lastRecord)) : '',
-      'إجمالي المبيعات': Number(m.total.toFixed(2)),
-      'عدد الفواتير المُدخلة': m.invoices,
-      'الأيام التي لم يسجّل فيها': m.missing.map(function (d) { return dayNameFor(d) + ' ' + toHijriNumericStr(d); }).join(' ، ')
+      'إشعار استلام': m.receive,
+      'إشعار تسليم المكافأة': m.reward,
+      'إشعار تسليم رسوم الحفل': m.fee,
+      'إجمالي الإشعارات': m.noticesTotal,
+      'بانتظار الاطلاع': m.pending,
+      'عدد الفواتير': m.invoices,
+      'رأس المال': m.capital,
+      'الربح': m.profit,
+      'أيام المبيعات': m.salesDays,
+      'إجمالي المبيعات': m.salesTotal,
+      'النواقص': m.issues.length ? m.issues.map(function (k) { return RS_ISSUES_[k].label; }).join(' ، ') : 'مكتمل'
     };
   });
 }
 
-function exportSmartExcel() {
-  if (!smartData_) return;
-  exportToExcel(smartExportRows_(), 'التحليل-الذكي-' + smartData_.from + '_' + smartData_.to, 'التحليل الذكي');
+function exportRegStatsExcel() {
+  if (!rsData_) return;
+  exportToExcel(rsExportRows_(), 'إحصائيات-التسجيل', 'إحصائيات التسجيل');
 }
 
-function printSmartReport() {
-  if (!smartData_) return;
-  const r = smartData_;
-  const rows = r.centers.map(function (m, i) {
-    return {
-      n: i + 1,
-      center: m.center,
-      status: (SMART_STATUS_[m.status] || SMART_STATUS_.nodata).label,
-      comp: m.compliance === null ? '—' : m.compliance + '%',
-      rec: m.recorded + ' / ' + m.expected,
-      missing: m.missingCount,
-      ontime: m.knownTiming ? (m.onTime + '/' + m.knownTiming) : '—',
-      inv: m.invoices || 'لم يُدخل',
-      last: m.lastRecord ? (dayNameFor(m.lastRecord) + ' ' + toHijriNumericStr(m.lastRecord)) : 'لا يوجد',
-      total: Number(m.total).toFixed(2)
-    };
-  });
-  printReport('التحليل الذكي لالتزام المراكز', 'من ' + toHijriStr(r.from) + ' إلى ' + toHijriStr(r.to), [
-    { key: 'n', label: '#' }, { key: 'center', label: 'المركز' }, { key: 'status', label: 'الحالة' },
-    { key: 'comp', label: 'الالتزام' }, { key: 'rec', label: 'سجّل / المطلوب' }, { key: 'missing', label: 'لم يسجّل' },
-    { key: 'ontime', label: 'أول بأول' }, { key: 'inv', label: 'الفواتير' }, { key: 'last', label: 'آخر تسجيل' }, { key: 'total', label: 'المبيعات' }
-  ], rows, { key: 'total', label: 'إجمالي المبيعات' });
-}
-
-function smartSummaryText_() {
-  const r = smartData_;
-  const line = function (arr, fn) { return arr.map(function (m) { return '• ' + m.center + fn(m); }).join('\n'); };
-  const ok = r.centers.filter(function (m) { return m.status === 'excellent' || m.status === 'good'; });
-  const late = r.centers.filter(function (m) { return m.status === 'late'; });
-  const follow = r.centers.filter(function (m) { return m.status === 'follow'; });
-  const stopped = r.centers.filter(function (m) { return m.status === 'stopped'; });
-  let t = '📊 التحليل الذكي لالتزام المراكز\n';
-  t += 'من ' + toHijriStr(r.from) + ' إلى ' + toHijriStr(r.to) + '\n';
-  t += 'الالتزام العام: ' + (r.summary.overallCompliance === null ? '—' : r.summary.overallCompliance + '%') + '\n';
-  if (ok.length) t += '\n🟢 يسجّلون أول بأول:\n' + line(ok, function (m) { return ' (' + m.compliance + '%)'; }) + '\n';
-  if (late.length) t += '\n🟠 يسجّلون متأخرين:\n' + line(late, function (m) { return ' (متأخر ' + m.late + ' من ' + m.knownTiming + ')'; }) + '\n';
-  if (follow.length) t += '\n🟡 يحتاجون متابعة:\n' + line(follow, function (m) { return ' (سجّل ' + m.recorded + ' من ' + m.expected + ')'; }) + '\n';
-  if (stopped.length) t += '\n🔴 متوقفون / لا يسجّلون:\n' + line(stopped, function (m) { return m.recorded === 0 ? ' (لم يسجّل نهائياً)' : ' (منذ ' + smartDays_(m.trailingMissing) + ' عمل)'; }) + '\n';
-  return t.trim();
-}
-
-function copySmartSummary(btn) {
-  if (!smartData_) return;
-  const text = smartSummaryText_();
-  const done = function () {
-    if (!btn) return;
-    const old = btn.innerHTML;
-    btn.innerHTML = '✅ تم النسخ';
-    setTimeout(function () { btn.innerHTML = old; }, 1600);
-  };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(done, function () { smartCopyFallback_(text); done(); });
-  } else {
-    smartCopyFallback_(text); done();
-  }
-}
-
-function smartCopyFallback_(text) {
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.position = 'fixed'; ta.style.opacity = '0';
-  document.body.appendChild(ta);
-  ta.select();
-  try { document.execCommand('copy'); } catch (e) {}
-  document.body.removeChild(ta);
+function printRegStats() {
+  if (!rsData_) return;
+  const rows = rsExportRows_();
+  const cols = ['المركز', 'إشعار استلام', 'إشعار تسليم المكافأة', 'إشعار تسليم رسوم الحفل', 'عدد الفواتير', 'أيام المبيعات', 'النواقص'];
+  const t = rsData_.totals;
+  const w = window.open('', '_blank');
+  if (!w) { alert('اسمحي بالنوافذ المنبثقة للطباعة'); return; }
+  w.document.write('<html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>إحصائيات التسجيل</title>' +
+    '<style>body{font-family:Tajawal,Arial,sans-serif;padding:20px;color:#222}h2{color:#6e1523;margin:0 0 4px}' +
+    '.sub{color:#777;font-size:13px;margin-bottom:12px}table{width:100%;border-collapse:collapse;font-size:12px}' +
+    'th,td{border:1px solid #c9b79c;padding:6px;text-align:center}th{background:#6e1523;color:#fff}td:first-child{text-align:right;font-weight:700}</style></head><body>' +
+    '<h2>إحصائيات التسجيل</h2><div class="sub">' + rsEsc_(rsPeriodLabel_()) +
+    ' — استلام: ' + t.receive + ' · تسليم المكافأة: ' + t.reward + ' · رسوم الحفل: ' + t.fee + ' · الفواتير: ' + t.invoices + '</div>' +
+    '<table><thead><tr>' + cols.map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    rows.map(function (r) { return '<tr>' + cols.map(function (c) { return '<td>' + rsEsc_(r[c]) + '</td>'; }).join('') + '</tr>'; }).join('') +
+    '</tbody></table><script>window.onload=function(){window.print();}<\/script></body></html>');
+  w.document.close();
 }
 
 </script>

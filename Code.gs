@@ -718,27 +718,122 @@ function sheet_(name) {
   return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
 }
 
-/* ------------------- تخزين مؤقت (Cache) لتسريع القراءة ------------------- */
-const CACHE_SECONDS = 90;           // شيتات متغيّرة (مبيعات، إشعارات، فواتير، مرتجعات، حضور...)
-const CACHE_SECONDS_LONG = 300;     // شيتات شبه ثابتة (المراكز، المسؤولات) - 5 دقائق فقط (كانت 6 ساعات)
+/* ------------------- تخزين مؤقت (Cache) لتسريع القراءة -------------------
+   ليش كان الموقع يبطأ لما يفتح أكثر من شخص؟
+   الكاش حق قوقل ما يقبل أكثر من 100KB للقيمة الوحدة، وشيت الإشعارات (فيه بيانات
+   التواقيع) وشيت المبيعات أكبر من كذا، فكان الحفظ بالكاش يفشل بصمت وكل طلب من كل
+   مستخدمة يقرأ الشيت كامل من جديد. الحين البيانات الكبيرة تتقسم لأجزاء صغيرة
+   وتنحفظ كلها بالكاش، فأغلب الطلبات ترجع من الذاكرة فوراً مهما كان عدد المستخدمات.
+   ولضمان عدم رجوع بيانات قديمة: كل شيت له «رقم نسخة» يتغيّر مع أي حفظ/تعديل/حذف،
+   وأي نسخة بالكاش ما تطابق الرقم الحالي تنرمى تلقائياً. */
+const CACHE_SECONDS = 900;          // 15 دقيقة - أي حفظ/تعديل/حذف من الموقع يمسحه فوراً
+const CACHE_SECONDS_LONG = 900;     // المراكز والمسؤولات (التعديل اليدوي بالشيت يظهر خلال 10 دقائق مع التسخين التلقائي، أو فوراً بـ clearCache)
+const CACHE_CHUNK_CHARS_ = 45000;   // حجم الجزء الواحد (أقل من حد 100KB حتى مع الحروف العربية)
+const CACHE_MAX_CHUNKS_ = 200;      // حد أعلى احتياطي (~9 ميقا) - لو أكبر ما نخزّن
+const CACHE_GEN_SECONDS_ = 21600;   // عمر رقم النسخة (6 ساعات - الحد الأعلى المسموح)
 
 function getCache_() {
   return CacheService.getScriptCache();
 }
 
+function newCacheGen_() {
+  return Utilities.getUuid().slice(0, 8);
+}
+
+/* يمسح نسخة الشيت من الكاش بتغيير رقم نسختها (أي أجزاء قديمة تصير غير صالحة تلقائياً) */
 function invalidateCache_(name) {
-  try { getCache_().remove('sheet_' + name); } catch (e) {}
+  if (typeof REQ_SHEET_MEMO_ !== 'undefined') delete REQ_SHEET_MEMO_[name];
+  try {
+    const cache = getCache_();
+    cache.put('gen_' + name, newCacheGen_(), CACHE_GEN_SECONDS_);
+    cache.remove('sheet_' + name);
+  } catch (e) {}
+}
+
+/* تقرأ الشيت من قوقل شيتس مباشرة وتحوّله لكائنات (بدون كاش) */
+function readSheetObjectsRaw_(name) {
+  const sh = sheet_(name);
+  if (!sh) return [];
+  const data = sh.getDataRange().getValues();
+  if (!data || data.length < 1) return [];
+  const headers = data[0].map(function (h) { return String(h).trim(); });
+  const rows = [];
+  for (let i = 1; i < data.length; i++) {
+    const obj = {};
+    for (let idx = 0; idx < headers.length; idx++) {
+      let val = data[i][idx];
+      if (val instanceof Date) val = formatSheetDate_(val);
+      obj[headers[idx]] = val;
+    }
+    obj._row = i + 1;
+    rows.push(obj);
+  }
+  return rows;
+}
+
+/* يحفظ صفوف شيت بالكاش مقسّمة لأجزاء - بشرط إن رقم النسخة ما تغيّر أثناء القراءة
+   (يعني ما صار حفظ جديد بنفس اللحظة)، عشان ما نحفظ بيانات قديمة فوق الجديدة */
+function putSheetCache_(name, rows, gen, duration) {
+  try {
+    const cache = getCache_();
+    if (cache.get('gen_' + name) !== gen) return;
+    const str = JSON.stringify(rows);
+    const n = Math.max(1, Math.ceil(str.length / CACHE_CHUNK_CHARS_));
+    if (n > CACHE_MAX_CHUNKS_) return;
+    const items = {};
+    for (let i = 0; i < n; i++) {
+      items['sheet_' + name + '_' + gen + '_' + i] = str.slice(i * CACHE_CHUNK_CHARS_, (i + 1) * CACHE_CHUNK_CHARS_);
+    }
+    cache.putAll(items, duration);
+    cache.put('sheet_' + name, JSON.stringify({ g: gen, n: n }), duration);
+  } catch (e) {
+    // لو الكاش رفض لأي سبب نكمل عادي بدون تخزين
+  }
+}
+
+/* ترجّع رقم النسخة الحالي للشيت (وتنشئ واحد لو ما فيه) */
+function currentCacheGen_(name, known) {
+  if (known) return known;
+  const g = newCacheGen_();
+  try { getCache_().put('gen_' + name, g, CACHE_GEN_SECONDS_); } catch (e) {}
+  return g;
 }
 
 /* شغّليها يدوياً من قائمة الدوال أعلى المحرر (▶️ Run) في أي وقت بعد ما تعدّلي
-   شيت "المسؤولات" أو "المراكز" يدوياً، عشان التغييرات تنعكس بالموقع فوراً
-   بدون ما تنتظري وقت الكاش. */
+   أي شيت يدوياً، عشان التغييرات تنعكس بالموقع فوراً بدون ما تنتظري. */
 function clearCache() {
-  const cache = getCache_();
-  ['المسؤولات', 'المراكز', 'المبيعات', 'المرتجعات', 'الفواتير', 'الحضور', 'التعهد', 'المهام', 'الإشعارات'].forEach(function (n) {
-    cache.remove('sheet_' + n);
-  });
+  ['المسؤولات', 'المراكز', 'المبيعات', 'المرتجعات', 'الفواتير', 'الحضور', 'التعهد', 'المهام', 'الإشعارات',
+   'المرفقات', 'مرفقات الإشراف', 'الإعلانات الهامة', 'محاضر الاجتماعات', 'قائمة الأسعار', 'الإعدادات',
+   'دخول الإشراف', 'الصعوبات والمقترحات', 'قائمة الدخل', 'بطاقات التحفيز', 'متابعة بطاقات التحفيز', 'درجات المسؤولات',
+   ARCHIVE_PREFIX + 'المبيعات', ARCHIVE_PREFIX + 'المرتجعات', ARCHIVE_PREFIX + 'الفواتير', ARCHIVE_PREFIX + 'الإشعارات', ARCHIVE_PREFIX + 'قائمة الدخل'
+  ].forEach(function (n) { invalidateCache_(n); });
   notify_('تم تفريغ الذاكرة المؤقتة. جربي الدخول بالموقع الحين.');
+}
+
+/* ------------------- التسخين التلقائي (يخلي الموقع سريع من أول ضغطة) -------------------
+   تشتغل كل 10 دقائق تلقائياً: تقرأ الشيتات الأساسية وتحفظها جاهزة بالكاش، فأول مستخدمة
+   تفتح الموقع ما تنتظر قراءة الشيت، وأي تعديل يدوي بالشيت ينعكس خلال 10 دقائق بالكثير.
+   ⚠️ شغّلي installWarmupTrigger مرة وحدة بس من قائمة الدوال (▶️ Run) ووافقي على الصلاحيات. */
+const WARM_SHEETS_ = ['المراكز', 'المسؤولات', 'المبيعات', 'الفواتير', 'الإشعارات', 'المرتجعات',
+  'الإعلانات الهامة', 'قائمة الأسعار', 'الإعدادات', 'الحضور', 'التعهد', 'المهام'];
+
+function warmCache() {
+  WARM_SHEETS_.forEach(function (name) {
+    try {
+      const gen = currentCacheGen_(name, getCache_().get('gen_' + name));
+      const rows = readSheetObjectsRaw_(name);
+      putSheetCache_(name, rows, gen, CACHE_SECONDS);
+    } catch (e) {}
+  });
+}
+
+function installWarmupTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'warmCache') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('warmCache').timeBased().everyMinutes(10).create();
+  warmCache();
+  notify_('تم تفعيل التسخين التلقائي كل 10 دقائق ✅');
 }
 
 /* ------------------- الأرشفة الحقيقية (نقل فعلي بدل التوسيم بس) -------------------
@@ -861,42 +956,46 @@ function formatSheetDate_(d) {
   return Utilities.formatDate(d, tz, hasTime ? 'yyyy-MM-dd HH:mm' : 'yyyy-MM-dd');
 }
 
+/* ذاكرة داخل نفس الطلب: لو نفس الشيت انطلب أكثر من مرة بنفس الطلب ما نعيد فك الكاش */
+const REQ_SHEET_MEMO_ = {};
+
 function sheetToObjects_(name, cacheSeconds) {
+  if (REQ_SHEET_MEMO_[name]) return REQ_SHEET_MEMO_[name].slice();
   const duration = cacheSeconds || CACHE_SECONDS;
   const cache = getCache_();
-  const cacheKey = 'sheet_' + name;
+  let gen = null;
 
   try {
-    const cached = cache.get(cacheKey);
-    if (cached) return JSON.parse(cached);
+    const head = cache.getAll(['sheet_' + name, 'gen_' + name]);
+    gen = head['gen_' + name] || null;
+    const metaStr = head['sheet_' + name];
+    if (metaStr && gen) {
+      const meta = JSON.parse(metaStr);
+      if (meta && meta.g === gen && meta.n > 0) {
+        const keys = [];
+        for (let i = 0; i < meta.n; i++) keys.push('sheet_' + name + '_' + gen + '_' + i);
+        const parts = cache.getAll(keys);
+        let complete = true, str = '';
+        for (let j = 0; j < keys.length; j++) {
+          if (parts[keys[j]] === undefined || parts[keys[j]] === null) { complete = false; break; }
+          str += parts[keys[j]];
+        }
+        if (complete) {
+          const rows = JSON.parse(str);
+          REQ_SHEET_MEMO_[name] = rows;
+          return rows.slice();
+        }
+      }
+    }
   } catch (e) {
     // تجاهل أي خطأ بالكاش وأكملي القراءة العادية من الشيت
   }
 
-  const sh = sheet_(name);
-  if (!sh) return [];
-  const data = sh.getDataRange().getValues();
-  if (!data || data.length < 1) return [];
-  const headers = data[0];
-  const rows = [];
-  for (let i = 1; i < data.length; i++) {
-    const obj = {};
-    headers.forEach(function (h, idx) {
-      let val = data[i][idx];
-      if (val instanceof Date) val = formatSheetDate_(val);
-      obj[String(h).trim()] = val;
-    });
-    obj._row = i + 1;
-    rows.push(obj);
-  }
-
-  try {
-    cache.put(cacheKey, JSON.stringify(rows), duration);
-  } catch (e) {
-    // إذا كانت البيانات كبيرة جداً على الكاش نتجاهل الخطأ ونكمل بدون تخزين مؤقت
-  }
-
-  return rows;
+  gen = currentCacheGen_(name, gen);
+  const rows = readSheetObjectsRaw_(name);
+  putSheetCache_(name, rows, gen, duration);
+  REQ_SHEET_MEMO_[name] = rows;
+  return rows.slice();
 }
 
 /* ------------------- الاسم المعروض للمركز (بدون تغيير الاسم الأصلي) -------------------
@@ -1033,7 +1132,7 @@ function handleRequest_(p) {
       case 'deleteNotice': return json_(deleteNotice_(p));
 
       case 'getStats': return json_(getStats_());
-      case 'getSmartAnalysis': return json_(getSmartAnalysis_(p));
+      case 'getRegistrationStats': return json_(getRegistrationStats_(p));
 
       case 'archiveCurrentTerm': return json_(archiveCurrentTerm_(p));
       case 'getTermsList': return json_(getTermsList_());
@@ -2297,16 +2396,7 @@ function getStats_() {
 }
 
 
-/* ------------------- التحليل الذكي: التزام المراكز بتسجيل المبيعات ------------------- *
- * يجاوب على: مين يسجّل أول بأول؟ مين متأخر؟ مين ما يسجّل؟ ومن متى؟
- *
- * فكرة القياس:
- *  - «سجّل اليوم» = يوجد سطر بشيت المبيعات لهذا التاريخ للمركز.
- *  - «أول بأول» = تاريخ التسجيل الفعلي (عمود «وقت التسجيل الفعلي» اللي يكتبه السيرفر) هو نفس تاريخ المبيعات.
- *    الصفوف القديمة (قبل إضافة هذا العمود) تُحسب «مسجّلة» لكن بدون حكم على التأخير.
- *  - أيام العمل تُحدَّد من الواجهة (الافتراضي الأحد-الخميس)، واليوم اللي ما سجّل فيه أي مركز
- *    نهائياً يُعتبر إجازة تلقائياً (لو عدد المراكز 3 أو أكثر) ولا يُحسب غياب على أحد.
- *  - كل المراكز تُحسب، ومنها مراكز «العرض فقط» (تسجّل لها مسؤولة المقصف). */
+/* ------------------- أدوات تواريخ مشتركة ------------------- */
 
 const ENTRY_STAMP_COL_ = 'وقت التسجيل الفعلي';
 
@@ -2352,248 +2442,116 @@ function allRowsIncludingArchive_(name) {
   return sheetToObjects_(name).concat(sheetToObjects_(ARCHIVE_PREFIX + name));
 }
 
-function smartStatus_(m) {
-  if (!m.expected) return 'nodata';
-  if (m.recorded === 0 || m.trailingMissing >= 3) return 'stopped';
-  if (m.compliance < 60) return 'follow';
-  if (m.onTimeRate !== null && m.onTimeRate < 60) return 'late';
-  if (m.compliance >= 90 && (m.onTimeRate === null || m.onTimeRate >= 80)) return 'excellent';
-  return 'good';
+/* ------------------- إحصائيات التسجيل (لوحة الإدارة) -------------------
+   لكل مركز خلال الفترة المختارة:
+   - عدد الإشعارات مفصّلة: استلام / تسليم المكافأة / تسليم رسوم حفل تحفيظ الصغار (+ بانتظار الاطلاع)
+   - عدد بيان الفواتير (+ مجموع رأس المال والربح)
+   - أيام وعدد مرات تسجيل المبيعات (+ المجموع)
+   - النواقص: مبالغ بدون فواتير، فواتير بدون مبالغ، لا يوجد أي تسجيل
+   الفترة: period = 'term' (الفصل الحالي - الافتراضي) أو 'all' (كل الفصول) أو from/to (تواريخ). */
+function noticeKind_(r) {
+  const t = String(r['النوع'] || '').trim();
+  if (t === 'استلام') return 'receive';
+  if (t === 'تسليم') return String(r['بيان مخصص'] || '').trim() ? 'fee' : 'reward';
+  return 'other';
 }
 
-function getSmartAnalysis_(p) {
+function getRegistrationStats_(p) {
   p = p || {};
-  const today = nowParts_().date;
+  const period = String(p.period || 'term');
+  const from = dateOnly_(p.from), to = dateOnly_(p.to);
+  const useDates = period === 'range' && from && to;
 
-  // ---- الفترة ----
-  let to = dateOnly_(p.to) || today;
-  if (to > today) to = today;
-  let from = dateOnly_(p.from) || utcToYmd_(ymdToUtc_(to) - 29 * 86400000);
-  if (from > to) from = to;
-  if (daysBetween_(from, to) > 365) from = utcToYmd_(ymdToUtc_(to) - 365 * 86400000);
-  const spanLen = daysBetween_(from, to) + 1;
-  const prevTo = utcToYmd_(ymdToUtc_(from) - 86400000);
-  const prevFrom = utcToYmd_(ymdToUtc_(prevTo) - (spanLen - 1) * 86400000);
-
-  // ---- أيام العمل (0=الأحد ... 6=السبت) ----
-  let workdays = [0, 1, 2, 3, 4];
-  if (p.workdays !== undefined && p.workdays !== null && p.workdays !== '') {
-    const raw = Array.isArray(p.workdays) ? p.workdays : String(p.workdays).split(',');
-    const parsed = raw.map(function (x) { return Number(x); }).filter(function (n) { return !isNaN(n) && n >= 0 && n <= 6; });
-    if (parsed.length) workdays = parsed;
+  let sales, invoices, notices;
+  if (period === 'all' || useDates) {
+    sales = allRowsIncludingArchive_('المبيعات');
+    invoices = allRowsIncludingArchive_('الفواتير');
+    notices = allRowsIncludingArchive_('الإشعارات');
+  } else {
+    sales = getRowsForTerm_('المبيعات', 'current', 'الفصل الدراسي');
+    invoices = getRowsForTerm_('الفواتير', 'current', 'الفصل الدراسي');
+    notices = getRowsForTerm_('الإشعارات', 'current', 'فصل الأرشفة');
   }
-  const autoOff = !(p.autoOff === false || p.autoOff === 'false');
+  function inRange(v) {
+    if (!useDates) return true;
+    const d = dateOnly_(v);
+    return !!d && d >= from && d <= to;
+  }
 
-  // ---- كل المراكز (تشمل مراكز «العرض فقط» لأن مسؤولة المقصف هي اللي تسجّل لها) ----
+  // كل المراكز (تشمل مراكز العرض فقط + المراكز المربوطة بمسؤولة)
   const centers = [];
-  sheetToObjects_('المراكز', CACHE_SECONDS_LONG).forEach(function (r) {
-    const name = String(r['اسم المركز'] || '').trim();
-    if (name && centers.indexOf(name) === -1) centers.push(name);
-  });
-  // مراكز مربوطة بمسؤولة بشيت المسؤولات وما هي مكتوبة بشيت المراكز
-  sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG).forEach(function (r) {
-    const name = String(r['اسم المركز'] || '').trim();
-    if (name && centers.indexOf(name) === -1) centers.push(name);
-  });
-  // أي اسم مركز له مبيعات مسجّلة بس ما هو بأي من الشيتين (مثلاً مكتوب باختلاف بسيط) ما نخليه يختفي
-  const salesRows = allRowsIncludingArchive_('المبيعات');
-  salesRows.forEach(function (r) {
-    const name = String(r['اسم المركز'] || '').trim();
-    if (name && centers.indexOf(name) === -1) centers.push(name);
-  });
+  function addCenter(n) { n = String(n || '').trim(); if (n && centers.indexOf(n) === -1) centers.push(n); }
+  sheetToObjects_('المراكز', CACHE_SECONDS_LONG).forEach(function (r) { addCenter(r['اسم المركز']); });
+  sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG).forEach(function (r) { addCenter(r['اسم المركز']); });
 
-  const stats = {};
-  centers.forEach(function (c) {
-    stats[c] = { days: {}, last: '', prevTotal: 0, today: null };
-  });
-
-  // ---- المبيعات ----
-  let rangeRows = 0, stampedRows = 0;
-  salesRows.forEach(function (r) {
-    const c = String(r['اسم المركز'] || '').trim();
-    const st = stats[c];
-    if (!st) return;
-    const d = dateOnly_(r['التاريخ']);
-    if (!d || d > today) return;
-    const amt = Number(r['المبلغ']) || 0;
-    const stamp = String(r[ENTRY_STAMP_COL_] || '');
-    const stampDate = dateOnly_(stamp);
-    const rawMin = timeToMin_(r['الوقت']);
-    const stampMin = stampDate ? timeToMin_(stamp.slice(10)) : null;
-
-    if (d > st.last) st.last = d;
-
-    if (d === today) {
-      if (!st.today) st.today = { total: 0, count: 0, min: null };
-      st.today.total += amt;
-      st.today.count++;
-      const tm = (stampDate === today && stampMin !== null) ? stampMin : rawMin;
-      if (tm !== null && (st.today.min === null || tm < st.today.min)) st.today.min = tm;
+  const st = {};
+  function S(c) {
+    c = String(c || '').trim();
+    if (!c) return null;
+    if (!st[c]) {
+      addCenter(c);
+      st[c] = { center: c, receive: 0, reward: 0, fee: 0, other: 0, pending: 0,
+        invoices: 0, capital: 0, profit: 0, salesEntries: 0, salesDays: {}, salesTotal: 0 };
     }
-
-    if (d >= prevFrom && d <= prevTo) { st.prevTotal += amt; return; }
-    if (d < from || d > to) return;
-
-    rangeRows++;
-    let day = st.days[d];
-    if (!day) day = st.days[d] = { total: 0, count: 0, lag: null, firstMin: null };
-    day.total += amt;
-    day.count++;
-    if (stampDate) {
-      stampedRows++;
-      const lag = Math.max(0, daysBetween_(d, stampDate));
-      if (day.lag === null || lag < day.lag) day.lag = lag;
-      if (lag === 0 && stampMin !== null && (day.firstMin === null || stampMin < day.firstMin)) day.firstMin = stampMin;
-    }
-  });
-
-  // ---- الفواتير والمرتجعات (أعداد فقط) ----
-  const inv = {}, ret = {}, retValue = {};
-  allRowsIncludingArchive_('الفواتير').forEach(function (r) {
-    const c = String(r['اسم المركز'] || '').trim();
-    const d = dateOnly_(r['التاريخ']);
-    if (!stats[c] || !d || d < from || d > to) return;
-    inv[c] = (inv[c] || 0) + 1;
-  });
-  allRowsIncludingArchive_('المرتجعات').forEach(function (r) {
-    const c = String(r['اسم المركز'] || '').trim();
-    const d = dateOnly_(r['التاريخ']);
-    if (!stats[c] || !d || d < from || d > to) return;
-    ret[c] = (ret[c] || 0) + 1;
-    retValue[c] = (retValue[c] || 0) + (Number(r['القيمة']) || 0);
-  });
-
-  // ---- أيام العمل الفعلية للفترة (مع استثناء الإجازات التقديرية) ----
-  const candidates = [];
-  for (let t = ymdToUtc_(from); t <= ymdToUtc_(to); t += 86400000) {
-    if (workdays.indexOf(new Date(t).getUTCDay()) !== -1) candidates.push(utcToYmd_(t));
+    return st[c];
   }
-  const offDays = [];
-  const effective = [];
-  candidates.forEach(function (d) {
-    if (d === today) { effective.push(d); return; }   // اليوم الحالي يُحكم عليه لكل مركز على حدة (ما انتهى بعد)
-    if (autoOff && centers.length >= 3) {
-      const anyone = centers.some(function (c) { return !!stats[c].days[d]; });
-      if (!anyone) { offDays.push(d); return; }
-    }
-    effective.push(d);
+  centers.slice().forEach(S);
+
+  notices.forEach(function (r) {
+    if (!inRange(r['تاريخ الإرسال'])) return;
+    const m = S(r['اسم المركز']); if (!m) return;
+    m[noticeKind_(r)]++;
+    if (String(r['الحالة'] || '').trim() === 'بانتظار الاطلاع') m.pending++;
+  });
+  invoices.forEach(function (r) {
+    if (!inRange(r['التاريخ'])) return;
+    const m = S(r['اسم المركز']); if (!m) return;
+    m.invoices++;
+    m.capital += Number(r['المبلغ الإجمالي']) || 0;   // عمود «المبلغ الإجمالي» بالشيت = رأس المال
+    m.profit += Number(r['الربح']) || 0;
+  });
+  sales.forEach(function (r) {
+    if (!inRange(r['التاريخ'])) return;
+    const m = S(r['اسم المركز']); if (!m) return;
+    m.salesEntries++;
+    const d = dateOnly_(r['التاريخ']);
+    if (d) m.salesDays[d] = 1;
+    m.salesTotal += Number(r['المبلغ']) || 0;
   });
 
-  // ---- مقاييس كل مركز ----
   const list = centers.map(function (c) {
-    const st = stats[c];
-    const eff = effective.filter(function (d) { return d !== today || !!st.days[d]; });
-    const missing = [];
-    let recorded = 0, onTime = 0, late = 0, lagSum = 0, known = 0, timeSum = 0, timeCnt = 0;
-    eff.forEach(function (d) {
-      const day = st.days[d];
-      if (!day) { missing.push(d); return; }
-      recorded++;
-      if (day.lag !== null) {
-        known++;
-        if (day.lag === 0) {
-          onTime++;
-          if (day.firstMin !== null) { timeSum += day.firstMin; timeCnt++; }
-        } else {
-          late++;
-          lagSum += day.lag;
-        }
-      }
-    });
-
-    let trailingMissing = 0;
-    for (let i = eff.length - 1; i >= 0 && !st.days[eff[i]]; i--) trailingMissing++;
-    let streak = 0;
-    for (let j = eff.length - 1; j >= 0 && st.days[eff[j]]; j--) streak++;
-
-    let total = 0, recordDaysAll = 0;
-    Object.keys(st.days).forEach(function (d) { total += st.days[d].total; recordDaysAll++; });
-
-    const expected = eff.length;
-    const m = {
+    const m = st[c];
+    const days = Object.keys(m.salesDays).length;
+    const issues = [];
+    if (m.salesEntries > 0 && m.invoices === 0) issues.push('salesNoInvoices');
+    if (m.invoices > 0 && m.salesEntries === 0) issues.push('invoicesNoSales');
+    if (m.salesEntries === 0 && m.invoices === 0 && (m.receive + m.reward + m.fee + m.other) === 0) issues.push('nothing');
+    return {
       center: c,
-      expected: expected,
-      recorded: recorded,
-      missing: missing,
-      missingCount: missing.length,
-      compliance: expected ? Math.round(recorded / expected * 100) : null,
-      onTime: onTime,
-      late: late,
-      knownTiming: known,
-      onTimeRate: known ? Math.round(onTime / known * 100) : null,
-      avgLagDays: late ? Math.round(lagSum / late * 10) / 10 : 0,
-      avgTime: timeCnt ? minToTime_(Math.round(timeSum / timeCnt)) : '',
-      lastRecord: st.last,
-      trailingMissing: trailingMissing,
-      streak: streak,
-      total: total,
-      avgPerDay: recordDaysAll ? Math.round(total / recordDaysAll * 100) / 100 : 0,
-      prevTotal: st.prevTotal,
-      changePct: st.prevTotal > 0 ? Math.round((total - st.prevTotal) / st.prevTotal * 100) : null,
-      invoices: inv[c] || 0,
-      returns: ret[c] || 0,
-      returnsValue: retValue[c] || 0
+      receive: m.receive, reward: m.reward, fee: m.fee, other: m.other,
+      noticesTotal: m.receive + m.reward + m.fee + m.other,
+      pending: m.pending,
+      invoices: m.invoices,
+      capital: Math.round(m.capital * 100) / 100,
+      profit: Math.round(m.profit * 100) / 100,
+      salesEntries: m.salesEntries,
+      salesDays: days,
+      salesTotal: Math.round(m.salesTotal * 100) / 100,
+      issues: issues
     };
-    m.status = smartStatus_(m);
-    return m;
   });
 
   list.sort(function (a, b) {
-    const ca = a.compliance === null ? -1 : a.compliance;
-    const cb = b.compliance === null ? -1 : b.compliance;
-    if (cb !== ca) return cb - ca;
-    const oa = a.onTimeRate === null ? -1 : a.onTimeRate;
-    const ob = b.onTimeRate === null ? -1 : b.onTimeRate;
-    if (ob !== oa) return ob - oa;
+    if (b.issues.length !== a.issues.length) return b.issues.length - a.issues.length;
     return a.center < b.center ? -1 : 1;
   });
 
-  // ---- لقطة اليوم ----
-  const todayDow = new Date(ymdToUtc_(today)).getUTCDay();
-  const todaySnap = centers.map(function (c) {
-    const t = stats[c].today;
-    return { center: c, recorded: !!t, amount: t ? t.total : 0, time: t ? minToTime_(t.min) : '' };
-  });
-
-  // ---- نمط المبيعات حسب اليوم (متوسط مبلغ التسجيل الواحد لكل مركز باليوم) ----
-  const dowAgg = {};
-  centers.forEach(function (c) {
-    Object.keys(stats[c].days).forEach(function (d) {
-      const dow = new Date(ymdToUtc_(d)).getUTCDay();
-      if (!dowAgg[dow]) dowAgg[dow] = { total: 0, n: 0 };
-      dowAgg[dow].total += stats[c].days[d].total;
-      dowAgg[dow].n++;
-    });
-  });
-  const byDow = Object.keys(dowAgg).map(function (k) {
-    const dow = Number(k);
-    return { dow: dow, name: AR_DAYS_[dow], avg: Math.round(dowAgg[k].total / dowAgg[k].n * 100) / 100, n: dowAgg[k].n };
-  }).sort(function (a, b) { return a.dow - b.dow; });
-
-  // ---- ملخص عام ----
-  let sumExpected = 0, sumRecorded = 0, totalSales = 0, prevSales = 0;
+  const totals = { receive: 0, reward: 0, fee: 0, other: 0, pending: 0, invoices: 0, salesEntries: 0, salesTotal: 0 };
   list.forEach(function (m) {
-    sumExpected += m.expected; sumRecorded += m.recorded;
-    totalSales += m.total; prevSales += m.prevTotal;
+    Object.keys(totals).forEach(function (k) { totals[k] += m[k]; });
   });
+  totals.salesTotal = Math.round(totals.salesTotal * 100) / 100;
 
-  return {
-    ok: true,
-    from: from, to: to, prevFrom: prevFrom, prevTo: prevTo, today: today,
-    todayIsWorkday: workdays.indexOf(todayDow) !== -1,
-    workdays: workdays, autoOff: autoOff,
-    centers: list,
-    todaySnap: todaySnap,
-    byDow: byDow,
-    offDays: offDays,
-    effectiveDays: effective.length,
-    summary: {
-      activeCenters: centers.length,
-      overallCompliance: sumExpected ? Math.round(sumRecorded / sumExpected * 100) : null,
-      totalSales: totalSales,
-      prevSales: prevSales,
-      salesChangePct: prevSales > 0 ? Math.round((totalSales - prevSales) / prevSales * 100) : null
-    },
-    dataQuality: { rangeRows: rangeRows, stampedRows: stampedRows }
-  };
+  return { ok: true, period: useDates ? 'range' : (period === 'all' ? 'all' : 'term'),
+    from: useDates ? from : '', to: useDates ? to : '', centers: list, totals: totals };
 }
