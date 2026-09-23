@@ -8,6 +8,22 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;700;800&display=swap">
 <link rel="stylesheet" href="style.css">
+<style>
+/* أنماط التواصل هنا مباشرة داخل الصفحة عشان تشتغل حتى لو ملف style.css قديم أو محفوظ بالمتصفح */
+.topbar .brand { white-space: nowrap; }
+/* -------- تواصل (index.html) - أيقونة صغيرة بالشريط العلوي تفتح قائمة -------- */
+.contact-wrap#contactCard { position: relative; }
+#contactCard .contact-btn { width: 38px; height: 38px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.12); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background .15s ease; }
+#contactCard .contact-btn:hover, #contactCard .contact-btn:active { background: rgba(255,255,255,0.25); }
+#contactCard .contact-pop { position: absolute; top: calc(100% + 10px); left: 0; min-width: 190px; background: #fff; border: 1px solid var(--gold-light); border-radius: 14px; box-shadow: 0 8px 24px rgba(60, 20, 25, 0.18); padding: 10px; z-index: 50; text-align: right; }
+#contactCard .contact-pop::before { content: ''; position: absolute; top: -6px; left: 14px; width: 10px; height: 10px; background: #fff; border-left: 1px solid var(--gold-light); border-top: 1px solid var(--gold-light); transform: rotate(45deg); }
+#contactCard .contact-title { margin: 0; text-align: right; color: #8a7d76; font-size: 0.75rem; font-weight: 700; padding: 2px 6px 6px; }
+#contactCard .contact-list { flex-wrap: nowrap; justify-content: flex-start; display: flex; flex-direction: column; gap: 2px; }
+#contactCard .contact-item { border: none; box-shadow: none; background: transparent; justify-content: flex-start; display: flex; align-items: center; gap: 9px; padding: 9px 8px; border-radius: 10px; color: var(--maroon); font-size: 0.88rem; font-weight: 700; text-decoration: none; }
+#contactCard .contact-item:hover, #contactCard .contact-item:active { background: var(--cream); }
+#contactCard .contact-item svg { flex: 0 0 auto; opacity: 0.8; }
+.hidden, #contactCard .hidden, .contact-wrap#contactCard.hidden { display: none !important; }
+</style>
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
 </head>
