@@ -629,9 +629,9 @@
     <!-- ===== تبويب: إحصائية الزيارات ===== -->
     <div id="visitStatsTab" class="admin-tab-panel hidden">
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);" id="vsFormTitle">تسجيل زيارة</h3>
+        <h3 style="margin-top:0;color:var(--maroon);">تسجيل زيارة</h3>
         <label>اسم المركز</label>
-        <input type="text" id="vsCenter" list="vsCentersList" placeholder="اكتبي اسم المركز بدون الفترة" autocomplete="off">
+        <input type="text" id="vsCenter" list="vsCentersList" placeholder="اكتبي اسم المركز" autocomplete="off">
         <datalist id="vsCentersList"></datalist>
         <label>الفترة</label>
         <select id="vsPeriod">
@@ -645,9 +645,7 @@
           <select id="vsYear"></select>
         </div>
         <div class="vs-date-preview" id="vsDatePreview"></div>
-        <div class="vs-edit-note hidden" id="vsEditNote">✏️ تعديل زيارة مسجّلة</div>
         <button class="btn" id="vsSaveBtn" onclick="saveVisitStat()">حفظ الزيارة</button>
-        <button class="btn outline hidden" id="vsCancelEditBtn" onclick="cancelVisitEdit()" style="margin-top:8px;">إلغاء التعديل</button>
         <div class="success-msg" id="vsSuccess"></div>
       </div>
 
@@ -655,7 +653,7 @@
         <h3 style="margin-top:0;color:var(--maroon);">عدد الزيارات لكل مركز</h3>
         <div id="vsSummary">جارِ التحميل...</div>
         <div class="export-row" style="margin-top:12px;">
-          <button class="btn outline" id="vsExportBtn" onclick="exportVisitStats()">📊 فتح في Google Sheets</button>
+          <button class="btn outline" onclick="exportVisitStats()">⬇️ Excel</button>
         </div>
       </div>
     </div>
@@ -3222,8 +3220,6 @@ function deleteMeetingMinutesRow(row) {
 const VS_MONTHS_ = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة',
   'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
 let vsVisits_ = [];
-let vsCenters_ = [];
-let vsEditingId_ = null;
 
 function vsAr_(n) {
   return String(n).replace(/[0-9]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'[d]; });
@@ -3270,7 +3266,8 @@ function initVisitStatsTab_() {
     daySel.dataset.ready = '1';
   }
   vsUpdatePreview_();
-  vsFillCentersList_();
+  const dl = document.getElementById('vsCentersList');
+  dl.innerHTML = (centersListCache || []).map(function (c) { return '<option value="' + vsEsc_(c) + '">'; }).join('');
   loadVisitStats();
 }
 
@@ -3288,14 +3285,6 @@ function vsUpdatePreview_() {
   document.getElementById('vsDatePreview').textContent = vsSelectedDate_().text;
 }
 
-/* الاقتراحات: أسماء المراكز بدون الفترة (مركز النور الصباحية + المسائية ← مركز النور) */
-function vsFillCentersList_() {
-  const seen = {};
-  const names = [];
-  vsCenters_.forEach(function (c) { if (c.base && !seen[c.base]) { seen[c.base] = true; names.push(c.base); } });
-  document.getElementById('vsCentersList').innerHTML = names.map(function (c) { return '<option value="' + vsEsc_(c) + '">'; }).join('');
-}
-
 function saveVisitStat() {
   const center = document.getElementById('vsCenter').value.replace(/\s+/g, ' ').trim();
   if (!center) { alert('اكتبي اسم المركز'); return; }
@@ -3303,22 +3292,18 @@ function saveVisitStat() {
   const btn = document.getElementById('vsSaveBtn');
   const msg = document.getElementById('vsSuccess');
   msg.style.display = 'none';
-  const editing = vsEditingId_;
   setBtnBusy(btn, true);
-  const payload = {
+  callApi('recordVisitStat', {
     center: center,
     period: document.getElementById('vsPeriod').value,
     hijriDate: date.text,
     dateKey: date.key
-  };
-  if (editing) payload.id = editing;
-  callApi(editing ? 'updateVisitStat' : 'recordVisitStat', payload).then(function (r) {
+  }).then(function (r) {
     setBtnBusy(btn, false);
     if (!r || !r.ok) { alert('تعذّر الحفظ' + (r && r.error ? ': ' + r.error : '')); return; }
-    msg.textContent = (editing ? 'تم التعديل ✅ — ' : 'تم الحفظ ✅ — ') + r.center + ': ' + vsCountLabel_(r.count) +
-      (r.matched ? '' : ' (تنبيه: الاسم غير موجود بقائمة المراكز، تأكدي من كتابته)');
+    msg.textContent = 'تم الحفظ ✅ — ' + r.center + ': ' + vsCountLabel_(r.count);
     msg.style.display = 'block';
-    cancelVisitEdit(true);
+    document.getElementById('vsCenter').value = '';
     loadVisitStats();
   }).catch(function () {
     setBtnBusy(btn, false);
@@ -3326,107 +3311,58 @@ function saveVisitStat() {
   });
 }
 
-function editVisitStat(id) {
-  const v = vsVisits_.find(function (x) { return String(x.id) === String(id); });
-  if (!v) return;
-  vsEditingId_ = v.id;
-  document.getElementById('vsCenter').value = v.base || v.center;
-  if (v.period) document.getElementById('vsPeriod').value = v.period;
-  const k = String(v.dateKey || '').split('-');
-  if (k.length === 3) {
-    const y = Number(k[0]), m = Number(k[1]), d = Number(k[2]);
-    const ys = document.getElementById('vsYear');
-    if (!Array.prototype.some.call(ys.options, function (o) { return Number(o.value) === y; })) {
-      ys.insertAdjacentHTML('afterbegin', '<option value="' + y + '">' + vsAr_(y) + '</option>');
-    }
-    ys.value = String(y);
-    document.getElementById('vsMonth').value = String(m);
-    document.getElementById('vsDay').value = String(d);
-  }
-  vsUpdatePreview_();
-  document.getElementById('vsFormTitle').textContent = 'تعديل زيارة';
-  document.getElementById('vsEditNote').classList.remove('hidden');
-  document.getElementById('vsCancelEditBtn').classList.remove('hidden');
-  const btn = document.getElementById('vsSaveBtn');
-  btn.textContent = 'حفظ التعديل';
-  delete btn.dataset.originalHtml;
-  document.getElementById('vsSuccess').style.display = 'none';
-  document.getElementById('vsFormTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function cancelVisitEdit(keepMsg) {
-  vsEditingId_ = null;
-  document.getElementById('vsCenter').value = '';
-  document.getElementById('vsFormTitle').textContent = 'تسجيل زيارة';
-  document.getElementById('vsEditNote').classList.add('hidden');
-  document.getElementById('vsCancelEditBtn').classList.add('hidden');
-  const btn = document.getElementById('vsSaveBtn');
-  btn.textContent = 'حفظ الزيارة';
-  delete btn.dataset.originalHtml;
-  if (!keepMsg) document.getElementById('vsSuccess').style.display = 'none';
-}
-
 function loadVisitStats() {
   const box = document.getElementById('vsSummary');
   callApi('getVisitStats').then(function (r) {
     if (!r || !r.ok) { box.innerHTML = 'تعذّر التحميل' + (r && r.error ? ': ' + vsEsc_(r.error) : ''); return; }
     vsVisits_ = r.visits || [];
-    vsCenters_ = r.centers || [];
-    vsFillCentersList_();
     renderVisitStats_();
   }).catch(function () { box.innerHTML = 'تعذّر الاتصال بالخادم.'; });
 }
 
-/* كل المراكز من شيت المراكز (حتى اللي ما زرناها) + أي زيارة باسم غير موجود بالقائمة */
 function vsGroups_() {
   const map = {};
-  vsCenters_.forEach(function (c) { map[c.name] = { center: c.name, visits: [], inList: true }; });
   vsVisits_.forEach(function (v) {
-    if (!map[v.center]) map[v.center] = { center: v.center, visits: [], inList: false };
-    map[v.center].visits.push(v);
+    if (!map[v.center]) map[v.center] = { center: v.center, visits: [], morning: 0, evening: 0 };
+    const g = map[v.center];
+    g.visits.push(v);
+    if (v.period === 'صباحية') g.morning++;
+    else if (v.period === 'مسائية') g.evening++;
   });
   const list = Object.keys(map).map(function (k) {
     const g = map[k];
     g.visits.sort(function (a, b) { return a.dateKey < b.dateKey ? 1 : (a.dateKey > b.dateKey ? -1 : 0); });
     return g;
   });
-  list.sort(function (a, b) { return b.visits.length - a.visits.length || String(a.center).localeCompare(String(b.center), 'ar'); });
+  list.sort(function (a, b) { return b.visits.length - a.visits.length || (a.center < b.center ? -1 : 1); });
   return list;
 }
 
 function renderVisitStats_() {
   const box = document.getElementById('vsSummary');
   const groups = vsGroups_();
-  if (!groups.length) { box.innerHTML = '<div style="color:#8a7d76;">لا توجد مراكز أو زيارات بعد.</div>'; return; }
-  const visited = groups.filter(function (g) { return g.visits.length; }).length;
+  if (!groups.length) { box.innerHTML = '<div style="color:#8a7d76;">لا توجد زيارات مسجّلة بعد.</div>'; return; }
   let rows = '';
   groups.forEach(function (g, i) {
-    const n = g.visits.length;
-    rows += '<tr class="vs-tr' + (n ? '' : ' vs-none') + '"' + (n ? ' onclick="toggleVsDetail_(' + i + ')"' : '') + '>' +
-      '<td style="text-align:right;font-weight:700;">' + vsEsc_(g.center) +
-        (g.inList ? '' : ' <span class="vs-warn">غير موجود بقائمة المراكز</span>') + '</td>' +
-      '<td>' + (n ? '<span class="vs-count">' + vsCountLabel_(n) + '</span>' : '<span class="vs-missing">لم تتم الزيارة</span>') + '</td>' +
-      '<td>' + (n ? vsEsc_(g.visits[0].hijriDate) : '—') + '</td>' +
-      '<td>' + (n ? '<button class="vs-open" onclick="event.stopPropagation();toggleVsDetail_(' + i + ')">تعديل / حذف</button>' : '—') + '</td>' +
+    rows += '<tr class="vs-tr" onclick="toggleVsDetail_(' + i + ')">' +
+      '<td style="text-align:right;font-weight:700;">' + vsEsc_(g.center) + '</td>' +
+      '<td><span class="vs-count">' + vsCountLabel_(g.visits.length) + '</span></td>' +
+      '<td>' + vsAr_(g.morning) + '</td>' +
+      '<td>' + vsAr_(g.evening) + '</td>' +
+      '<td>' + vsEsc_(g.visits[0].hijriDate) + '</td>' +
       '</tr>';
-    if (n) {
-      rows += '<tr id="vsDetail_' + i + '" class="vs-detail hidden"><td colspan="4">' +
-        g.visits.map(function (v, j) {
-          return '<div class="vs-visit"><span>' + vsAr_(n - j) + '. ' + vsEsc_(v.hijriDate) + ' — ' + vsEsc_(v.period) + '</span>' +
-            '<span class="vs-actions">' +
-            '<button class="vs-edit" onclick="event.stopPropagation();editVisitStat(\'' + vsEsc_(v.id) + '\')">تعديل</button>' +
-            '<button class="vs-del" onclick="event.stopPropagation();deleteVisitStat(\'' + vsEsc_(v.id) + '\')">حذف</button>' +
-            '</span></div>';
-        }).join('') +
-        '</td></tr>';
-    }
+    rows += '<tr id="vsDetail_' + i + '" class="vs-detail hidden"><td colspan="5">' +
+      g.visits.map(function (v, j) {
+        return '<div class="vs-visit"><span>' + vsAr_(g.visits.length - j) + '. ' + vsEsc_(v.hijriDate) + ' — ' + vsEsc_(v.period) + '</span>' +
+          '<button class="vs-del" onclick="event.stopPropagation();deleteVisitStat(\'' + vsEsc_(v.id) + '\')">حذف</button></div>';
+      }).join('') +
+      '</td></tr>';
   });
-  box.innerHTML = '<div class="vs-total">إجمالي الزيارات: <b>' + vsAr_(vsVisits_.length) + '</b> · تمت زيارتها: <b>' + vsAr_(visited) +
-    '</b> · لم تتم زيارتها: <b style="color:#b3261e;">' + vsAr_(groups.length - visited) + '</b></div>' +
+  box.innerHTML = '<div class="vs-total">إجمالي الزيارات: <b>' + vsAr_(vsVisits_.length) + '</b> · عدد المراكز: <b>' + vsAr_(groups.length) + '</b></div>' +
     '<div class="rs-scroll"><table class="log-table vs-table"><thead><tr>' +
-    '<th>المركز</th><th>عدد الزيارات</th><th>آخر زيارة</th><th>تعديل / حذف</th>' +
+    '<th>المركز</th><th>عدد الزيارات</th><th>صباحية</th><th>مسائية</th><th>آخر زيارة</th>' +
     '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;">اضغطي «تعديل / حذف» عند أي مركز لعرض زياراته وتعديلها أو حذفها.</p>';
+    '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;">اضغطي على أي مركز لعرض تواريخ زياراته.</p>';
 }
 
 function toggleVsDetail_(i) {
@@ -3438,32 +3374,26 @@ function deleteVisitStat(id) {
   if (!confirm('متأكدة تبين تحذفين هذي الزيارة؟')) return;
   callApi('deleteVisitStat', { id: id }).then(function (r) {
     if (!r || !r.ok) { alert('تعذّر الحذف' + (r && r.error ? ': ' + r.error : '')); return; }
-    if (String(vsEditingId_) === String(id)) cancelVisitEdit();
     loadVisitStats();
   });
 }
 
-/* يحدّث تبويب «ملخص الزيارات» في ملف Google Sheets ويفتحه مباشرة */
 function exportVisitStats() {
-  const btn = document.getElementById('vsExportBtn');
-  // نفتح النافذة فوراً (قبل انتظار الخادم) عشان متصفح الجوال ما يمنعها
-  const win = window.open('', '_blank');
-  if (win) win.document.write('<p dir="rtl" style="font-family:sans-serif;padding:20px;">جارِ تجهيز ملخص الزيارات في Google Sheets...</p>');
-  setBtnBusy(btn, true, 'جارِ التجهيز...');
-  callApi('exportVisitStatsToSheet').then(function (r) {
-    setBtnBusy(btn, false);
-    if (!r || !r.ok || !r.url) {
-      if (win) win.close();
-      alert('تعذّر التجهيز' + (r && r.error ? ': ' + r.error : ''));
-      return;
-    }
-    if (win) win.location.href = r.url;
-    else window.location.href = r.url;
-  }).catch(function () {
-    setBtnBusy(btn, false);
-    if (win) win.close();
-    alert('تعذّر الاتصال بالخادم، حاولي مرة أخرى.');
+  const groups = vsGroups_();
+  if (!groups.length) { alert('لا توجد زيارات للتصدير'); return; }
+  const rows = [];
+  groups.forEach(function (g) {
+    g.visits.slice().reverse().forEach(function (v, j) {
+      rows.push({
+        'المركز': g.center,
+        'رقم الزيارة': j + 1,
+        'الفترة': v.period,
+        'تاريخ الزيارة': v.hijriDate,
+        'إجمالي زيارات المركز': g.visits.length
+      });
+    });
   });
+  exportToExcel(rows, 'إحصائية-الزيارات', 'إحصائية الزيارات');
 }
 
 /* ==================== إحصائيات التسجيل ==================== */

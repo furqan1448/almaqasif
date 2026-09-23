@@ -582,140 +582,37 @@ function visitCenterKey_(name) {
   return String(name || '').replace(/\s+/g, ' ').trim();
 }
 
-/* توحيد الكتابة العربية للمقارنة فقط (أ/إ/آ ← ا، ة ← ه، ى ← ي، بدون تشكيل أو أقواس) */
-function vsNorm_(s) {
-  return String(s || '')
-    .replace(/[\u064B-\u0652\u0640]/g, '')
-    .replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي')
-    .replace(/[()\[\]\-–—_،,.]/g, ' ')
-    .replace(/\s+/g, ' ').trim();
-}
-
-const VS_PERIOD_RE_ = /(^|\s)(ال)?(فتره\s+)?(ال)?(صباحيه|صباحي|مسائيه|مسائي)(?=\s|$)/g;
-
-/* يفصل اسم المركز عن الفترة: «مركز النور الصباحية» ← { key: 'النور', period: 'صباحية' } */
-function vsCenterInfo_(name) {
-  const n = vsNorm_(name);
-  let period = '';
-  const m = n.match(/(صباحي|مسائي)/);
-  if (m && n.replace(VS_PERIOD_RE_, ' ') !== n) period = m[1] === 'صباحي' ? 'صباحية' : 'مسائية';
-  let base = n.replace(VS_PERIOD_RE_, ' ').replace(/\s+/g, ' ').trim();
-  const key = base.replace(/^مركز\s+/, '');
-  return { key: key, period: period };
-}
-
-/* كل المراكز من شيت «المراكز» مع اسمها بدون الفترة */
-function vsCentersList_() {
-  const seen = {};
-  const list = [];
-  const rows = sheetToObjects_('المراكز', CACHE_SECONDS_LONG)
-    .concat(sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG));   // المراكز المربوطة بمسؤولة تظهر بأيقونات الدخول أيضاً
-  rows.forEach(function (r) {
-    const name = visitCenterKey_(r['اسم المركز']);
-    if (!name || seen[name]) return;
-    seen[name] = true;
-    const info = vsCenterInfo_(name);
-    const base = visitCenterKey_(name.replace(/[()\[\]\-–—_،,]/g, ' ')
-      .replace(/(^|\s)(ال)?(فترة\s+)?(ال)?(صباحية|صباحيه|صباحي|مسائية|مسائيه|مسائي)(?=\s|$)/g, ' '));
-    list.push({ name: name, base: base || name, key: info.key, period: info.period });
-  });
-  return list;
-}
-
-/* يربط (الاسم المكتوب + الفترة المختارة) بالمركز الصحيح، أو null لو ما لقاه أبداً.
-   مثال: «أم عمار» + مسائية ← «أم عمار المسائية». ولو المركز له فترة وحدة بس، ينربط فيها حتى لو الفترة المختارة غير. */
-function vsResolveCenter_(typed, period, centers) {
-  const info = vsCenterInfo_(typed);
-  if (!info.key) return null;
-  const p = period || info.period;
-  function pick(list) {
-    if (!list.length) return null;
-    return list.find(function (c) { return c.period === p; }) ||
-      list.find(function (c) { return !c.period; }) ||
-      (list.length === 1 ? list[0] : null);
-  }
-  // ١) نفس الاسم بالضبط (بعد حذف الفترة وكلمة «مركز»)
-  let found = pick(centers.filter(function (c) { return c.key === info.key; }));
-  if (found) return found;
-  // ٢) الاسم المكتوب جزء من اسم المركز أو العكس (مثل «أم عمار» و«دار أم عمار»)
-  const partial = centers.filter(function (c) {
-    return c.key && (c.key.indexOf(info.key) !== -1 || info.key.indexOf(c.key) !== -1);
-  });
-  const keys = {};
-  partial.forEach(function (c) { keys[c.key] = true; });
-  if (Object.keys(keys).length === 1) return pick(partial);
-  return null;
-}
-
-function vsFields_(p, centers) {
-  const typed = visitCenterKey_(p.center);
-  if (!typed) return { error: 'اسم المركز مطلوب' };
-  if (!p.hijriDate) return { error: 'تاريخ الزيارة مطلوب' };
-  const c = vsResolveCenter_(typed, p.period, centers);
-  return {
-    matched: !!c,
-    center: c ? c.name : typed,
-    row: {
-      'اسم المركز': c ? c.name : typed, 'الفترة': (c && c.period) ? c.period : (p.period || ''),
-      'التاريخ الهجري': p.hijriDate, 'مفتاح التاريخ': p.dateKey || ''
-    }
-  };
-}
-
-function vsCountFor_(centerName, centers) {
-  return sheetToObjects_(VISIT_STATS_SHEET_).filter(function (r) {
-    const c = vsResolveCenter_(r['اسم المركز'], r['الفترة'], centers);
-    return (c ? c.name : visitCenterKey_(r['اسم المركز'])) === centerName;
-  }).length;
-}
-
 function recordVisitStat_(p) {
-  const centers = vsCentersList_();
-  const f = vsFields_(p, centers);
-  if (f.error) return { ok: false, error: f.error };
+  const center = visitCenterKey_(p.center);
+  if (!center) return { ok: false, error: 'اسم المركز مطلوب' };
+  if (!p.hijriDate) return { ok: false, error: 'تاريخ الزيارة مطلوب' };
   const sh = visitStatsSheet_();
   const id = Utilities.getUuid();
   const now = nowParts_();
-  appendRowByHeaders_(sh, Object.assign({ 'معرف': id, 'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time }, f.row));
-  invalidateCache_(VISIT_STATS_SHEET_);
-  return { ok: true, id: id, center: f.center, matched: f.matched, count: vsCountFor_(f.center, centers) };
-}
-
-function updateVisitStat_(p) {
-  const sh = sheet_(VISIT_STATS_SHEET_);
-  if (!sh) return { ok: false, error: 'الشيت غير موجود' };
-  const centers = vsCentersList_();
-  const f = vsFields_(p, centers);
-  if (f.error) return { ok: false, error: f.error };
-  const target = sheetToObjects_(VISIT_STATS_SHEET_).find(function (r) { return String(r['معرف']) === String(p.id); });
-  if (!target) return { ok: false, error: 'السجل غير موجود' };
-  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (h) { return String(h).trim(); });
-  Object.keys(f.row).forEach(function (k) {
-    const col = headers.indexOf(k);
-    if (col >= 0) sh.getRange(target._row, col + 1).setNumberFormat('@').setValue(f.row[k]);
+  appendRowByHeaders_(sh, {
+    'معرف': id, 'اسم المركز': center, 'الفترة': p.period || '',
+    'التاريخ الهجري': p.hijriDate, 'مفتاح التاريخ': p.dateKey || '',
+    'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
   });
   invalidateCache_(VISIT_STATS_SHEET_);
-  return { ok: true, center: f.center, matched: f.matched, count: vsCountFor_(f.center, centers) };
+  const count = sheetToObjects_(VISIT_STATS_SHEET_).filter(function (r) {
+    return visitCenterKey_(r['اسم المركز']) === center;
+  }).length;
+  return { ok: true, id: id, center: center, count: count };
 }
 
 function getVisitStats_() {
-  const centers = vsCentersList_();
-  const out = { ok: true, visits: [], centers: centers.map(function (c) { return { name: c.name, base: c.base, period: c.period }; }) };
-  if (!sheet_(VISIT_STATS_SHEET_)) return out;
-  out.visits = sheetToObjects_(VISIT_STATS_SHEET_).filter(function (r) {
+  if (!sheet_(VISIT_STATS_SHEET_)) return { ok: true, visits: [] };
+  const visits = sheetToObjects_(VISIT_STATS_SHEET_).filter(function (r) {
     return visitCenterKey_(r['اسم المركز']);
   }).map(function (r) {
-    const typed = visitCenterKey_(r['اسم المركز']);
-    const c = vsResolveCenter_(typed, r['الفترة'], centers);
     return {
-      id: r['معرف'], row: r._row,
-      center: c ? c.name : typed, matched: !!c,
-      base: c ? c.base : typed,
+      id: r['معرف'], row: r._row, center: visitCenterKey_(r['اسم المركز']),
       period: String(r['الفترة'] || ''), hijriDate: String(r['التاريخ الهجري'] || ''),
       dateKey: String(r['مفتاح التاريخ'] || '')
     };
   });
-  return out;
+  return { ok: true, visits: visits };
 }
 
 function deleteVisitStat_(p) {
@@ -727,62 +624,6 @@ function deleteVisitStat_(p) {
   sh.deleteRow(target._row);
   invalidateCache_(VISIT_STATS_SHEET_);
   return { ok: true };
-}
-
-/* ينشئ/يحدّث تبويب «ملخص الزيارات» في نفس ملف Google Sheets ويرجّع رابطه عشان ينفتح مباشرة */
-const VISIT_SUMMARY_SHEET_ = 'ملخص الزيارات';
-
-function exportVisitStatsToSheet_() {
-  const data = getVisitStats_();
-  const groups = {};
-  data.centers.forEach(function (c) { groups[c.name] = { name: c.name, visits: [], inList: true }; });
-  data.visits.forEach(function (v) {
-    if (!groups[v.center]) groups[v.center] = { name: v.center, visits: [], inList: false };
-    groups[v.center].visits.push(v);
-  });
-  const list = Object.keys(groups).map(function (k) { return groups[k]; });
-  list.forEach(function (g) { g.visits.sort(function (a, b) { return a.dateKey < b.dateKey ? -1 : (a.dateKey > b.dateKey ? 1 : 0); }); });
-  list.sort(function (a, b) {
-    return b.visits.length - a.visits.length || String(a.name).localeCompare(String(b.name), 'ar');
-  });
-
-  const header = ['م', 'المركز', 'عدد الزيارات', 'تواريخ الزيارات', 'آخر زيارة'];
-  const rows = list.map(function (g, i) {
-    const n = g.visits.length;
-    return [
-      i + 1,
-      g.name + (g.inList ? '' : ' (غير موجود بقائمة المراكز)'),
-      n ? n : 'لم تتم الزيارة',
-      g.visits.map(function (v, j) { return (j + 1) + ') ' + v.hijriDate; }).join('\n'),
-      n ? g.visits[n - 1].hijriDate : '—'
-    ];
-  });
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sh = ss.getSheetByName(VISIT_SUMMARY_SHEET_);
-  if (!sh) sh = ss.insertSheet(VISIT_SUMMARY_SHEET_);
-  sh.clear();
-  sh.setRightToLeft(true);
-  const now = nowParts_();
-  sh.getRange(1, 1).setValue('ملخص إحصائية الزيارات — آخر تحديث: ' + now.date + ' ' + now.time).setFontWeight('bold');
-  sh.getRange(3, 1, 1, header.length).setValues([header])
-    .setFontWeight('bold').setBackground('#7a1f2b').setFontColor('#ffffff').setHorizontalAlignment('center');
-  if (rows.length) {
-    const body = sh.getRange(4, 1, rows.length, header.length);
-    body.setNumberFormat('@').setValues(rows.map(function (r) { return r.map(String); }))
-      .setVerticalAlignment('top').setWrap(true);
-    sh.getRange(4, 1, rows.length, 1).setHorizontalAlignment('center');
-    sh.getRange(4, 3, rows.length, 1).setHorizontalAlignment('center');
-    rows.forEach(function (r, i) {
-      if (r[2] === 'لم تتم الزيارة') sh.getRange(4 + i, 3).setFontColor('#b3261e').setFontWeight('bold');
-    });
-    sh.getRange(3, 1, rows.length + 1, header.length).setBorder(true, true, true, true, true, true);
-  }
-  sh.setColumnWidth(1, 45); sh.setColumnWidth(2, 240); sh.setColumnWidth(3, 120);
-  sh.setColumnWidth(4, 260); sh.setColumnWidth(5, 160);
-  sh.setFrozenRows(3);
-  SpreadsheetApp.flush();
-  return { ok: true, url: ss.getUrl() + '#gid=' + sh.getSheetId() };
 }
 
 /* ---- بيانات التواصل (الصفحة الرئيسية) ----
@@ -1416,8 +1257,6 @@ function handleRequest_(p) {
       case 'recordVisitStat': return json_(recordVisitStat_(p));
       case 'getVisitStats': return json_(getVisitStats_());
       case 'deleteVisitStat': return json_(deleteVisitStat_(p));
-      case 'updateVisitStat': return json_(updateVisitStat_(p));
-      case 'exportVisitStatsToSheet': return json_(exportVisitStatsToSheet_());
       case 'setPriceListFile': return json_(setPriceListFile_(p));
 
       case 'loginSupervision': return json_(loginSupervision_(p));

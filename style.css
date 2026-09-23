@@ -513,10 +513,3 @@ tr.vs-detail td { background: #fbf8f2; text-align: right; }
 .vs-visit { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--gold-light); font-size: 0.85rem; }
 .vs-visit:last-child { border-bottom: none; }
 .vs-del { background: none; border: 1px solid #e3b9b5; color: #b3261e; border-radius: 8px; padding: 3px 10px; font-size: 0.75rem; cursor: pointer; }
-.vs-edit { background: none; border: 1px solid var(--gold-light); color: var(--maroon); border-radius: 8px; padding: 3px 10px; font-size: 0.75rem; cursor: pointer; }
-.vs-actions { display: inline-flex; gap: 6px; flex-shrink: 0; }
-.vs-open { background: #fbeef0; border: none; color: var(--maroon); border-radius: 8px; padding: 4px 10px; font-size: 0.75rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
-.vs-missing { display: inline-block; background: #fdecea; color: #b3261e; border-radius: 999px; padding: 3px 12px; font-weight: 800; font-size: 0.78rem; white-space: nowrap; }
-tr.vs-none { cursor: default; }
-.vs-warn { display: inline-block; background: #fff4e0; color: #9a6200; border-radius: 6px; padding: 1px 6px; font-size: 0.68rem; font-weight: 600; }
-.vs-edit-note { margin-top: 10px; background: #fff8e6; border: 1px dashed var(--gold-light); color: var(--maroon-dark); border-radius: 8px; padding: 6px 10px; font-size: 0.85rem; font-weight: 700; }
