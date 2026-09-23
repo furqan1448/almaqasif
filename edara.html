@@ -134,6 +134,10 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h4"/></svg></div>
           <span class="label">تقرير الزيارة</span>
         </div>
+        <div class="icon-btn" onclick="showAdminTab('visitStatsTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><path d="M9.5 10.5l1.8 1.8 3.4-3.6"/></svg></div>
+          <span class="label">إحصائية الزيارات</span>
+        </div>
         <div class="icon-btn" onclick="showAdminTab('cardsAdminTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="7.5" cy="14" r="1"/></svg></div>
           <span class="label">بطاقات التحفيز</span>
@@ -622,6 +626,38 @@
       </div>
     </div>
 
+    <!-- ===== تبويب: إحصائية الزيارات ===== -->
+    <div id="visitStatsTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">تسجيل زيارة</h3>
+        <label>اسم المركز</label>
+        <input type="text" id="vsCenter" list="vsCentersList" placeholder="اكتبي اسم المركز" autocomplete="off">
+        <datalist id="vsCentersList"></datalist>
+        <label>الفترة</label>
+        <select id="vsPeriod">
+          <option value="صباحية">صباحية</option>
+          <option value="مسائية">مسائية</option>
+        </select>
+        <label>تاريخ الزيارة (هجري)</label>
+        <div class="vs-date">
+          <select id="vsDay"></select>
+          <select id="vsMonth"></select>
+          <select id="vsYear"></select>
+        </div>
+        <div class="vs-date-preview" id="vsDatePreview"></div>
+        <button class="btn" id="vsSaveBtn" onclick="saveVisitStat()">حفظ الزيارة</button>
+        <div class="success-msg" id="vsSuccess"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">عدد الزيارات لكل مركز</h3>
+        <div id="vsSummary">جارِ التحميل...</div>
+        <div class="export-row" style="margin-top:12px;">
+          <button class="btn outline" onclick="exportVisitStats()">⬇️ Excel</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ===== تبويب: تقرير الزيارة ===== -->
     <div id="visitReportTab" class="admin-tab-panel hidden">
       <div class="card">
@@ -1017,6 +1053,7 @@ function showAdminTab(tabId) {
   if (tabId === 'announcementsTab') { renderAnnounceTargetLists(); loadAnnouncementsAdmin(); }
   if (tabId === 'priceListTab') { loadPriceManagerSelect(); loadPriceItemsAdmin(); loadPriceListFileAdmin(); }
   if (tabId === 'visitReportTab') { initVisitReportTab_(); }
+  if (tabId === 'visitStatsTab') { initVisitStatsTab_(); }
   if (tabId === 'meetingMinutesTab') { initMeetingMinutesTab_(); renderMmTargetLists(); loadMeetingMinutesAdmin(); }
   if (tabId === 'cardsAdminTab') { loadCardsAdminOverview(); }
   if (tabId === 'gradesTab') { initGradesTab_(); }
@@ -3177,6 +3214,186 @@ function deleteMeetingMinutesRow(row) {
   callApi('deleteMeetingMinutes', { row: row }).then(function (r) {
     if (r.ok) loadMeetingMinutesAdmin();
   });
+}
+
+/* ==================== إحصائية الزيارات ==================== */
+const VS_MONTHS_ = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة',
+  'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+let vsVisits_ = [];
+
+function vsAr_(n) {
+  return String(n).replace(/[0-9]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'[d]; });
+}
+
+function vsEsc_(s) {
+  return String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+/* «٣ زيارات» بصياغة عربية سليمة */
+function vsCountLabel_(n) {
+  if (n === 1) return 'زيارة واحدة';
+  if (n === 2) return 'زيارتان';
+  if (n >= 3 && n <= 10) return vsAr_(n) + ' زيارات';
+  return vsAr_(n) + ' زيارة';
+}
+
+function vsTodayHijri_() {
+  try {
+    const parts = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', { day: 'numeric', month: 'numeric', year: 'numeric' }).formatToParts(new Date());
+    const get = function (t) { return parseInt(parts.find(function (p) { return p.type === t; }).value, 10); };
+    return { d: get('day'), m: get('month'), y: get('year') };
+  } catch (e) {
+    return { d: 1, m: 1, y: currentHijriYear() };
+  }
+}
+
+function initVisitStatsTab_() {
+  const daySel = document.getElementById('vsDay');
+  if (!daySel.dataset.ready) {
+    const t = vsTodayHijri_();
+    let h = '';
+    for (let d = 1; d <= 30; d++) h += '<option value="' + d + '"' + (d === t.d ? ' selected' : '') + '>' + vsAr_(d) + '</option>';
+    daySel.innerHTML = h;
+    document.getElementById('vsMonth').innerHTML = VS_MONTHS_.map(function (n, i) {
+      return '<option value="' + (i + 1) + '"' + (i + 1 === t.m ? ' selected' : '') + '>' + n + '</option>';
+    }).join('');
+    h = '';
+    for (let y = t.y - 1; y <= t.y + 1; y++) h += '<option value="' + y + '"' + (y === t.y ? ' selected' : '') + '>' + vsAr_(y) + '</option>';
+    document.getElementById('vsYear').innerHTML = h;
+    ['vsDay', 'vsMonth', 'vsYear'].forEach(function (id) { document.getElementById(id).addEventListener('change', vsUpdatePreview_); });
+    daySel.dataset.ready = '1';
+  }
+  vsUpdatePreview_();
+  const dl = document.getElementById('vsCentersList');
+  dl.innerHTML = (centersListCache || []).map(function (c) { return '<option value="' + vsEsc_(c) + '">'; }).join('');
+  loadVisitStats();
+}
+
+function vsSelectedDate_() {
+  const d = Number(document.getElementById('vsDay').value);
+  const m = Number(document.getElementById('vsMonth').value);
+  const y = Number(document.getElementById('vsYear').value);
+  return {
+    text: vsAr_(d) + ' ' + VS_MONTHS_[m - 1] + ' ' + vsAr_(y) + 'هـ',
+    key: y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0')
+  };
+}
+
+function vsUpdatePreview_() {
+  document.getElementById('vsDatePreview').textContent = vsSelectedDate_().text;
+}
+
+function saveVisitStat() {
+  const center = document.getElementById('vsCenter').value.replace(/\s+/g, ' ').trim();
+  if (!center) { alert('اكتبي اسم المركز'); return; }
+  const date = vsSelectedDate_();
+  const btn = document.getElementById('vsSaveBtn');
+  const msg = document.getElementById('vsSuccess');
+  msg.style.display = 'none';
+  setBtnBusy(btn, true);
+  callApi('recordVisitStat', {
+    center: center,
+    period: document.getElementById('vsPeriod').value,
+    hijriDate: date.text,
+    dateKey: date.key
+  }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) { alert('تعذّر الحفظ' + (r && r.error ? ': ' + r.error : '')); return; }
+    msg.textContent = 'تم الحفظ ✅ — ' + r.center + ': ' + vsCountLabel_(r.count);
+    msg.style.display = 'block';
+    document.getElementById('vsCenter').value = '';
+    loadVisitStats();
+  }).catch(function () {
+    setBtnBusy(btn, false);
+    alert('تعذّر الاتصال بالخادم، حاولي مرة أخرى.');
+  });
+}
+
+function loadVisitStats() {
+  const box = document.getElementById('vsSummary');
+  callApi('getVisitStats').then(function (r) {
+    if (!r || !r.ok) { box.innerHTML = 'تعذّر التحميل' + (r && r.error ? ': ' + vsEsc_(r.error) : ''); return; }
+    vsVisits_ = r.visits || [];
+    renderVisitStats_();
+  }).catch(function () { box.innerHTML = 'تعذّر الاتصال بالخادم.'; });
+}
+
+function vsGroups_() {
+  const map = {};
+  vsVisits_.forEach(function (v) {
+    if (!map[v.center]) map[v.center] = { center: v.center, visits: [], morning: 0, evening: 0 };
+    const g = map[v.center];
+    g.visits.push(v);
+    if (v.period === 'صباحية') g.morning++;
+    else if (v.period === 'مسائية') g.evening++;
+  });
+  const list = Object.keys(map).map(function (k) {
+    const g = map[k];
+    g.visits.sort(function (a, b) { return a.dateKey < b.dateKey ? 1 : (a.dateKey > b.dateKey ? -1 : 0); });
+    return g;
+  });
+  list.sort(function (a, b) { return b.visits.length - a.visits.length || (a.center < b.center ? -1 : 1); });
+  return list;
+}
+
+function renderVisitStats_() {
+  const box = document.getElementById('vsSummary');
+  const groups = vsGroups_();
+  if (!groups.length) { box.innerHTML = '<div style="color:#8a7d76;">لا توجد زيارات مسجّلة بعد.</div>'; return; }
+  let rows = '';
+  groups.forEach(function (g, i) {
+    rows += '<tr class="vs-tr" onclick="toggleVsDetail_(' + i + ')">' +
+      '<td style="text-align:right;font-weight:700;">' + vsEsc_(g.center) + '</td>' +
+      '<td><span class="vs-count">' + vsCountLabel_(g.visits.length) + '</span></td>' +
+      '<td>' + vsAr_(g.morning) + '</td>' +
+      '<td>' + vsAr_(g.evening) + '</td>' +
+      '<td>' + vsEsc_(g.visits[0].hijriDate) + '</td>' +
+      '</tr>';
+    rows += '<tr id="vsDetail_' + i + '" class="vs-detail hidden"><td colspan="5">' +
+      g.visits.map(function (v, j) {
+        return '<div class="vs-visit"><span>' + vsAr_(g.visits.length - j) + '. ' + vsEsc_(v.hijriDate) + ' — ' + vsEsc_(v.period) + '</span>' +
+          '<button class="vs-del" onclick="event.stopPropagation();deleteVisitStat(\'' + vsEsc_(v.id) + '\')">حذف</button></div>';
+      }).join('') +
+      '</td></tr>';
+  });
+  box.innerHTML = '<div class="vs-total">إجمالي الزيارات: <b>' + vsAr_(vsVisits_.length) + '</b> · عدد المراكز: <b>' + vsAr_(groups.length) + '</b></div>' +
+    '<div class="rs-scroll"><table class="log-table vs-table"><thead><tr>' +
+    '<th>المركز</th><th>عدد الزيارات</th><th>صباحية</th><th>مسائية</th><th>آخر زيارة</th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;">اضغطي على أي مركز لعرض تواريخ زياراته.</p>';
+}
+
+function toggleVsDetail_(i) {
+  const el = document.getElementById('vsDetail_' + i);
+  if (el) el.classList.toggle('hidden');
+}
+
+function deleteVisitStat(id) {
+  if (!confirm('متأكدة تبين تحذفين هذي الزيارة؟')) return;
+  callApi('deleteVisitStat', { id: id }).then(function (r) {
+    if (!r || !r.ok) { alert('تعذّر الحذف' + (r && r.error ? ': ' + r.error : '')); return; }
+    loadVisitStats();
+  });
+}
+
+function exportVisitStats() {
+  const groups = vsGroups_();
+  if (!groups.length) { alert('لا توجد زيارات للتصدير'); return; }
+  const rows = [];
+  groups.forEach(function (g) {
+    g.visits.slice().reverse().forEach(function (v, j) {
+      rows.push({
+        'المركز': g.center,
+        'رقم الزيارة': j + 1,
+        'الفترة': v.period,
+        'تاريخ الزيارة': v.hijriDate,
+        'إجمالي زيارات المركز': g.visits.length
+      });
+    });
+  });
+  exportToExcel(rows, 'إحصائية-الزيارات', 'إحصائية الزيارات');
 }
 
 /* ==================== إحصائيات التسجيل ==================== */

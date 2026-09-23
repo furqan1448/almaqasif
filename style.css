@@ -489,10 +489,27 @@ table.rs-table td { vertical-align: middle; }
 .rs-verify input { width: 22px; height: 22px; margin: 0; accent-color: var(--success); cursor: pointer; }
 .rs-verify span { display: none; }
 
-/* -------- تواصل (index.html) - شريط هادئ صغير أسفل الصفحة -------- */
-.contact-card { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--gold-light); text-align: center; }
-.contact-title { color: #8a7d76; font-size: 0.78rem; margin-bottom: 8px; }
-.contact-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 8px; }
-.contact-item { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border: 1px solid var(--gold-light); border-radius: 999px; background: transparent; color: var(--maroon); font-size: 0.78rem; font-weight: 500; text-decoration: none; transition: background .15s ease, border-color .15s ease; }
-.contact-item:hover, .contact-item:active { background: var(--cream); border-color: var(--gold); }
-.contact-item svg { opacity: 0.75; flex: 0 0 auto; }
+/* -------- تواصل (index.html) - أيقونة صغيرة بالشريط العلوي تفتح قائمة -------- */
+.contact-wrap { position: relative; }
+.contact-btn { width: 38px; height: 38px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.12); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background .15s ease; }
+.contact-btn:hover, .contact-btn:active { background: rgba(255,255,255,0.25); }
+.contact-pop { position: absolute; top: calc(100% + 10px); left: 0; min-width: 190px; background: #fff; border: 1px solid var(--gold-light); border-radius: 14px; box-shadow: 0 8px 24px rgba(60, 20, 25, 0.18); padding: 10px; z-index: 50; text-align: right; }
+.contact-pop::before { content: ''; position: absolute; top: -6px; left: 14px; width: 10px; height: 10px; background: #fff; border-left: 1px solid var(--gold-light); border-top: 1px solid var(--gold-light); transform: rotate(45deg); }
+.contact-title { color: #8a7d76; font-size: 0.75rem; font-weight: 700; padding: 2px 6px 6px; }
+.contact-list { display: flex; flex-direction: column; gap: 2px; }
+.contact-item { display: flex; align-items: center; gap: 9px; padding: 9px 8px; border-radius: 10px; color: var(--maroon); font-size: 0.88rem; font-weight: 700; text-decoration: none; }
+.contact-item:hover, .contact-item:active { background: var(--cream); }
+.contact-item svg { flex: 0 0 auto; opacity: 0.8; }
+
+/* -------- إحصائية الزيارات (edara.html) -------- */
+.vs-date { display: grid; grid-template-columns: 0.8fr 1.4fr 1fr; gap: 8px; }
+.vs-date-preview { margin-top: 8px; color: var(--maroon); font-weight: 700; font-size: 0.9rem; }
+.vs-total { font-size: 0.9rem; margin-bottom: 10px; color: var(--maroon-dark); }
+table.vs-table { min-width: 0; width: 100%; font-size: 0.85rem; }
+table.vs-table th, table.vs-table td { padding-left: 6px; padding-right: 6px; }
+tr.vs-tr { cursor: pointer; }
+tr.vs-detail td { background: #fbf8f2; text-align: right; }
+.vs-count { display: inline-block; background: #fbeef0; color: var(--maroon); border-radius: 999px; padding: 3px 12px; font-weight: 800; font-size: 0.8rem; white-space: nowrap; }
+.vs-visit { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--gold-light); font-size: 0.85rem; }
+.vs-visit:last-child { border-bottom: none; }
+.vs-del { background: none; border: 1px solid #e3b9b5; color: #b3261e; border-radius: 8px; padding: 3px 10px; font-size: 0.75rem; cursor: pointer; }

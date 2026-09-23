@@ -22,7 +22,7 @@ const ADMIN_NOTIFY_EMAIL = 'fainal.almqasif@gmail.com';
 // لما قوقل شيتس يحوّل نص التاريخ/الوقت تلقائياً إلى كائن Date داخلي.
 const TEXT_COLUMNS_ = ['اليوم', 'التاريخ', 'الوقت', 'تاريخ الإرسال', 'يوم الإرسال', 'وقت الإرسال',
   'يوم اطلاع الإدارة', 'تاريخ اطلاع الإدارة', 'وقت اطلاع الإدارة', 'تاريخ توقيع الإدارة',
-  'رقم الفاتورة', 'العام', 'وقت التسجيل الفعلي', 'يوم الاجتماع', 'تاريخ الاجتماع الهجري', 'رقم الاجتماع'];
+  'رقم الفاتورة', 'العام', 'وقت التسجيل الفعلي', 'التاريخ الهجري', 'مفتاح التاريخ', 'يوم الاجتماع', 'تاريخ الاجتماع الهجري', 'رقم الاجتماع'];
 
 function setup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -68,7 +68,9 @@ function setup() {
     // درجات المسؤولات: تقييم نهاية الفصل من 13 (يدوي من لوحة الإدارة) - صف لكل (فصل + مسؤولة)
     'درجات المسؤولات': GRADES_HEADERS_,
     // اعتماد اكتمال التسجيل: صح يدوي من الإدارة لكل مركز (للفصل الحالي - يتفرّغ عند الأرشفة)
-    'اعتماد التسجيل': REG_VERIFY_HEADERS_
+    'اعتماد التسجيل': REG_VERIFY_HEADERS_,
+    // إحصائية الزيارات: كل سطر زيارة وحدة (المركز + الفترة + التاريخ الهجري)
+    'إحصائية الزيارات': VISIT_STATS_HEADERS_
   };
 
   Object.keys(sheets).forEach(function (name) {
@@ -560,6 +562,91 @@ function setPriceListManager_(p) {
 }
 
 /* -------- ملف/رابط قائمة الأسعار (يظهر للجميع، الإدارة فقط تضيفه/تعدّله) -------- */
+/* ------------------- إحصائية الزيارات (لوحة الإدارة) -------------------
+   الإدارة تسجّل كل زيارة: اسم المركز + الفترة (صباحية/مسائية) + تاريخ الزيارة الهجري،
+   والنظام يعدّ عدد الزيارات لكل مركز. «مفتاح التاريخ» (1448-03-15) للترتيب فقط. */
+const VISIT_STATS_SHEET_ = 'إحصائية الزيارات';
+const VISIT_STATS_HEADERS_ = ['معرف', 'اسم المركز', 'الفترة', 'التاريخ الهجري', 'مفتاح التاريخ', 'اليوم', 'التاريخ', 'الوقت'];
+
+function visitStatsSheet_() {
+  let sh = sheet_(VISIT_STATS_SHEET_);
+  if (!sh) {
+    sh = SpreadsheetApp.getActiveSpreadsheet().insertSheet(VISIT_STATS_SHEET_);
+    sh.getRange(1, 1, 1, VISIT_STATS_HEADERS_.length).setValues([VISIT_STATS_HEADERS_]);
+    sh.getRange(2, 1, sh.getMaxRows() - 1, VISIT_STATS_HEADERS_.length).setNumberFormat('@');
+  }
+  return sh;
+}
+
+function visitCenterKey_(name) {
+  return String(name || '').replace(/\s+/g, ' ').trim();
+}
+
+function recordVisitStat_(p) {
+  const center = visitCenterKey_(p.center);
+  if (!center) return { ok: false, error: 'اسم المركز مطلوب' };
+  if (!p.hijriDate) return { ok: false, error: 'تاريخ الزيارة مطلوب' };
+  const sh = visitStatsSheet_();
+  const id = Utilities.getUuid();
+  const now = nowParts_();
+  appendRowByHeaders_(sh, {
+    'معرف': id, 'اسم المركز': center, 'الفترة': p.period || '',
+    'التاريخ الهجري': p.hijriDate, 'مفتاح التاريخ': p.dateKey || '',
+    'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
+  });
+  invalidateCache_(VISIT_STATS_SHEET_);
+  const count = sheetToObjects_(VISIT_STATS_SHEET_).filter(function (r) {
+    return visitCenterKey_(r['اسم المركز']) === center;
+  }).length;
+  return { ok: true, id: id, center: center, count: count };
+}
+
+function getVisitStats_() {
+  if (!sheet_(VISIT_STATS_SHEET_)) return { ok: true, visits: [] };
+  const visits = sheetToObjects_(VISIT_STATS_SHEET_).filter(function (r) {
+    return visitCenterKey_(r['اسم المركز']);
+  }).map(function (r) {
+    return {
+      id: r['معرف'], row: r._row, center: visitCenterKey_(r['اسم المركز']),
+      period: String(r['الفترة'] || ''), hijriDate: String(r['التاريخ الهجري'] || ''),
+      dateKey: String(r['مفتاح التاريخ'] || '')
+    };
+  });
+  return { ok: true, visits: visits };
+}
+
+function deleteVisitStat_(p) {
+  const sh = sheet_(VISIT_STATS_SHEET_);
+  if (!sh) return { ok: false, error: 'الشيت غير موجود' };
+  const rows = sheetToObjects_(VISIT_STATS_SHEET_);
+  const target = rows.find(function (r) { return String(r['معرف']) === String(p.id); });
+  if (!target) return { ok: false, error: 'السجل غير موجود' };
+  sh.deleteRow(target._row);
+  invalidateCache_(VISIT_STATS_SHEET_);
+  return { ok: true };
+}
+
+/* ---- بيانات التواصل (الصفحة الرئيسية) ----
+   تنحفظ بشيت «الإعدادات» بدل ملفات الموقع، عشان ما تظهر بمستودع GitHub.
+   أضيفي بشيت الإعدادات 3 صفوف (عمود المفتاح بالضبط كذا):
+     تواصل - جوال رئيسة الوحدة
+     تواصل - جوال مساعدة الوحدة
+     تواصل - إيميل الوحدة */
+function contactPhone_(v) {
+  let d = String(v || '').replace(/\D/g, '');
+  if (d.length === 9 && d.charAt(0) === '5') d = '0' + d;   // قوقل شيتس يحذف الصفر اللي بالبداية
+  return d;
+}
+
+function getContacts_() {
+  return {
+    ok: true,
+    headPhone: contactPhone_(getSettingValue_('تواصل - جوال رئيسة الوحدة')),
+    assistantPhone: contactPhone_(getSettingValue_('تواصل - جوال مساعدة الوحدة')),
+    unitEmail: getSettingValue_('تواصل - إيميل الوحدة')
+  };
+}
+
 function getPriceListFile_() {
   return {
     ok: true,
@@ -1166,6 +1253,10 @@ function handleRequest_(p) {
       case 'setPriceListManager': return json_(setPriceListManager_(p));
 
       case 'getPriceListFile': return json_(getPriceListFile_());
+      case 'getContacts': return json_(getContacts_());
+      case 'recordVisitStat': return json_(recordVisitStat_(p));
+      case 'getVisitStats': return json_(getVisitStats_());
+      case 'deleteVisitStat': return json_(deleteVisitStat_(p));
       case 'setPriceListFile': return json_(setPriceListFile_(p));
 
       case 'loginSupervision': return json_(loginSupervision_(p));
