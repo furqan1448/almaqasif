@@ -488,6 +488,15 @@ table.rs-table td { vertical-align: middle; }
 .rs-verify { display: inline-flex; align-items: center; justify-content: center; margin: 0; cursor: pointer; }
 .rs-verify input { width: 22px; height: 22px; margin: 0; accent-color: var(--success); cursor: pointer; }
 .rs-verify span { display: none; }
+.rs-search-wrap { margin-bottom: 10px; }
+.rs-search { width: 100%; box-sizing: border-box; padding: 11px 14px; border: 1.5px solid var(--gold-light); border-radius: 12px; font-family: inherit; font-size: 0.95rem; background: #fff; }
+.rs-search:focus { outline: none; border-color: var(--maroon); }
+.rs-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.rs-filter { background: #fff; border: 1px solid var(--gold-light); color: var(--ink); border-radius: 999px; padding: 5px 12px; font-family: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+.rs-filter.active { background: var(--maroon); border-color: var(--maroon); color: #fff; }
+.rs-fcount { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--cream); color: var(--maroon-dark); font-size: 0.7rem; margin-right: 3px; }
+.rs-filter.active .rs-fcount { background: rgba(255,255,255,0.25); color: #fff; }
+.rs-shown { font-size: 0.78rem; color: #8a7d76; margin-bottom: 8px; }
 
 /* -------- تواصل (index.html) - أيقونة صغيرة بالشريط العلوي تفتح قائمة -------- */
 .contact-wrap { position: relative; }
