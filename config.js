@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbyWbXWj7JqInNNxBkJecHPqtLBs_ZwbzIPeF7gDGbjiQ5Z4fIC4qaBRnOkraKSrkYKO/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwRDCrnPq68EexCvMZcATvGcav9BxsSWA8YYMRuYYxWDJrXkzRC3uAThA4mf1Gznt18/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -1739,9 +1739,9 @@ function buildNoticesTotalsBar_(list) {
 /* -------- تصدير إشعارات الاستلام/التسليم (الإدارة والإشراف) إلى Excel أو Google Sheet --------
    يصدّر الإشعارات المعروضة حالياً (حسب فلتر النوع والمركز والفصل): صف لكل إشعار،
    وتحتها إجمالي كل نوع (استلام / تسليم) ثم الإجمالي العام. */
-function getAdminNoticeExportRows_() {
-  const typeFilter = document.getElementById('noticeTypeFilter').value;
-  const centerFilter = document.getElementById('noticeCenterFilter').value;
+function getAdminNoticeExportRows_(ignoreFilters) {
+  const typeFilter = ignoreFilters ? '' : document.getElementById('noticeTypeFilter').value;
+  const centerFilter = ignoreFilters ? '' : document.getElementById('noticeCenterFilter').value;
   const all = (allNoticesPending || []).concat(allNoticesDone || []).filter(function (n) {
     return (!typeFilter || n['النوع'] === typeFilter) &&
       (!centerFilter || String(n['اسم المركز']).trim() === centerFilter);
@@ -1795,15 +1795,15 @@ async function exportAdminNoticesExcel() {
 }
 
 async function exportAdminNoticesGoogleSheet(btn) {
-  const info = getAdminNoticeExportRows_();
+  // الشيت واحد ثابت: يحتوي كل الإشعارات المحمّلة (بدون فلتر النوع/المركز) ويتحدّث بكل تصدير
+  const info = getAdminNoticeExportRows_(true);
   if (!info.rows.length) { alert('لا توجد إشعارات لتصديرها'); return; }
   // نفتح تبويب فاضي فوراً (قبل الانتظار) عشان المتصفح ما يحجبه
   const win = window.open('', '_blank');
   const oldText = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = 'جاري إنشاء الشيت...'; }
   try {
-    const title = 'إشعارات ' + (info.typeFilter || 'الاستلام والتسليم') + ' - ' + (info.centerFilter || 'كل المراكز');
-    const res = await callApi('exportNoticesToSheet', { title: title, rows: info.rows });
+    const res = await callApi('exportNoticesToSheet', { rows: info.rows });
     if (!res || !res.ok) throw new Error((res && res.error) || 'تعذر إنشاء الشيت');
     if (win) win.location.href = res.url; else window.location.href = res.url;
   } catch (e) {
