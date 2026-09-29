@@ -1523,6 +1523,8 @@ function renderNoticeLists() {
     pendingBox.innerHTML = '<p style="color:#8a7d76;">لا توجد إشعارات بانتظار الاطلاع</p>';
   } else {
     pendingBox.innerHTML = '';
+    const pendingBoxTotals = buildNoticesTotalsBar_(pendingFiltered);
+    if (pendingBoxTotals) pendingBox.appendChild(pendingBoxTotals);
     pendingFiltered.forEach(function (n) {
       pendingBox.appendChild(buildNoticeRow_(n, true));
     });
@@ -1533,6 +1535,8 @@ function renderNoticeLists() {
     doneBox.innerHTML = '<p style="color:#8a7d76;">لا توجد إشعارات تم الاطلاع عليها بعد</p>';
   } else {
     doneBox.innerHTML = '';
+    const doneBoxTotals = buildNoticesTotalsBar_(doneFiltered);
+    if (doneBoxTotals) doneBox.appendChild(doneBoxTotals);
     doneFiltered.forEach(function (n) {
       doneBox.appendChild(buildNoticeRow_(n, false));
     });

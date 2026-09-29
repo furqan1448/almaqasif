@@ -1713,3 +1713,24 @@ function getSignatureDataUrl(id) {
   } catch (e) { /* لو ما قدرنا نقص التوقيع نرجع الصورة كاملة */ }
   return canvas.toDataURL('image/png');
 }
+
+/* -------- شريط إجمالي مبالغ الإشعارات (استلام / تسليم) --------
+   list: مصفوفة إشعارات (كل إشعار فيه 'النوع' و 'المبلغ') - يرجّع عنصر HTML جاهز أو null لو القائمة فاضية */
+function buildNoticesTotalsBar_(list) {
+  if (!list || !list.length) return null;
+  const t = { 'استلام': { sum: 0, n: 0 }, 'تسليم': { sum: 0, n: 0 } };
+  list.forEach(function (n) {
+    const k = n['النوع'] === 'تسليم' ? 'تسليم' : 'استلام';
+    t[k].sum += Number(n['المبلغ']) || 0;
+    t[k].n += 1;
+  });
+  const parts = [];
+  ['استلام', 'تسليم'].forEach(function (k) {
+    if (t[k].n) parts.push('<span>إجمالي ' + k + ' (' + t[k].n + '): <b>' + t[k].sum.toFixed(2) + ' ريال</b></span>');
+  });
+  const bar = document.createElement('div');
+  bar.className = 'notices-total-bar';
+  bar.style.cssText = 'display:flex;gap:18px;flex-wrap:wrap;background:#f6efe2;border:1px solid #C2AA85;border-radius:10px;padding:10px 14px;margin:10px 0;color:#6e1523;font-size:0.92rem;';
+  bar.innerHTML = parts.join('');
+  return bar;
+}
