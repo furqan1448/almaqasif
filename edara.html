@@ -902,21 +902,23 @@
     <!-- ===== تبويب: بطاقات التحفيز (نظرة الإدارة) ===== -->
     <div id="cardsAdminTab" class="admin-tab-panel hidden">
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">تسجيل تسليم بطاقة تحفيز - نيابةً عن المديرة/المسؤولة</h3>
-        <p style="font-size:0.85rem;color:#8a7d76;margin-top:0;">للاستخدام عند عدم تسجيل الاستلام من قبل المديرة أو المسؤولة. يُسجَّل بنفس السجل ويظهر عندهن، ويُعلَّم بأنه «سُجّل من الإدارة».</p>
+        <h3 style="margin-top:0;color:var(--maroon);">تسجيل بطاقة تحفيز - نيابةً عن المديرة/المسؤولة</h3>
+        <p style="font-size:0.85rem;color:#8a7d76;margin-top:0;">للاستخدام عند عدم التسجيل من قبل المديرة أو المسؤولة (استلام من الإدارة، أو تسليم لمنسوبة). يُسجَّل بنفس السجل ويظهر عندهن، ويُعلَّم بأنه «سُجّل من الإدارة».</p>
+        <label>نوع السجل</label>
+        <select id="adCardKind" onchange="onAdCardKindChange_()"><option value="استلام">استلام (المديرة/المسؤولة استلمت البطاقات)</option><option value="تسليم">تسليم (المديرة/المسؤولة سلّمت لمنسوبة)</option></select>
         <div class="select-row">
           <div><label>المركز</label><select id="adCardCenter"><option value="">اختاري المركز</option></select></div>
           <div><label>الصفة</label>
             <select id="adCardRole"><option value="مديرة المركز">مديرة المركز</option><option value="مسؤولة المقصف">مسؤولة المقصف</option></select>
           </div>
         </div>
-        <label>البطاقات المستلَمة (يمكن إضافة أكثر من نوع/قيمة بنفس التسجيل)</label>
+        <label id="adCardLinesLabel">البطاقات المستلَمة (يمكن إضافة أكثر من نوع/قيمة بنفس التسجيل)</label>
         <div id="adLinesList"></div>
         <button type="button" class="btn outline" onclick="addAdCardLine_()" style="width:auto;padding:6px 14px;margin:4px 0 12px;">+ إضافة نوع/قيمة أخرى</button>
-        <label>اسم المستلمة</label>
+        <label id="adCardRecipientLabel">اسم المستلمة</label>
         <input type="text" id="adCardRecipient" placeholder="اسم المستلمة">
         <label>ملاحظات</label>
-        <textarea id="adCardNotes" rows="3" placeholder="مثال: لم يتم التسجيل من قبل المديرة، وسُجّل من الإدارة بناءً على الاستلام الفعلي"></textarea>
+        <textarea id="adCardNotes" rows="3" placeholder="مثال: لم يتم التسجيل من قبل المديرة/المسؤولة، وسُجّل من الإدارة بناءً على الاستلام/التسليم الفعلي"></textarea>
         <label>التوقيع (اختياري)</label>
         <div class="sig-mode-toggle">
           <button type="button" class="sig-mode-btn active" data-sigtoggle="adCardSig" data-mode="draw" onclick="setSigMode('adCardSig','draw')">رسم التوقيع</button>
@@ -940,6 +942,13 @@
         <table class="log-table" id="cardsManagersTable">
           <thead><tr><th>المركز</th><th>الصفة</th><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th><th>التوقيع</th><th>ملاحظات</th></tr></thead>
           <tbody id="cardsManagersTbody"><tr><td colspan="10">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">سجل التسليم للمنسوبات</h3>
+        <table class="log-table" id="cardsDeliveriesTable">
+          <thead><tr><th>المركز</th><th>الصفة</th><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th><th>التوقيع</th><th>ملاحظات</th></tr></thead>
+          <tbody id="cardsDeliveriesTbody"><tr><td colspan="10">جاري التحميل...</td></tr></tbody>
         </table>
       </div>
       <div class="card">
@@ -1128,6 +1137,44 @@ function readAdCardLines_() {
   }).filter(function (l) { return l.qty > 0; });
 }
 
+function onAdCardKindChange_() {
+  const isDelivery = document.getElementById('adCardKind').value === 'تسليم';
+  document.getElementById('adCardLinesLabel').textContent = isDelivery
+    ? 'البطاقات المسلَّمة (يمكن إضافة أكثر من نوع/قيمة بنفس التسجيل)'
+    : 'البطاقات المستلَمة (يمكن إضافة أكثر من نوع/قيمة بنفس التسجيل)';
+  document.getElementById('adCardRecipientLabel').textContent = isDelivery ? 'اسم المنسوبة المستلمة للبطاقة' : 'اسم المستلمة';
+  document.getElementById('adCardRecipient').placeholder = isDelivery ? 'اسم المنسوبة' : 'اسم المستلمة';
+}
+
+function adCardRowHtml_(row) {
+  const adminBadge = row['سجّل بواسطة'] === 'الإدارة' ? '<div style="color:var(--maroon);font-weight:700;font-size:0.8rem;">سُجّل من الإدارة</div>' : '';
+  const sigCell = row['التوقيع'] ? '<img src="' + row['التوقيع'] + '" alt="توقيع" style="max-width:70px;max-height:36px;">' : '<span style="color:#8a7d76;font-size:0.8rem;">بدون توقيع</span>';
+  return '<td>' + (row['اسم المركز'] || '') + '</td><td>' + (row['الدور'] || '') + '</td><td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + sigCell + '</td><td>' + adminBadge + adCardEsc_(row['ملاحظات']) + '</td>';
+}
+
+function adminAddSplit_(parentId, card) {
+  const name = card.querySelector('.ad-split-name').value.trim();
+  const qty = Number(card.querySelector('.ad-split-qty').value) || 0;
+  const status = card.querySelector('.ad-split-status').value;
+  if (!name) { alert('اكتبي اسم المستفيدة'); return; }
+  if (qty < 1) { alert('اكتبي العدد'); return; }
+  const btn = card.querySelector('.ad-split-add');
+  setBtnBusy(btn, true);
+  callApi('addIncentiveFollowupSplit', { parentId: parentId, beneficiaryName: name, qty: qty, status: status }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r.ok) { alert(r.error || 'تعذر الحفظ'); return; }
+    loadCardsAdminOverview();
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+function adminDeleteSplit_(splitId) {
+  if (!confirm('حذف هذا السطر من متابعة الصرف؟')) return;
+  callApi('deleteIncentiveFollowupSplit', { id: splitId }).then(function (r) {
+    if (!r.ok) { alert(r.error || 'تعذر الحذف'); return; }
+    loadCardsAdminOverview();
+  });
+}
+
 function fillAdCardCenters_() {
   const sel = document.getElementById('adCardCenter');
   const keep = sel.value;
@@ -1166,6 +1213,7 @@ function adCardSigBlank_() {
 function submitAdminCardEntry() {
   const center = document.getElementById('adCardCenter').value;
   const role = document.getElementById('adCardRole').value;
+  const kind = document.getElementById('adCardKind').value;
   const lines = readAdCardLines_();
   const recipient = document.getElementById('adCardRecipient').value.trim();
   const notes = document.getElementById('adCardNotes').value.trim();
@@ -1177,7 +1225,7 @@ function submitAdminCardEntry() {
   setBtnBusy(btn, true);
   Promise.all(lines.map(function (l) {
     return callApi('recordIncentiveEntry', {
-      center: center, role: role, kind: 'استلام', category: l.category, price: l.price,
+      center: center, role: role, kind: kind, category: l.category, price: l.price,
       qty: l.qty, recipientName: recipient, signature: sig, notes: notes, byAdmin: true
     });
   })).then(function (results) {
@@ -1220,10 +1268,18 @@ function loadCardsAdminOverview() {
     if (!managerEntries.length) { managersTbody.innerHTML = '<tr><td colspan="10">لا يوجد بيانات</td></tr>'; }
     managerEntries.forEach(function (row) {
       const tr = document.createElement('tr');
-      const adminBadge = row['سجّل بواسطة'] === 'الإدارة' ? '<div style="color:var(--maroon);font-weight:700;font-size:0.8rem;">سُجّل من الإدارة</div>' : '';
-      const sigCell = row['التوقيع'] ? '<img src="' + row['التوقيع'] + '" alt="توقيع" style="max-width:70px;max-height:36px;">' : '<span style="color:#8a7d76;font-size:0.8rem;">بدون توقيع</span>';
-      tr.innerHTML = '<td>' + (row['اسم المركز'] || '') + '</td><td>' + (row['الدور'] || '') + '</td><td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + sigCell + '</td><td>' + adminBadge + adCardEsc_(row['ملاحظات']) + '</td>';
+      tr.innerHTML = adCardRowHtml_(row);
       managersTbody.appendChild(tr);
+    });
+
+    // -------- جدول سجل التسليم للمنسوبات (نفس جدول المديرة/المسؤولة) --------
+    const deliveriesTbody = document.getElementById('cardsDeliveriesTbody');
+    deliveriesTbody.innerHTML = '';
+    if (!entries.length) { deliveriesTbody.innerHTML = '<tr><td colspan="10">لا يوجد بيانات</td></tr>'; }
+    entries.forEach(function (row) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = adCardRowHtml_(row);
+      deliveriesTbody.appendChild(tr);
     });
 
     // -------- إجمالي بطاقات كل مديرة/مسؤولة (مجمّعة حسب المركز + الصفة) --------
@@ -1288,9 +1344,9 @@ function loadCardsAdminOverview() {
       card.className = 'card';
       let splitsHtml = '';
       if (mySplits.length) {
-        splitsHtml = '<table class="log-table" style="margin-top:10px;"><thead><tr><th>اسم المستفيدة</th><th>العدد</th><th>الحالة</th><th>التاريخ</th></tr></thead><tbody>' +
+        splitsHtml = '<table class="log-table" style="margin-top:10px;"><thead><tr><th>اسم المستفيدة</th><th>العدد</th><th>الحالة</th><th>التاريخ</th><th></th></tr></thead><tbody>' +
           mySplits.map(function (s) {
-            return '<tr><td>' + (s['اسم المستفيدة'] || '') + '</td><td>' + (s['العدد'] || '') + '</td><td>' + (s['الحالة'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td></tr>';
+            return '<tr><td>' + (s['اسم المستفيدة'] || '') + '</td><td>' + (s['العدد'] || '') + '</td><td>' + (s['الحالة'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td><td><button type="button" class="btn outline" style="width:auto;padding:4px 10px;" onclick="adminDeleteSplit_(\'' + s['معرف'] + '\')">حذف</button></td></tr>';
           }).join('') + '</tbody></table>';
       } else {
         splitsHtml = '<p style="color:#8a7d76;font-size:0.85rem;margin:8px 0 0;">ما فيه توزيعات مسجّلة بعد لهذا السطر</p>';
@@ -1300,7 +1356,16 @@ function loadCardsAdminOverview() {
           '<strong style="color:var(--maroon);">' + (entry['اسم المركز'] || '') + ' - اسم المستلمة: ' + (entry['اسم المستلمة'] || '') + '</strong>' +
           '<span style="color:#8a7d76;font-size:0.85rem;">' + (entry['نوع البطاقة'] || '') + ' - ' + cardPriceLabel_(entry['القيمة']) + ' - الكمية الإجمالية: ' + total + ' - المتبقي: ' + remaining + '</span>' +
         '</div>' +
-        splitsHtml;
+        (entry['سجّل بواسطة'] === 'الإدارة' ? '<div style="color:var(--maroon);font-weight:700;font-size:0.8rem;margin-top:4px;">سُجّل من الإدارة</div>' : '') +
+        (entry['ملاحظات'] ? '<div style="color:#8a7d76;font-size:0.85rem;margin-top:4px;">ملاحظات: ' + adCardEsc_(entry['ملاحظات']) + '</div>' : '') +
+        splitsHtml +
+        '<div class="select-row" style="margin-top:10px;align-items:flex-end;">' +
+          '<div><label>اسم المستفيدة</label><input type="text" class="ad-split-name" placeholder="الاسم"></div>' +
+          '<div><label>العدد</label><input type="text" inputmode="numeric" pattern="[0-9]*" class="ad-split-qty" placeholder="العدد"></div>' +
+          '<div><label>الحالة</label><select class="ad-split-status"><option value="تم استبدال القيمة">تم استبدال القيمة</option><option value="تم إرجاع البطاقة">تم إرجاع البطاقة</option></select></div>' +
+          '<div><button type="button" class="btn ad-split-add" style="width:auto;padding:8px 14px;">إضافة</button></div>' +
+        '</div>';
+      card.querySelector('.ad-split-add').addEventListener('click', function () { adminAddSplit_(parentId, card); });
       groupsWrap.appendChild(card);
     });
   });

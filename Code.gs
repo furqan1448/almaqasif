@@ -1714,7 +1714,8 @@ function recordIncentiveEntry_(p) {
   if (!p.signature && !byAdmin) return { ok: false, error: 'لازم التوقيع' };
   // البطاقة اللي اتحسمت (سواء بالاستبدال أو بالإرجاع) ترجع متاحة من جديد لمنسوبة ثانية -
   // فالمتاح للتسليم = المستلَم - (المسلَّم كله - المحسوم منه عن طريق المتابعة)
-  if (p.kind === 'تسليم') {
+  // تسجيل الإدارة نيابةً عن المديرة/المسؤولة يتجاوز فحص الكمية المتاحة (لأن الاستلام ممكن ما يكون مسجّل أصلاً)
+  if (p.kind === 'تسليم' && !byAdmin) {
     const allRows = sheetToObjects_('بطاقات التحفيز');
     const centerRows = allRows.filter(function (r) {
       return String(r['اسم المركز']).trim() === String(p.center).trim() && r['نوع البطاقة'] === category && Number(r['القيمة']) === price;
