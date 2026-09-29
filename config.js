@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbyHBNwHmEQecCH0-0K9Bu_hk4_nqTgN8KgQdyjrw0GiUzhoMMTyB_sH_8BvtxDCI4hQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwRDCrnPq68EexCvMZcATvGcav9BxsSWA8YYMRuYYxWDJrXkzRC3uAThA4mf1Gznt18/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -1735,35 +1735,45 @@ function buildNoticesTotalsBar_(list) {
   return bar;
 }
 
-/* -------- تصدير إشعارات الاستلام/التسليم (الإدارة والإشراف) إلى Excel --------
+
+/* -------- تصدير إشعارات الاستلام/التسليم (الإدارة والإشراف) إلى Excel أو Google Sheet --------
    يصدّر الإشعارات المعروضة حالياً (حسب فلتر النوع والمركز والفصل): صف لكل إشعار،
    وتحتها إجمالي كل نوع (استلام / تسليم) ثم الإجمالي العام. */
-async function exportAdminNoticesExcel() {
+function getAdminNoticeExportRows_() {
   const typeFilter = document.getElementById('noticeTypeFilter').value;
   const centerFilter = document.getElementById('noticeCenterFilter').value;
   const all = (allNoticesPending || []).concat(allNoticesDone || []).filter(function (n) {
     return (!typeFilter || n['النوع'] === typeFilter) &&
       (!centerFilter || String(n['اسم المركز']).trim() === centerFilter);
   });
-  if (!all.length) { alert('لا توجد إشعارات لتصديرها'); return; }
   all.sort(function (a, b) {
     return String(a['اسم المركز']).localeCompare(String(b['اسم المركز']), 'ar') ||
       String(a['النوع']).localeCompare(String(b['النوع']), 'ar');
   });
   const rows = all.map(function (n) {
     const done = n['الحالة'] === 'تم الاطلاع';
-    return {
-      'المركز': String(n['اسم المركز'] || '').trim(),
-      'النوع': n['النوع'] || '',
-      'المبلغ': Number(n['المبلغ']) || 0,
-      'اليوم': n['يوم الإرسال'] || '',
-      'التاريخ': (typeof toHijriStr === 'function') ? toHijriStr(n['تاريخ الإرسال']) : n['تاريخ الإرسال'],
-      'الحالة': done ? 'تم الاطلاع' : 'بانتظار الاطلاع'
-    };
+    return [
+      String(n['اسم المركز'] || '').trim(),
+      n['النوع'] || '',
+      Number(n['المبلغ']) || 0,
+      n['يوم الإرسال'] || '',
+      (typeof toHijriStr === 'function') ? toHijriStr(n['تاريخ الإرسال']) : n['تاريخ الإرسال'],
+      done ? 'تم الاطلاع' : 'بانتظار الاطلاع'
+    ];
+  });
+  return { rows: rows, typeFilter: typeFilter, centerFilter: centerFilter };
+}
+
+async function exportAdminNoticesExcel() {
+  const info = getAdminNoticeExportRows_();
+  if (!info.rows.length) { alert('لا توجد إشعارات لتصديرها'); return; }
+  const H = ['المركز', 'النوع', 'المبلغ', 'اليوم', 'التاريخ', 'الحالة'];
+  const rows = info.rows.map(function (r) {
+    const o = {}; H.forEach(function (h, i) { o[h] = r[i]; }); return o;
   });
   function blankRow(label, amount) {
     const r = {};
-    Object.keys(rows[0]).forEach(function (k) { r[k] = ''; });
+    H.forEach(function (k) { r[k] = ''; });
     r['المركز'] = label;
     r['المبلغ'] = amount;
     return r;
@@ -1781,5 +1791,25 @@ async function exportAdminNoticesExcel() {
   const wb = XLSX.utils.book_new();
   wb.Workbook = { Views: [{ RTL: true }] };
   XLSX.utils.book_append_sheet(wb, ws, 'الإشعارات');
-  XLSX.writeFile(wb, 'إشعارات-' + (centerFilter || 'كل-المراكز') + (typeFilter ? '-' + typeFilter : '') + '.xlsx');
+  XLSX.writeFile(wb, 'إشعارات-' + (info.centerFilter || 'كل-المراكز') + (info.typeFilter ? '-' + info.typeFilter : '') + '.xlsx');
+}
+
+async function exportAdminNoticesGoogleSheet(btn) {
+  const info = getAdminNoticeExportRows_();
+  if (!info.rows.length) { alert('لا توجد إشعارات لتصديرها'); return; }
+  // نفتح تبويب فاضي فوراً (قبل الانتظار) عشان المتصفح ما يحجبه
+  const win = window.open('', '_blank');
+  const oldText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'جاري إنشاء الشيت...'; }
+  try {
+    const title = 'إشعارات ' + (info.typeFilter || 'الاستلام والتسليم') + ' - ' + (info.centerFilter || 'كل المراكز');
+    const res = await callApi('exportNoticesToSheet', { title: title, rows: info.rows });
+    if (!res || !res.ok) throw new Error((res && res.error) || 'تعذر إنشاء الشيت');
+    if (win) win.location.href = res.url; else window.location.href = res.url;
+  } catch (e) {
+    if (win) win.close();
+    alert('تعذر إنشاء Google Sheet: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = oldText; }
+  }
 }

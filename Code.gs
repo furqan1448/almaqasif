@@ -1219,6 +1219,7 @@ function handleRequest_(p) {
       case 'getNoticeAdminSignature': return json_(getNoticeAdminSignature_(p));
       case 'updateNotice': return json_(updateNotice_(p));
       case 'deleteNotice': return json_(deleteNotice_(p));
+      case 'exportNoticesToSheet': return json_(exportNoticesToSheet_(p));
 
       case 'getStats': return json_(getStats_());
       case 'getRegistrationStats': return json_(getRegistrationStats_(p));
@@ -1280,6 +1281,61 @@ function handleRequest_(p) {
   } catch (err) {
     return json_({ ok: false, error: err.message });
   }
+}
+
+/* تصدير إشعارات الاستلام/التسليم إلى Google Sheet جديد (للإدارة والإشراف).
+   p.rows: مصفوفة صفوف [المركز, النوع, المبلغ, اليوم, التاريخ, الحالة].
+   الإجماليات تنكتب كمعادلات (SUMIF / SUM) فتتحدّث لو عدّلتي أي مبلغ داخل الشيت. */
+function exportNoticesToSheet_(p) {
+  const rows = Array.isArray(p.rows) ? p.rows : [];
+  if (!rows.length) return { ok: false, error: 'لا توجد إشعارات للتصدير' };
+  if (rows.length > 5000) return { ok: false, error: 'عدد الإشعارات كبير جداً للتصدير' };
+
+  const headers = ['المركز', 'النوع', 'المبلغ', 'اليوم', 'التاريخ', 'الحالة'];
+  const data = rows.map(function (r) {
+    return [centerDisplay_(String(r[0] || '').trim()), String(r[1] || ''), Number(r[2]) || 0,
+            String(r[3] || ''), String(r[4] || ''), String(r[5] || '')];
+  });
+
+  const title = safeName_(p.title || 'إشعارات الاستلام والتسليم');
+  const ss = SpreadsheetApp.create(title);
+  const sh = ss.getSheets()[0];
+  sh.setName('الإشعارات');
+  sh.setRightToLeft(true);
+
+  const n = data.length;
+  const last = n + 1;
+  sh.getRange(2, 5, n, 1).setNumberFormat('@');           // التاريخ نص عشان ما يتحول لتاريخ ميلادي
+  sh.getRange(1, 1, 1, 6).setValues([headers])
+    .setFontWeight('bold').setBackground('#6e1523').setFontColor('#ffffff').setHorizontalAlignment('center');
+  sh.getRange(2, 1, n, 6).setValues(data);
+  sh.getRange(2, 3, n, 1).setNumberFormat('#,##0.00');
+
+  // صفوف الإجماليات
+  let r = last + 2;
+  const types = ['استلام', 'تسليم'].filter(function (t) { return data.some(function (d) { return d[1] === t; }); });
+  if (types.length > 1) {
+    types.forEach(function (t) {
+      sh.getRange(r, 1).setValue('إجمالي ' + t);
+      sh.getRange(r, 3).setFormula('=SUMIF($B$2:$B$' + last + ',"' + t + '",$C$2:$C$' + last + ')');
+      r++;
+    });
+  }
+  sh.getRange(r, 1).setValue('إجمالي المبالغ');
+  sh.getRange(r, 3).setFormula('=SUM($C$2:$C$' + last + ')');
+  const totalsFrom = last + 2;
+  sh.getRange(totalsFrom, 1, r - totalsFrom + 1, 6).setFontWeight('bold').setBackground('#f6efe2');
+  sh.getRange(totalsFrom, 3, r - totalsFrom + 1, 1).setNumberFormat('#,##0.00');
+
+  sh.setFrozenRows(1);
+  sh.autoResizeColumns(1, 6);
+  SpreadsheetApp.flush();
+
+  // ننقل الملف لمجلد النظام وننشئ رابط عرض (نفس أسلوب مرفقات النظام الأخرى)
+  const file = DriveApp.getFileById(ss.getId());
+  file.moveTo(getOrCreateSubFolder_(['تقارير الإشعارات']));
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return { ok: true, url: ss.getUrl() };
 }
 
 /* ------------------- المراكز والمسؤولات: تسجيل الدخول ------------------- */
