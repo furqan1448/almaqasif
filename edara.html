@@ -919,7 +919,7 @@
         <input type="text" id="adCardRecipient" placeholder="اسم المستلمة">
         <label>ملاحظات</label>
         <textarea id="adCardNotes" rows="3" placeholder="مثال: لم يتم التسجيل من قبل المديرة/المسؤولة، وسُجّل من الإدارة بناءً على الاستلام/التسليم الفعلي"></textarea>
-        <label>التوقيع (اختياري)</label>
+        <label>التوقيع (اختياري - اتركيه فاضي لتقرّ وتوقّع المديرة/المسؤولة بنفسها عندها)</label>
         <div class="sig-mode-toggle">
           <button type="button" class="sig-mode-btn active" data-sigtoggle="adCardSig" data-mode="draw" onclick="setSigMode('adCardSig','draw')">رسم التوقيع</button>
           <button type="button" class="sig-mode-btn" data-sigtoggle="adCardSig" data-mode="upload" onclick="setSigMode('adCardSig','upload')">رفع صورة توقيع</button>
@@ -1146,9 +1146,24 @@ function onAdCardKindChange_() {
   document.getElementById('adCardRecipient').placeholder = isDelivery ? 'اسم المنسوبة' : 'اسم المستلمة';
 }
 
+/* التواقيع صور كبيرة؛ نجيبها عند الطلب فقط عشان التبويب يفتح بسرعة */
+function adShowSig_(btn, id) {
+  setBtnBusy(btn, true, '...');
+  callApi('getIncentiveEntries', { id: id }).then(function (r) {
+    const row = ((r && r.list) || []).find(function (x) { return x['معرف'] === id; });
+    const td = btn.parentNode;
+    if (row && row['التوقيع'] && row['التوقيع'] !== 'HAS') {
+      td.innerHTML = '<img src="' + row['التوقيع'] + '" alt="توقيع" style="max-width:70px;max-height:36px;">';
+    } else { setBtnBusy(btn, false); alert('تعذر تحميل التوقيع'); }
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
 function adCardRowHtml_(row) {
   const adminBadge = row['سجّل بواسطة'] === 'الإدارة' ? '<div style="color:var(--maroon);font-weight:700;font-size:0.8rem;">سُجّل من الإدارة</div>' : '';
-  const sigCell = row['التوقيع'] ? '<img src="' + row['التوقيع'] + '" alt="توقيع" style="max-width:70px;max-height:36px;">' : '<span style="color:#8a7d76;font-size:0.8rem;">بدون توقيع</span>';
+  const sg = row['التوقيع'];
+  const sigCell = sg === 'HAS'
+    ? '<button type="button" class="btn outline" style="width:auto;padding:3px 10px;font-size:0.8rem;" onclick="adShowSig_(this,\'' + row['معرف'] + '\')">عرض</button>'
+    : (sg ? '<img src="' + sg + '" alt="توقيع" style="max-width:70px;max-height:36px;">' : (row['سجّل بواسطة'] === 'الإدارة' ? '<span style="color:#b45309;font-size:0.8rem;font-weight:700;">بانتظار إقرار وتوقيع المديرة/المسؤولة</span>' : '<span style="color:#8a7d76;font-size:0.8rem;">بدون توقيع</span>'));
   return '<td>' + (row['اسم المركز'] || '') + '</td><td>' + (row['الدور'] || '') + '</td><td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + sigCell + '</td><td>' + adminBadge + adCardEsc_(row['ملاحظات']) + '</td>';
 }
 
@@ -1255,8 +1270,8 @@ function loadCardsAdminOverview() {
   chartWrap.innerHTML = 'جاري التحميل...';
 
   Promise.all([
-    callApi('getIncentiveEntries', { kind: 'استلام' }),
-    callApi('getIncentiveEntries', { kind: 'تسليم' }),
+    callApi('getIncentiveEntries', { kind: 'استلام', light: true }),
+    callApi('getIncentiveEntries', { kind: 'تسليم', light: true }),
     callApi('getIncentiveFollowupSplits', {})
   ]).then(function (results) {
     const managerEntries = (results[0].ok ? results[0].list : []) || [];
@@ -1276,7 +1291,7 @@ function loadCardsAdminOverview() {
     const deliveriesTbody = document.getElementById('cardsDeliveriesTbody');
     deliveriesTbody.innerHTML = '';
     if (!entries.length) { deliveriesTbody.innerHTML = '<tr><td colspan="10">لا يوجد بيانات</td></tr>'; }
-    entries.forEach(function (row) {
+    entries.slice(0, 100).forEach(function (row) {
       const tr = document.createElement('tr');
       tr.innerHTML = adCardRowHtml_(row);
       deliveriesTbody.appendChild(tr);

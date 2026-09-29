@@ -1271,6 +1271,7 @@ function handleRequest_(p) {
       case 'addIncentiveFollowupSplit': return json_(addIncentiveFollowupSplit_(p));
       case 'getIncentiveFollowupSplits': return json_(getIncentiveFollowupSplits_(p));
       case 'deleteIncentiveFollowupSplit': return json_(deleteIncentiveFollowupSplit_(p));
+      case 'acknowledgeIncentiveEntries': return json_(acknowledgeIncentiveEntries_(p));
 
       case 'debugInfo': return json_(debugInfo_());
 
@@ -1749,7 +1750,17 @@ function getIncentiveEntries_(p) {
   let rows = sheetToObjects_('بطاقات التحفيز');
   if (p && p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
   if (p && p.kind) rows = rows.filter(function (r) { return r['نوع السجل'] === p.kind; });
+  if (p && p.id) rows = rows.filter(function (r) { return r['معرف'] === p.id; });
   rows.sort(function (a, b) { return String(b['التاريخ'] || '').localeCompare(String(a['التاريخ'] || '')); });
+  // وضع خفيف: نشيل صور التواقيع الكبيرة من القائمة (تنجلب عند الطلب بـ id) عشان الرد يصغر ويسرع
+  if (p && (p.light === true || p.light === 'true') && !p.id) {
+    rows = rows.map(function (r) {
+      const c = {};
+      Object.keys(r).forEach(function (k) { c[k] = r[k]; });
+      if (c['التوقيع']) c['التوقيع'] = 'HAS';
+      return c;
+    });
+  }
   return { ok: true, list: rows };
 }
 
@@ -1777,6 +1788,31 @@ function addIncentiveFollowupSplit_(p) {
   });
   invalidateCache_('متابعة بطاقات التحفيز');
   return { ok: true, id: id };
+}
+
+/* إقرار المديرة/المسؤولة على سجلات سجّلتها الإدارة نيابةً عنها: تُكتب لها صورة التوقيع على السجلات
+   المعلّقة فقط (سجّل بواسطة = الإدارة وبدون توقيع) وبنفس المركز، وما يتغيّر أي شيء ثاني بالسجل */
+function acknowledgeIncentiveEntries_(p) {
+  const ids = Array.isArray(p.ids) ? p.ids : (p.ids ? [p.ids] : []);
+  if (!ids.length) return { ok: false, error: 'لا توجد سجلات للإقرار' };
+  if (!p.center) return { ok: false, error: 'اسم المركز مطلوب' };
+  if (!p.signature) return { ok: false, error: 'لازم التوقيع' };
+  const sh = sheet_('بطاقات التحفيز');
+  const sigCol = colIndex_(sh, 'التوقيع');
+  if (sigCol === -1) return { ok: false, error: 'عمود التوقيع غير موجود' };
+  const rows = sheetToObjects_('بطاقات التحفيز');
+  let done = 0;
+  ids.forEach(function (id) {
+    const r = rows.find(function (x) { return x['معرف'] === id; });
+    if (!r) return;
+    if (String(r['اسم المركز']).trim() !== String(p.center).trim()) return;
+    if (r['سجّل بواسطة'] !== 'الإدارة' || r['التوقيع']) return;
+    sh.getRange(r._row, sigCol).setValue(p.signature);
+    done++;
+  });
+  invalidateCache_('بطاقات التحفيز');
+  if (!done) return { ok: false, error: 'لا توجد سجلات معلّقة للإقرار (ربما تم الإقرار عليها من قبل)' };
+  return { ok: true, count: done };
 }
 
 function getIncentiveFollowupSplits_(p) {

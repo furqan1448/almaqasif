@@ -340,6 +340,7 @@
     <!-- تسليم بطاقات التحفيز -->
     <div id="cardsDeliverView" class="hidden">
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <div id="cdPendingBanner"></div>
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">تسجيل تسليم بطاقة تحفيز - منسوبات المركز</h3>
         <label>البطاقات المسلَّمة (يمكن إضافة أكثر من نوع/قيمة بنفس التسليم)</label>
@@ -381,6 +382,7 @@
     <!-- استلام بطاقات التحفيز -->
     <div id="cardsReceiveView" class="hidden">
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <div id="crPendingBanner"></div>
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">تسجيل تسليم بطاقة تحفيز - مسؤولة المقصف</h3>
         <label>البطاقات المستلَمة (يمكن إضافة أكثر من نوع/قيمة بنفس الاستلام)</label>
@@ -417,6 +419,30 @@
           <button class="btn outline" onclick="exportCardReceiveReport()">⬇️ Excel</button>
           <button class="btn outline" onclick="printCardReceiveReport()">🖨️ PDF</button>
         </div>
+      </div>
+    </div>
+
+    <!-- إقرار وتوقيع على سجلات سجّلتها الإدارة نيابةً عن المديرة/المسؤولة -->
+    <div id="ackOverlay" class="hidden" style="position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,0.5);z-index:9999;overflow:auto;padding:16px;">
+      <div class="card" style="max-width:520px;margin:20px auto;">
+        <h3 style="margin-top:0;color:var(--maroon);">مراجعة وإقرار وتوقيع</h3>
+        <p style="font-size:0.85rem;color:#8a7d76;margin-top:0;">هذه السجلات سجّلتها الإدارة نيابةً عنك. راجعي البيانات، ثم أقرّي ووقّعي فقط.</p>
+        <div id="ackList" style="margin-bottom:10px;"></div>
+        <div class="pledge-box" id="ackPledge"></div>
+        <div class="checkline"><input type="checkbox" id="ackAgree"><label for="ackAgree" style="margin:0;font-weight:500;">أوافق على الإقرار أعلاه</label></div>
+        <label>التوقيع</label>
+        <div class="sig-mode-toggle">
+          <button type="button" class="sig-mode-btn active" data-sigtoggle="ackSig" data-mode="draw" onclick="setSigMode('ackSig','draw')">رسم التوقيع</button>
+          <button type="button" class="sig-mode-btn" data-sigtoggle="ackSig" data-mode="upload" onclick="setSigMode('ackSig','upload')">رفع صورة توقيع</button>
+        </div>
+        <div class="sig-wrap" id="ackSig_drawWrap"><canvas id="ackSig" class="sig-pad"></canvas></div>
+        <div class="sig-upload-wrap hidden" id="ackSig_uploadWrap">
+          <input type="file" accept="image/*" id="ackSig_file">
+          <img id="ackSig_preview" class="sig-upload-preview hidden">
+        </div>
+        <div class="sig-actions"><button type="button" onclick="clearSignatureWidget('ackSig')">مسح التوقيع</button></div>
+        <button class="btn" id="ackSubmitBtn" onclick="submitCardAck_()" style="margin-top:14px;">إقرار وحفظ</button>
+        <button class="btn secondary" onclick="closeCardAck_()" style="margin-top:8px;">إلغاء</button>
       </div>
     </div>
 
@@ -1919,6 +1945,80 @@ function submitCardReceive() {
   }).catch(function () { setBtnBusy(btn, false); });
 }
 
+/* -------- إقرار وتوقيع على سجلات الإدارة --------
+   الإدارة تسجّل نيابةً عن المديرة/المسؤولة بدون توقيع (سجّل بواسطة = الإدارة)، فتظهر هنا "بانتظار الإقرار".
+   المديرة/المسؤولة ما تعيد الكتابة، فقط تراجع وتقرّ وتوقّع مرة وحدة على كل السجلات المعلّقة. */
+let ackPrefix_ = null, ackPending_ = [], ackSigReady_ = false;
+
+function isAdminPending_(row) {
+  return row['سجّل بواسطة'] === 'الإدارة' && !row['التوقيع'];
+}
+
+function cardSigCellHtml_(row) {
+  const notes = row['ملاحظات'] ? '<div style="color:#8a7d76;font-size:0.75rem;">' + String(row['ملاحظات']).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>' : '';
+  if (isAdminPending_(row)) {
+    return '<div style="color:var(--maroon);font-weight:700;font-size:0.8rem;">سُجّل من الإدارة - بانتظار الإقرار والتوقيع</div>' + notes;
+  }
+  const badge = row['سجّل بواسطة'] === 'الإدارة' ? '<div style="color:var(--maroon);font-size:0.75rem;">سُجّل من الإدارة</div>' : '';
+  return (row['التوقيع'] ? '<img src="' + row['التوقيع'] + '" alt="توقيع" style="max-width:70px;max-height:36px;">' : '') + badge + notes;
+}
+
+function renderCardsPending_(prefix) {
+  const el = document.getElementById(prefix + 'PendingBanner');
+  if (!el) return;
+  const data = prefix === 'cd' ? currentCdData_ : currentCrData_;
+  const pend = data.filter(isAdminPending_);
+  if (!pend.length) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="card" style="border:2px solid var(--maroon);">' +
+    '<strong style="color:var(--maroon);">لديك ' + pend.length + ' سجل سجّلته الإدارة بانتظار إقرارك وتوقيعك</strong>' +
+    '<p style="font-size:0.85rem;color:#8a7d76;margin:6px 0 10px;">البيانات مكتوبة مسبقاً، ما تحتاجين تعيدين كتابتها.</p>' +
+    '<button type="button" class="btn" onclick="openCardAck_(\'' + prefix + '\')">مراجعة وإقرار</button></div>';
+}
+
+function openCardAck_(prefix) {
+  const data = prefix === 'cd' ? currentCdData_ : currentCrData_;
+  ackPrefix_ = prefix;
+  ackPending_ = data.filter(isAdminPending_);
+  if (!ackPending_.length) return;
+  const esc = function (t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+  document.getElementById('ackList').innerHTML = '<ul style="margin:0;padding-inline-start:20px;line-height:1.9;">' +
+    ackPending_.map(function (r) {
+      return '<li>' + esc(r['نوع البطاقة']) + ' - ' + cardPriceLabel_(r['القيمة']) + ' - الكمية: ' + esc(r['الكمية']) + ' - اسم المستلمة: ' + esc(r['اسم المستلمة']) + (r['ملاحظات'] ? ' (' + esc(r['ملاحظات']) + ')' : '') + '</li>';
+    }).join('') + '</ul>';
+  const pledge = document.querySelector('#' + (prefix === 'cd' ? 'cardsDeliverView' : 'cardsReceiveView') + ' .pledge-box');
+  document.getElementById('ackPledge').textContent = pledge ? pledge.textContent : '';
+  document.getElementById('ackAgree').checked = false;
+  document.getElementById('ackOverlay').classList.remove('hidden');
+  if (!ackSigReady_) {
+    ackSigReady_ = true;
+    setTimeout(function () { setupSignatureWidget('ackSig'); }, 50);
+  } else {
+    clearSignatureWidget('ackSig');
+  }
+}
+
+function closeCardAck_() {
+  document.getElementById('ackOverlay').classList.add('hidden');
+}
+
+function submitCardAck_() {
+  if (!ackPending_.length) { closeCardAck_(); return; }
+  if (!document.getElementById('ackAgree').checked) { alert('لازم توافقي على الإقرار'); return; }
+  if (isSigWidgetBlank_('ackSig')) { alert('لازم التوقيع'); return; }
+  const sig = getSignatureDataUrl('ackSig');
+  const btn = document.getElementById('ackSubmitBtn');
+  setBtnBusy(btn, true);
+  callApi('acknowledgeIncentiveEntries', {
+    center: currentCenter, ids: ackPending_.map(function (r) { return r['معرف']; }), signature: sig
+  }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r.ok) { alert(r.error || 'تعذر الحفظ'); return; }
+    closeCardAck_();
+    clearSignatureWidget('ackSig');
+    if (ackPrefix_ === 'cd') loadCardsDeliverLog_(); else loadCardsReceiveLog_();
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
 function cardPriceLabel_(p) { return Number(p) === 3 ? '3 ريال' : 'ريالين'; }
 
 function loadCardsDeliverLog_() {
@@ -1926,13 +2026,14 @@ function loadCardsDeliverLog_() {
   const totalEl = document.getElementById('cdTotal');
   callApi('getIncentiveEntries', { center: currentCenter, kind: 'تسليم' }).then(function (r) {
     currentCdData_ = (r.ok ? r.list : []) || [];
+    renderCardsPending_('cd');
     const total = currentCdData_.reduce(function (s, row) { return s + (Number(row['الكمية']) || 0); }, 0);
     if (totalEl) totalEl.textContent = total;
     if (!currentCdData_.length) { tbody.innerHTML = '<tr><td colspan="7">لا يوجد سجل بعد</td></tr>'; return; }
     tbody.innerHTML = '';
     currentCdData_.forEach(function (row) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + (row['التوقيع'] ? '<img src="' + row['التوقيع'] + '" alt="توقيع" style="max-width:70px;max-height:36px;">' : '') + '</td>';
+      tr.innerHTML = '<td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + cardSigCellHtml_(row) + '</td>';
       tbody.appendChild(tr);
     });
   });
@@ -1943,13 +2044,14 @@ function loadCardsReceiveLog_() {
   const totalEl = document.getElementById('crTotal');
   callApi('getIncentiveEntries', { center: currentCenter, kind: 'استلام' }).then(function (r) {
     currentCrData_ = (r.ok ? r.list : []) || [];
+    renderCardsPending_('cr');
     const total = currentCrData_.reduce(function (s, row) { return s + (Number(row['الكمية']) || 0); }, 0);
     if (totalEl) totalEl.textContent = total;
     if (!currentCrData_.length) { tbody.innerHTML = '<tr><td colspan="7">لا يوجد سجل بعد</td></tr>'; return; }
     tbody.innerHTML = '';
     currentCrData_.forEach(function (row) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + (row['التوقيع'] ? '<img src="' + row['التوقيع'] + '" alt="توقيع" style="max-width:70px;max-height:36px;">' : '') + '</td>';
+      tr.innerHTML = '<td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + cardSigCellHtml_(row) + '</td>';
       tbody.appendChild(tr);
     });
   });
