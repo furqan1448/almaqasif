@@ -902,14 +902,44 @@
     <!-- ===== تبويب: بطاقات التحفيز (نظرة الإدارة) ===== -->
     <div id="cardsAdminTab" class="admin-tab-panel hidden">
       <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">تسجيل تسليم بطاقة تحفيز - نيابةً عن المديرة/المسؤولة</h3>
+        <p style="font-size:0.85rem;color:#8a7d76;margin-top:0;">للاستخدام عند عدم تسجيل الاستلام من قبل المديرة أو المسؤولة. يُسجَّل بنفس السجل ويظهر عندهن، ويُعلَّم بأنه «سُجّل من الإدارة».</p>
+        <div class="select-row">
+          <div><label>المركز</label><select id="adCardCenter"><option value="">اختاري المركز</option></select></div>
+          <div><label>الصفة</label>
+            <select id="adCardRole"><option value="مديرة المركز">مديرة المركز</option><option value="مسؤولة المقصف">مسؤولة المقصف</option></select>
+          </div>
+        </div>
+        <label>البطاقات المستلَمة (يمكن إضافة أكثر من نوع/قيمة بنفس التسجيل)</label>
+        <div id="adLinesList"></div>
+        <button type="button" class="btn outline" onclick="addAdCardLine_()" style="width:auto;padding:6px 14px;margin:4px 0 12px;">+ إضافة نوع/قيمة أخرى</button>
+        <label>اسم المستلمة</label>
+        <input type="text" id="adCardRecipient" placeholder="اسم المستلمة">
+        <label>ملاحظات</label>
+        <textarea id="adCardNotes" rows="3" placeholder="مثال: لم يتم التسجيل من قبل المديرة، وسُجّل من الإدارة بناءً على الاستلام الفعلي"></textarea>
+        <label>التوقيع (اختياري)</label>
+        <div class="sig-mode-toggle">
+          <button type="button" class="sig-mode-btn active" data-sigtoggle="adCardSig" data-mode="draw" onclick="setSigMode('adCardSig','draw')">رسم التوقيع</button>
+          <button type="button" class="sig-mode-btn" data-sigtoggle="adCardSig" data-mode="upload" onclick="setSigMode('adCardSig','upload')">رفع صورة توقيع</button>
+        </div>
+        <div class="sig-wrap" id="adCardSig_drawWrap"><canvas id="adCardSig" class="sig-pad"></canvas></div>
+        <div class="sig-upload-wrap hidden" id="adCardSig_uploadWrap">
+          <input type="file" accept="image/*" id="adCardSig_file">
+          <img id="adCardSig_preview" class="sig-upload-preview hidden">
+        </div>
+        <div class="sig-actions"><button type="button" onclick="clearSignatureWidget('adCardSig')">مسح التوقيع</button></div>
+        <button class="btn" id="adCardSubmitBtn" onclick="submitAdminCardEntry()" style="margin-top:14px;">حفظ</button>
+        <div class="success-msg" id="adCardSuccess">تم التسجيل بنجاح ✅</div>
+      </div>
+      <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">إجمالي بطاقات المديرات والمسؤولات</h3>
         <div id="cardsManagersSummary">جاري التحميل...</div>
       </div>
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">سجل المديرة والمسؤولة</h3>
         <table class="log-table" id="cardsManagersTable">
-          <thead><tr><th>المركز</th><th>الصفة</th><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th></tr></thead>
-          <tbody id="cardsManagersTbody"><tr><td colspan="8">جاري التحميل...</td></tr></tbody>
+          <thead><tr><th>المركز</th><th>الصفة</th><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th><th>التوقيع</th><th>ملاحظات</th></tr></thead>
+          <tbody id="cardsManagersTbody"><tr><td colspan="10">جاري التحميل...</td></tr></tbody>
         </table>
       </div>
       <div class="card">
@@ -1055,19 +1085,123 @@ function showAdminTab(tabId) {
   if (tabId === 'visitReportTab') { initVisitReportTab_(); }
   if (tabId === 'visitStatsTab') { initVisitStatsTab_(); }
   if (tabId === 'meetingMinutesTab') { initMeetingMinutesTab_(); renderMmTargetLists(); loadMeetingMinutesAdmin(); }
-  if (tabId === 'cardsAdminTab') { loadCardsAdminOverview(); }
+  if (tabId === 'cardsAdminTab') { initAdminCardForm_(); loadCardsAdminOverview(); }
   if (tabId === 'gradesTab') { initGradesTab_(); }
 }
 
 /* -------- بطاقات التحفيز: نظرة الإدارة -------- */
 function cardPriceLabel_(p) { return Number(p) === 3 ? '3 ريال' : 'ريالين'; }
 
+let adCardLineIdx_ = 0, adCardSigReady_ = false;
+
+function adCardEsc_(t) {
+  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function adCardLineHtml_(idx) {
+  return '<div class="select-row card-line-row" data-idx="' + idx + '">' +
+    '<div><label>النوع</label><select class="ad-line-cat"><option value="مكافأة">مكافأة</option><option value="هدية">هدية</option></select></div>' +
+    '<div><label>القيمة</label><select class="ad-line-price"><option value="3">3 ريال</option><option value="2">ريالين</option></select></div>' +
+    '<div><label>الكمية</label><input type="text" inputmode="numeric" pattern="[0-9]*" class="ad-line-qty" placeholder="العدد"></div>' +
+    '<div style="display:flex;align-items:flex-end;"><button type="button" class="btn outline" style="width:auto;padding:8px 12px;" onclick="removeAdCardLine_(this)">حذف</button></div>' +
+  '</div>';
+}
+
+function addAdCardLine_() {
+  const wrap = document.createElement('div');
+  wrap.innerHTML = adCardLineHtml_(adCardLineIdx_++);
+  document.getElementById('adLinesList').appendChild(wrap.firstElementChild);
+}
+
+function removeAdCardLine_(btn) {
+  btn.closest('.card-line-row').remove();
+  if (!document.querySelector('#adLinesList .card-line-row')) addAdCardLine_();
+}
+
+function readAdCardLines_() {
+  return Array.from(document.querySelectorAll('#adLinesList .card-line-row')).map(function (row) {
+    return {
+      category: row.querySelector('.ad-line-cat').value,
+      price: Number(row.querySelector('.ad-line-price').value),
+      qty: Number(row.querySelector('.ad-line-qty').value) || 0
+    };
+  }).filter(function (l) { return l.qty > 0; });
+}
+
+function fillAdCardCenters_() {
+  const sel = document.getElementById('adCardCenter');
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">اختاري المركز</option>';
+  (centersListCache || []).forEach(function (c) {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+  if (keep) sel.value = keep;
+}
+
+function initAdminCardForm_() {
+  if (centersListCache && centersListCache.length) {
+    fillAdCardCenters_();
+  } else {
+    callApi('getCenters').then(function (r) { centersListCache = r.centers || []; fillAdCardCenters_(); });
+  }
+  if (!document.querySelector('#adLinesList .card-line-row')) addAdCardLine_();
+  if (!adCardSigReady_) {
+    adCardSigReady_ = true;
+    setTimeout(function () { setupSignatureWidget('adCardSig'); }, 50);
+  }
+}
+
+function adCardSigBlank_() {
+  const dataUrl = getSignatureDataUrl('adCardSig');
+  if (!dataUrl) return true;
+  if (_sigWidgets['adCardSig'] && _sigWidgets['adCardSig'].mode === 'upload') return false;
+  const canvas = document.getElementById('adCardSig');
+  const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let i = 3; i < data.length; i += 4) { if (data[i] !== 0) return false; }
+  return true;
+}
+
+function submitAdminCardEntry() {
+  const center = document.getElementById('adCardCenter').value;
+  const role = document.getElementById('adCardRole').value;
+  const lines = readAdCardLines_();
+  const recipient = document.getElementById('adCardRecipient').value.trim();
+  const notes = document.getElementById('adCardNotes').value.trim();
+  if (!center) { alert('اختاري المركز'); return; }
+  if (!lines.length) { alert('اكتبي كمية لنوع واحد على الأقل'); return; }
+  if (!recipient) { alert('اكتبي اسم المستلمة'); return; }
+  const sig = adCardSigBlank_() ? '' : getSignatureDataUrl('adCardSig');
+  const btn = document.getElementById('adCardSubmitBtn');
+  setBtnBusy(btn, true);
+  Promise.all(lines.map(function (l) {
+    return callApi('recordIncentiveEntry', {
+      center: center, role: role, kind: 'استلام', category: l.category, price: l.price,
+      qty: l.qty, recipientName: recipient, signature: sig, notes: notes, byAdmin: true
+    });
+  })).then(function (results) {
+    setBtnBusy(btn, false);
+    const failed = results.find(function (r) { return !r.ok; });
+    if (failed) { alert(failed.error || 'تعذر تسجيل بعض الأنواع'); }
+    document.getElementById('adLinesList').innerHTML = '';
+    addAdCardLine_();
+    document.getElementById('adCardRecipient').value = '';
+    document.getElementById('adCardNotes').value = '';
+    clearSignatureWidget('adCardSig');
+    const s = document.getElementById('adCardSuccess');
+    s.style.display = 'block';
+    setTimeout(function () { s.style.display = 'none'; }, 2500);
+    loadCardsAdminOverview();
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
 function loadCardsAdminOverview() {
   const managersTbody = document.getElementById('cardsManagersTbody');
   const managersSummary = document.getElementById('cardsManagersSummary');
   const groupsWrap = document.getElementById('cardsFollowupGroups');
   const chartWrap = document.getElementById('cardsFollowupChart');
-  managersTbody.innerHTML = '<tr><td colspan="8">جاري التحميل...</td></tr>';
+  managersTbody.innerHTML = '<tr><td colspan="10">جاري التحميل...</td></tr>';
   managersSummary.innerHTML = 'جاري التحميل...';
   groupsWrap.innerHTML = '<div class="card">جاري التحميل...</div>';
   chartWrap.innerHTML = 'جاري التحميل...';
@@ -1083,10 +1217,12 @@ function loadCardsAdminOverview() {
 
     // -------- جدول سجل المديرة والمسؤولة --------
     managersTbody.innerHTML = '';
-    if (!managerEntries.length) { managersTbody.innerHTML = '<tr><td colspan="8">لا يوجد بيانات</td></tr>'; }
+    if (!managerEntries.length) { managersTbody.innerHTML = '<tr><td colspan="10">لا يوجد بيانات</td></tr>'; }
     managerEntries.forEach(function (row) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (row['اسم المركز'] || '') + '</td><td>' + (row['الدور'] || '') + '</td><td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td>';
+      const adminBadge = row['سجّل بواسطة'] === 'الإدارة' ? '<div style="color:var(--maroon);font-weight:700;font-size:0.8rem;">سُجّل من الإدارة</div>' : '';
+      const sigCell = row['التوقيع'] ? '<img src="' + row['التوقيع'] + '" alt="توقيع" style="max-width:70px;max-height:36px;">' : '<span style="color:#8a7d76;font-size:0.8rem;">بدون توقيع</span>';
+      tr.innerHTML = '<td>' + (row['اسم المركز'] || '') + '</td><td>' + (row['الدور'] || '') + '</td><td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + sigCell + '</td><td>' + adminBadge + adCardEsc_(row['ملاحظات']) + '</td>';
       managersTbody.appendChild(tr);
     });
 
