@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbznxR1ykQDVZuOVMaGoOHc70I8GGpLxXWPyHVbotPz7bCxA2ryKC2wOCKmYQdDezrYv/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwRDCrnPq68EexCvMZcATvGcav9BxsSWA8YYMRuYYxWDJrXkzRC3uAThA4mf1Gznt18/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -1733,4 +1733,53 @@ function buildNoticesTotalsBar_(list) {
   bar.style.cssText = 'display:flex;gap:18px;flex-wrap:wrap;background:#f6efe2;border:1px solid #C2AA85;border-radius:10px;padding:10px 14px;margin:10px 0;color:#6e1523;font-size:0.92rem;';
   bar.innerHTML = parts.join('');
   return bar;
+}
+
+/* -------- تصدير إشعارات الاستلام/التسليم (الإدارة والإشراف) إلى Excel --------
+   يصدّر الإشعارات المعروضة حالياً (حسب فلتر النوع والمركز والفصل): صف لكل إشعار،
+   وتحتها إجمالي كل نوع (استلام / تسليم) ثم الإجمالي العام. */
+async function exportAdminNoticesExcel() {
+  const typeFilter = document.getElementById('noticeTypeFilter').value;
+  const centerFilter = document.getElementById('noticeCenterFilter').value;
+  const all = (allNoticesPending || []).concat(allNoticesDone || []).filter(function (n) {
+    return (!typeFilter || n['النوع'] === typeFilter) &&
+      (!centerFilter || String(n['اسم المركز']).trim() === centerFilter);
+  });
+  if (!all.length) { alert('لا توجد إشعارات لتصديرها'); return; }
+  all.sort(function (a, b) {
+    return String(a['اسم المركز']).localeCompare(String(b['اسم المركز']), 'ar') ||
+      String(a['النوع']).localeCompare(String(b['النوع']), 'ar');
+  });
+  const rows = all.map(function (n) {
+    const done = n['الحالة'] === 'تم الاطلاع';
+    return {
+      'المركز': String(n['اسم المركز'] || '').trim(),
+      'النوع': n['النوع'] || '',
+      'المبلغ': Number(n['المبلغ']) || 0,
+      'اليوم': n['يوم الإرسال'] || '',
+      'التاريخ': (typeof toHijriStr === 'function') ? toHijriStr(n['تاريخ الإرسال']) : n['تاريخ الإرسال'],
+      'الحالة': done ? 'تم الاطلاع' : 'بانتظار الاطلاع'
+    };
+  });
+  function blankRow(label, amount) {
+    const r = {};
+    Object.keys(rows[0]).forEach(function (k) { r[k] = ''; });
+    r['المركز'] = label;
+    r['المبلغ'] = amount;
+    return r;
+  }
+  const sums = { 'استلام': 0, 'تسليم': 0 };
+  let grand = 0;
+  rows.forEach(function (r) { if (sums[r['النوع']] !== undefined) sums[r['النوع']] += r['المبلغ']; grand += r['المبلغ']; });
+  const out = rows.slice();
+  out.push(blankRow('', ''));
+  const present = Object.keys(sums).filter(function (k) { return rows.some(function (r) { return r['النوع'] === k; }); });
+  if (present.length > 1) present.forEach(function (k) { out.push(blankRow('إجمالي ' + k, sums[k])); });
+  out.push(blankRow('إجمالي المبالغ', grand));
+  try { await ensureXlsxLoaded_(); } catch (e) { alert('تعذر تحميل مكتبة التصدير، تأكدي من الاتصال بالإنترنت وحاولي مرة أخرى'); return; }
+  const ws = XLSX.utils.json_to_sheet(out);
+  const wb = XLSX.utils.book_new();
+  wb.Workbook = { Views: [{ RTL: true }] };
+  XLSX.utils.book_append_sheet(wb, ws, 'الإشعارات');
+  XLSX.writeFile(wb, 'إشعارات-' + (centerFilter || 'كل-المراكز') + (typeFilter ? '-' + typeFilter : '') + '.xlsx');
 }
