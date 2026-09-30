@@ -585,22 +585,3 @@ tr.vs-detail td { background: #fbf8f2; text-align: right; }
 .vs-search-sub { font-size: 0.82rem; opacity: .9; }
 .vs-search-group + .vs-search-group { margin-top: 10px; padding-top: 8px; border-top: 1px dashed #b9dfc6; }
 .vs-search-line { padding-right: 6px; font-size: 0.86rem; }
-
-/* -------- منتقي التاريخ الهجري -------- */
-.hj-wrap { position: relative; margin-bottom: 8px; }
-.hj-field {
-  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 12px 14px; background: #fff; border: 1.5px solid var(--gold-light); border-radius: 12px;
-  font-family: 'Tajawal', sans-serif; font-size: 1rem; color: var(--ink); cursor: pointer; text-align: right;
-}
-.hj-pop { margin-top: 8px; padding: 12px; background: #fff; border: 1.5px solid var(--maroon); border-radius: 14px; box-shadow: var(--shadow); }
-.hj-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.hj-title { font-weight: 800; color: var(--maroon-dark); }
-.hj-arrow { width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--gold-light); color: var(--maroon); font-size: 1.3rem; cursor: pointer; line-height: 1; }
-.hj-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
-.hj-week { font-size: 0.72rem; color: #8a7d76; margin-bottom: 4px; }
-.hj-day { height: 38px; border: 0; border-radius: 10px; background: transparent; font-family: 'Tajawal', sans-serif; font-size: 0.95rem; color: var(--ink); cursor: pointer; }
-.hj-day:active { background: var(--gold-light); }
-.hj-day.today { box-shadow: inset 0 0 0 1.5px var(--gold); }
-.hj-day.sel { background: var(--maroon); color: #fff; }
-.hj-today { width: 100%; margin-top: 10px; padding: 8px; border: 1.5px solid var(--maroon); border-radius: 10px; background: #fff; color: var(--maroon); font-family: 'Tajawal', sans-serif; font-weight: 700; cursor: pointer; }
