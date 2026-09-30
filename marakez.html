@@ -441,6 +441,11 @@
         <div class="success-msg" id="noticeSuccess">تم الإرسال بنجاح، بانتظار الاطلاع من الإدارة ✅</div>
         <div class="error-msg" id="noticeError"></div>
       </div>
+
+      <div class="card" id="formNoticesCard">
+        <h3 style="margin-top:0;color:var(--maroon);" id="formNoticesTitle">الإشعارات المسجّلة</h3>
+        <div id="formNoticesList">جاري التحميل...</div>
+      </div>
     </div>
 
     <!-- إشعاراتي -->
@@ -1055,6 +1060,7 @@ function openNoticeForm(type, reason) {
   document.getElementById('noticeError').style.display = 'none';
   document.getElementById('sendNoticeBtn').classList.remove('hidden');
   showView('noticeFormView');
+  loadFormNotices_();
   setSigMode('sigPad', 'draw');
   setTimeout(function () { setupSignatureWidget('sigPad'); }, 50);
 }
@@ -1115,6 +1121,7 @@ function sendNotice() {
       document.getElementById('noticeSuccess').style.display = 'block';
       btn.classList.add('hidden');
       refreshPendingBadge();
+      loadFormNotices_();
     } else {
       const e = document.getElementById('noticeError');
       e.textContent = r.error || 'حدث خطأ أثناء الإرسال';
@@ -1160,6 +1167,54 @@ function loadNotices() {
   });
 }
 
+/* -------- الإشعارات المسجّلة تحت نموذج الإشعار (بدون الذهاب لأيقونة إشعاراتي) -------- */
+function buildNoticeItem_(n) {
+  const ro = (typeof isReadOnlyCenter !== 'undefined') && isReadOnlyCenter;
+  const done = n['الحالة'] === 'تم الاطلاع';
+  // بعد الاطلاع: الإشعار الموقّع، وقبله: الإشعار المرسل مباشرة
+  const viewUrl = (done && n['رابط صورة الإشعار الموقع']) ? n['رابط صورة الإشعار الموقع'] : (n['رابط صورة الإشعار'] || '');
+  const div = document.createElement('div');
+  div.className = 'notice-item';
+  const senderEsc = String(n['اسم المسلّمة'] || '').replace(/'/g, "\\'");
+  div.innerHTML =
+    '<div>' +
+      '<div>إشعار ' + n['النوع'] + ' - ' + Number(n['المبلغ']).toFixed(2) + ' ريال</div>' +
+      '<div class="meta">' + formatDayDateTime(n['يوم الإرسال'], n['تاريخ الإرسال'], n['وقت الإرسال']) + (n['اسم المسلّمة'] ? (' · المسلّمة: ' + n['اسم المسلّمة']) : '') + '</div>' +
+      (n['الشهر'] ? '<div class="meta">مبيعات ' + n['الشهر'] + ' · الفصل ' + n['الفصل الدراسي'] + ' · ' + n['العام'] + '</div>' : '') +
+      '<div class="row-actions" style="margin-top:6px;">' +
+        (ro ? '' : (done ? '' : '<a href="#" onclick="editNotice(' + n._row + ', ' + Number(n['المبلغ']) + ', \'' + senderEsc + '\'); return false;">تعديل</a>')) +
+        (ro ? '' : '<a href="#" onclick="deleteNoticeRow(' + n._row + '); return false;">حذف</a>') +
+      '</div>' +
+    '</div>' +
+    '<div style="text-align:left;">' +
+      '<span class="status-pill ' + (done ? 'done' : 'pending') + '">' + (done ? 'تم الاطلاع' : 'بانتظار الاطلاع') + '</span>' +
+      (done && n['اسم المستلمة'] ? '<div class="meta">المستلمة: ' + n['اسم المستلمة'] + '</div>' : '') +
+      (viewUrl ? '<br><a href="' + viewUrl + '" target="_blank" style="font-size:0.8rem;">عرض الإشعار</a>' : '') +
+    '</div>';
+  return div;
+}
+
+function loadFormNotices_() {
+  const box = document.getElementById('formNoticesList');
+  if (!box) return;
+  document.getElementById('formNoticesTitle').textContent = 'إشعارات ' + currentNoticeType + ' المسجّلة (الفصل الحالي)';
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getCenterNotices', { center: currentCenter, term: 'current' }).then(function (r) {
+    const list = ((r && r.notices) || []).filter(function (n) { return n['النوع'] === currentNoticeType; })
+      .sort(function (a, b) { return (b._row || 0) - (a._row || 0); });
+    if (!r || !r.ok || !list.length) { box.innerHTML = 'لا توجد إشعارات ' + currentNoticeType + ' مسجّلة بعد'; return; }
+    box.innerHTML = '';
+    list.forEach(function (n) { box.appendChild(buildNoticeItem_(n)); });
+  });
+}
+
+function refreshNoticeViews_() {
+  const nf = document.getElementById('noticeFormView');
+  if (nf && !nf.classList.contains('hidden')) loadFormNotices_();
+  const nv = document.getElementById('noticesView');
+  if (nv && !nv.classList.contains('hidden')) loadNotices();
+}
+
 function editNotice(row, currentAmount, currentSender) {
   const newAmountStr = prompt('تعديل المبلغ (ريال):', currentAmount);
   if (newAmountStr === null) return;
@@ -1168,14 +1223,14 @@ function editNotice(row, currentAmount, currentSender) {
   const newSender = prompt('تعديل اسم المسلّمة:', currentSender || '');
   if (newSender === null) return;
   callApi('updateNotice', { row: row, amount: newAmount, senderName: newSender }).then(function (r) {
-    if (r.ok) loadNotices();
+    if (r.ok) refreshNoticeViews_();
   });
 }
 
 function deleteNoticeRow(row) {
   if (!confirm('متأكدة تبين تحذفين هذا الإشعار؟ لا يمكن التراجع.')) return;
   callApi('deleteNotice', { row: row }).then(function (r) {
-    if (r.ok) { loadNotices(); refreshPendingBadge(); }
+    if (r.ok) { refreshNoticeViews_(); refreshPendingBadge(); }
   });
 }
 
