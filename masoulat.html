@@ -238,7 +238,7 @@
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">إضافة مبلغ بيع اليوم</h3>
         <label>التاريخ</label>
-        <input type="hidden" id="saleDate">
+        <input type="date" id="saleDate">
         <label>المبلغ (ريال)</label>
         <input type="number" id="saleAmount" placeholder="0.00" step="0.01">
         <label>ملاحظات (اختياري)</label>
@@ -653,7 +653,6 @@ let currentNoticesData = [];
 let editingInvoiceRow = null;
 
 document.getElementById('saleDate').value = todayStr();
-initHijriPicker('saleDate');
 document.getElementById('invoiceDate').value = todayStr();
 
 if (currentName) showDashboard();
