@@ -637,7 +637,7 @@
         <label>اسم المركز</label>
         <div class="vs-search-row">
           <input type="text" id="vsCenter" list="vsCentersList" placeholder="اكتبي اسم المركز" autocomplete="off">
-          <button type="button" class="vs-search-btn" id="vsSearchBtn" onclick="vsSearchVisit()" title="تحقق: هل توجد زيارة مسجّلة؟" aria-label="بحث عن زيارة">
+          <button type="button" class="vs-search-btn" id="vsSearchBtn" onclick="vsSearchVisit()" title="بحث عن زيارات المركز في الفترة المختارة" aria-label="بحث عن زيارة">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
           </button>
         </div>
@@ -3493,7 +3493,7 @@ function initVisitStatsTab_() {
     for (let y = t.y - 1; y <= t.y + 1; y++) h += '<option value="' + y + '"' + (y === t.y ? ' selected' : '') + '>' + vsAr_(y) + '</option>';
     document.getElementById('vsYear').innerHTML = h;
     ['vsDay', 'vsMonth', 'vsYear'].forEach(function (id) { document.getElementById(id).addEventListener('change', vsUpdatePreview_); });
-    ['vsDay', 'vsMonth', 'vsYear', 'vsPeriod'].forEach(function (id) { document.getElementById(id).addEventListener('change', vsHideSearchResult_); });
+    document.getElementById('vsPeriod').addEventListener('change', vsHideSearchResult_);
     document.getElementById('vsCenter').addEventListener('input', vsHideSearchResult_);
     daySel.dataset.ready = '1';
   }
@@ -3529,14 +3529,13 @@ function vsHideSearchResult_() {
   if (box) box.classList.add('hidden');
 }
 
-/* 🔍 تحقق: هل توجد زيارة مسجّلة لهذا المركز في هذه الفترة وهذا التاريخ؟ */
+/* 🔍 بحث: زيارات مركز (بالاسم كله أو جزء منه) في الفترة المختارة، بغض النظر عن التاريخ */
 function vsSearchVisit() {
   const centerRaw = document.getElementById('vsCenter').value.replace(/\s+/g, ' ').trim();
   if (!centerRaw) { alert('اكتبي اسم المركز'); return; }
   const btn = document.getElementById('vsSearchBtn');
   const box = document.getElementById('vsSearchResult');
   const period = document.getElementById('vsPeriod').value;
-  const date = vsSelectedDate_();
   const q = vsNorm_(centerRaw);
   btn.disabled = true;
   box.className = 'vs-search-result';
@@ -3546,24 +3545,30 @@ function vsSearchVisit() {
     if (!r || !r.ok) { box.className = 'vs-search-result no'; box.textContent = 'تعذّر البحث' + (r && r.error ? ': ' + r.error : ''); return; }
     vsVisits_ = r.visits || [];
     renderVisitStats_();
+    const byDate = function (a, b) { return a.dateKey < b.dateKey ? 1 : (a.dateKey > b.dateKey ? -1 : 0); };
     const mine = vsVisits_.filter(function (v) {
       const n = vsNorm_(v.center);
       return n === q || n.indexOf(q) !== -1 || q.indexOf(n) !== -1;
     });
-    const hit = mine.filter(function (v) { return v.dateKey === date.key && v.period === period; });
+    const hit = mine.filter(function (v) { return v.period === period; }).sort(byDate);
     let h;
     if (hit.length) {
+      // قد يطابق الاسم أكثر من مركز، فنجمعها حسب المركز
+      const groups = {};
+      hit.forEach(function (v) { (groups[v.center] = groups[v.center] || []).push(v); });
       box.className = 'vs-search-result yes';
-      h = '✅ <b>توجد زيارة مسجّلة</b><br>' + vsEsc_(hit[0].center) + ' — ' + vsEsc_(period) + ' — ' + vsEsc_(date.text);
-      if (hit.length > 1) h += '<br><span class="vs-search-sub">(مسجّلة ' + vsAr_(hit.length) + ' مرات بنفس التاريخ والفترة)</span>';
+      h = '';
+      Object.keys(groups).forEach(function (c) {
+        const list = groups[c];
+        h += '<div class="vs-search-group">✅ <b>' + vsEsc_(c) + '</b> — ' + vsCountLabel_(list.length) + ' في الفترة ' + vsEsc_(period) + ':' +
+          list.map(function (v) { return '<div class="vs-search-line">• ' + vsEsc_(v.hijriDate) + '</div>'; }).join('') + '</div>';
+      });
     } else {
       box.className = 'vs-search-result no';
-      h = '❌ <b>لا توجد زيارة مسجّلة</b> لـ «' + vsEsc_(centerRaw) + '» في الفترة ' + vsEsc_(period) + ' بتاريخ ' + vsEsc_(date.text);
+      h = '❌ <b>لا توجد زيارة مسجّلة</b> لـ «' + vsEsc_(centerRaw) + '» في الفترة ' + vsEsc_(period) + '.';
       if (mine.length) {
-        const sorted = mine.slice().sort(function (a, b) { return a.dateKey < b.dateKey ? 1 : (a.dateKey > b.dateKey ? -1 : 0); });
-        h += '<br><span class="vs-search-sub">زيارات هذا المركز: ' + vsCountLabel_(mine.length) + ' — آخرها: ' + vsEsc_(sorted[0].hijriDate) + ' (' + vsEsc_(sorted[0].period) + ')</span>';
-      } else {
-        h += '<br><span class="vs-search-sub">لا توجد أي زيارة مسجّلة لهذا المركز.</span>';
+        const other = mine.slice().sort(byDate);
+        h += '<br><span class="vs-search-sub">لكن لهذا المركز ' + vsCountLabel_(mine.length) + ' في الفترة الأخرى — آخرها: ' + vsEsc_(other[0].hijriDate) + ' (' + vsEsc_(other[0].period) + ')</span>';
       }
     }
     box.innerHTML = h;

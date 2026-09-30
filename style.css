@@ -583,3 +583,5 @@ tr.vs-detail td { background: #fbf8f2; text-align: right; }
 .vs-search-result.yes { background: #eaf6ee; border-color: #b9dfc6; color: #1f6b3a; }
 .vs-search-result.no { background: #fbeef0; border-color: #e9c3c8; color: #8a1f2b; }
 .vs-search-sub { font-size: 0.82rem; opacity: .9; }
+.vs-search-group + .vs-search-group { margin-top: 10px; padding-top: 8px; border-top: 1px dashed #b9dfc6; }
+.vs-search-line { padding-right: 6px; font-size: 0.86rem; }
