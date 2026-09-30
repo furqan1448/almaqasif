@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الأسئلة الشائعة – مسؤولة المقصف</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+<style>
+/* ===== الأسئلة الشائعة: كل الأنماط داخل .faq حتى لا تتعارض مع style.css ===== */
+.faq{
+  --f-maroon:#7a1f2b;
+  --f-maroon-dark:#5a1420;
+  --f-maroon-soft:#f6e9eb;
+  --f-gold:#b58a3d;
+  --f-gold-soft:#fbf5e8;
+  --f-ink:#2b2325;
+  --f-muted:#6f6467;
+  --f-line:#e8dfe1;
+  --f-bg:#faf8f8;
+  font-family:'Tajawal','Segoe UI',Tahoma,sans-serif;
+  color:var(--f-ink);
+  max-width:760px;
+  margin:0 auto;
+  padding:16px 14px 40px;
+  line-height:1.8;
+}
+.faq *{box-sizing:border-box}
+
+.faq-title{font-size:1.35rem;font-weight:800;margin:4px 0 4px;color:var(--f-maroon-dark)}
+.faq-sub{margin:0 0 16px;color:var(--f-muted);font-size:.95rem}
+
+/* ----- التصنيفات ----- */
+.faq-cats{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+  margin-bottom:20px;
+}
+.faq-cat{
+  font:inherit;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  padding:12px 4px;
+  min-height:78px;
+  background:#fff;
+  border:1.5px solid var(--f-line);
+  border-radius:14px;
+  cursor:pointer;
+  color:var(--f-ink);
+  transition:background .2s,border-color .2s,color .2s,transform .1s;
+  -webkit-tap-highlight-color:transparent;
+}
+.faq-cat:active{transform:scale(.97)}
+.faq-cat .ic{font-size:1.5rem;line-height:1.2}
+.faq-cat .lb{font-size:.9rem;font-weight:700}
+.faq-cat[aria-selected="true"]{
+  background:var(--f-maroon);
+  border-color:var(--f-maroon);
+  color:#fff;
+}
+.faq-cat:focus-visible,
+.faq-q:focus-visible{outline:3px solid var(--f-gold);outline-offset:2px}
+
+/* ----- رأس التصنيف ----- */
+.faq-head{
+  display:flex;align-items:baseline;justify-content:space-between;
+  margin:0 2px 10px;
+}
+.faq-head h2{margin:0;font-size:1.1rem;font-weight:800;color:var(--f-maroon-dark)}
+.faq-head span{font-size:.85rem;color:var(--f-muted)}
+
+/* ----- الأسئلة ----- */
+.faq-list{display:flex;flex-direction:column;gap:10px}
+.faq-item{
+  background:#fff;
+  border:1.5px solid var(--f-line);
+  border-radius:14px;
+  overflow:hidden;
+  transition:border-color .2s,box-shadow .2s;
+}
+.faq-item.open{
+  border-color:var(--f-maroon);
+  box-shadow:0 4px 14px rgba(122,31,43,.10);
+}
+.faq-q{
+  font:inherit;
+  width:100%;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 16px;
+  background:none;border:0;
+  text-align:right;
+  cursor:pointer;
+  color:var(--f-ink);
+  font-weight:700;
+  font-size:1rem;
+  line-height:1.6;
+  -webkit-tap-highlight-color:transparent;
+}
+.faq-plus{
+  flex:none;
+  width:30px;height:30px;
+  display:grid;place-items:center;
+  border-radius:50%;
+  background:var(--f-maroon-soft);
+  color:var(--f-maroon);
+  font-size:1.3rem;font-weight:500;line-height:1;
+  transition:transform .25s,background .2s,color .2s;
+}
+.faq-item.open .faq-plus{
+  transform:rotate(45deg);
+  background:var(--f-maroon);
+  color:#fff;
+}
+
+/* فتح/إغلاق سلس بدون قياس الارتفاع */
+.faq-a{
+  display:grid;
+  grid-template-rows:0fr;
+  transition:grid-template-rows .3s ease;
+}
+.faq-item.open .faq-a{grid-template-rows:1fr}
+.faq-a-inner{overflow:hidden}
+.faq-a-body{padding:0 16px 16px;border-top:1px dashed var(--f-line);padding-top:14px}
+
+.faq-lead{margin:0 0 6px;font-weight:800;color:var(--f-maroon)}
+.faq-text{margin:0}
+.faq-steps{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.faq-steps li{
+  position:relative;
+  padding-right:24px;
+}
+.faq-steps li::before{
+  content:"";
+  position:absolute;right:2px;top:.78em;
+  width:8px;height:8px;border-radius:50%;
+  background:var(--f-gold);
+}
+.faq-note{
+  margin-top:12px;
+  padding:10px 12px;
+  background:var(--f-gold-soft);
+  border-right:4px solid var(--f-gold);
+  border-radius:8px;
+  font-size:.95rem;
+}
+.faq-note b{color:#7a5a1c}
+
+@media (min-width:600px){
+  .faq{padding:24px 20px 56px}
+  .faq-cats{grid-template-columns:repeat(6,1fr)}
+  .faq-cat{min-height:88px}
+  .faq-cat .lb{font-size:.85rem}
+}
+@media (prefers-reduced-motion:reduce){
+  .faq *{transition:none!important}
+}
+</style>
+</head>
+<body style="margin:0;background:#faf8f8">
+
+<!-- ===== ابدئي النسخ من هنا ===== -->
+<section class="faq" id="faq">
+  <h1 class="faq-title">الأسئلة الشائعة</h1>
+  <p class="faq-sub">اختاري التصنيف ثم اضغطي على السؤال لعرض الإجابة.</p>
+
+  <div class="faq-cats" role="tablist" aria-label="تصنيفات الأسئلة" id="faqCats"></div>
+
+  <div class="faq-head">
+    <h2 id="faqCatTitle"></h2>
+    <span id="faqCatCount"></span>
+  </div>
+  <div class="faq-list" id="faqList" role="tabpanel"></div>
+</section>
+
+<script>
+(function(){
+  /* ===== المحتوى: عدّلي النصوص من هنا فقط =====
+     lead  : السطر العريض بأول الإجابة
+     text  : نص عادي
+     steps : قائمة نقاط
+     note  : ملاحظة تظهر في مربع ذهبي
+  */
+  var CATS = [
+    { id:'start', icon:'🚀', label:'البدء', items:[
+      { q:'ما أول شيء أفعله عند استلام مسؤولية المقصف؟',
+        lead:'عند استلام المسؤولية:',
+        steps:[
+          'الاطلاع على مهام مسؤولة المقصف من أيقونة «مهام مسؤولة المقصف».',
+          'الاطلاع على التعهد.'
+        ],
+        note:'ضعي علامة ✓ بعد الاطلاع على كلٍّ منهما.' }
+    ]},
+
+    { id:'invoices', icon:'🧾', label:'الفواتير', items:[
+      { q:'ماذا أفعل عند وصول الفاتورة؟',
+        lead:'عند وصول الفاتورة:',
+        text:'جرد البضائع، ثم تسجيل رأس المال (المبلغ الإجمالي في الفاتورة) والربح من أيقونة «بيان الفواتير».' },
+      { q:'ما الفواتير المطلوب توثيقها في «بيان الفواتير»؟',
+        lead:'جميع فواتير الشراء:',
+        text:'سواء كانت من مؤسسة الإخلاص أو أكلتي أو مذاق الملكة أو غيرها.',
+        note:'يجب توثيق جميع فواتير الشراء في «بيان الفواتير».' },
+      { q:'متى أسجل الفاتورة؟',
+        lead:'عند وصول الفاتورة:',
+        text:'سجّلي الفاتورة خلال الأسبوع.',
+        note:'لا يشترط تسجيلها في نفس اليوم، ولكن يجب تسجيلها خلال الأسبوع وعدم تأجيلها إلى نهاية الفصل الدراسي.' }
+    ]},
+
+    { id:'returns', icon:'🔄', label:'المرتجعات', items:[
+      { q:'كيف أوثق البضاعة المرتجعة؟',
+        lead:'عند وصول فاتورة الرجيع، سجّلي:',
+        steps:[
+          'اسم الصنف.',
+          'نوع الوحدة: كيس / كرتون / حبات.',
+          'قيمة الرجيع.'
+        ],
+        note:'يتم التسجيل من أيقونة «البضائع المرتجعة».' }
+    ]},
+
+    { id:'sales', icon:'💰', label:'المبيعات', items:[
+      { q:'ما الأشياء التي أسجلها بشكل يومي؟',
+        lead:'يوميًا:',
+        text:'تسجيل مبيعات المقصف من أيقونة «سجل البيع اليومي».',
+        note:'يُفضّل توثيق المبلغ في نهاية اليوم حتى لا يتراكم التسجيل، ويجب عدم تأجيله إلى نهاية الفصل الدراسي.' },
+      { q:'كيف أوثق تسليم المبلغ؟',
+        lead:'لتوثيق تسليم المبلغ:',
+        text:'من أيقونة «إشعار استلام».' },
+      { q:'لماذا يسمى «إشعار استلام» وأنا التي أسلّم المبلغ؟',
+        lead:'سبب التسمية:',
+        text:'لأن اسم نوع الإشعار معتمد من جهة وحدة المقاصف، والمقصود به توثيق استلام الوحدة للمبلغ.' },
+      { q:'ماذا أحضر عند تسليم المبلغ؟',
+        lead:'عند تسليم المبلغ:',
+        text:'إذا انتهت البضائع الموجودة في الفاتورة، أحضري الفاتورة مع المبلغ.' }
+    ]},
+
+    { id:'cards', icon:'🎁', label:'بطاقات التحفيز', items:[
+      { q:'ما هي بطاقات التحفيز؟',
+        lead:'بطاقات التحفيز:',
+        steps:[
+          'بطاقات تُستخدم كمكافأة أو هدية.',
+          'تُطلب من الوحدة عند رغبة المركز فيها.',
+          'يمكن للدارسة أو إحدى منسوبات المركز استلامها وتقديمها لطرف آخر، ثم يستبدل المستفيد قيمة البطاقة بالشراء من المقصف.'
+        ] },
+      { q:'كيف أوثق استلام بطاقات التحفيز؟',
+        lead:'عند استلام البطاقات من الوحدة:',
+        text:'ادخلي إلى أيقونة «تسليم بطاقات التحفيز – مسؤولة المقصف»، ثم سجّلي الكمية والنوع.' },
+      { q:'كيف أوثق تسليم بطاقة التحفيز لمنسوبات المركز؟',
+        lead:'عند طلب بطاقة:',
+        steps:[
+          'إذا طلبتها الدارسة أو إحدى منسوبات المركز: تُسلَّم بطاقة هدية ويُوثَّق استلامها بتوقيعها.',
+          'إذا رغبت المعلمة في إعطاء بطاقة للدارسة: تُسلَّم بطاقة مكافأة ويُوثَّق استلامها بتوقيعها.'
+        ],
+        note:'يتم ذلك من أيقونة «تسجيل تسليم بطاقة تحفيز – منسوبات المركز».' },
+      { q:'كيف أوثق استبدال البطاقة أو إرجاعها؟',
+        lead:'لتوثيق الاستبدال أو الإرجاع:',
+        text:'من أيقونة «متابعة بطاقات التحفيز».' },
+      { q:'هل من المهم أخذ توقيع أو تعهد من منسوبات المركز؟',
+        lead:'أخذ التوقيع اختياري:',
+        text:'لكنه يحفظ حقك ويثبت تسليم البطاقة.',
+        note:'في حال عدم أخذ التوقيع، تكون مسؤولية البطاقة عليكِ عند فقدانها.' }
+    ]},
+
+    { id:'end', icon:'📁', label:'نهاية الفصل', items:[
+      { q:'ماذا أرسل إلى وحدة المقاصف في نهاية الفصل الدراسي؟',
+        lead:'لا يوجد شيء مطلوب إرساله إلى الوحدة.',
+        text:'يكفي حفظ السجلات بصيغة Excel أو PDF في الـDrive الخاص بك أو بالمركز.' }
+    ]}
+  ];
+
+  /* ===== العرض ===== */
+  var catsEl  = document.getElementById('faqCats');
+  var listEl  = document.getElementById('faqList');
+  var titleEl = document.getElementById('faqCatTitle');
+  var countEl = document.getElementById('faqCatCount');
+  var current = 0;
+
+  function esc(s){
+    return String(s).replace(/[&<>"]/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+    });
+  }
+
+  function renderCats(){
+    catsEl.innerHTML = '';
+    CATS.forEach(function(c, i){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'faq-cat';
+      b.setAttribute('role','tab');
+      b.setAttribute('aria-selected', i === current ? 'true' : 'false');
+      b.innerHTML = '<span class="ic" aria-hidden="true">'+c.icon+'</span><span class="lb">'+esc(c.label)+'</span>';
+      b.addEventListener('click', function(){ current = i; renderCats(); renderList(); });
+      catsEl.appendChild(b);
+    });
+  }
+
+  function answerHTML(it){
+    var h = '';
+    if (it.lead)  h += '<p class="faq-lead">'+esc(it.lead)+'</p>';
+    if (it.text)  h += '<p class="faq-text">'+esc(it.text)+'</p>';
+    if (it.steps) h += '<ul class="faq-steps">'+it.steps.map(function(s){return '<li>'+esc(s)+'</li>';}).join('')+'</ul>';
+    if (it.note)  h += '<div class="faq-note"><b>ملاحظة:</b> '+esc(it.note)+'</div>';
+    return h;
+  }
+
+  function renderList(){
+    var cat = CATS[current];
+    titleEl.textContent = cat.icon + ' ' + cat.label;
+    countEl.textContent = cat.items.length + (cat.items.length === 1 ? ' سؤال' : cat.items.length === 2 ? ' سؤالان' : cat.items.length <= 10 ? ' أسئلة' : ' سؤالًا');
+    listEl.innerHTML = '';
+
+    cat.items.forEach(function(it, i){
+      var id = 'faq-' + cat.id + '-' + i;
+      var item = document.createElement('div');
+      item.className = 'faq-item';
+      item.innerHTML =
+        '<button type="button" class="faq-q" aria-expanded="false" aria-controls="'+id+'">' +
+          '<span>'+esc(it.q)+'</span><span class="faq-plus" aria-hidden="true">+</span>' +
+        '</button>' +
+        '<div class="faq-a" id="'+id+'" role="region">' +
+          '<div class="faq-a-inner"><div class="faq-a-body">'+answerHTML(it)+'</div></div>' +
+        '</div>';
+
+      var btn = item.querySelector('.faq-q');
+      btn.addEventListener('click', function(){
+        var willOpen = !item.classList.contains('open');
+        // نفتح سؤالًا واحدًا فقط في كل مرة
+        listEl.querySelectorAll('.faq-item.open').forEach(function(o){
+          o.classList.remove('open');
+          o.querySelector('.faq-q').setAttribute('aria-expanded','false');
+        });
+        if (willOpen){
+          item.classList.add('open');
+          btn.setAttribute('aria-expanded','true');
+        }
+      });
+      listEl.appendChild(item);
+    });
+
+    // إذا كان في التصنيف سؤال واحد فقط نفتحه مباشرة
+    if (cat.items.length === 1){
+      var only = listEl.querySelector('.faq-item');
+      only.classList.add('open');
+      only.querySelector('.faq-q').setAttribute('aria-expanded','true');
+    }
+  }
+
+  renderCats();
+  renderList();
+})();
+</script>
+<!-- ===== انتهي من النسخ هنا ===== -->
+
+</body>
+</html>
