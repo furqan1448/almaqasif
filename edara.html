@@ -635,8 +635,14 @@
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">تسجيل زيارة</h3>
         <label>اسم المركز</label>
-        <input type="text" id="vsCenter" list="vsCentersList" placeholder="اكتبي اسم المركز" autocomplete="off">
+        <div class="vs-search-row">
+          <input type="text" id="vsCenter" list="vsCentersList" placeholder="اكتبي اسم المركز" autocomplete="off">
+          <button type="button" class="vs-search-btn" id="vsSearchBtn" onclick="vsSearchVisit()" title="تحقق: هل توجد زيارة مسجّلة؟" aria-label="بحث عن زيارة">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          </button>
+        </div>
         <datalist id="vsCentersList"></datalist>
+        <div class="vs-search-result hidden" id="vsSearchResult"></div>
         <label>الفترة</label>
         <select id="vsPeriod">
           <option value="صباحية">صباحية</option>
@@ -3487,6 +3493,8 @@ function initVisitStatsTab_() {
     for (let y = t.y - 1; y <= t.y + 1; y++) h += '<option value="' + y + '"' + (y === t.y ? ' selected' : '') + '>' + vsAr_(y) + '</option>';
     document.getElementById('vsYear').innerHTML = h;
     ['vsDay', 'vsMonth', 'vsYear'].forEach(function (id) { document.getElementById(id).addEventListener('change', vsUpdatePreview_); });
+    ['vsDay', 'vsMonth', 'vsYear', 'vsPeriod'].forEach(function (id) { document.getElementById(id).addEventListener('change', vsHideSearchResult_); });
+    document.getElementById('vsCenter').addEventListener('input', vsHideSearchResult_);
     daySel.dataset.ready = '1';
   }
   vsUpdatePreview_();
@@ -3507,6 +3515,63 @@ function vsSelectedDate_() {
 
 function vsUpdatePreview_() {
   document.getElementById('vsDatePreview').textContent = vsSelectedDate_().text;
+}
+
+/* تطبيع عربي بسيط للمقارنة بين أسماء المراكز */
+function vsNorm_(s) {
+  return String(s || '').replace(/[\u064B-\u0652\u0640]/g, '')
+    .replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+    .replace(/\s+/g, ' ').trim();
+}
+
+function vsHideSearchResult_() {
+  const box = document.getElementById('vsSearchResult');
+  if (box) box.classList.add('hidden');
+}
+
+/* 🔍 تحقق: هل توجد زيارة مسجّلة لهذا المركز في هذه الفترة وهذا التاريخ؟ */
+function vsSearchVisit() {
+  const centerRaw = document.getElementById('vsCenter').value.replace(/\s+/g, ' ').trim();
+  if (!centerRaw) { alert('اكتبي اسم المركز'); return; }
+  const btn = document.getElementById('vsSearchBtn');
+  const box = document.getElementById('vsSearchResult');
+  const period = document.getElementById('vsPeriod').value;
+  const date = vsSelectedDate_();
+  const q = vsNorm_(centerRaw);
+  btn.disabled = true;
+  box.className = 'vs-search-result';
+  box.textContent = 'جارِ البحث...';
+  callApi('getVisitStats').then(function (r) {
+    btn.disabled = false;
+    if (!r || !r.ok) { box.className = 'vs-search-result no'; box.textContent = 'تعذّر البحث' + (r && r.error ? ': ' + r.error : ''); return; }
+    vsVisits_ = r.visits || [];
+    renderVisitStats_();
+    const mine = vsVisits_.filter(function (v) {
+      const n = vsNorm_(v.center);
+      return n === q || n.indexOf(q) !== -1 || q.indexOf(n) !== -1;
+    });
+    const hit = mine.filter(function (v) { return v.dateKey === date.key && v.period === period; });
+    let h;
+    if (hit.length) {
+      box.className = 'vs-search-result yes';
+      h = '✅ <b>توجد زيارة مسجّلة</b><br>' + vsEsc_(hit[0].center) + ' — ' + vsEsc_(period) + ' — ' + vsEsc_(date.text);
+      if (hit.length > 1) h += '<br><span class="vs-search-sub">(مسجّلة ' + vsAr_(hit.length) + ' مرات بنفس التاريخ والفترة)</span>';
+    } else {
+      box.className = 'vs-search-result no';
+      h = '❌ <b>لا توجد زيارة مسجّلة</b> لـ «' + vsEsc_(centerRaw) + '» في الفترة ' + vsEsc_(period) + ' بتاريخ ' + vsEsc_(date.text);
+      if (mine.length) {
+        const sorted = mine.slice().sort(function (a, b) { return a.dateKey < b.dateKey ? 1 : (a.dateKey > b.dateKey ? -1 : 0); });
+        h += '<br><span class="vs-search-sub">زيارات هذا المركز: ' + vsCountLabel_(mine.length) + ' — آخرها: ' + vsEsc_(sorted[0].hijriDate) + ' (' + vsEsc_(sorted[0].period) + ')</span>';
+      } else {
+        h += '<br><span class="vs-search-sub">لا توجد أي زيارة مسجّلة لهذا المركز.</span>';
+      }
+    }
+    box.innerHTML = h;
+  }).catch(function () {
+    btn.disabled = false;
+    box.className = 'vs-search-result no';
+    box.textContent = 'تعذّر الاتصال بالخادم.';
+  });
 }
 
 function saveVisitStat() {

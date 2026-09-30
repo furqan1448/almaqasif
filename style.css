@@ -573,3 +573,13 @@ tr.vs-detail td { background: #fbf8f2; text-align: right; }
 .faq-note b { color: var(--maroon-dark); }
 @media (min-width: 600px) { .faq-cats { grid-template-columns: repeat(6, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .faq-a, .faq-plus, .faq-item { transition: none; } }
+
+/* بحث عن زيارة (إحصائية الزيارات) */
+.vs-search-row { display: flex; gap: 8px; align-items: stretch; }
+.vs-search-row input { flex: 1; min-width: 0; }
+.vs-search-btn { flex: none; width: 48px; display: grid; place-items: center; background: var(--maroon); color: #fff; border: 0; border-radius: 12px; cursor: pointer; }
+.vs-search-btn:disabled { opacity: .6; cursor: default; }
+.vs-search-result { margin-top: 10px; padding: 10px 12px; border-radius: 10px; font-size: 0.9rem; line-height: 1.8; background: #fbf8f2; border: 1px solid var(--gold-light); }
+.vs-search-result.yes { background: #eaf6ee; border-color: #b9dfc6; color: #1f6b3a; }
+.vs-search-result.no { background: #fbeef0; border-color: #e9c3c8; color: #8a1f2b; }
+.vs-search-sub { font-size: 0.82rem; opacity: .9; }
