@@ -160,7 +160,24 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v2M16 3v2"/><rect x="4" y="4.5" width="16" height="16" rx="1.5"/><path d="M4 9.5h16"/><path d="M8.5 13.5l2 2 4-4.5"/><path d="M8.5 17.5h4"/></svg></div>
           <span class="label">محاضر الاجتماعات</span>
         </div>
+        <div class="icon-btn" onclick="showView('faqView')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.2 1-1.2 1.8"/><circle cx="12" cy="16.8" r="0.5" fill="currentColor"/></svg></div>
+          <span class="label">الأسئلة الشائعة</span>
+        </div>
       </div>
+    </div>
+
+    <!-- الأسئلة الشائعة -->
+    <div id="faqView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <h3 style="margin:0 0 4px;color:var(--maroon);">الأسئلة الشائعة</h3>
+      <p class="faq-sub">اختاري التصنيف ثم اضغطي على السؤال لعرض الإجابة.</p>
+      <div class="faq-cats" role="tablist" aria-label="تصنيفات الأسئلة" id="faqCats"></div>
+      <div class="faq-head">
+        <h4 id="faqCatTitle"></h4>
+        <span id="faqCatCount"></span>
+      </div>
+      <div class="faq-list" id="faqList" role="tabpanel"></div>
     </div>
 
     <!-- محاضر الاجتماعات -->
@@ -798,7 +815,7 @@ function loadDashboardData() {
 }
 
 function showView(id) {
-  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'tasksView', 'announcementsView', 'priceListView', 'cardsDeliverView', 'cardsReceiveView', 'cardsFollowupView', 'meetingMinutesView'].forEach(function (v) {
+  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'tasksView', 'announcementsView', 'priceListView', 'cardsDeliverView', 'cardsReceiveView', 'cardsFollowupView', 'meetingMinutesView', 'faqView'].forEach(function (v) {
     document.getElementById(v).classList.toggle('hidden', v !== id);
   });
   if (id === 'salesView') loadSales();
@@ -813,6 +830,7 @@ function showView(id) {
   if (id === 'cardsReceiveView') initCardsReceiveView_();
   if (id === 'cardsFollowupView') loadCardsFollowup_();
   if (id === 'meetingMinutesView') loadMeetingMinutesList();
+  if (id === 'faqView') initFaq_();
   if (id === 'homeView' && currentCenter) refreshPendingBadge();
 }
 
@@ -2164,6 +2182,143 @@ function deleteCardFollowupSplit_(id) {
     loadCardsFollowup_();
   });
 }
+
+/* -------- الأسئلة الشائعة -------- */
+var FAQ_CATS_ = [
+  { id: 'start', icon: '🚀', label: 'البدء', items: [
+    { q: 'ما أول شيء أفعله عند استلام مسؤولية المقصف؟',
+      lead: 'عند استلام المسؤولية:',
+      steps: ['الاطلاع على مهام مسؤولة المقصف من أيقونة «مهام مسؤولة المقصف».', 'الاطلاع على التعهد.'],
+      note: 'ضعي علامة ✓ بعد الاطلاع على كلٍّ منهما.' }
+  ]},
+  { id: 'invoices', icon: '🧾', label: 'الفواتير', items: [
+    { q: 'ماذا أفعل عند وصول الفاتورة؟',
+      lead: 'عند وصول الفاتورة:',
+      text: 'جرد البضائع، ثم تسجيل رأس المال (المبلغ الإجمالي في الفاتورة) والربح من أيقونة «بيان الفواتير».' },
+    { q: 'ما الفواتير المطلوب توثيقها في «بيان الفواتير»؟',
+      lead: 'جميع فواتير الشراء:',
+      text: 'سواء كانت من مؤسسة الإخلاص أو أكلتي أو مذاق الملكة أو غيرها.',
+      note: 'يجب توثيق جميع فواتير الشراء في «بيان الفواتير».' },
+    { q: 'متى أسجل الفاتورة؟',
+      lead: 'عند وصول الفاتورة:',
+      text: 'سجّلي الفاتورة خلال الأسبوع.',
+      note: 'لا يشترط تسجيلها في نفس اليوم، ولكن يجب تسجيلها خلال الأسبوع وعدم تأجيلها إلى نهاية الفصل الدراسي.' }
+  ]},
+  { id: 'returns', icon: '🔄', label: 'المرتجعات', items: [
+    { q: 'كيف أوثق البضاعة المرتجعة؟',
+      lead: 'عند وصول فاتورة الرجيع، سجّلي:',
+      steps: ['اسم الصنف.', 'نوع الوحدة: كيس / كرتون / حبات.', 'قيمة الرجيع.'],
+      note: 'يتم التسجيل من أيقونة «البضائع المرتجعة».' }
+  ]},
+  { id: 'sales', icon: '💰', label: 'المبيعات', items: [
+    { q: 'ما الأشياء التي أسجلها بشكل يومي؟',
+      lead: 'يوميًا:',
+      text: 'تسجيل مبيعات المقصف من أيقونة «سجل البيع اليومي».',
+      note: 'يُفضّل توثيق المبلغ في نهاية اليوم حتى لا يتراكم التسجيل، ويجب عدم تأجيله إلى نهاية الفصل الدراسي.' },
+    { q: 'كيف أوثق تسليم المبلغ؟',
+      lead: 'لتوثيق تسليم المبلغ:',
+      text: 'من أيقونة «إشعار استلام».' },
+    { q: 'لماذا يسمى «إشعار استلام» وأنا التي أسلّم المبلغ؟',
+      lead: 'سبب التسمية:',
+      text: 'لأن اسم نوع الإشعار معتمد من جهة وحدة المقاصف، والمقصود به توثيق استلام الوحدة للمبلغ.' },
+    { q: 'ماذا أحضر عند تسليم المبلغ؟',
+      lead: 'عند تسليم المبلغ:',
+      text: 'إذا انتهت البضائع الموجودة في الفاتورة، أحضري الفاتورة مع المبلغ.' }
+  ]},
+  { id: 'cards', icon: '🎁', label: 'بطاقات التحفيز', items: [
+    { q: 'ما هي بطاقات التحفيز؟',
+      lead: 'بطاقات التحفيز:',
+      steps: ['بطاقات تُستخدم كمكافأة أو هدية.', 'تُطلب من الوحدة عند رغبة المركز فيها.', 'يمكن للدارسة أو إحدى منسوبات المركز استلامها وتقديمها لطرف آخر، ثم يستبدل المستفيد قيمة البطاقة بالشراء من المقصف.'] },
+    { q: 'كيف أوثق استلام بطاقات التحفيز؟',
+      lead: 'عند استلام البطاقات من الوحدة:',
+      text: 'ادخلي إلى أيقونة «تسليم بطاقات التحفيز - مسؤولة المقصف»، ثم سجّلي الكمية والنوع.' },
+    { q: 'كيف أوثق تسليم بطاقة التحفيز لمنسوبات المركز؟',
+      lead: 'عند طلب بطاقة:',
+      steps: ['إذا طلبتها الدارسة أو إحدى منسوبات المركز: تُسلَّم بطاقة هدية ويُوثَّق استلامها بتوقيعها.', 'إذا رغبت المعلمة في إعطاء بطاقة للدارسة: تُسلَّم بطاقة مكافأة ويُوثَّق استلامها بتوقيعها.'],
+      note: 'يتم ذلك من أيقونة «تسليم بطاقات التحفيز - منسوبات المركز».' },
+    { q: 'كيف أوثق استبدال البطاقة أو إرجاعها؟',
+      lead: 'لتوثيق الاستبدال أو الإرجاع:',
+      text: 'من أيقونة «متابعة بطاقات التحفيز».' },
+    { q: 'هل من المهم أخذ توقيع أو تعهد من منسوبات المركز؟',
+      lead: 'أخذ التوقيع اختياري:',
+      text: 'لكنه يحفظ حقك ويثبت تسليم البطاقة.',
+      note: 'في حال عدم أخذ التوقيع، تكون مسؤولية البطاقة عليكِ عند فقدانها.' }
+  ]},
+  { id: 'end', icon: '📁', label: 'نهاية الفصل', items: [
+    { q: 'ماذا أرسل إلى وحدة المقاصف في نهاية الفصل الدراسي؟',
+      lead: 'لا يوجد شيء مطلوب إرساله إلى الوحدة.',
+      text: 'يكفي حفظ السجلات بصيغة Excel أو PDF في الـDrive الخاص بك أو بالمركز.' }
+  ]}
+];
+var faqCurrent_ = 0;
+
+function faqEsc_(s) {
+  return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+}
+
+function initFaq_() {
+  faqCurrent_ = 0;
+  renderFaqCats_();
+  renderFaqList_();
+}
+
+function renderFaqCats_() {
+  const box = document.getElementById('faqCats');
+  box.innerHTML = '';
+  FAQ_CATS_.forEach(function (c, i) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'faq-cat';
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', i === faqCurrent_ ? 'true' : 'false');
+    b.innerHTML = '<span class="ic" aria-hidden="true">' + c.icon + '</span><span class="lb">' + faqEsc_(c.label) + '</span>';
+    b.addEventListener('click', function () { faqCurrent_ = i; renderFaqCats_(); renderFaqList_(); });
+    box.appendChild(b);
+  });
+}
+
+function faqAnswerHTML_(it) {
+  let h = '';
+  if (it.lead) h += '<p class="faq-lead">' + faqEsc_(it.lead) + '</p>';
+  if (it.text) h += '<p class="faq-text">' + faqEsc_(it.text) + '</p>';
+  if (it.steps) h += '<ul class="faq-steps">' + it.steps.map(function (s) { return '<li>' + faqEsc_(s) + '</li>'; }).join('') + '</ul>';
+  if (it.note) h += '<div class="faq-note"><b>ملاحظة:</b> ' + faqEsc_(it.note) + '</div>';
+  return h;
+}
+
+function faqToggle_(item, btn) {
+  const list = document.getElementById('faqList');
+  const willOpen = !item.classList.contains('open');
+  list.querySelectorAll('.faq-item.open').forEach(function (o) {
+    o.classList.remove('open');
+    o.querySelector('.faq-q').setAttribute('aria-expanded', 'false');
+  });
+  if (willOpen) { item.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); }
+}
+
+function renderFaqList_() {
+  const cat = FAQ_CATS_[faqCurrent_];
+  const list = document.getElementById('faqList');
+  const n = cat.items.length;
+  document.getElementById('faqCatTitle').textContent = cat.icon + ' ' + cat.label;
+  document.getElementById('faqCatCount').textContent = n + (n === 1 ? ' سؤال' : n === 2 ? ' سؤالان' : ' أسئلة');
+  list.innerHTML = '';
+  cat.items.forEach(function (it, i) {
+    const id = 'faq-' + cat.id + '-' + i;
+    const item = document.createElement('div');
+    item.className = 'faq-item';
+    item.innerHTML =
+      '<button type="button" class="faq-q" aria-expanded="false" aria-controls="' + id + '">' +
+        '<span>' + faqEsc_(it.q) + '</span><span class="faq-plus" aria-hidden="true">+</span>' +
+      '</button>' +
+      '<div class="faq-a" id="' + id + '" role="region"><div class="faq-a-inner"><div class="faq-a-body">' + faqAnswerHTML_(it) + '</div></div></div>';
+    const btn = item.querySelector('.faq-q');
+    btn.addEventListener('click', function () { faqToggle_(item, btn); });
+    list.appendChild(item);
+  });
+  if (n === 1) faqToggle_(list.firstChild, list.firstChild.querySelector('.faq-q'));
+}
+
 </script>
 </body>
 </html>
