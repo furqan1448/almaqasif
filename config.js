@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbxQr2TmasZ2_A32MvM9VxdKeZQLOaT6M6PosbAFpnR0yiLTvR5-fPDnV_FiALtl9Pe9/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwR7kkxhJ7cuJRgE4eVcMqxuimheTeaodW7oXvbXBOAxVFGRiQbrqVcJKjWqSDo2pcZ/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -1853,14 +1853,18 @@ function invoiceSummary_(list) {
   return s;
 }
 
+/* سطر «أرباح المشتريات» يظهر فقط للمركز المفعّل له المشتريات (purchasesLineOn_) أو لو فيه قيود مشتريات فعلاً */
+let purchasesLineOn_ = false;
+
 function invoiceSummaryLines_(s) {
-  return [
+  const lines = [
     ['رأس المال (الفواتير)', s.invoiceCapital],
-    ['أرباح الفواتير (+)', s.invoiceProfit],
-    ['أرباح المشتريات (+)', s.purchasesProfit],
-    ['المصروفات (−)', s.expenses],
-    ['المطلوب تسليمه', s.deliverable]
+    ['أرباح الفواتير (+)', s.invoiceProfit]
   ];
+  if (purchasesLineOn_ || s.purchasesCost > 0 || s.purchasesProfit !== 0) lines.push(['أرباح المشتريات (+)', s.purchasesProfit]);
+  lines.push(['المصروفات (−)', s.expenses]);
+  lines.push(['المطلوب تسليمه', s.deliverable]);
+  return lines;
 }
 
 function invoiceSummaryHtml_(s) {

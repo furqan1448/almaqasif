@@ -843,6 +843,7 @@ let purchasesEnabled_ = false;
 /* خيار «مشتريات» يظهر فقط للمراكز اللي فعّلتها الإدارة (اللي تشتري بنفسها) */
 function setPurchasesEnabled_(enabled) {
   purchasesEnabled_ = !!enabled;
+  purchasesLineOn_ = !!enabled;
   const sel = document.getElementById('invoiceEntryType');
   const cur = sel.value;
   const has = Array.prototype.some.call(sel.options, function (o) { return o.value === 'مشتريات'; });
