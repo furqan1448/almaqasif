@@ -355,6 +355,14 @@
     <!-- ===== تبويب: الفواتير ===== -->
     <div id="invoicesTab" class="admin-tab-panel hidden">
       <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">المراكز المفعّل لها «مشتريات»</h3>
+        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">نوع القيد «مشتريات» يظهر فقط للمراكز اللي تحددينها هنا (اللي تشتري بنفسها). «فاتورة» و«مصروفات» متاحة لجميع المراكز.</p>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-bottom:8px;"><input type="checkbox" id="purchaseCentersAll" onchange="togglePurchaseCentersAll_(this.checked)"> <span>تحديد الكل</span></label>
+        <div id="purchaseCentersBox">جاري التحميل...</div>
+        <button class="btn" id="purchaseCentersSaveBtn" onclick="savePurchaseCenters()" style="margin-top:10px;">حفظ</button>
+        <div class="success-msg" id="purchaseCentersSuccess">تم الحفظ بنجاح ✅</div>
+      </div>
+      <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">بيان الفواتير لكل مركز</h3>
         <div class="select-row">
           <div>
@@ -1093,7 +1101,7 @@ function showAdminTab(tabId) {
   if (tabId === 'attendanceTab') loadAttendanceChecklist();
   if (tabId === 'salesTab') loadCenterSales();
   if (tabId === 'returnsTab') loadCenterReturns();
-  if (tabId === 'invoicesTab') loadCenterInvoices();
+  if (tabId === 'invoicesTab') { loadCenterInvoices(); loadPurchaseCentersAdmin(); }
   if (tabId === 'attachmentsTab') loadAttachments();
   if (tabId === 'difficultiesTab') loadDifficultiesAdmin();
   if (tabId === 'pledgesTab') loadPledgesStatus();
@@ -1848,6 +1856,53 @@ function printCurrentReturns() {
     { key: 'center', label: 'المركز' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'item', label: 'الصنف' },
     { key: 'qty', label: 'الكمية' }, { key: 'value', label: 'القيمة' }, { key: 'notes', label: 'ملاحظات' }
   ], rows);
+}
+
+/* -------- المراكز المفعّل لها «مشتريات» -------- */
+function loadPurchaseCentersAdmin() {
+  const box = document.getElementById('purchaseCentersBox');
+  function render(selected) {
+    box.innerHTML = centersListCache.length ? '' : 'لا يوجد مراكز';
+    centersListCache.forEach(function (c) {
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:6px;';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.className = 'purchase-center-check'; cb.value = c;
+      cb.checked = selected.indexOf(c) !== -1;
+      cb.onchange = syncPurchaseCentersAll_;
+      const sp = document.createElement('span'); sp.textContent = c;
+      label.appendChild(cb); label.appendChild(sp);
+      box.appendChild(label);
+    });
+    syncPurchaseCentersAll_();
+  }
+  function go() { callApi('getPurchaseCenters').then(function (r) { render((r && r.centers) || []); }); }
+  if (centersListCache.length) { go(); return; }
+  callApi('getCenters').then(function (r) { centersListCache = r.centers || []; go(); });
+}
+
+function togglePurchaseCentersAll_(on) {
+  document.querySelectorAll('.purchase-center-check').forEach(function (cb) { cb.checked = on; });
+}
+
+function syncPurchaseCentersAll_() {
+  const all = document.querySelectorAll('.purchase-center-check');
+  const checked = document.querySelectorAll('.purchase-center-check:checked');
+  document.getElementById('purchaseCentersAll').checked = all.length > 0 && all.length === checked.length;
+}
+
+function savePurchaseCenters() {
+  const btn = document.getElementById('purchaseCentersSaveBtn');
+  const centers = Array.prototype.map.call(document.querySelectorAll('.purchase-center-check:checked'), function (cb) { return cb.value; });
+  setBtnBusy(btn, true);
+  callApi('setPurchaseCenters', { actor: 'admin', centers: centers }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (r.ok) {
+      const s = document.getElementById('purchaseCentersSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+    } else { alert(r.error || 'تعذّر الحفظ'); }
+  }).catch(function () { setBtnBusy(btn, false); });
 }
 
 /* -------- الفواتير لكل مركز -------- */

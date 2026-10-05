@@ -1253,6 +1253,8 @@ function handleRequest_(p) {
       case 'getPriceListManager': return json_(getPriceListManager_());
       case 'setPriceListManager': return json_(setPriceListManager_(p));
 
+      case 'getPurchaseCenters': return json_(getPurchaseCenters_());
+      case 'setPurchaseCenters': return json_(setPurchaseCenters_(p));
       case 'getPriceListFile': return json_(getPriceListFile_());
       case 'getContacts': return json_(getContacts_());
       case 'recordVisitStat': return json_(recordVisitStat_(p));
@@ -1951,13 +1953,39 @@ function invoiceTotals_(rows) {
   return s;
 }
 
+
+/* مراكز مسموح لها بنوع القيد «مشتريات» (اللي تشتري بنفسها) - تحددها الإدارة، والباقي فاتورة/مصروفات فقط */
+function getPurchaseCentersList_() {
+  const raw = getSettingValue_('مراكز المشتريات');
+  if (!raw) return [];
+  try { const a = JSON.parse(raw); return Array.isArray(a) ? a.map(function (x) { return String(x).trim(); }) : []; }
+  catch (e) { return []; }
+}
+
+function centerCanPurchase_(center) {
+  const c = String(center || '').trim();
+  return !!c && getPurchaseCentersList_().indexOf(c) !== -1;
+}
+
+function getPurchaseCenters_() {
+  return { ok: true, centers: getPurchaseCentersList_() };
+}
+
+function setPurchaseCenters_(p) {
+  if (p.actor !== 'admin') return { ok: false, error: 'ما عندك صلاحية تعديل مراكز المشتريات' };
+  const list = (p.centers || []).map(function (x) { return String(x).trim(); }).filter(Boolean);
+  setSettingValue_('مراكز المشتريات', JSON.stringify(list));
+  return { ok: true };
+}
+
 function recordInvoice_(p) {
   const sh = sheet_('الفواتير');
   ensureInvoiceTypeCol_(sh);
   const id = Utilities.getUuid();
   const date = p.date || nowParts_().date;
   const day = dayNameForDateStr_(date);
-  const type = cleanEntryType_(p.entryType);
+  let type = cleanEntryType_(p.entryType);
+  if (type === 'مشتريات' && !centerCanPurchase_(p.center)) return { ok: false, error: 'نوع «مشتريات» غير مفعّل لهذا المركز' };
   appendRowByHeaders_(sh, {
     'معرف': id, 'اسم المركز': p.center, 'رقم الفاتورة': p.invoiceNumber || '', 'مصدر الفاتورة': p.invoiceSource || '', 'اليوم': day, 'التاريخ': date,
     'المبلغ الإجمالي': Number(p.totalAmount) || 0, 'الربح': type === 'مصروفات' ? 0 : (Number(p.profit) || 0), 'ملاحظات': p.notes || '',
@@ -1972,7 +2000,7 @@ function getInvoices_(p) {
   if (p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
   const sum = invoiceTotals_(rows);
   // totalAmount/totalProfit محفوظين للتوافق مع الواجهات القديمة (مجموعهم = المطلوب تسليمه)
-  return { ok: true, invoices: rows, summary: sum,
+  return { ok: true, invoices: rows, summary: sum, purchasesEnabled: p.center ? centerCanPurchase_(p.center) : undefined,
            totalAmount: sum.invoiceCapital - sum.expenses, totalProfit: sum.invoiceProfit + sum.purchasesProfit };
 }
 
@@ -1998,6 +2026,11 @@ function updateInvoice_(p) {
   if (p.entryType !== undefined) {
     ensureInvoiceTypeCol_(sh);
     const t = cleanEntryType_(p.entryType);
+    if (t === 'مشتريات') {
+      const curType = cleanEntryType_(sh.getRange(row, colIndex_(sh, ENTRY_TYPE_COL_)).getValue());
+      const rowCenter = sh.getRange(row, colIndex_(sh, 'اسم المركز')).getValue();
+      if (curType !== 'مشتريات' && !centerCanPurchase_(rowCenter)) return { ok: false, error: 'نوع «مشتريات» غير مفعّل لهذا المركز' };
+    }
     sh.getRange(row, colIndex_(sh, ENTRY_TYPE_COL_)).setValue(t);
     if (t === 'مصروفات') sh.getRange(row, colIndex_(sh, 'الربح')).setValue(0);
   }

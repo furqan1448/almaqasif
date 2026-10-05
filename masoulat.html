@@ -279,7 +279,6 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         <label>نوع القيد</label>
         <select id="invoiceEntryType" onchange="onInvoiceEntryTypeChange()">
           <option value="فاتورة">فاتورة بضاعة</option>
-          <option value="مشتريات">مشتريات من المبالغ (فطاير، قهوة، شاي...)</option>
           <option value="مصروفات">مصروفات (أكياس، أكواب...)</option>
         </select>
         <div id="invoiceNumberWrap">
@@ -1077,6 +1076,24 @@ function setInvoiceSourceValue_(source) {
   }
 }
 
+let purchasesEnabled_ = false;
+/* خيار «مشتريات» يظهر فقط للمراكز اللي فعّلتها الإدارة (اللي تشتري بنفسها) */
+function setPurchasesEnabled_(enabled) {
+  purchasesEnabled_ = !!enabled;
+  const sel = document.getElementById('invoiceEntryType');
+  const cur = sel.value;
+  const has = Array.prototype.some.call(sel.options, function (o) { return o.value === 'مشتريات'; });
+  if (enabled && !has) {
+    const o = document.createElement('option');
+    o.value = 'مشتريات'; o.textContent = 'مشتريات من المبالغ (فطاير، قهوة، شاي...)';
+    sel.insertBefore(o, sel.querySelector('option[value="مصروفات"]'));
+  } else if (!enabled && has) {
+    Array.prototype.forEach.call(sel.options, function (o) { if (o.value === 'مشتريات') sel.removeChild(o); });
+  }
+  sel.value = cur && Array.prototype.some.call(sel.options, function (o) { return o.value === cur; }) ? cur : 'فاتورة';
+  onInvoiceEntryTypeChange();
+}
+
 function onInvoiceEntryTypeChange() {
   const t = document.getElementById('invoiceEntryType').value;
   renderInvoiceSourceOptions_();
@@ -1141,6 +1158,7 @@ function editInvoice(row) {
   if (!inv) return;
   editingInvoiceRow = row;
   const type = invoiceEntryType_(inv);
+  setPurchasesEnabled_(purchasesEnabled_ || type === 'مشتريات');
   document.getElementById('invoiceEntryType').value = type;
   onInvoiceEntryTypeChange();
   document.getElementById('invoiceNumber').value = inv['رقم الفاتورة'] || '';
@@ -1157,6 +1175,7 @@ function editInvoice(row) {
 
 function cancelEditInvoice() {
   editingInvoiceRow = null;
+  setPurchasesEnabled_(purchasesEnabled_);
   document.getElementById('invoiceEntryType').value = 'فاتورة';
   onInvoiceEntryTypeChange();
   document.getElementById('invoiceNumber').value = '';
@@ -1183,6 +1202,7 @@ function loadInvoices() {
   populateTermFilter_('invoicesTermFilter');
   const term = document.getElementById('invoicesTermFilter').value;
   callApi('getInvoices', { center: currentCenter, term: term }).then(function (r) {
+    if (r.ok && !editingInvoiceRow) setPurchasesEnabled_(r.purchasesEnabled);
     currentInvoicesData = r.invoices || [];
     const summaryBox = document.getElementById('invoicesSummary');
     if (!r.ok || !currentInvoicesData.length) {
