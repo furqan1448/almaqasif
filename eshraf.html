@@ -155,7 +155,7 @@
           </div>
         </div>
         <table class="log-table" id="invoicesTable">
-          <thead><tr><th>المركز</th><th>النوع</th><th>رقم الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>رأس المال / المبلغ</th><th>الربح</th><th>الأثر على التسليم</th><th>ملاحظات</th></tr></thead>
+          <thead><tr><th>المركز</th><th>النوع</th><th>رقم الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>رأس المال</th><th>الربح</th><th>المبلغ الإجمالي</th><th>ملاحظات</th></tr></thead>
           <tbody id="invoicesTbody"><tr><td colspan="9">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
         </table>
         <div id="invoicesSummary"></div>
@@ -576,9 +576,9 @@ function exportCurrentInvoices() {
   if (!currentInvoices.length) { alert('لا يوجد فواتير لتصديرها'); return; }
   const rows = currentInvoices.map(function (inv) {
     const p = invoiceRowParts_(inv);
-    return { 'المركز': inv['اسم المركز'] || '', 'النوع': p.type, 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'رأس المال / المبلغ': p.amount, 'الربح': p.profit, 'الأثر على التسليم': p.effect, 'ملاحظات': inv['ملاحظات'] || '' };
+    return { 'المركز': inv['اسم المركز'] || '', 'النوع': p.type, 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'رأس المال': p.amount, 'الربح': p.profit, 'المبلغ الإجمالي': p.effect, 'ملاحظات': inv['ملاحظات'] || '' };
   });
-  appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoices), 'النوع', 'الأثر على التسليم', false);
+  appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoices), 'النوع', 'المبلغ الإجمالي', false);
   exportToExcel(rows, 'فواتير-' + (center || 'كل-المراكز'), 'الفواتير');
 }
 
@@ -592,7 +592,7 @@ function printCurrentInvoices() {
   appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoices), 'type', 'effect', true);
   printReport('بيان الفواتير', center || 'كل المراكز', [
     { key: 'center', label: 'المركز' }, { key: 'type', label: 'النوع' }, { key: 'num', label: 'رقم الفاتورة' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' },
-    { key: 'amount', label: 'رأس المال / المبلغ' }, { key: 'profit', label: 'الربح' }, { key: 'effect', label: 'الأثر على التسليم' }, { key: 'notes', label: 'ملاحظات' }
+    { key: 'amount', label: 'رأس المال' }, { key: 'profit', label: 'الربح' }, { key: 'effect', label: 'المبلغ الإجمالي' }, { key: 'notes', label: 'ملاحظات' }
   ], rows);
 }
 

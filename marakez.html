@@ -233,7 +233,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
           <option value="all">كل الفصول</option>
         </select>
         <table class="log-table" id="invoicesTable">
-          <thead><tr><th>النوع</th><th>رقم الفاتورة</th><th>مصدر الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>رأس المال / المبلغ</th><th>الربح</th><th>الأثر على التسليم</th><th>ملاحظات</th><th></th></tr></thead>
+          <thead><tr><th>النوع</th><th>رقم الفاتورة</th><th>مصدر الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>رأس المال</th><th>الربح</th><th>المبلغ الإجمالي</th><th>ملاحظات</th><th></th></tr></thead>
           <tbody id="invoicesTbody"><tr><td colspan="10">جاري التحميل...</td></tr></tbody>
         </table>
         <div id="invoicesSummary"></div>
@@ -990,9 +990,9 @@ function exportInvoicesReport() {
   if (!currentInvoicesData.length) { alert('لا توجد فواتير لتصديرها'); return; }
   const rows = currentInvoicesData.map(function (inv) {
     const p = invoiceRowParts_(inv);
-    return { 'النوع': p.type, 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'مصدر الفاتورة': inv['مصدر الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'رأس المال / المبلغ': p.amount, 'الربح': p.profit, 'الأثر على التسليم': p.effect, 'ملاحظات': inv['ملاحظات'] || '' };
+    return { 'النوع': p.type, 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'مصدر الفاتورة': inv['مصدر الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'رأس المال': p.amount, 'الربح': p.profit, 'المبلغ الإجمالي': p.effect, 'ملاحظات': inv['ملاحظات'] || '' };
   });
-  appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoicesData), 'النوع', 'الأثر على التسليم', false);
+  appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoicesData), 'النوع', 'المبلغ الإجمالي', false);
   exportToExcel(rows, 'فواتير-' + currentCenter, 'الفواتير');
 }
 
@@ -1004,7 +1004,7 @@ function printInvoicesReport() {
   appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoicesData), 'type', 'effect', true);
   printReport('بيان الفواتير', currentCenter, [
     { key: 'type', label: 'النوع' }, { key: 'num', label: 'رقم الفاتورة' }, { key: 'source', label: 'مصدر الفاتورة' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' },
-    { key: 'amount', label: 'رأس المال / المبلغ' }, { key: 'profit', label: 'الربح' }, { key: 'effect', label: 'الأثر على التسليم' }, { key: 'notes', label: 'ملاحظات' }
+    { key: 'amount', label: 'رأس المال' }, { key: 'profit', label: 'الربح' }, { key: 'effect', label: 'المبلغ الإجمالي' }, { key: 'notes', label: 'ملاحظات' }
   ], rows);
 }
 
