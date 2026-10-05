@@ -1813,3 +1813,81 @@ async function exportAdminNoticesGoogleSheet(btn) {
     if (btn) { btn.disabled = false; btn.textContent = oldText; }
   }
 }
+
+
+/* =====================================================================
+   بيان الفواتير: أنواع القيود + حساب «المطلوب تسليمه»
+   - فاتورة   : رأس مال + ربح (يُضاف الاثنان للتسليم)
+   - مشتريات  : مبلغ اشتريتِ به (فطاير/قهوة/شاي) + ربح طلع منها → يُضاف الربح فقط
+                (التكلفة خرجت من نفس المبالغ فما تُضاف مرة ثانية)
+   - مصروفات  : أكياس/أكواب... مبلغ بدون ربح → يُخصم من الإجمالي
+   المطلوب تسليمه = رأس المال + أرباح الفواتير + أرباح المشتريات − المصروفات
+   (عمود «المبلغ الإجمالي» بالشيت هو المبلغ الأساسي لكل قيد، وما غيّرنا اسمه)
+   ===================================================================== */
+function invoiceEntryType_(inv) {
+  const t = String((inv && inv['نوع القيد']) || '').trim();
+  return (t === 'مشتريات' || t === 'مصروفات') ? t : 'فاتورة';
+}
+
+function invoiceRowParts_(inv) {
+  const type = invoiceEntryType_(inv);
+  const amount = Number(inv['المبلغ الإجمالي']) || 0;
+  const profit = type === 'مصروفات' ? 0 : (Number(inv['الربح']) || 0);
+  let effect;
+  if (type === 'فاتورة') effect = amount + profit;
+  else if (type === 'مشتريات') effect = profit;
+  else effect = -amount;
+  return { type: type, amount: amount, profit: profit, effect: effect };
+}
+
+function invoiceSummary_(list) {
+  const s = { invoiceCapital: 0, invoiceProfit: 0, purchasesProfit: 0, purchasesCost: 0, expenses: 0, deliverable: 0 };
+  (list || []).forEach(function (inv) {
+    const p = invoiceRowParts_(inv);
+    if (p.type === 'فاتورة') { s.invoiceCapital += p.amount; s.invoiceProfit += p.profit; }
+    else if (p.type === 'مشتريات') { s.purchasesCost += p.amount; s.purchasesProfit += p.profit; }
+    else { s.expenses += p.amount; }
+  });
+  s.deliverable = s.invoiceCapital + s.invoiceProfit + s.purchasesProfit - s.expenses;
+  Object.keys(s).forEach(function (k) { s[k] = Math.round(s[k] * 100) / 100; });
+  return s;
+}
+
+function invoiceSummaryLines_(s) {
+  return [
+    ['رأس المال (الفواتير)', s.invoiceCapital],
+    ['أرباح الفواتير (+)', s.invoiceProfit],
+    ['أرباح المشتريات (+)', s.purchasesProfit],
+    ['المصروفات (−)', s.expenses],
+    ['المطلوب تسليمه', s.deliverable]
+  ];
+}
+
+function invoiceSummaryHtml_(s) {
+  const lines = invoiceSummaryLines_(s);
+  let h = '<div style="margin-top:14px;padding:12px 14px;border:1px solid var(--gold,#C2AA85);border-radius:10px;background:var(--cream,#FBF8F3);">';
+  lines.forEach(function (l, i) {
+    const last = i === lines.length - 1;
+    h += '<div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;' +
+      (last ? 'margin-top:6px;border-top:2px solid var(--gold,#C2AA85);font-weight:800;font-size:1.05rem;color:var(--maroon,#8C1A2C);' : '') +
+      '"><span>' + l[0] + '</span><span dir="ltr">' + l[1].toFixed(2) + ' ريال</span></div>';
+  });
+  if (s.purchasesCost > 0) {
+    h += '<div style="font-size:0.8rem;color:#8a7d76;margin-top:6px;">تكلفة المشتريات (' + s.purchasesCost.toFixed(2) +
+      ' ريال) ما تُضاف للإجمالي لأنها خرجت من نفس المبالغ؛ يُضاف ربحها فقط.</div>';
+  }
+  return h + '</div>';
+}
+
+/* تضيف صفوف الخلاصة لآخر جدول التصدير/الطباعة (asText=true للطباعة) */
+function appendInvoiceSummaryRows_(rows, s, labelKey, valueKey, asText) {
+  if (!rows.length) return rows;
+  invoiceSummaryLines_(s).forEach(function (l) {
+    const o = {};
+    Object.keys(rows[0]).forEach(function (k) { o[k] = ''; });
+    o[labelKey] = l[0];
+    o[valueKey] = asText ? '<span dir="ltr">' + l[1].toFixed(2) + '</span>' : l[1];
+    rows.push(o);
+  });
+  return rows;
+}

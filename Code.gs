@@ -35,7 +35,7 @@ function setup() {
     'المراكز': ['اسم المركز', 'كلمة المرور', 'وضع العرض فقط', 'الاسم المعروض'],
     'المبيعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'الوقت', 'المبلغ', 'ملاحظات', 'الفصل الدراسي', 'وقت التسجيل الفعلي'],
     'المرتجعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'وصف الصنف', 'الكمية', 'القيمة', 'ملاحظات', 'الفصل الدراسي'],
-    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'مصدر الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح', 'ملاحظات', 'الفصل الدراسي'],
+    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'مصدر الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح', 'ملاحظات', 'الفصل الدراسي', 'نوع القيد'],
     'الإشعارات': ['معرف', 'النوع', 'اسم المركز', 'يوم الإرسال', 'تاريخ الإرسال', 'وقت الإرسال',
       'اسم المسلّمة', 'المبلغ', 'الشهر', 'الفصل الدراسي', 'العام', 'بيان مخصص',
       'رابط توقيع المركز', 'رابط صورة الإشعار', 'الحالة',
@@ -1916,14 +1916,52 @@ function deleteIncentiveFollowupSplit_(p) {
 
 /* ------------------- بيان الفواتير ------------------- */
 
+/* نوع القيد: فاتورة (الافتراضي - والصفوف القديمة بدون قيمة تُعتبر فاتورة) / مشتريات / مصروفات */
+const ENTRY_TYPE_COL_ = 'نوع القيد';
+
+function cleanEntryType_(v) {
+  v = String(v === undefined || v === null ? '' : v).trim();
+  return (v === 'مشتريات' || v === 'مصروفات') ? v : 'فاتورة';
+}
+
+function entryTypeOf_(r) {
+  return cleanEntryType_(r && r[ENTRY_TYPE_COL_]);
+}
+
+/* لو الشيت قديم وما فيه عمود «نوع القيد» (ما شغّلتي setup بعد التحديث) نضيفه تلقائياً */
+function ensureInvoiceTypeCol_(sh) {
+  if (colIndex_(sh, ENTRY_TYPE_COL_) !== -1) return;
+  sh.getRange(1, sh.getLastColumn() + 1).setValue(ENTRY_TYPE_COL_).setFontWeight('bold');
+  delete _headerRowCache_[sh.getSheetId()];
+}
+
+/* المطلوب تسليمه = رأس المال + أرباح الفواتير + أرباح المشتريات − المصروفات */
+function invoiceTotals_(rows) {
+  const s = { invoiceCapital: 0, invoiceProfit: 0, purchasesProfit: 0, purchasesCost: 0, expenses: 0, deliverable: 0 };
+  rows.forEach(function (r) {
+    const type = entryTypeOf_(r);
+    const amount = Number(r['المبلغ الإجمالي']) || 0;
+    const profit = Number(r['الربح']) || 0;
+    if (type === 'فاتورة') { s.invoiceCapital += amount; s.invoiceProfit += profit; }
+    else if (type === 'مشتريات') { s.purchasesCost += amount; s.purchasesProfit += profit; }
+    else { s.expenses += amount; }
+  });
+  s.deliverable = s.invoiceCapital + s.invoiceProfit + s.purchasesProfit - s.expenses;
+  Object.keys(s).forEach(function (k) { s[k] = Math.round(s[k] * 100) / 100; });
+  return s;
+}
+
 function recordInvoice_(p) {
   const sh = sheet_('الفواتير');
+  ensureInvoiceTypeCol_(sh);
   const id = Utilities.getUuid();
   const date = p.date || nowParts_().date;
   const day = dayNameForDateStr_(date);
+  const type = cleanEntryType_(p.entryType);
   appendRowByHeaders_(sh, {
     'معرف': id, 'اسم المركز': p.center, 'رقم الفاتورة': p.invoiceNumber || '', 'مصدر الفاتورة': p.invoiceSource || '', 'اليوم': day, 'التاريخ': date,
-    'المبلغ الإجمالي': Number(p.totalAmount) || 0, 'الربح': Number(p.profit) || 0, 'ملاحظات': p.notes || ''
+    'المبلغ الإجمالي': Number(p.totalAmount) || 0, 'الربح': type === 'مصروفات' ? 0 : (Number(p.profit) || 0), 'ملاحظات': p.notes || '',
+    'نوع القيد': type
   });
   invalidateCache_('الفواتير');
   return { ok: true, id: id };
@@ -1932,9 +1970,10 @@ function recordInvoice_(p) {
 function getInvoices_(p) {
   let rows = getRowsForTerm_('الفواتير', p.term, 'الفصل الدراسي');
   if (p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
-  const totalAmount = rows.reduce(function (sum, r) { return sum + (Number(r['المبلغ الإجمالي']) || 0); }, 0);
-  const totalProfit = rows.reduce(function (sum, r) { return sum + (Number(r['الربح']) || 0); }, 0);
-  return { ok: true, invoices: rows, totalAmount: totalAmount, totalProfit: totalProfit };
+  const sum = invoiceTotals_(rows);
+  // totalAmount/totalProfit محفوظين للتوافق مع الواجهات القديمة (مجموعهم = المطلوب تسليمه)
+  return { ok: true, invoices: rows, summary: sum,
+           totalAmount: sum.invoiceCapital - sum.expenses, totalProfit: sum.invoiceProfit + sum.purchasesProfit };
 }
 
 function updateInvoice_(p) {
@@ -1955,6 +1994,12 @@ function updateInvoice_(p) {
   if (p.notes !== undefined) {
     const notesCol = colIndex_(sh, 'ملاحظات');
     if (notesCol !== -1) sh.getRange(row, notesCol).setValue(p.notes);
+  }
+  if (p.entryType !== undefined) {
+    ensureInvoiceTypeCol_(sh);
+    const t = cleanEntryType_(p.entryType);
+    sh.getRange(row, colIndex_(sh, ENTRY_TYPE_COL_)).setValue(t);
+    if (t === 'مصروفات') sh.getRange(row, colIndex_(sh, 'الربح')).setValue(0);
   }
   invalidateCache_('الفواتير');
   return { ok: true };
@@ -2777,9 +2822,12 @@ function getRegistrationStats_(p) {
   invoices.forEach(function (r) {
     if (!inRange(r['التاريخ'])) return;
     const m = S(r['اسم المركز']); if (!m) return;
-    m.invoices++;
-    m.capital += Number(r['المبلغ الإجمالي']) || 0;   // عمود «المبلغ الإجمالي» بالشيت = رأس المال
-    m.profit += Number(r['الربح']) || 0;
+    const et = entryTypeOf_(r);
+    if (et === 'فاتورة') {
+      m.invoices++;                                     // «عدد الفواتير» يعدّ الفواتير فقط (مو المشتريات/المصروفات)
+      m.capital += Number(r['المبلغ الإجمالي']) || 0;   // عمود «المبلغ الإجمالي» بالشيت = رأس المال
+    }
+    if (et !== 'مصروفات') m.profit += Number(r['الربح']) || 0;  // الربح = أرباح الفواتير + أرباح المشتريات
   });
   sales.forEach(function (r) {
     if (!inRange(r['التاريخ'])) return;

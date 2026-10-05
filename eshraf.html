@@ -155,10 +155,10 @@
           </div>
         </div>
         <table class="log-table" id="invoicesTable">
-          <thead><tr><th>المركز</th><th>رقم الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>المبلغ الإجمالي</th><th>الربح</th><th>ملاحظات</th></tr></thead>
-          <tbody id="invoicesTbody"><tr><td colspan="7">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
-          <tfoot><tr><td colspan="4">الإجمالي</td><td id="invoicesTotalAmount">0</td><td id="invoicesTotalProfit">0</td><td></td></tr></tfoot>
+          <thead><tr><th>المركز</th><th>النوع</th><th>رقم الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>رأس المال / المبلغ</th><th>الربح</th><th>الأثر على التسليم</th><th>ملاحظات</th></tr></thead>
+          <tbody id="invoicesTbody"><tr><td colspan="9">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
         </table>
+        <div id="invoicesSummary"></div>
         <div class="export-row">
           <button class="btn outline" onclick="exportCurrentInvoices()">⬇️ Excel</button>
           <button class="btn outline" onclick="printCurrentInvoices()">🖨️ PDF</button>
@@ -551,23 +551,23 @@ function printCurrentReturns() {
 function loadCenterInvoices() {
   const center = document.getElementById('invoicesCenterSelect').value;
   const tbody = document.getElementById('invoicesTbody');
-  tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9">جاري التحميل...</td></tr>';
   callApi('getInvoices', { center: center }).then(function (r) {
     currentInvoices = r.invoices || [];
+    const summaryBox = document.getElementById('invoicesSummary');
     if (!r.ok || !currentInvoices.length) {
-      tbody.innerHTML = '<tr><td colspan="7">لا توجد فواتير بعد</td></tr>';
-      document.getElementById('invoicesTotalAmount').textContent = '0';
-      document.getElementById('invoicesTotalProfit').textContent = '0';
+      tbody.innerHTML = '<tr><td colspan="9">لا توجد فواتير بعد</td></tr>';
+      summaryBox.innerHTML = '';
       return;
     }
     tbody.innerHTML = '';
     currentInvoices.forEach(function (inv) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + (inv['رقم الفاتورة'] || '') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + Number(inv['المبلغ الإجمالي']).toFixed(2) + '</td><td>' + Number(inv['الربح']).toFixed(2) + '</td><td>' + (inv['ملاحظات'] || '') + '</td>';
+      const p = invoiceRowParts_(inv);
+      tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + p.type + '</td><td>' + (p.type === 'فاتورة' ? (inv['رقم الفاتورة'] || '') : '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (inv['ملاحظات'] || '') + '</td>';
       tbody.appendChild(tr);
     });
-    document.getElementById('invoicesTotalAmount').textContent = r.totalAmount.toFixed(2);
-    document.getElementById('invoicesTotalProfit').textContent = r.totalProfit.toFixed(2);
+    summaryBox.innerHTML = invoiceSummaryHtml_(invoiceSummary_(currentInvoices));
   });
 }
 
@@ -575,8 +575,10 @@ function exportCurrentInvoices() {
   const center = document.getElementById('invoicesCenterSelect').value;
   if (!currentInvoices.length) { alert('لا يوجد فواتير لتصديرها'); return; }
   const rows = currentInvoices.map(function (inv) {
-    return { 'المركز': inv['اسم المركز'] || '', 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'المبلغ الإجمالي': Number(inv['المبلغ الإجمالي']), 'الربح': Number(inv['الربح']), 'ملاحظات': inv['ملاحظات'] || '' };
+    const p = invoiceRowParts_(inv);
+    return { 'المركز': inv['اسم المركز'] || '', 'النوع': p.type, 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'رأس المال / المبلغ': p.amount, 'الربح': p.profit, 'الأثر على التسليم': p.effect, 'ملاحظات': inv['ملاحظات'] || '' };
   });
+  appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoices), 'النوع', 'الأثر على التسليم', false);
   exportToExcel(rows, 'فواتير-' + (center || 'كل-المراكز'), 'الفواتير');
 }
 
@@ -584,11 +586,13 @@ function printCurrentInvoices() {
   const center = document.getElementById('invoicesCenterSelect').value;
   if (!currentInvoices.length) { alert('لا يوجد فواتير لطباعتها'); return; }
   const rows = currentInvoices.map(function (inv) {
-    return { center: inv['اسم المركز'] || '', num: inv['رقم الفاتورة'] || '', day: inv['اليوم'] || '', date: toHijriStr(inv['التاريخ']), total: Number(inv['المبلغ الإجمالي']).toFixed(2), profit: Number(inv['الربح']).toFixed(2), notes: inv['ملاحظات'] || '' };
+    const p = invoiceRowParts_(inv);
+    return { center: inv['اسم المركز'] || '', type: p.type, num: inv['رقم الفاتورة'] || '', day: inv['اليوم'] || '', date: toHijriStr(inv['التاريخ']), amount: p.amount.toFixed(2), profit: p.profit.toFixed(2), effect: '<span dir="ltr">' + p.effect.toFixed(2) + '</span>', notes: inv['ملاحظات'] || '' };
   });
+  appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoices), 'type', 'effect', true);
   printReport('بيان الفواتير', center || 'كل المراكز', [
-    { key: 'center', label: 'المركز' }, { key: 'num', label: 'رقم الفاتورة' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' },
-    { key: 'total', label: 'المبلغ الإجمالي' }, { key: 'profit', label: 'الربح' }, { key: 'notes', label: 'ملاحظات' }
+    { key: 'center', label: 'المركز' }, { key: 'type', label: 'النوع' }, { key: 'num', label: 'رقم الفاتورة' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' },
+    { key: 'amount', label: 'رأس المال / المبلغ' }, { key: 'profit', label: 'الربح' }, { key: 'effect', label: 'الأثر على التسليم' }, { key: 'notes', label: 'ملاحظات' }
   ], rows);
 }
 
