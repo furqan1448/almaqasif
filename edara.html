@@ -1869,8 +1869,7 @@ function loadCenterInvoices() {
     currentInvoices.forEach(function (inv) {
       const tr = document.createElement('tr');
       const p = invoiceRowParts_(inv);
-      const isInv = p.type === 'فاتورة';
-      tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + p.type + '</td><td>' + (isInv ? (inv['رقم الفاتورة'] || '') : '—') + '</td><td>' + (isInv ? (inv['مصدر الفاتورة'] || '') : '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (inv['ملاحظات'] || '') + '</td>';
+      tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (inv['ملاحظات'] || '') + '</td>';
       tbody.appendChild(tr);
     });
     summaryBox.innerHTML = invoiceSummaryHtml_(invoiceSummary_(currentInvoices));

@@ -1042,7 +1042,6 @@ function setInvoiceSourceValue_(source) {
 function onInvoiceEntryTypeChange() {
   const t = document.getElementById('invoiceEntryType').value;
   const isInv = t === 'فاتورة';
-  document.getElementById('invoiceNumberWrap').classList.toggle('hidden', !isInv);
   document.getElementById('invoiceProfitWrap').classList.toggle('hidden', t === 'مصروفات');
   document.getElementById('invoiceTotalLabel').textContent = isInv ? 'رأس المال (ريال)' : (t === 'مشتريات' ? 'مبلغ المشتريات (ريال)' : 'مبلغ المصروف (ريال)');
   document.getElementById('invoiceProfitLabel').textContent = t === 'مشتريات' ? 'ربح المشتريات (ريال)' : 'ربح الفاتورة (ريال)';
@@ -1053,8 +1052,8 @@ function onInvoiceEntryTypeChange() {
 function submitInvoice() {
   const entryType = document.getElementById('invoiceEntryType').value;
   const isInv = entryType === 'فاتورة';
-  const invoiceNumber = isInv ? document.getElementById('invoiceNumber').value.trim() : '';
-  const invoiceSource = isInv ? getInvoiceSourceValue_() : '';
+  const invoiceNumber = document.getElementById('invoiceNumber').value.trim();
+  const invoiceSource = getInvoiceSourceValue_();
   const date = document.getElementById('invoiceDate').value;
   const totalAmount = document.getElementById('invoiceTotal').value;
   const profit = entryType === 'مصروفات' ? 0 : document.getElementById('invoiceProfit').value;
@@ -1156,8 +1155,7 @@ function loadInvoices() {
     currentInvoicesData.forEach(function (inv) {
       const tr = document.createElement('tr');
       const p = invoiceRowParts_(inv);
-      const isInv = p.type === 'فاتورة';
-      tr.innerHTML = '<td>' + p.type + '</td><td>' + (isInv ? (inv['رقم الفاتورة'] || '') : '—') + '</td><td>' + (isInv ? (inv['مصدر الفاتورة'] || '') : '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (inv['ملاحظات'] || '') + '</td>' +
+      tr.innerHTML = '<td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (inv['ملاحظات'] || '') + '</td>' +
         '<td><div class="row-actions"><a onclick="editInvoice(' + inv._row + ')">تعديل</a><a onclick="deleteInvoiceRow(' + inv._row + ')">حذف</a></div></td>';
       tbody.appendChild(tr);
     });
