@@ -8,6 +8,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;700;800&display=swap">
 <link rel="stylesheet" href="style.css">
+<style>
+/* حقول المبالغ: بدون أسهم الزيادة/النقصان، ولا تتغير القيمة بعجلة الماوس */
+input.no-spin::-webkit-outer-spin-button, input.no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input.no-spin { -moz-appearance: textfield; appearance: textfield; }
+</style>
 </head>
 <body>
 
@@ -291,10 +296,10 @@
         <label>التاريخ</label>
         <input type="date" id="invoiceDate">
         <label id="invoiceTotalLabel">رأس المال (ريال)</label>
-        <input type="number" id="invoiceTotal" placeholder="0.00" step="0.01">
+        <input type="number" id="invoiceTotal" class="no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01">
         <div id="invoiceProfitWrap">
           <label id="invoiceProfitLabel">ربح الفاتورة (ريال)</label>
-          <input type="number" id="invoiceProfit" placeholder="0.00" step="0.01">
+          <input type="number" id="invoiceProfit" class="no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01">
         </div>
         <label id="invoiceNotesLabel">ملاحظات (اختياري)</label>
         <input type="text" id="invoiceNotes" placeholder="أي ملاحظة تحبين تضيفينها">
@@ -1005,9 +1010,35 @@ function printSalesReport() {
 }
 
 /* -------- بيان الفواتير -------- */
-function toggleInvoiceSourceOther() {
-  const val = document.getElementById('invoiceSource').value;
+/* خيارات «مصدر الفاتورة» حسب نوع القيد - وكلها قابلة للكتابة (خيار «أخرى»، أو كتابة مباشرة للمصروفات) */
+const INVOICE_SOURCE_OPTIONS_ = {
+  'فاتورة': ['شركة أعمال الإخلاص'],
+  'مشتريات': ['أكلتي', 'مذاق الملكة'],
+  'مصروفات': []
+};
+
+function currentInvoiceSourceOptions_() {
+  return INVOICE_SOURCE_OPTIONS_[document.getElementById('invoiceEntryType').value] || [];
+}
+
+function renderInvoiceSourceOptions_() {
+  const sel = document.getElementById('invoiceSource');
   const otherInput = document.getElementById('invoiceSourceOther');
+  // نحفظ اللي انكتب/انختار قبل ما نغيّر الخيارات عشان ما يضيع لو بدّلتي النوع
+  const prev = (sel.classList.contains('hidden') || sel.value === 'أخرى') ? otherInput.value.trim() : sel.value;
+  const opts = currentInvoiceSourceOptions_();
+  sel.innerHTML = '<option value="">اختاري</option>' +
+    opts.map(function (o) { return '<option value="' + o + '">' + o + '</option>'; }).join('') +
+    (opts.length ? '<option value="أخرى">أخرى</option>' : '');
+  sel.classList.toggle('hidden', !opts.length);
+  otherInput.placeholder = opts.length ? 'اكتبي مصدر الفاتورة' : 'اكتبي المصدر';
+  setInvoiceSourceValue_(prev);
+}
+
+function toggleInvoiceSourceOther() {
+  const otherInput = document.getElementById('invoiceSourceOther');
+  if (!currentInvoiceSourceOptions_().length) { otherInput.classList.remove('hidden'); return; }
+  const val = document.getElementById('invoiceSource').value;
   if (val === 'أخرى') {
     otherInput.classList.remove('hidden');
   } else {
@@ -1017,18 +1048,25 @@ function toggleInvoiceSourceOther() {
 }
 
 function getInvoiceSourceValue_() {
+  const otherInput = document.getElementById('invoiceSourceOther');
+  if (!currentInvoiceSourceOptions_().length) return otherInput.value.trim();
   const sel = document.getElementById('invoiceSource').value;
-  return sel === 'أخرى' ? document.getElementById('invoiceSourceOther').value.trim() : sel;
+  return sel === 'أخرى' ? otherInput.value.trim() : sel;
 }
 
 function setInvoiceSourceValue_(source) {
   const sel = document.getElementById('invoiceSource');
   const otherInput = document.getElementById('invoiceSourceOther');
-  if (!source) {
+  const opts = currentInvoiceSourceOptions_();
+  if (!opts.length) {                 // مصروفات: كتابة مباشرة بدون قائمة
+    sel.value = '';
+    otherInput.classList.remove('hidden');
+    otherInput.value = source || '';
+  } else if (!source) {
     sel.value = '';
     otherInput.classList.add('hidden');
     otherInput.value = '';
-  } else if (source === 'شركة أعمال الإخلاص') {
+  } else if (opts.indexOf(source) !== -1) {
     sel.value = source;
     otherInput.classList.add('hidden');
     otherInput.value = '';
@@ -1041,6 +1079,7 @@ function setInvoiceSourceValue_(source) {
 
 function onInvoiceEntryTypeChange() {
   const t = document.getElementById('invoiceEntryType').value;
+  renderInvoiceSourceOptions_();
   const isInv = t === 'فاتورة';
   document.getElementById('invoiceProfitWrap').classList.toggle('hidden', t === 'مصروفات');
   document.getElementById('invoiceTotalLabel').textContent = isInv ? 'رأس المال (ريال)' : (t === 'مشتريات' ? 'مبلغ المشتريات (ريال)' : 'مبلغ المصروف (ريال)');
