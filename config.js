@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbypkwEgb50hlrghC1rjyTmiaWASZYyxMDoKmx6F6qkOSt4cXN83KNtRWUgk7L0HQ0rf/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwR7kkxhJ7cuJRgE4eVcMqxuimheTeaodW7oXvbXBOAxVFGRiQbrqVcJKjWqSDo2pcZ/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -1841,7 +1841,9 @@ function invoiceRowParts_(inv) {
   if (type === 'فاتورة') effect = amount + profit;
   else if (type === 'مشتريات') effect = profit;
   else effect = -amount;
-  return { type: type, amount: amount, profit: profit, effect: effect, retCap: retCap, retProfit: retProfit,
+  /* رجيع «للإثبات فقط»: يُوثَّق بقيمة رأس ماله لكن ما ينخصم (المبلغ المكتوب بالفاتورة أصلاً بدونه) */
+  const retProof = type === 'فاتورة' ? (Number(inv['رجيع للإثبات']) || 0) : 0;
+  return { type: type, amount: amount, profit: profit, effect: effect, retCap: retCap, retProfit: retProfit, retProof: retProof,
            retType: String(inv['نوع الرجيع'] || '').trim() };
 }
 
@@ -1849,17 +1851,23 @@ function invoiceRowParts_(inv) {
 function invoiceNotesText_(inv) {
   const p = invoiceRowParts_(inv);
   const notes = String(inv['ملاحظات'] || '');
-  if (p.retCap <= 0 && p.retProfit <= 0) return notes;
-  const ret = 'رجيع (' + (p.retType || 'بدون نوع') + '): −' + (p.retCap + p.retProfit).toFixed(2) +
-    ' ريال [رأس المال −' + p.retCap.toFixed(2) + ' / الربح −' + p.retProfit.toFixed(2) + ']';
-  return notes ? notes + ' — ' + ret : ret;
+  const parts = [];
+  if (p.retCap > 0 || p.retProfit > 0) {
+    parts.push('رجيع (' + (p.retType || 'بدون نوع') + '): −' + (p.retCap + p.retProfit).toFixed(2) +
+      ' ريال [رأس المال −' + p.retCap.toFixed(2) + ' / الربح −' + p.retProfit.toFixed(2) + ']');
+  }
+  if (p.retProof > 0) {
+    parts.push('رجيع للإثبات (' + (p.retType || 'بدون نوع') + '): رأس ماله ' + p.retProof.toFixed(2) + ' ريال — غير مخصوم من المطلوب تسليمه');
+  }
+  if (!parts.length) return notes;
+  return notes ? notes + ' — ' + parts.join(' — ') : parts.join(' — ');
 }
 
 function invoiceSummary_(list) {
-  const s = { invoiceCapital: 0, invoiceProfit: 0, purchasesProfit: 0, purchasesCost: 0, expenses: 0, deliverable: 0, returns: 0 };
+  const s = { invoiceCapital: 0, invoiceProfit: 0, purchasesProfit: 0, purchasesCost: 0, expenses: 0, deliverable: 0, returns: 0, proofReturns: 0 };
   (list || []).forEach(function (inv) {
     const p = invoiceRowParts_(inv);
-    if (p.type === 'فاتورة') { s.invoiceCapital += p.amount; s.invoiceProfit += p.profit; s.returns += p.retCap + p.retProfit; }
+    if (p.type === 'فاتورة') { s.invoiceCapital += p.amount; s.invoiceProfit += p.profit; s.returns += p.retCap + p.retProfit; s.proofReturns += p.retProof; }
     else if (p.type === 'مشتريات') { s.purchasesCost += p.amount; s.purchasesProfit += p.profit; }
     else { s.expenses += p.amount; }
   });
@@ -1894,6 +1902,9 @@ function invoiceSummaryHtml_(s) {
   });
   if (s.returns > 0) {
     h += '<div style="font-size:0.8rem;color:#8a7d76;margin-top:6px;">الأرقام أعلاه بعد خصم الرجيع (' + s.returns.toFixed(2) + ' ريال) من رأس المال والربح.</div>';
+  }
+  if (s.proofReturns > 0) {
+    h += '<div style="font-size:0.8rem;color:#8a7d76;margin-top:6px;">فيه رجيع للإثبات فقط بقيمة ' + s.proofReturns.toFixed(2) + ' ريال (غير مخصوم من المطلوب تسليمه).</div>';
   }
   if (s.purchasesCost > 0) {
     h += '<div style="font-size:0.8rem;color:#8a7d76;margin-top:6px;">تكلفة المشتريات (' + s.purchasesCost.toFixed(2) +

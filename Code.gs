@@ -35,7 +35,7 @@ function setup() {
     'المراكز': ['اسم المركز', 'كلمة المرور', 'وضع العرض فقط', 'الاسم المعروض'],
     'المبيعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'الوقت', 'المبلغ', 'ملاحظات', 'الفصل الدراسي', 'وقت التسجيل الفعلي'],
     'المرتجعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'وصف الصنف', 'الكمية', 'القيمة', 'ملاحظات', 'الفصل الدراسي'],
-    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'مصدر الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح', 'ملاحظات', 'الفصل الدراسي', 'نوع القيد', 'نوع الرجيع', 'رجيع رأس المال', 'رجيع الربح'],
+    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'مصدر الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح', 'ملاحظات', 'الفصل الدراسي', 'نوع القيد', 'نوع الرجيع', 'رجيع رأس المال', 'رجيع الربح', 'رجيع للإثبات'],
     'الإشعارات': ['معرف', 'النوع', 'اسم المركز', 'يوم الإرسال', 'تاريخ الإرسال', 'وقت الإرسال',
       'اسم المسلّمة', 'المبلغ', 'الشهر', 'الفصل الدراسي', 'العام', 'بيان مخصص',
       'رابط توقيع المركز', 'رابط صورة الإشعار', 'الحالة',
@@ -1711,7 +1711,7 @@ function updateSale_(p) {
     const dayCol = colIndex_(sh, 'اليوم');
     if (dayCol !== -1) sh.getRange(row, dayCol).setValue(dayNameForDateStr_(p.date));
   }
-  if (p.returnType !== undefined || p.returnCapital !== undefined || p.returnProfit !== undefined) {
+  if (p.returnType !== undefined || p.returnCapital !== undefined || p.returnProfit !== undefined || p.returnProof !== undefined) {
     ensureInvoiceReturnCols_(sh);
     const typeNow = p.entryType !== undefined ? cleanEntryType_(p.entryType) : cleanEntryType_(sh.getRange(row, colIndex_(sh, ENTRY_TYPE_COL_)).getValue());
     const amtNow = p.totalAmount !== undefined ? Number(p.totalAmount) : Number(sh.getRange(row, colIndex_(sh, 'المبلغ الإجمالي')).getValue()) || 0;
@@ -1721,6 +1721,7 @@ function updateSale_(p) {
     sh.getRange(row, colIndex_(sh, RET_TYPE_COL_)).setValue(ret.type);
     sh.getRange(row, colIndex_(sh, RET_CAP_COL_)).setValue(ret.cap);
     sh.getRange(row, colIndex_(sh, RET_PROFIT_COL_)).setValue(ret.profit);
+    sh.getRange(row, colIndex_(sh, RET_PROOF_COL_)).setValue(ret.proof);
   }
   if (p.notes !== undefined) {
     const notesCol = colIndex_(sh, 'ملاحظات');
@@ -1952,9 +1953,10 @@ function ensureInvoiceTypeCol_(sh) {
 
 /* رجيع داخل الفاتورة: نوع الرجيع + مقدار الخصم من رأس المال ومن الربح (يُخصم من الاثنين) */
 const RET_TYPE_COL_ = 'نوع الرجيع', RET_CAP_COL_ = 'رجيع رأس المال', RET_PROFIT_COL_ = 'رجيع الربح';
+const RET_PROOF_COL_ = 'رجيع للإثبات';   // قيمة رأس مال رجيع مسجّل للإثبات فقط (ما انكتب بالفاتورة، فما ينخصم)
 
 function ensureInvoiceReturnCols_(sh) {
-  [RET_TYPE_COL_, RET_CAP_COL_, RET_PROFIT_COL_].forEach(function (name) {
+  [RET_TYPE_COL_, RET_CAP_COL_, RET_PROFIT_COL_, RET_PROOF_COL_].forEach(function (name) {
     if (colIndex_(sh, name) !== -1) return;
     sh.getRange(1, sh.getLastColumn() + 1).setValue(name).setFontWeight('bold');
     delete _headerRowCache_[sh.getSheetId()];
@@ -2037,13 +2039,15 @@ function setExpenseCenters_(p) {
 function cleanInvoiceReturn_(p, type, amount, profit) {
   const cap = Math.round((Number(p.returnCapital) || 0) * 100) / 100;
   const prf = Math.round((Number(p.returnProfit) || 0) * 100) / 100;
+  const proof = Math.round((Number(p.returnProof) || 0) * 100) / 100;
   const t = String(p.returnType || '').trim();
-  if (type !== 'فاتورة' || (cap <= 0 && prf <= 0)) return { type: '', cap: 0, profit: 0 };
-  if (cap < 0 || prf < 0) return { error: 'مبلغ الرجيع ما يصير سالب' };
+  const none = { type: '', cap: 0, profit: 0, proof: 0 };
+  if (type !== 'فاتورة' || (cap <= 0 && prf <= 0 && proof <= 0)) return none;
+  if (cap < 0 || prf < 0 || proof < 0) return { error: 'مبلغ الرجيع ما يصير سالب' };
   if (!t) return { error: 'اكتبي نوع الرجيع' };
   if (cap > amount + 0.005) return { error: 'خصم الرجيع من رأس المال أكبر من رأس المال' };
   if (prf > profit + 0.005) return { error: 'خصم الرجيع من الربح أكبر من الربح' };
-  return { type: t, cap: cap, profit: prf };
+  return { type: t, cap: cap, profit: prf, proof: proof };
 }
 
 function recordInvoice_(p) {
@@ -2062,7 +2066,7 @@ function recordInvoice_(p) {
     'معرف': id, 'اسم المركز': p.center, 'رقم الفاتورة': p.invoiceNumber || '', 'مصدر الفاتورة': p.invoiceSource || '', 'اليوم': day, 'التاريخ': date,
     'المبلغ الإجمالي': amt, 'الربح': prf, 'ملاحظات': p.notes || '',
     'نوع القيد': type,
-    'نوع الرجيع': ret.type, 'رجيع رأس المال': ret.cap, 'رجيع الربح': ret.profit
+    'نوع الرجيع': ret.type, 'رجيع رأس المال': ret.cap, 'رجيع الربح': ret.profit, 'رجيع للإثبات': ret.proof
   });
   invalidateCache_('الفواتير');
   return { ok: true, id: id };

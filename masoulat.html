@@ -303,11 +303,12 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
           <label style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-top:10px;"><input type="checkbox" id="invoiceHasReturn" onchange="toggleInvoiceReturn_()"> <span>في هذي الفاتورة رجيع؟</span></label>
           <div id="invoiceReturnWrap" class="hidden" style="border:1px dashed var(--gold,#C2AA85);border-radius:10px;padding:10px;margin-top:6px;">
             <label>نوع الرجيع</label>
-            <input type="text" id="invoiceReturnType" placeholder="مثال: كيس سكر تالف" oninput="updateReturnPreview_()">
+            <input type="text" id="invoiceReturnType" placeholder="مثال: بطاطس ليز" oninput="updateReturnPreview_()">
             <label>طريقة الخصم</label>
             <select id="invoiceReturnMode" onchange="toggleInvoiceReturn_()">
               <option value="split">جردت الفاتورة — أحدد الخصم من رأس المال ومن الربح</option>
               <option value="total">ما جردتها — أدخل مبلغ الرجيع فقط وتتوزع تلقائياً</option>
+              <option value="proof">للإثبات فقط — ما انكتب مبلغه بالفاتورة لأني رجعته (ما ينخصم)</option>
             </select>
             <div id="invoiceReturnSplitWrap">
               <label>خصم من رأس المال (ريال)</label>
@@ -319,6 +320,11 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
               <label>مبلغ الرجيع الإجمالي (ريال)</label>
               <input type="number" id="invoiceReturnTotal" class="no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01" oninput="updateReturnPreview_()">
               <div style="font-size:0.8rem;color:#8a7d76;margin-top:4px;">يتوزع على رأس المال والربح بنفس نسبتهم في الفاتورة؛ ولو ما كتبتي ربح كله يُخصم من رأس المال.</div>
+            </div>
+            <div id="invoiceReturnProofWrap" class="hidden">
+              <label>قيمة رأس مال الرجيع (ريال)</label>
+              <input type="number" id="invoiceReturnProof" class="no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01" oninput="updateReturnPreview_()">
+              <div style="font-size:0.8rem;color:#8a7d76;margin-top:4px;">يُسجَّل كإثبات فقط عشان المراجعة، وما ينخصم من رأس المال ولا الربح ولا المطلوب تسليمه.</div>
             </div>
             <div id="invoiceReturnPreview" style="margin-top:8px;font-weight:bold;color:var(--maroon,#8C1A2C);"></div>
           </div>
@@ -1135,9 +1141,10 @@ function onInvoiceEntryTypeChange() {
 function toggleInvoiceReturn_() {
   const on = document.getElementById('invoiceHasReturn').checked;
   document.getElementById('invoiceReturnWrap').classList.toggle('hidden', !on);
-  const total = document.getElementById('invoiceReturnMode').value === 'total';
-  document.getElementById('invoiceReturnSplitWrap').classList.toggle('hidden', total);
-  document.getElementById('invoiceReturnTotalWrap').classList.toggle('hidden', !total);
+  const mode = document.getElementById('invoiceReturnMode').value;
+  document.getElementById('invoiceReturnSplitWrap').classList.toggle('hidden', mode !== 'split');
+  document.getElementById('invoiceReturnTotalWrap').classList.toggle('hidden', mode !== 'total');
+  document.getElementById('invoiceReturnProofWrap').classList.toggle('hidden', mode !== 'proof');
   updateReturnPreview_();
 }
 
@@ -1148,6 +1155,7 @@ function resetInvoiceReturn_() {
   document.getElementById('invoiceReturnCap').value = '';
   document.getElementById('invoiceReturnProfit').value = '';
   document.getElementById('invoiceReturnTotal').value = '';
+  document.getElementById('invoiceReturnProof').value = '';
   toggleInvoiceReturn_();
 }
 
@@ -1157,6 +1165,9 @@ function readInvoiceReturn_() {
   const capital = Number(document.getElementById('invoiceTotal').value) || 0;
   const profit = Number(document.getElementById('invoiceProfit').value) || 0;
   let cap = 0, prf = 0;
+  if (document.getElementById('invoiceReturnMode').value === 'proof') {
+    return { cap: 0, profit: 0, proof: Number(document.getElementById('invoiceReturnProof').value) || 0 };
+  }
   if (document.getElementById('invoiceReturnMode').value === 'total') {
     const t = Number(document.getElementById('invoiceReturnTotal').value) || 0;
     if (profit <= 0 || capital + profit <= 0) { cap = t; }
@@ -1165,12 +1176,13 @@ function readInvoiceReturn_() {
     cap = Number(document.getElementById('invoiceReturnCap').value) || 0;
     prf = Number(document.getElementById('invoiceReturnProfit').value) || 0;
   }
-  return { cap: cap, profit: prf };
+  return { cap: cap, profit: prf, proof: 0 };
 }
 
 function updateReturnPreview_() {
   const box = document.getElementById('invoiceReturnPreview');
   const r = readInvoiceReturn_();
+  if (r && r.proof > 0) { box.textContent = 'الأرقام ما تتغير: الرجيع مسجّل للإثبات فقط بقيمة ' + r.proof.toFixed(2) + ' ريال'; return; }
   if (!r || (r.cap <= 0 && r.profit <= 0)) { box.textContent = ''; return; }
   const capital = (Number(document.getElementById('invoiceTotal').value) || 0) - r.cap;
   const profit = (Number(document.getElementById('invoiceProfit').value) || 0) - r.profit;
@@ -1179,16 +1191,17 @@ function updateReturnPreview_() {
 
 /* يحقق من الرجيع ويرجّع حقول الإرسال، أو null لو فيه خطأ (يطلع تنبيه) */
 function invoiceReturnPayload_(isInv) {
-  const none = { returnType: '', returnCapital: 0, returnProfit: 0 };
+  const none = { returnType: '', returnCapital: 0, returnProfit: 0, returnProof: 0 };
   const r = isInv ? readInvoiceReturn_() : null;
-  if (!r || (r.cap <= 0 && r.profit <= 0)) return none;
+  if (!r || (r.cap <= 0 && r.profit <= 0 && r.proof <= 0)) return none;
   const type = document.getElementById('invoiceReturnType').value.trim();
   if (!type) { alert('اكتبي نوع الرجيع'); return null; }
+  if (r.proof > 0) return { returnType: type, returnCapital: 0, returnProfit: 0, returnProof: r.proof };
   const capital = Number(document.getElementById('invoiceTotal').value) || 0;
   const profit = Number(document.getElementById('invoiceProfit').value) || 0;
   if (r.cap > capital + 0.005) { alert('خصم الرجيع من رأس المال أكبر من رأس المال'); return null; }
   if (r.profit > profit + 0.005) { alert('خصم الرجيع من الربح أكبر من الربح'); return null; }
-  return { returnType: type, returnCapital: r.cap, returnProfit: r.profit };
+  return { returnType: type, returnCapital: r.cap, returnProfit: r.profit, returnProof: 0 };
 }
 
 function submitInvoice() {
@@ -1216,7 +1229,7 @@ function submitInvoice() {
     callApi('updateInvoice', {
       row: editingInvoiceRow, entryType: entryType, invoiceNumber: invoiceNumber, invoiceSource: invoiceSource, date: date,
       totalAmount: totalAmount, profit: profit || 0, notes: notes,
-      returnType: retPayload.returnType, returnCapital: retPayload.returnCapital, returnProfit: retPayload.returnProfit
+      returnType: retPayload.returnType, returnCapital: retPayload.returnCapital, returnProfit: retPayload.returnProfit, returnProof: retPayload.returnProof
     }).then(function (r) {
       setBtnBusy(btn, false);
       if (r.ok) { cancelEditInvoice(); loadInvoices(); }
@@ -1227,7 +1240,7 @@ function submitInvoice() {
   callApi('recordInvoice', {
     center: currentCenter, entryType: entryType, invoiceNumber: invoiceNumber, invoiceSource: invoiceSource, date: date,
     totalAmount: totalAmount, profit: profit || 0, notes: notes,
-    returnType: retPayload.returnType, returnCapital: retPayload.returnCapital, returnProfit: retPayload.returnProfit
+    returnType: retPayload.returnType, returnCapital: retPayload.returnCapital, returnProfit: retPayload.returnProfit, returnProof: retPayload.returnProof
   }).then(function (r) {
     setBtnBusy(btn, false);
     if (r.ok) {
@@ -1261,7 +1274,13 @@ function editInvoice(row) {
   document.getElementById('invoiceNotes').value = inv['ملاحظات'] || '';
   resetInvoiceReturn_();
   const rp = invoiceRowParts_(inv);
-  if (rp.retCap > 0 || rp.retProfit > 0) {
+  if (rp.retProof > 0) {
+    document.getElementById('invoiceHasReturn').checked = true;
+    document.getElementById('invoiceReturnType').value = rp.retType;
+    document.getElementById('invoiceReturnMode').value = 'proof';
+    document.getElementById('invoiceReturnProof').value = rp.retProof;
+    toggleInvoiceReturn_();
+  } else if (rp.retCap > 0 || rp.retProfit > 0) {
     document.getElementById('invoiceHasReturn').checked = true;
     document.getElementById('invoiceReturnType').value = rp.retType;
     document.getElementById('invoiceReturnCap').value = rp.retCap;
