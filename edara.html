@@ -1979,7 +1979,7 @@ function loadCenterInvoices() {
     currentInvoices.forEach(function (inv) {
       const tr = document.createElement('tr');
       const p = invoiceRowParts_(inv);
-      tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (inv['ملاحظات'] || '') + '</td>';
+      tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + invoiceNotesText_(inv) + '</td>';
       tbody.appendChild(tr);
     });
     summaryBox.innerHTML = invoiceSummaryHtml_(invoiceSummary_(currentInvoices));
@@ -1991,7 +1991,7 @@ function exportCurrentInvoices() {
   if (!currentInvoices.length) { alert('لا يوجد فواتير لتصديرها'); return; }
   const rows = currentInvoices.map(function (inv) {
     const p = invoiceRowParts_(inv);
-    return { 'المركز': inv['اسم المركز'] || '', 'النوع': p.type, 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'مصدر الفاتورة': inv['مصدر الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'رأس المال': p.amount, 'الربح': p.profit, 'المبلغ الإجمالي': p.effect, 'ملاحظات': inv['ملاحظات'] || '' };
+    return { 'المركز': inv['اسم المركز'] || '', 'النوع': p.type, 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'مصدر الفاتورة': inv['مصدر الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'رأس المال': p.amount, 'الربح': p.profit, 'المبلغ الإجمالي': p.effect, 'ملاحظات': invoiceNotesText_(inv) };
   });
   appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoices), 'النوع', 'المبلغ الإجمالي', false);
   exportToExcel(rows, 'فواتير-' + (center || 'كل-المراكز'), 'الفواتير');
@@ -2002,7 +2002,7 @@ function printCurrentInvoices() {
   if (!currentInvoices.length) { alert('لا يوجد فواتير لطباعتها'); return; }
   const rows = currentInvoices.map(function (inv) {
     const p = invoiceRowParts_(inv);
-    return { center: inv['اسم المركز'] || '', type: p.type, num: inv['رقم الفاتورة'] || '', source: inv['مصدر الفاتورة'] || '', day: inv['اليوم'] || '', date: toHijriStr(inv['التاريخ']), amount: p.amount.toFixed(2), profit: p.profit.toFixed(2), effect: '<span dir="ltr">' + p.effect.toFixed(2) + '</span>', notes: inv['ملاحظات'] || '' };
+    return { center: inv['اسم المركز'] || '', type: p.type, num: inv['رقم الفاتورة'] || '', source: inv['مصدر الفاتورة'] || '', day: inv['اليوم'] || '', date: toHijriStr(inv['التاريخ']), amount: p.amount.toFixed(2), profit: p.profit.toFixed(2), effect: '<span dir="ltr">' + p.effect.toFixed(2) + '</span>', notes: invoiceNotesText_(inv) };
   });
   appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoices), 'type', 'effect', true);
   printReport('بيان الفواتير', center || 'كل المراكز', [

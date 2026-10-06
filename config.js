@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbze9LMXL1MPv81ad5KoqOpxIYUa6MrWvwN6X7BzdVojcHpNsFrr19IBVEnyHWb2L1gr/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwR7kkxhJ7cuJRgE4eVcMqxuimheTeaodW7oXvbXBOAxVFGRiQbrqVcJKjWqSDo2pcZ/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -1831,20 +1831,35 @@ function invoiceEntryType_(inv) {
 
 function invoiceRowParts_(inv) {
   const type = invoiceEntryType_(inv);
-  const amount = Number(inv['المبلغ الإجمالي']) || 0;
-  const profit = type === 'مصروفات' ? 0 : (Number(inv['الربح']) || 0);
+  let amount = Number(inv['المبلغ الإجمالي']) || 0;
+  let profit = type === 'مصروفات' ? 0 : (Number(inv['الربح']) || 0);
+  /* رجيع داخل الفاتورة: يُخصم من رأس المال ومن الربح (الفواتير فقط) */
+  const retCap = type === 'فاتورة' ? (Number(inv['رجيع رأس المال']) || 0) : 0;
+  const retProfit = type === 'فاتورة' ? (Number(inv['رجيع الربح']) || 0) : 0;
+  amount -= retCap; profit -= retProfit;
   let effect;
   if (type === 'فاتورة') effect = amount + profit;
   else if (type === 'مشتريات') effect = profit;
   else effect = -amount;
-  return { type: type, amount: amount, profit: profit, effect: effect };
+  return { type: type, amount: amount, profit: profit, effect: effect, retCap: retCap, retProfit: retProfit,
+           retType: String(inv['نوع الرجيع'] || '').trim() };
+}
+
+/* الملاحظات + سطر الرجيع (إن وجد) للعرض والتصدير والطباعة */
+function invoiceNotesText_(inv) {
+  const p = invoiceRowParts_(inv);
+  const notes = String(inv['ملاحظات'] || '');
+  if (p.retCap <= 0 && p.retProfit <= 0) return notes;
+  const ret = 'رجيع (' + (p.retType || 'بدون نوع') + '): −' + (p.retCap + p.retProfit).toFixed(2) +
+    ' ريال [رأس المال −' + p.retCap.toFixed(2) + ' / الربح −' + p.retProfit.toFixed(2) + ']';
+  return notes ? notes + ' — ' + ret : ret;
 }
 
 function invoiceSummary_(list) {
-  const s = { invoiceCapital: 0, invoiceProfit: 0, purchasesProfit: 0, purchasesCost: 0, expenses: 0, deliverable: 0 };
+  const s = { invoiceCapital: 0, invoiceProfit: 0, purchasesProfit: 0, purchasesCost: 0, expenses: 0, deliverable: 0, returns: 0 };
   (list || []).forEach(function (inv) {
     const p = invoiceRowParts_(inv);
-    if (p.type === 'فاتورة') { s.invoiceCapital += p.amount; s.invoiceProfit += p.profit; }
+    if (p.type === 'فاتورة') { s.invoiceCapital += p.amount; s.invoiceProfit += p.profit; s.returns += p.retCap + p.retProfit; }
     else if (p.type === 'مشتريات') { s.purchasesCost += p.amount; s.purchasesProfit += p.profit; }
     else { s.expenses += p.amount; }
   });
@@ -1877,6 +1892,9 @@ function invoiceSummaryHtml_(s) {
       (last ? 'margin-top:6px;border-top:2px solid var(--gold,#C2AA85);font-weight:800;font-size:1.05rem;color:var(--maroon,#8C1A2C);' : '') +
       '"><span>' + l[0] + '</span><span dir="ltr">' + l[1].toFixed(2) + ' ريال</span></div>';
   });
+  if (s.returns > 0) {
+    h += '<div style="font-size:0.8rem;color:#8a7d76;margin-top:6px;">الأرقام أعلاه بعد خصم الرجيع (' + s.returns.toFixed(2) + ' ريال) من رأس المال والربح.</div>';
+  }
   if (s.purchasesCost > 0) {
     h += '<div style="font-size:0.8rem;color:#8a7d76;margin-top:6px;">تكلفة المشتريات (' + s.purchasesCost.toFixed(2) +
       ' ريال) ما تُضاف للإجمالي لأنها خرجت من نفس المبالغ؛ يُضاف ربحها فقط.</div>';

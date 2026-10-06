@@ -35,7 +35,7 @@ function setup() {
     'المراكز': ['اسم المركز', 'كلمة المرور', 'وضع العرض فقط', 'الاسم المعروض'],
     'المبيعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'الوقت', 'المبلغ', 'ملاحظات', 'الفصل الدراسي', 'وقت التسجيل الفعلي'],
     'المرتجعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'وصف الصنف', 'الكمية', 'القيمة', 'ملاحظات', 'الفصل الدراسي'],
-    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'مصدر الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح', 'ملاحظات', 'الفصل الدراسي', 'نوع القيد'],
+    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'مصدر الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح', 'ملاحظات', 'الفصل الدراسي', 'نوع القيد', 'نوع الرجيع', 'رجيع رأس المال', 'رجيع الربح'],
     'الإشعارات': ['معرف', 'النوع', 'اسم المركز', 'يوم الإرسال', 'تاريخ الإرسال', 'وقت الإرسال',
       'اسم المسلّمة', 'المبلغ', 'الشهر', 'الفصل الدراسي', 'العام', 'بيان مخصص',
       'رابط توقيع المركز', 'رابط صورة الإشعار', 'الحالة',
@@ -1711,6 +1711,17 @@ function updateSale_(p) {
     const dayCol = colIndex_(sh, 'اليوم');
     if (dayCol !== -1) sh.getRange(row, dayCol).setValue(dayNameForDateStr_(p.date));
   }
+  if (p.returnType !== undefined || p.returnCapital !== undefined || p.returnProfit !== undefined) {
+    ensureInvoiceReturnCols_(sh);
+    const typeNow = p.entryType !== undefined ? cleanEntryType_(p.entryType) : cleanEntryType_(sh.getRange(row, colIndex_(sh, ENTRY_TYPE_COL_)).getValue());
+    const amtNow = p.totalAmount !== undefined ? Number(p.totalAmount) : Number(sh.getRange(row, colIndex_(sh, 'المبلغ الإجمالي')).getValue()) || 0;
+    const prfNow = typeNow === 'مصروفات' ? 0 : (p.profit !== undefined ? Number(p.profit) : Number(sh.getRange(row, colIndex_(sh, 'الربح')).getValue()) || 0);
+    const ret = cleanInvoiceReturn_(p, typeNow, amtNow, prfNow);
+    if (ret.error) return { ok: false, error: ret.error };
+    sh.getRange(row, colIndex_(sh, RET_TYPE_COL_)).setValue(ret.type);
+    sh.getRange(row, colIndex_(sh, RET_CAP_COL_)).setValue(ret.cap);
+    sh.getRange(row, colIndex_(sh, RET_PROFIT_COL_)).setValue(ret.profit);
+  }
   if (p.notes !== undefined) {
     const notesCol = colIndex_(sh, 'ملاحظات');
     if (notesCol !== -1) sh.getRange(row, notesCol).setValue(p.notes);
@@ -1939,13 +1950,29 @@ function ensureInvoiceTypeCol_(sh) {
   delete _headerRowCache_[sh.getSheetId()];
 }
 
+/* رجيع داخل الفاتورة: نوع الرجيع + مقدار الخصم من رأس المال ومن الربح (يُخصم من الاثنين) */
+const RET_TYPE_COL_ = 'نوع الرجيع', RET_CAP_COL_ = 'رجيع رأس المال', RET_PROFIT_COL_ = 'رجيع الربح';
+
+function ensureInvoiceReturnCols_(sh) {
+  [RET_TYPE_COL_, RET_CAP_COL_, RET_PROFIT_COL_].forEach(function (name) {
+    if (colIndex_(sh, name) !== -1) return;
+    sh.getRange(1, sh.getLastColumn() + 1).setValue(name).setFontWeight('bold');
+    delete _headerRowCache_[sh.getSheetId()];
+  });
+}
+
+function invoiceReturnOf_(r) {
+  return { cap: Number(r && r[RET_CAP_COL_]) || 0, profit: Number(r && r[RET_PROFIT_COL_]) || 0 };
+}
+
 /* المطلوب تسليمه = رأس المال + أرباح الفواتير + أرباح المشتريات − المصروفات */
 function invoiceTotals_(rows) {
   const s = { invoiceCapital: 0, invoiceProfit: 0, purchasesProfit: 0, purchasesCost: 0, expenses: 0, deliverable: 0 };
   rows.forEach(function (r) {
     const type = entryTypeOf_(r);
-    const amount = Number(r['المبلغ الإجمالي']) || 0;
-    const profit = Number(r['الربح']) || 0;
+    let amount = Number(r['المبلغ الإجمالي']) || 0;
+    let profit = Number(r['الربح']) || 0;
+    if (type === 'فاتورة') { const rt = invoiceReturnOf_(r); amount -= rt.cap; profit -= rt.profit; }
     if (type === 'فاتورة') { s.invoiceCapital += amount; s.invoiceProfit += profit; }
     else if (type === 'مشتريات') { s.purchasesCost += amount; s.purchasesProfit += profit; }
     else { s.expenses += amount; }
@@ -2006,6 +2033,19 @@ function setExpenseCenters_(p) {
   return { ok: true };
 }
 
+/* يتحقق من الرجيع: للفواتير فقط، ولا يزيد عن رأس المال/الربح */
+function cleanInvoiceReturn_(p, type, amount, profit) {
+  const cap = Math.round((Number(p.returnCapital) || 0) * 100) / 100;
+  const prf = Math.round((Number(p.returnProfit) || 0) * 100) / 100;
+  const t = String(p.returnType || '').trim();
+  if (type !== 'فاتورة' || (cap <= 0 && prf <= 0)) return { type: '', cap: 0, profit: 0 };
+  if (cap < 0 || prf < 0) return { error: 'مبلغ الرجيع ما يصير سالب' };
+  if (!t) return { error: 'اكتبي نوع الرجيع' };
+  if (cap > amount + 0.005) return { error: 'خصم الرجيع من رأس المال أكبر من رأس المال' };
+  if (prf > profit + 0.005) return { error: 'خصم الرجيع من الربح أكبر من الربح' };
+  return { type: t, cap: cap, profit: prf };
+}
+
 function recordInvoice_(p) {
   const sh = sheet_('الفواتير');
   ensureInvoiceTypeCol_(sh);
@@ -2014,10 +2054,15 @@ function recordInvoice_(p) {
   const day = dayNameForDateStr_(date);
   let type = cleanEntryType_(p.entryType);
   if (!centerCanEntryType_(p.center, type)) return { ok: false, error: 'نوع «' + type + '» غير مفعّل لهذا المركز' };
+  ensureInvoiceReturnCols_(sh);
+  const amt = Number(p.totalAmount) || 0, prf = type === 'مصروفات' ? 0 : (Number(p.profit) || 0);
+  const ret = cleanInvoiceReturn_(p, type, amt, prf);
+  if (ret.error) return { ok: false, error: ret.error };
   appendRowByHeaders_(sh, {
     'معرف': id, 'اسم المركز': p.center, 'رقم الفاتورة': p.invoiceNumber || '', 'مصدر الفاتورة': p.invoiceSource || '', 'اليوم': day, 'التاريخ': date,
-    'المبلغ الإجمالي': Number(p.totalAmount) || 0, 'الربح': type === 'مصروفات' ? 0 : (Number(p.profit) || 0), 'ملاحظات': p.notes || '',
-    'نوع القيد': type
+    'المبلغ الإجمالي': amt, 'الربح': prf, 'ملاحظات': p.notes || '',
+    'نوع القيد': type,
+    'نوع الرجيع': ret.type, 'رجيع رأس المال': ret.cap, 'رجيع الربح': ret.profit
   });
   invalidateCache_('الفواتير');
   return { ok: true, id: id };
@@ -2886,9 +2931,9 @@ function getRegistrationStats_(p) {
     const et = entryTypeOf_(r);
     if (et === 'فاتورة') {
       m.invoices++;                                     // «عدد الفواتير» يعدّ الفواتير فقط (مو المشتريات/المصروفات)
-      m.capital += Number(r['المبلغ الإجمالي']) || 0;   // عمود «المبلغ الإجمالي» بالشيت = رأس المال
+      m.capital += (Number(r['المبلغ الإجمالي']) || 0) - invoiceReturnOf_(r).cap;   // عمود «المبلغ الإجمالي» بالشيت = رأس المال (بعد خصم الرجيع)
     }
-    if (et !== 'مصروفات') m.profit += Number(r['الربح']) || 0;  // الربح = أرباح الفواتير + أرباح المشتريات
+    if (et !== 'مصروفات') m.profit += (Number(r['الربح']) || 0) - (et === 'فاتورة' ? invoiceReturnOf_(r).profit : 0);  // الربح = أرباح الفواتير + أرباح المشتريات
   });
   sales.forEach(function (r) {
     if (!inRange(r['التاريخ'])) return;
