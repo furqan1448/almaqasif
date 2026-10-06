@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbwT92J3fLtA5WKjNXodYw8UKRqaGevCmlLo2EUfSpH9sRD_KrimZ-9BJs7iSgyvEDfV/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxaTeGA_1GPBvDtokhC2rejB7e4GI8VUlOqbMBbliT_5ODkopBVvagWP5vXuBHlCpCU/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -1846,13 +1846,40 @@ function invoiceRowParts_(inv) {
            retType: String(inv['نوع الرجيع'] || '').trim() };
 }
 
-/* عمود «المرتجعات»: وصف الصنف + الكمية + القيمة (نفس بيانات أيقونة المرتجعات) */
-function invoiceReturnText_(inv) {
+function htmlEscape_(x) {
+  return String(x === undefined || x === null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/* أصناف الرجيع للفاتورة: من «تفاصيل الرجيع» (يمكن أكثر من صنف)، أو من الأعمدة القديمة (صنف واحد) */
+function invoiceReturnItems_(inv) {
+  if (invoiceEntryType_(inv) !== 'فاتورة') return [];
+  try {
+    const arr = JSON.parse(inv['تفاصيل الرجيع'] || '');
+    if (Array.isArray(arr) && arr.length) {
+      return arr.map(function (r) {
+        return { desc: String(r.desc || ''), qty: String(r.qty || ''), cap: Number(r.cap) || 0, profit: Number(r.profit) || 0, proof: Number(r.proof) || 0 };
+      });
+    }
+  } catch (e) {}
   const p = invoiceRowParts_(inv);
-  if (p.retCap <= 0 && p.retProfit <= 0 && p.retProof <= 0) return '';
-  const val = p.retProof > 0 ? p.retProof : p.retCap + p.retProfit;
-  return (p.retType || 'بدون وصف') + (p.retQty ? ' — الكمية: ' + p.retQty : '') + ' — القيمة: ' + val.toFixed(2) + ' ريال' +
-    (p.retProof > 0 ? ' (إثبات فقط، غير مخصومة)' : ' (مخصومة: رأس المال ' + p.retCap.toFixed(2) + ' / الربح ' + p.retProfit.toFixed(2) + ')');
+  if (p.retCap <= 0 && p.retProfit <= 0 && p.retProof <= 0) return [];
+  return [{ desc: p.retType || 'بدون وصف', qty: p.retQty, cap: p.retCap, profit: p.retProfit, proof: p.retProof }];
+}
+
+function returnItemText_(it) {
+  const val = it.proof > 0 ? it.proof : it.cap + it.profit;
+  return (it.desc || 'بدون وصف') + (it.qty ? ' — الكمية: ' + it.qty : '') + ' — القيمة: ' + val.toFixed(2) + ' ريال' +
+    (it.proof > 0 ? ' (إثبات فقط، غير مخصومة)' : ' (مخصومة: رأس المال ' + it.cap.toFixed(2) + ' / الربح ' + it.profit.toFixed(2) + ')');
+}
+
+/* عمود «المرتجعات» نصًّا (للتصدير والطباعة): كل صنف مفصول بـ ؛ */
+function invoiceReturnText_(inv) {
+  return invoiceReturnItems_(inv).map(returnItemText_).join(' ؛ ');
+}
+
+/* عمود «المرتجعات» داخل الجدول: كل صنف في سطر */
+function invoiceReturnHtml_(inv) {
+  return invoiceReturnItems_(inv).map(function (it) { return htmlEscape_(returnItemText_(it)); }).join('<br>');
 }
 
 /* الملاحظات كما كتبتها المسؤولة (الرجيع صار له عمود مستقل: المرتجعات) */

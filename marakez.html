@@ -219,27 +219,9 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         </div>
         <div id="invoiceReturnSection">
           <label style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-top:10px;"><input type="checkbox" id="invoiceHasReturn" onchange="toggleInvoiceReturn_()"> <span>يوجد رجيع</span></label>
-          <div id="invoiceReturnWrap" class="hidden" style="border:1px dashed var(--gold,#C2AA85);border-radius:10px;padding:10px;margin-top:6px;">
-            <label>وصف الصنف</label>
-            <input type="text" id="invoiceReturnType" placeholder="مثال: بطاطس ليز - كرتون" oninput="updateReturnPreview_()">
-            <label>الكمية</label>
-            <input type="number" id="invoiceReturnQty" class="no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0" step="1">
-            <label>طريقة الخصم</label>
-            <select id="invoiceReturnMode" onchange="toggleInvoiceReturn_()">
-              <option value="split">جردت الفاتورة — أحدد الخصم من رأس المال ومن الربح</option>
-              <option value="proof">إثبات فقط: الرجيع لم أكتب مبلغه في سجل الفواتير</option>
-            </select>
-            <div id="invoiceReturnSplitWrap">
-              <label>خصم من رأس المال (ريال)</label>
-              <input type="number" id="invoiceReturnCap" class="no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01" oninput="updateReturnPreview_()">
-              <label>خصم من الربح (ريال)</label>
-              <input type="number" id="invoiceReturnProfit" class="no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01" oninput="updateReturnPreview_()">
-            </div>
-            <div id="invoiceReturnProofWrap" class="hidden">
-              <label>القيمة (ريال)</label>
-              <input type="number" id="invoiceReturnProof" class="no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01" oninput="updateReturnPreview_()">
-              <div style="font-size:0.8rem;color:#8a7d76;margin-top:4px;">يُسجَّل كإثبات فقط عشان المراجعة، وما ينخصم من رأس المال ولا الربح ولا المطلوب تسليمه.</div>
-            </div>
+          <div id="invoiceReturnWrap" class="hidden" style="margin-top:6px;">
+            <div id="invoiceReturnList"></div>
+            <button type="button" class="btn secondary" onclick="addInvoiceReturnRow_()" style="margin-top:6px;">+ إضافة رجيع آخر</button>
             <div id="invoiceReturnPreview" style="margin-top:8px;font-weight:bold;color:var(--maroon,#8C1A2C);"></div>
           </div>
         </div>
@@ -896,71 +878,147 @@ function onInvoiceEntryTypeChange() {
   document.getElementById('invoiceNotes').placeholder = isInv ? 'أي ملاحظة تحبين تضيفينها' : (t === 'مشتريات' ? 'مثال: فطاير وقهوة وشاي' : 'مثال: أكياس وأكواب');
 }
 
-/* -------- رجيع داخل الفاتورة -------- */
+/* -------- رجيع داخل الفاتورة (يمكن أكثر من صنف) -------- */
+function addInvoiceReturnRow_(item) {
+  const list = document.getElementById('invoiceReturnList');
+  const it = item || {};
+  const proofMode = Number(it.proof) > 0;
+  const box = document.createElement('div');
+  box.className = 'invoice-return-row';
+  box.style.cssText = 'border:1px dashed var(--gold,#C2AA85);border-radius:10px;padding:10px;margin-top:8px;';
+  box.innerHTML =
+    '<label>وصف الصنف</label>' +
+    '<input type="text" class="ret-desc" placeholder="مثال: بطاطس ليز - كرتون" oninput="updateReturnPreview_()">' +
+    '<label>الكمية</label>' +
+    '<input type="number" class="ret-qty no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0" step="1">' +
+    '<label>طريقة الخصم</label>' +
+    '<select class="ret-mode" onchange="onReturnModeChange_(this)">' +
+      '<option value="split">جردت الفاتورة — أحدد الخصم من رأس المال ومن الربح</option>' +
+      '<option value="proof">إثبات فقط: الرجيع لم أكتب مبلغه في سجل الفواتير</option>' +
+    '</select>' +
+    '<div class="ret-split-wrap">' +
+      '<label>خصم من رأس المال (ريال)</label>' +
+      '<input type="number" class="ret-cap no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01" oninput="updateReturnPreview_()">' +
+      '<label>خصم من الربح (ريال)</label>' +
+      '<input type="number" class="ret-profit no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01" oninput="updateReturnPreview_()">' +
+    '</div>' +
+    '<div class="ret-proof-wrap hidden">' +
+      '<label>القيمة (ريال)</label>' +
+      '<input type="number" class="ret-proof no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01" oninput="updateReturnPreview_()">' +
+      '<div style="font-size:0.8rem;color:#8a7d76;margin-top:4px;">يُسجَّل للإثبات فقط، ولا يُخصم من رأس المال ولا الربح ولا المطلوب تسليمه.</div>' +
+    '</div>' +
+    '<a href="#" class="ret-remove" onclick="removeInvoiceReturnRow_(this); return false;" style="display:inline-block;margin-top:8px;">حذف هذا الرجيع</a>';
+  list.appendChild(box);
+  box.querySelector('.ret-desc').value = it.desc || '';
+  box.querySelector('.ret-qty').value = it.qty || '';
+  box.querySelector('.ret-mode').value = proofMode ? 'proof' : 'split';
+  box.querySelector('.ret-cap').value = it.cap || '';
+  box.querySelector('.ret-profit').value = it.profit || '';
+  box.querySelector('.ret-proof').value = it.proof || '';
+  onReturnModeChange_(box.querySelector('.ret-mode'));
+  refreshReturnRemoveLinks_();
+}
+
+function onReturnModeChange_(sel) {
+  const box = sel.closest('.invoice-return-row');
+  const proof = sel.value === 'proof';
+  box.querySelector('.ret-split-wrap').classList.toggle('hidden', proof);
+  box.querySelector('.ret-proof-wrap').classList.toggle('hidden', !proof);
+  updateReturnPreview_();
+}
+
+function removeInvoiceReturnRow_(a) {
+  const box = a.closest('.invoice-return-row');
+  box.parentNode.removeChild(box);
+  refreshReturnRemoveLinks_();
+  updateReturnPreview_();
+}
+
+/* رابط «حذف هذا الرجيع» يظهر فقط إذا وُجد أكثر من صنف */
+function refreshReturnRemoveLinks_() {
+  const rows = document.querySelectorAll('#invoiceReturnList .invoice-return-row');
+  rows.forEach(function (r) { r.querySelector('.ret-remove').style.display = rows.length > 1 ? 'inline-block' : 'none'; });
+}
+
 function toggleInvoiceReturn_() {
   const on = document.getElementById('invoiceHasReturn').checked;
   document.getElementById('invoiceReturnWrap').classList.toggle('hidden', !on);
-  const mode = document.getElementById('invoiceReturnMode').value;
-  document.getElementById('invoiceReturnSplitWrap').classList.toggle('hidden', mode !== 'split');
-  document.getElementById('invoiceReturnProofWrap').classList.toggle('hidden', mode !== 'proof');
+  if (on && !document.querySelectorAll('#invoiceReturnList .invoice-return-row').length) addInvoiceReturnRow_();
   updateReturnPreview_();
 }
 
 function resetInvoiceReturn_() {
   document.getElementById('invoiceHasReturn').checked = false;
-  document.getElementById('invoiceReturnType').value = '';
-  document.getElementById('invoiceReturnQty').value = '';
-  document.getElementById('invoiceReturnMode').value = 'split';
-  document.getElementById('invoiceReturnCap').value = '';
-  document.getElementById('invoiceReturnProfit').value = '';
-  document.getElementById('invoiceReturnProof').value = '';
+  document.getElementById('invoiceReturnList').innerHTML = '';
   toggleInvoiceReturn_();
 }
 
-/* يرجّع {cap, profit} من حقول الرجيع (يوزّع المبلغ الإجمالي تلقائياً لو ما جردت)، أو null لو ما فيه رجيع */
-function readInvoiceReturn_() {
-  if (!document.getElementById('invoiceHasReturn').checked) return null;
-  const capital = Number(document.getElementById('invoiceTotal').value) || 0;
-  const profit = Number(document.getElementById('invoiceProfit').value) || 0;
-  let cap = 0, prf = 0;
-  if (document.getElementById('invoiceReturnMode').value === 'proof') {
-    return { cap: 0, profit: 0, proof: Number(document.getElementById('invoiceReturnProof').value) || 0 };
-  }
-  {
-    cap = Number(document.getElementById('invoiceReturnCap').value) || 0;
-    prf = Number(document.getElementById('invoiceReturnProfit').value) || 0;
-  }
-  return { cap: cap, profit: prf, proof: 0 };
+/* تحميل أصناف الرجيع المحفوظة داخل النموذج عند تعديل فاتورة */
+function loadInvoiceReturnsIntoForm_(inv) {
+  resetInvoiceReturn_();
+  const items = invoiceReturnItems_(inv);
+  if (!items.length) return;
+  document.getElementById('invoiceHasReturn').checked = true;
+  document.getElementById('invoiceReturnWrap').classList.remove('hidden');
+  items.forEach(function (it) { addInvoiceReturnRow_(it); });
+  updateReturnPreview_();
+}
+
+/* يقرأ أصناف الرجيع من النموذج (الصفوف الفارغة تُتجاهل) */
+function readInvoiceReturns_() {
+  if (!document.getElementById('invoiceHasReturn').checked) return [];
+  const out = [];
+  document.querySelectorAll('#invoiceReturnList .invoice-return-row').forEach(function (box) {
+    const proofMode = box.querySelector('.ret-mode').value === 'proof';
+    const it = {
+      desc: box.querySelector('.ret-desc').value.trim(),
+      qty: box.querySelector('.ret-qty').value.trim(),
+      cap: proofMode ? 0 : (Number(box.querySelector('.ret-cap').value) || 0),
+      profit: proofMode ? 0 : (Number(box.querySelector('.ret-profit').value) || 0),
+      proof: proofMode ? (Number(box.querySelector('.ret-proof').value) || 0) : 0
+    };
+    if (!it.desc && it.cap <= 0 && it.profit <= 0 && it.proof <= 0) return;
+    out.push(it);
+  });
+  return out;
 }
 
 function updateReturnPreview_() {
   const box = document.getElementById('invoiceReturnPreview');
-  const r = readInvoiceReturn_();
-  if (r && r.proof > 0) { box.textContent = 'الأرقام ما تتغير: الرجيع مسجّل للإثبات فقط بقيمة ' + r.proof.toFixed(2) + ' ريال'; return; }
-  if (!r || (r.cap <= 0 && r.profit <= 0)) { box.textContent = ''; return; }
-  const capital = (Number(document.getElementById('invoiceTotal').value) || 0) - r.cap;
-  const profit = (Number(document.getElementById('invoiceProfit').value) || 0) - r.profit;
-  box.textContent = 'بعد الرجيع: رأس المال ' + capital.toFixed(2) + ' + الربح ' + profit.toFixed(2) + ' = ' + (capital + profit).toFixed(2) + ' ريال (الخصم ' + r.cap.toFixed(2) + ' من رأس المال و' + r.profit.toFixed(2) + ' من الربح)';
+  const items = readInvoiceReturns_();
+  let cap = 0, prf = 0, proof = 0;
+  items.forEach(function (it) { cap += it.cap; prf += it.profit; proof += it.proof; });
+  if (cap <= 0 && prf <= 0 && proof <= 0) { box.textContent = ''; return; }
+  let txt = '';
+  if (cap > 0 || prf > 0) {
+    const capital = (Number(document.getElementById('invoiceTotal').value) || 0) - cap;
+    const profit = (Number(document.getElementById('invoiceProfit').value) || 0) - prf;
+    txt = 'بعد الرجيع: رأس المال ' + capital.toFixed(2) + ' + الربح ' + profit.toFixed(2) + ' = ' + (capital + profit).toFixed(2) + ' ريال (الخصم ' + cap.toFixed(2) + ' من رأس المال و' + prf.toFixed(2) + ' من الربح)';
+  }
+  if (proof > 0) txt += (txt ? ' — ' : '') + 'رجيع للإثبات فقط بقيمة ' + proof.toFixed(2) + ' ريال (لا يتغير المبلغ)';
+  box.textContent = txt;
 }
 
-/* يحقق من الرجيع ويرجّع حقول الإرسال، أو null لو فيه خطأ (يطلع تنبيه) */
+/* يتحقق من الرجيع ويرجّع حقل الإرسال، أو null عند وجود خطأ (يظهر تنبيه) */
 function invoiceReturnPayload_(isInv) {
-  const none = { returnType: '', returnCapital: 0, returnProfit: 0, returnProof: 0, returnQty: '' };
-  const r = isInv ? readInvoiceReturn_() : null;
-  if (!r || (r.cap <= 0 && r.profit <= 0 && r.proof <= 0)) return none;
-  const type = document.getElementById('invoiceReturnType').value.trim();
-  if (!type) { alert('اكتبي وصف الصنف المرتجع'); return null; }
-  if (r.proof > 0) return { returnType: type, returnCapital: 0, returnProfit: 0, returnProof: r.proof, returnQty: document.getElementById('invoiceReturnQty').value.trim() };
+  const items = isInv ? readInvoiceReturns_() : [];
+  let cap = 0, prf = 0;
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (!it.desc) { alert('اكتبي وصف الصنف المرتجع'); return null; }
+    if (it.cap <= 0 && it.profit <= 0 && it.proof <= 0) { alert('اكتبي قيمة الرجيع للصنف: ' + it.desc); return null; }
+    cap += it.cap; prf += it.profit;
+  }
   const capital = Number(document.getElementById('invoiceTotal').value) || 0;
   const profit = Number(document.getElementById('invoiceProfit').value) || 0;
-  if (r.cap > capital + 0.005) { alert('خصم الرجيع من رأس المال أكبر من رأس المال'); return null; }
-  if (r.profit > profit + 0.005) { alert('خصم الرجيع من الربح أكبر من الربح'); return null; }
-  return { returnType: type, returnCapital: r.cap, returnProfit: r.profit, returnProof: 0, returnQty: document.getElementById('invoiceReturnQty').value.trim() };
+  if (cap > capital + 0.005) { alert('مجموع خصم الرجيع من رأس المال أكبر من رأس المال'); return null; }
+  if (prf > profit + 0.005) { alert('مجموع خصم الرجيع من الربح أكبر من الربح'); return null; }
+  return { returns: items };
 }
 
-/* لو أرسلنا رجيع والسيرفر ما أكد حفظه = Code.gs القديم لسا شغّال أو الرابط يشير لنشر قديم */
+/* إن أُرسل رجيع ولم يؤكد السيرفر حفظه فنسخة Code.gs قديمة أو الرابط يشير إلى نشر قديم */
 function warnIfReturnNotSaved_(payload, r) {
-  if (payload && payload.returnType && !(r && r.returnSaved)) {
+  if (payload && payload.returns && payload.returns.length && !(r && r.returnSaved)) {
     let tail = '';
     try { tail = String(API_URL).replace('/exec', '').slice(-14); } catch (e) {}
     alert('تنبيه: حُفظت الفاتورة لكن لم يُحفظ الرجيع، لأن نسخة الـ Web App التي يتصل بها الموقع قديمة.\n\nيَنتهي رابط الـ API الحالي بـ: ' + tail + '\nقارني ذلك بمعرّف النشر (Deployment ID) في Apps Script ← نشر ← إدارة عمليات النشر. إن اختلف فحدّثي API_URL في config.js، وإن تطابق فاختاري «إصدار جديد» عند النشر.');
@@ -992,7 +1050,7 @@ function submitInvoice() {
     callApi('updateInvoice', {
       row: editingInvoiceRow, entryType: entryType, invoiceNumber: invoiceNumber, invoiceSource: invoiceSource, date: date,
       totalAmount: totalAmount, profit: profit || 0, notes: notes,
-      returnType: retPayload.returnType, returnCapital: retPayload.returnCapital, returnProfit: retPayload.returnProfit, returnProof: retPayload.returnProof, returnQty: retPayload.returnQty
+      returns: retPayload.returns
     }).then(function (r) {
       setBtnBusy(btn, false);
       if (r.ok) { cancelEditInvoice(); loadInvoices(); warnIfReturnNotSaved_(retPayload, r); } else { alert((r && r.error) || 'تعذّر حفظ التعديل'); }
@@ -1003,7 +1061,7 @@ function submitInvoice() {
   callApi('recordInvoice', {
     center: currentCenter, entryType: entryType, invoiceNumber: invoiceNumber, invoiceSource: invoiceSource, date: date,
     totalAmount: totalAmount, profit: profit || 0, notes: notes,
-    returnType: retPayload.returnType, returnCapital: retPayload.returnCapital, returnProfit: retPayload.returnProfit, returnProof: retPayload.returnProof, returnQty: retPayload.returnQty
+    returns: retPayload.returns
   }).then(function (r) {
     setBtnBusy(btn, false);
     if (r.ok) {
@@ -1036,23 +1094,7 @@ function editInvoice(row) {
   document.getElementById('invoiceTotal').value = Number(inv['المبلغ الإجمالي']);
   document.getElementById('invoiceProfit').value = Number(inv['الربح']);
   document.getElementById('invoiceNotes').value = inv['ملاحظات'] || '';
-  resetInvoiceReturn_();
-  const rp = invoiceRowParts_(inv);
-  if (rp.retProof > 0) {
-    document.getElementById('invoiceHasReturn').checked = true;
-    document.getElementById('invoiceReturnType').value = rp.retType;
-    document.getElementById('invoiceReturnQty').value = rp.retQty;
-    document.getElementById('invoiceReturnMode').value = 'proof';
-    document.getElementById('invoiceReturnProof').value = rp.retProof;
-    toggleInvoiceReturn_();
-  } else if (rp.retCap > 0 || rp.retProfit > 0) {
-    document.getElementById('invoiceHasReturn').checked = true;
-    document.getElementById('invoiceReturnType').value = rp.retType;
-    document.getElementById('invoiceReturnQty').value = rp.retQty;
-    document.getElementById('invoiceReturnCap').value = rp.retCap;
-    document.getElementById('invoiceReturnProfit').value = rp.retProfit;
-    toggleInvoiceReturn_();
-  }
+  loadInvoiceReturnsIntoForm_(inv);
   document.getElementById('invoiceFormTitle').textContent = type === 'فاتورة' ? 'تعديل فاتورة رقم ' + (inv['رقم الفاتورة'] || '') : 'تعديل قيد (' + type + ')';
   document.getElementById('invoiceSubmitBtn').textContent = 'حفظ التعديل';
   document.getElementById('invoiceCancelEditBtn').classList.remove('hidden');
@@ -1102,7 +1144,7 @@ function loadInvoices() {
       const tr = document.createElement('tr');
       const p = invoiceRowParts_(inv);
       const actions = isReadOnlyCenter ? '<td></td>' : '<td><div class="row-actions"><a href="#" onclick="editInvoice(' + inv._row + '); return false;">تعديل</a><a href="#" onclick="deleteInvoiceRow(' + inv._row + '); return false;">حذف</a></div></td>';
-      tr.innerHTML = actions + '<td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (invoiceReturnText_(inv) || '—') + '</td><td>' + invoiceNotesText_(inv) + '</td>';
+      tr.innerHTML = actions + '<td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (invoiceReturnHtml_(inv) || '—') + '</td><td>' + invoiceNotesText_(inv) + '</td>';
       tbody.appendChild(tr);
     });
     summaryBox.innerHTML = invoiceSummaryHtml_(invoiceSummary_(currentInvoicesData));
