@@ -592,7 +592,3 @@ tr.vs-detail td { background: #fbf8f2; text-align: right; }
 .table-scroll table.log-table { margin-top: 0; min-width: 760px; }
 #invoicesTable th, #invoicesTable td { padding: 8px 5px; font-size: 0.82rem; }
 #invoicesTable td:nth-last-child(2), #invoicesTable td:nth-last-child(3) { min-width: 110px; word-break: break-word; }
-
-/* روابط تعديل/حذف بجدول الفواتير بالأزرق */
-#invoicesTable .row-actions a { color: #1a6fd4; font-weight: 600; }
-#invoicesTable .row-actions a:hover { color: #0f4c9a; text-decoration: underline; }
