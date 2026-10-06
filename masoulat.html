@@ -340,7 +340,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
           <option value="all">كل الفصول</option>
         </select>
         <div class="table-scroll"><table class="log-table" id="invoicesTable">
-          <thead><tr><th class="act-col">إجراءات</th><th>النوع</th><th>رقم الفاتورة</th><th>مصدر الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>رأس المال</th><th>الربح</th><th>المبلغ الإجمالي</th><th>المرتجعات</th><th>ملاحظات</th></tr></thead>
+          <thead><tr><th></th><th>النوع</th><th>رقم الفاتورة</th><th>مصدر الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>رأس المال</th><th>الربح</th><th>المبلغ الإجمالي</th><th>المرتجعات</th><th>ملاحظات</th></tr></thead>
           <tbody id="invoicesTbody"><tr><td colspan="11">جاري التحميل...</td></tr></tbody>
         </table></div>
         <div id="invoicesSummary"></div>
@@ -1198,7 +1198,9 @@ function invoiceReturnPayload_(isInv) {
 /* لو أرسلنا رجيع والسيرفر ما أكد حفظه = Code.gs القديم لسا شغّال أو الرابط يشير لنشر قديم */
 function warnIfReturnNotSaved_(payload, r) {
   if (payload && payload.returnType && !(r && r.returnSaved)) {
-    alert('تنبيه: الفاتورة انحفظت لكن الرجيع ما انحفظ، لأن السيرفر (Code.gs) عندك نسخة قديمة. الصقي Code.gs الجديد وانشري إصدار جديد من الـ Web App، وتأكدي إن رابط API_URL في config.js هو رابط نفس النشر.');
+    let tail = '';
+    try { tail = String(API_URL).replace('/exec', '').slice(-14); } catch (e) {}
+    alert('تنبيه: الفاتورة انحفظت لكن الرجيع ما انحفظ، لأن الـ Web App اللي يرد عليه الموقع نسخته قديمة.\n\nرابط الـ API الحالي ينتهي بـ: ' + tail + '\nقارنيه بمعرّف النشر (Deployment ID) في Apps Script ← نشر ← إدارة عمليات النشر. لو مختلف، حدّثي API_URL في config.js. ولو نفسه، اختاري «إصدار جديد» عند النشر.');
   }
 }
 
@@ -1336,7 +1338,7 @@ function loadInvoices() {
     currentInvoicesData.forEach(function (inv) {
       const tr = document.createElement('tr');
       const p = invoiceRowParts_(inv);
-      const actions = '<td class="act-col"><div class="row-actions"><a class="act-edit" onclick="editInvoice(' + inv._row + ')">✏️ تعديل</a><a class="act-del" onclick="deleteInvoiceRow(' + inv._row + ')">🗑️ حذف</a></div></td>';
+      const actions = '<td><div class="row-actions"><a onclick="editInvoice(' + inv._row + ')">تعديل</a><a onclick="deleteInvoiceRow(' + inv._row + ')">حذف</a></div></td>';
       tr.innerHTML = actions + '<td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (invoiceReturnText_(inv) || '—') + '</td><td>' + invoiceNotesText_(inv) + '</td>';
       tbody.appendChild(tr);
     });
