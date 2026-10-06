@@ -592,3 +592,11 @@ tr.vs-detail td { background: #fbf8f2; text-align: right; }
 .table-scroll table.log-table { margin-top: 0; min-width: 760px; }
 #invoicesTable th, #invoicesTable td { padding: 8px 5px; font-size: 0.82rem; }
 #invoicesTable td:nth-last-child(2), #invoicesTable td:nth-last-child(3) { min-width: 110px; word-break: break-word; }
+
+/* -------- أزرار تعديل/حذف واضحة وثابتة بجدول الفواتير -------- */
+.row-actions a.act-edit, .row-actions a.act-del { padding: 4px 10px; border-radius: 8px; font-weight: 700; white-space: nowrap; border: 1px solid var(--gold, #C2AA85); }
+.row-actions a.act-edit { color: var(--maroon, #8C1A2C); background: #fbf3ec; }
+.row-actions a.act-del { color: #b3261e; border-color: #e6b8b3; background: #fdeeee; }
+#invoicesTable .row-actions { flex-direction: column; gap: 6px; }
+#invoicesTable .act-col { position: sticky; right: 0; z-index: 2; background: #fff; min-width: 92px; box-shadow: -3px 0 5px rgba(0,0,0,0.06); }
+#invoicesTable th.act-col { background: var(--gold-light, #E8DCC8); }
