@@ -155,8 +155,8 @@
           </div>
         </div>
         <table class="log-table" id="invoicesTable">
-          <thead><tr><th>المركز</th><th>النوع</th><th>رقم الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>رأس المال</th><th>الربح</th><th>المبلغ الإجمالي</th><th>ملاحظات</th></tr></thead>
-          <tbody id="invoicesTbody"><tr><td colspan="9">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
+          <thead><tr><th>المركز</th><th>النوع</th><th>رقم الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>رأس المال</th><th>الربح</th><th>المبلغ الإجمالي</th><th>المرتجعات</th><th>ملاحظات</th></tr></thead>
+          <tbody id="invoicesTbody"><tr><td colspan="10">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
         </table>
         <div id="invoicesSummary"></div>
         <div class="export-row">
@@ -556,7 +556,7 @@ function loadCenterInvoices() {
     currentInvoices = r.invoices || [];
     const summaryBox = document.getElementById('invoicesSummary');
     if (!r.ok || !currentInvoices.length) {
-      tbody.innerHTML = '<tr><td colspan="9">لا توجد فواتير بعد</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10">لا توجد فواتير بعد</td></tr>';
       summaryBox.innerHTML = '';
       return;
     }
@@ -564,7 +564,7 @@ function loadCenterInvoices() {
     currentInvoices.forEach(function (inv) {
       const tr = document.createElement('tr');
       const p = invoiceRowParts_(inv);
-      tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + invoiceNotesText_(inv) + '</td>';
+      tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (invoiceReturnText_(inv) || '—') + '</td><td>' + invoiceNotesText_(inv) + '</td>';
       tbody.appendChild(tr);
     });
     summaryBox.innerHTML = invoiceSummaryHtml_(invoiceSummary_(currentInvoices));
@@ -576,7 +576,7 @@ function exportCurrentInvoices() {
   if (!currentInvoices.length) { alert('لا يوجد فواتير لتصديرها'); return; }
   const rows = currentInvoices.map(function (inv) {
     const p = invoiceRowParts_(inv);
-    return { 'المركز': inv['اسم المركز'] || '', 'النوع': p.type, 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'رأس المال': p.amount, 'الربح': p.profit, 'المبلغ الإجمالي': p.effect, 'ملاحظات': invoiceNotesText_(inv) };
+    return { 'المركز': inv['اسم المركز'] || '', 'النوع': p.type, 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'رأس المال': p.amount, 'الربح': p.profit, 'المبلغ الإجمالي': p.effect, 'المرتجعات': invoiceReturnText_(inv), 'ملاحظات': invoiceNotesText_(inv) };
   });
   appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoices), 'النوع', 'المبلغ الإجمالي', false);
   exportToExcel(rows, 'فواتير-' + (center || 'كل-المراكز'), 'الفواتير');
@@ -587,12 +587,12 @@ function printCurrentInvoices() {
   if (!currentInvoices.length) { alert('لا يوجد فواتير لطباعتها'); return; }
   const rows = currentInvoices.map(function (inv) {
     const p = invoiceRowParts_(inv);
-    return { center: inv['اسم المركز'] || '', type: p.type, num: inv['رقم الفاتورة'] || '', day: inv['اليوم'] || '', date: toHijriStr(inv['التاريخ']), amount: p.amount.toFixed(2), profit: p.profit.toFixed(2), effect: '<span dir="ltr">' + p.effect.toFixed(2) + '</span>', notes: invoiceNotesText_(inv) };
+    return { center: inv['اسم المركز'] || '', type: p.type, num: inv['رقم الفاتورة'] || '', day: inv['اليوم'] || '', date: toHijriStr(inv['التاريخ']), amount: p.amount.toFixed(2), profit: p.profit.toFixed(2), effect: '<span dir="ltr">' + p.effect.toFixed(2) + '</span>', returns: invoiceReturnText_(inv), notes: invoiceNotesText_(inv) };
   });
   appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoices), 'type', 'effect', true);
   printReport('بيان الفواتير', center || 'كل المراكز', [
     { key: 'center', label: 'المركز' }, { key: 'type', label: 'النوع' }, { key: 'num', label: 'رقم الفاتورة' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' },
-    { key: 'amount', label: 'رأس المال' }, { key: 'profit', label: 'الربح' }, { key: 'effect', label: 'المبلغ الإجمالي' }, { key: 'notes', label: 'ملاحظات' }
+    { key: 'amount', label: 'رأس المال' }, { key: 'profit', label: 'الربح' }, { key: 'effect', label: 'المبلغ الإجمالي' }, { key: 'returns', label: 'المرتجعات' }, { key: 'notes', label: 'ملاحظات' }
   ], rows);
 }
 

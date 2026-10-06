@@ -220,8 +220,10 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         <div id="invoiceReturnSection">
           <label style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-top:10px;"><input type="checkbox" id="invoiceHasReturn" onchange="toggleInvoiceReturn_()"> <span>في هذي الفاتورة رجيع؟</span></label>
           <div id="invoiceReturnWrap" class="hidden" style="border:1px dashed var(--gold,#C2AA85);border-radius:10px;padding:10px;margin-top:6px;">
-            <label>نوع الرجيع</label>
+            <label>وصف الصنف</label>
             <input type="text" id="invoiceReturnType" placeholder="مثال: بطاطس ليز" oninput="updateReturnPreview_()">
+            <label>الكمية</label>
+            <input type="number" id="invoiceReturnQty" class="no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0" step="1">
             <label>طريقة الخصم</label>
             <select id="invoiceReturnMode" onchange="toggleInvoiceReturn_()">
               <option value="split">جردت الفاتورة — أحدد الخصم من رأس المال ومن الربح</option>
@@ -234,7 +236,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
               <input type="number" id="invoiceReturnProfit" class="no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01" oninput="updateReturnPreview_()">
             </div>
             <div id="invoiceReturnProofWrap" class="hidden">
-              <label>قيمة رأس مال الرجيع (ريال)</label>
+              <label>القيمة (ريال)</label>
               <input type="number" id="invoiceReturnProof" class="no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01" oninput="updateReturnPreview_()">
               <div style="font-size:0.8rem;color:#8a7d76;margin-top:4px;">يُسجَّل كإثبات فقط عشان المراجعة، وما ينخصم من رأس المال ولا الربح ولا المطلوب تسليمه.</div>
             </div>
@@ -256,8 +258,8 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
           <option value="all">كل الفصول</option>
         </select>
         <table class="log-table" id="invoicesTable">
-          <thead><tr><th>النوع</th><th>رقم الفاتورة</th><th>مصدر الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>رأس المال</th><th>الربح</th><th>المبلغ الإجمالي</th><th>ملاحظات</th><th></th></tr></thead>
-          <tbody id="invoicesTbody"><tr><td colspan="10">جاري التحميل...</td></tr></tbody>
+          <thead><tr><th>النوع</th><th>رقم الفاتورة</th><th>مصدر الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>رأس المال</th><th>الربح</th><th>المبلغ الإجمالي</th><th>المرتجعات</th><th>ملاحظات</th><th></th></tr></thead>
+          <tbody id="invoicesTbody"><tr><td colspan="11">جاري التحميل...</td></tr></tbody>
         </table>
         <div id="invoicesSummary"></div>
         <div class="export-row">
@@ -907,6 +909,7 @@ function toggleInvoiceReturn_() {
 function resetInvoiceReturn_() {
   document.getElementById('invoiceHasReturn').checked = false;
   document.getElementById('invoiceReturnType').value = '';
+  document.getElementById('invoiceReturnQty').value = '';
   document.getElementById('invoiceReturnMode').value = 'split';
   document.getElementById('invoiceReturnCap').value = '';
   document.getElementById('invoiceReturnProfit').value = '';
@@ -942,17 +945,17 @@ function updateReturnPreview_() {
 
 /* يحقق من الرجيع ويرجّع حقول الإرسال، أو null لو فيه خطأ (يطلع تنبيه) */
 function invoiceReturnPayload_(isInv) {
-  const none = { returnType: '', returnCapital: 0, returnProfit: 0, returnProof: 0 };
+  const none = { returnType: '', returnCapital: 0, returnProfit: 0, returnProof: 0, returnQty: '' };
   const r = isInv ? readInvoiceReturn_() : null;
   if (!r || (r.cap <= 0 && r.profit <= 0 && r.proof <= 0)) return none;
   const type = document.getElementById('invoiceReturnType').value.trim();
-  if (!type) { alert('اكتبي نوع الرجيع'); return null; }
-  if (r.proof > 0) return { returnType: type, returnCapital: 0, returnProfit: 0, returnProof: r.proof };
+  if (!type) { alert('اكتبي وصف الصنف المرتجع'); return null; }
+  if (r.proof > 0) return { returnType: type, returnCapital: 0, returnProfit: 0, returnProof: r.proof, returnQty: document.getElementById('invoiceReturnQty').value.trim() };
   const capital = Number(document.getElementById('invoiceTotal').value) || 0;
   const profit = Number(document.getElementById('invoiceProfit').value) || 0;
   if (r.cap > capital + 0.005) { alert('خصم الرجيع من رأس المال أكبر من رأس المال'); return null; }
   if (r.profit > profit + 0.005) { alert('خصم الرجيع من الربح أكبر من الربح'); return null; }
-  return { returnType: type, returnCapital: r.cap, returnProfit: r.profit, returnProof: 0 };
+  return { returnType: type, returnCapital: r.cap, returnProfit: r.profit, returnProof: 0, returnQty: document.getElementById('invoiceReturnQty').value.trim() };
 }
 
 function submitInvoice() {
@@ -980,7 +983,7 @@ function submitInvoice() {
     callApi('updateInvoice', {
       row: editingInvoiceRow, entryType: entryType, invoiceNumber: invoiceNumber, invoiceSource: invoiceSource, date: date,
       totalAmount: totalAmount, profit: profit || 0, notes: notes,
-      returnType: retPayload.returnType, returnCapital: retPayload.returnCapital, returnProfit: retPayload.returnProfit, returnProof: retPayload.returnProof
+      returnType: retPayload.returnType, returnCapital: retPayload.returnCapital, returnProfit: retPayload.returnProfit, returnProof: retPayload.returnProof, returnQty: retPayload.returnQty
     }).then(function (r) {
       setBtnBusy(btn, false);
       if (r.ok) { cancelEditInvoice(); loadInvoices(); }
@@ -991,7 +994,7 @@ function submitInvoice() {
   callApi('recordInvoice', {
     center: currentCenter, entryType: entryType, invoiceNumber: invoiceNumber, invoiceSource: invoiceSource, date: date,
     totalAmount: totalAmount, profit: profit || 0, notes: notes,
-    returnType: retPayload.returnType, returnCapital: retPayload.returnCapital, returnProfit: retPayload.returnProfit, returnProof: retPayload.returnProof
+    returnType: retPayload.returnType, returnCapital: retPayload.returnCapital, returnProfit: retPayload.returnProfit, returnProof: retPayload.returnProof, returnQty: retPayload.returnQty
   }).then(function (r) {
     setBtnBusy(btn, false);
     if (r.ok) {
@@ -1028,12 +1031,14 @@ function editInvoice(row) {
   if (rp.retProof > 0) {
     document.getElementById('invoiceHasReturn').checked = true;
     document.getElementById('invoiceReturnType').value = rp.retType;
+    document.getElementById('invoiceReturnQty').value = rp.retQty;
     document.getElementById('invoiceReturnMode').value = 'proof';
     document.getElementById('invoiceReturnProof').value = rp.retProof;
     toggleInvoiceReturn_();
   } else if (rp.retCap > 0 || rp.retProfit > 0) {
     document.getElementById('invoiceHasReturn').checked = true;
     document.getElementById('invoiceReturnType').value = rp.retType;
+    document.getElementById('invoiceReturnQty').value = rp.retQty;
     document.getElementById('invoiceReturnCap').value = rp.retCap;
     document.getElementById('invoiceReturnProfit').value = rp.retProfit;
     toggleInvoiceReturn_();
@@ -1078,7 +1083,7 @@ function loadInvoices() {
     currentInvoicesData = r.invoices || [];
     const summaryBox = document.getElementById('invoicesSummary');
     if (!r.ok || !currentInvoicesData.length) {
-      tbody.innerHTML = '<tr><td colspan="10">لا توجد فواتير بعد</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11">لا توجد فواتير بعد</td></tr>';
       summaryBox.innerHTML = '';
       return;
     }
@@ -1086,7 +1091,7 @@ function loadInvoices() {
     currentInvoicesData.forEach(function (inv) {
       const tr = document.createElement('tr');
       const p = invoiceRowParts_(inv);
-      tr.innerHTML = '<td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + invoiceNotesText_(inv) + '</td>' +
+      tr.innerHTML = '<td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (invoiceReturnText_(inv) || '—') + '</td><td>' + invoiceNotesText_(inv) + '</td>' +
         (isReadOnlyCenter ? '<td></td>' : '<td><div class="row-actions"><a onclick="editInvoice(' + inv._row + ')">تعديل</a><a onclick="deleteInvoiceRow(' + inv._row + ')">حذف</a></div></td>');
       tbody.appendChild(tr);
     });
@@ -1098,7 +1103,7 @@ function exportInvoicesReport() {
   if (!currentInvoicesData.length) { alert('لا توجد فواتير لتصديرها'); return; }
   const rows = currentInvoicesData.map(function (inv) {
     const p = invoiceRowParts_(inv);
-    return { 'النوع': p.type, 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'مصدر الفاتورة': inv['مصدر الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'رأس المال': p.amount, 'الربح': p.profit, 'المبلغ الإجمالي': p.effect, 'ملاحظات': invoiceNotesText_(inv) };
+    return { 'النوع': p.type, 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'مصدر الفاتورة': inv['مصدر الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'رأس المال': p.amount, 'الربح': p.profit, 'المبلغ الإجمالي': p.effect, 'المرتجعات': invoiceReturnText_(inv), 'ملاحظات': invoiceNotesText_(inv) };
   });
   appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoicesData), 'النوع', 'المبلغ الإجمالي', false);
   exportToExcel(rows, 'فواتير-' + currentCenter, 'الفواتير');
@@ -1107,12 +1112,12 @@ function exportInvoicesReport() {
 function printInvoicesReport() {
   const rows = currentInvoicesData.map(function (inv) {
     const p = invoiceRowParts_(inv);
-    return { type: p.type, num: inv['رقم الفاتورة'] || '', source: inv['مصدر الفاتورة'] || '', day: inv['اليوم'] || '', date: toHijriStr(inv['التاريخ']), amount: p.amount.toFixed(2), profit: p.profit.toFixed(2), effect: '<span dir="ltr">' + p.effect.toFixed(2) + '</span>', notes: invoiceNotesText_(inv) };
+    return { type: p.type, num: inv['رقم الفاتورة'] || '', source: inv['مصدر الفاتورة'] || '', day: inv['اليوم'] || '', date: toHijriStr(inv['التاريخ']), amount: p.amount.toFixed(2), profit: p.profit.toFixed(2), effect: '<span dir="ltr">' + p.effect.toFixed(2) + '</span>', returns: invoiceReturnText_(inv), notes: invoiceNotesText_(inv) };
   });
   appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoicesData), 'type', 'effect', true);
   printReport('بيان الفواتير', currentCenter, [
     { key: 'type', label: 'النوع' }, { key: 'num', label: 'رقم الفاتورة' }, { key: 'source', label: 'مصدر الفاتورة' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' },
-    { key: 'amount', label: 'رأس المال' }, { key: 'profit', label: 'الربح' }, { key: 'effect', label: 'المبلغ الإجمالي' }, { key: 'notes', label: 'ملاحظات' }
+    { key: 'amount', label: 'رأس المال' }, { key: 'profit', label: 'الربح' }, { key: 'effect', label: 'المبلغ الإجمالي' }, { key: 'returns', label: 'المرتجعات' }, { key: 'notes', label: 'ملاحظات' }
   ], rows);
 }
 
