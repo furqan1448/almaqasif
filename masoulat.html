@@ -1195,6 +1195,13 @@ function invoiceReturnPayload_(isInv) {
   return { returnType: type, returnCapital: r.cap, returnProfit: r.profit, returnProof: 0, returnQty: document.getElementById('invoiceReturnQty').value.trim() };
 }
 
+/* لو أرسلنا رجيع والسيرفر ما أكد حفظه = Code.gs القديم لسا شغّال أو الرابط يشير لنشر قديم */
+function warnIfReturnNotSaved_(payload, r) {
+  if (payload && payload.returnType && !(r && r.returnSaved)) {
+    alert('تنبيه: الفاتورة انحفظت لكن الرجيع ما انحفظ، لأن السيرفر (Code.gs) عندك نسخة قديمة. الصقي Code.gs الجديد وانشري إصدار جديد من الـ Web App، وتأكدي إن رابط API_URL في config.js هو رابط نفس النشر.');
+  }
+}
+
 function submitInvoice() {
   const entryType = document.getElementById('invoiceEntryType').value;
   const isInv = entryType === 'فاتورة';
@@ -1223,7 +1230,7 @@ function submitInvoice() {
       returnType: retPayload.returnType, returnCapital: retPayload.returnCapital, returnProfit: retPayload.returnProfit, returnProof: retPayload.returnProof, returnQty: retPayload.returnQty
     }).then(function (r) {
       setBtnBusy(btn, false);
-      if (r.ok) { cancelEditInvoice(); loadInvoices(); } else { alert((r && r.error) || 'تعذّر حفظ التعديل'); }
+      if (r.ok) { cancelEditInvoice(); loadInvoices(); warnIfReturnNotSaved_(retPayload, r); } else { alert((r && r.error) || 'تعذّر حفظ التعديل'); }
     }).catch(function () { setBtnBusy(btn, false); });
     return;
   }
@@ -1245,6 +1252,7 @@ function submitInvoice() {
       s.style.display = 'block';
       setTimeout(function () { s.style.display = 'none'; }, 2500);
       loadInvoices();
+      warnIfReturnNotSaved_(retPayload, r);
     } else { alert((r && r.error) || 'تعذّر حفظ القيد'); }
   }).catch(function () { setBtnBusy(btn, false); });
 }

@@ -1253,6 +1253,7 @@ function handleRequest_(p) {
       case 'getPriceListManager': return json_(getPriceListManager_());
       case 'setPriceListManager': return json_(setPriceListManager_(p));
 
+      case 'ping': return json_({ ok: true, version: '2026-10-06-returns', invoiceReturns: typeof cleanInvoiceReturn_ === 'function' });
       case 'getPurchaseCenters': return json_(getPurchaseCenters_());
       case 'setPurchaseCenters': return json_(setPurchaseCenters_(p));
       case 'getExpenseCenters': return json_(getExpenseCenters_());
@@ -1711,20 +1712,6 @@ function updateSale_(p) {
     const dayCol = colIndex_(sh, 'اليوم');
     if (dayCol !== -1) sh.getRange(row, dayCol).setValue(dayNameForDateStr_(p.date));
   }
-  if (p.returnType !== undefined || p.returnCapital !== undefined || p.returnProfit !== undefined || p.returnProof !== undefined || p.returnQty !== undefined) {
-    ensureInvoiceReturnCols_(sh);
-    const typeNow = p.entryType !== undefined ? cleanEntryType_(p.entryType) : cleanEntryType_(sh.getRange(row, colIndex_(sh, ENTRY_TYPE_COL_)).getValue());
-    const amtNow = p.totalAmount !== undefined ? Number(p.totalAmount) : Number(sh.getRange(row, colIndex_(sh, 'المبلغ الإجمالي')).getValue()) || 0;
-    const prfNow = typeNow === 'مصروفات' ? 0 : (p.profit !== undefined ? Number(p.profit) : Number(sh.getRange(row, colIndex_(sh, 'الربح')).getValue()) || 0);
-    const ret = cleanInvoiceReturn_(p, typeNow, amtNow, prfNow);
-    if (ret.error) return { ok: false, error: ret.error };
-    sh.getRange(row, colIndex_(sh, RET_TYPE_COL_)).setValue(ret.type);
-    sh.getRange(row, colIndex_(sh, RET_CAP_COL_)).setValue(ret.cap);
-    sh.getRange(row, colIndex_(sh, RET_PROFIT_COL_)).setValue(ret.profit);
-    sh.getRange(row, colIndex_(sh, RET_PROOF_COL_)).setValue(ret.proof);
-    sh.getRange(row, colIndex_(sh, RET_QTY_COL_)).setValue(ret.qty);
-    sh.getRange(row, colIndex_(sh, RET_TEXT_COL_)).setValue(ret.text);
-  }
   if (p.notes !== undefined) {
     const notesCol = colIndex_(sh, 'ملاحظات');
     if (notesCol !== -1) sh.getRange(row, notesCol).setValue(p.notes);
@@ -2075,7 +2062,7 @@ function recordInvoice_(p) {
     'نوع الرجيع': ret.type, 'رجيع رأس المال': ret.cap, 'رجيع الربح': ret.profit, 'رجيع للإثبات': ret.proof, 'كمية الرجيع': ret.qty, 'المرتجعات': ret.text
   });
   invalidateCache_('الفواتير');
-  return { ok: true, id: id };
+  return { ok: true, id: id, returnSaved: !!ret.type };
 }
 
 function getInvoices_(p) {
@@ -2090,6 +2077,7 @@ function getInvoices_(p) {
 function updateInvoice_(p) {
   const sh = sheet_('الفواتير');
   const row = Number(p.row);
+  let returnSaved = false;
   if (p.invoiceNumber !== undefined) sh.getRange(row, colIndex_(sh, 'رقم الفاتورة')).setValue(p.invoiceNumber);
   if (p.invoiceSource !== undefined) {
     const sourceCol = colIndex_(sh, 'مصدر الفاتورة');
@@ -2102,6 +2090,21 @@ function updateInvoice_(p) {
   }
   if (p.totalAmount !== undefined) sh.getRange(row, colIndex_(sh, 'المبلغ الإجمالي')).setValue(Number(p.totalAmount));
   if (p.profit !== undefined) sh.getRange(row, colIndex_(sh, 'الربح')).setValue(Number(p.profit));
+  if (p.returnType !== undefined || p.returnCapital !== undefined || p.returnProfit !== undefined || p.returnProof !== undefined || p.returnQty !== undefined) {
+    ensureInvoiceReturnCols_(sh);
+    const typeNow = p.entryType !== undefined ? cleanEntryType_(p.entryType) : cleanEntryType_(sh.getRange(row, colIndex_(sh, ENTRY_TYPE_COL_)).getValue());
+    const amtNow = p.totalAmount !== undefined ? Number(p.totalAmount) : Number(sh.getRange(row, colIndex_(sh, 'المبلغ الإجمالي')).getValue()) || 0;
+    const prfNow = typeNow === 'مصروفات' ? 0 : (p.profit !== undefined ? Number(p.profit) : Number(sh.getRange(row, colIndex_(sh, 'الربح')).getValue()) || 0);
+    const ret = cleanInvoiceReturn_(p, typeNow, amtNow, prfNow);
+    if (ret.error) return { ok: false, error: ret.error };
+    sh.getRange(row, colIndex_(sh, RET_TYPE_COL_)).setValue(ret.type);
+    sh.getRange(row, colIndex_(sh, RET_CAP_COL_)).setValue(ret.cap);
+    sh.getRange(row, colIndex_(sh, RET_PROFIT_COL_)).setValue(ret.profit);
+    sh.getRange(row, colIndex_(sh, RET_PROOF_COL_)).setValue(ret.proof);
+    sh.getRange(row, colIndex_(sh, RET_QTY_COL_)).setValue(ret.qty);
+    sh.getRange(row, colIndex_(sh, RET_TEXT_COL_)).setValue(ret.text);
+    returnSaved = !!ret.type;
+  }
   if (p.notes !== undefined) {
     const notesCol = colIndex_(sh, 'ملاحظات');
     if (notesCol !== -1) sh.getRange(row, notesCol).setValue(p.notes);
@@ -2118,7 +2121,7 @@ function updateInvoice_(p) {
     if (t === 'مصروفات') sh.getRange(row, colIndex_(sh, 'الربح')).setValue(0);
   }
   invalidateCache_('الفواتير');
-  return { ok: true };
+  return { ok: true, returnSaved: returnSaved };
 }
 
 function deleteInvoice_(p) {
