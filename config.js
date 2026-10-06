@@ -1855,6 +1855,7 @@ function invoiceSummary_(list) {
 
 /* سطر «أرباح المشتريات» يظهر فقط للمركز المفعّل له المشتريات (purchasesLineOn_) أو لو فيه قيود مشتريات فعلاً */
 let purchasesLineOn_ = false;
+let expensesLineOn_ = false;   /* نفس الفكرة لسطر «المصروفات» */
 
 function invoiceSummaryLines_(s) {
   const lines = [
@@ -1862,7 +1863,7 @@ function invoiceSummaryLines_(s) {
     ['أرباح الفواتير (+)', s.invoiceProfit]
   ];
   if (purchasesLineOn_ || s.purchasesCost > 0 || s.purchasesProfit !== 0) lines.push(['أرباح المشتريات (+)', s.purchasesProfit]);
-  lines.push(['المصروفات (−)', s.expenses]);
+  if (expensesLineOn_ || s.expenses > 0) lines.push(['المصروفات (−)', s.expenses]);
   lines.push(['المطلوب تسليمه', s.deliverable]);
   return lines;
 }

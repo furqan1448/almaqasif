@@ -1255,6 +1255,8 @@ function handleRequest_(p) {
 
       case 'getPurchaseCenters': return json_(getPurchaseCenters_());
       case 'setPurchaseCenters': return json_(setPurchaseCenters_(p));
+      case 'getExpenseCenters': return json_(getExpenseCenters_());
+      case 'setExpenseCenters': return json_(setExpenseCenters_(p));
       case 'getPriceListFile': return json_(getPriceListFile_());
       case 'getContacts': return json_(getContacts_());
       case 'recordVisitStat': return json_(recordVisitStat_(p));
@@ -1954,17 +1956,32 @@ function invoiceTotals_(rows) {
 }
 
 
-/* مراكز مسموح لها بنوع القيد «مشتريات» (اللي تشتري بنفسها) - تحددها الإدارة، والباقي فاتورة/مصروفات فقط */
-function getPurchaseCentersList_() {
-  const raw = getSettingValue_('مراكز المشتريات');
+/* مراكز مسموح لها بنوعي القيد «مشتريات» و«مصروفات» - تحددها الإدارة، والباقي «فاتورة» فقط */
+function getEntryCentersList_(key) {
+  const raw = getSettingValue_(key);
   if (!raw) return [];
   try { const a = JSON.parse(raw); return Array.isArray(a) ? a.map(function (x) { return String(x).trim(); }) : []; }
   catch (e) { return []; }
 }
 
+function getPurchaseCentersList_() { return getEntryCentersList_('مراكز المشتريات'); }
+function getExpenseCentersList_() { return getEntryCentersList_('مراكز المصروفات'); }
+
 function centerCanPurchase_(center) {
   const c = String(center || '').trim();
   return !!c && getPurchaseCentersList_().indexOf(c) !== -1;
+}
+
+function centerCanExpense_(center) {
+  const c = String(center || '').trim();
+  return !!c && getExpenseCentersList_().indexOf(c) !== -1;
+}
+
+/* هل المركز مسموح له بهذا النوع؟ (فاتورة دائماً مسموحة) */
+function centerCanEntryType_(center, type) {
+  if (type === 'مشتريات') return centerCanPurchase_(center);
+  if (type === 'مصروفات') return centerCanExpense_(center);
+  return true;
 }
 
 function getPurchaseCenters_() {
@@ -1978,6 +1995,17 @@ function setPurchaseCenters_(p) {
   return { ok: true };
 }
 
+function getExpenseCenters_() {
+  return { ok: true, centers: getExpenseCentersList_() };
+}
+
+function setExpenseCenters_(p) {
+  if (p.actor !== 'admin') return { ok: false, error: 'ما عندك صلاحية تعديل مراكز المصروفات' };
+  const list = (p.centers || []).map(function (x) { return String(x).trim(); }).filter(Boolean);
+  setSettingValue_('مراكز المصروفات', JSON.stringify(list));
+  return { ok: true };
+}
+
 function recordInvoice_(p) {
   const sh = sheet_('الفواتير');
   ensureInvoiceTypeCol_(sh);
@@ -1985,7 +2013,7 @@ function recordInvoice_(p) {
   const date = p.date || nowParts_().date;
   const day = dayNameForDateStr_(date);
   let type = cleanEntryType_(p.entryType);
-  if (type === 'مشتريات' && !centerCanPurchase_(p.center)) return { ok: false, error: 'نوع «مشتريات» غير مفعّل لهذا المركز' };
+  if (!centerCanEntryType_(p.center, type)) return { ok: false, error: 'نوع «' + type + '» غير مفعّل لهذا المركز' };
   appendRowByHeaders_(sh, {
     'معرف': id, 'اسم المركز': p.center, 'رقم الفاتورة': p.invoiceNumber || '', 'مصدر الفاتورة': p.invoiceSource || '', 'اليوم': day, 'التاريخ': date,
     'المبلغ الإجمالي': Number(p.totalAmount) || 0, 'الربح': type === 'مصروفات' ? 0 : (Number(p.profit) || 0), 'ملاحظات': p.notes || '',
@@ -2000,7 +2028,7 @@ function getInvoices_(p) {
   if (p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
   const sum = invoiceTotals_(rows);
   // totalAmount/totalProfit محفوظين للتوافق مع الواجهات القديمة (مجموعهم = المطلوب تسليمه)
-  return { ok: true, invoices: rows, summary: sum, purchasesEnabled: p.center ? centerCanPurchase_(p.center) : undefined,
+  return { ok: true, invoices: rows, summary: sum, purchasesEnabled: p.center ? centerCanPurchase_(p.center) : undefined, expensesEnabled: p.center ? centerCanExpense_(p.center) : undefined,
            totalAmount: sum.invoiceCapital - sum.expenses, totalProfit: sum.invoiceProfit + sum.purchasesProfit };
 }
 
@@ -2026,10 +2054,10 @@ function updateInvoice_(p) {
   if (p.entryType !== undefined) {
     ensureInvoiceTypeCol_(sh);
     const t = cleanEntryType_(p.entryType);
-    if (t === 'مشتريات') {
+    if (t !== 'فاتورة') {
       const curType = cleanEntryType_(sh.getRange(row, colIndex_(sh, ENTRY_TYPE_COL_)).getValue());
       const rowCenter = sh.getRange(row, colIndex_(sh, 'اسم المركز')).getValue();
-      if (curType !== 'مشتريات' && !centerCanPurchase_(rowCenter)) return { ok: false, error: 'نوع «مشتريات» غير مفعّل لهذا المركز' };
+      if (curType !== t && !centerCanEntryType_(rowCenter, t)) return { ok: false, error: 'نوع «' + t + '» غير مفعّل لهذا المركز' };
     }
     sh.getRange(row, colIndex_(sh, ENTRY_TYPE_COL_)).setValue(t);
     if (t === 'مصروفات') sh.getRange(row, colIndex_(sh, 'الربح')).setValue(0);

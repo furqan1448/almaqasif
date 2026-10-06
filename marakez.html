@@ -197,7 +197,6 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         <label>نوع القيد</label>
         <select id="invoiceEntryType" onchange="onInvoiceEntryTypeChange()">
           <option value="فاتورة">فاتورة بضاعة</option>
-          <option value="مصروفات">مصروفات (أكياس، أكواب...)</option>
         </select>
         <div id="invoiceNumberWrap">
           <label>رقم الفاتورة</label>
@@ -839,22 +838,23 @@ function setInvoiceSourceValue_(source) {
   }
 }
 
-let purchasesEnabled_ = false;
-/* خيار «مشتريات» يظهر فقط للمراكز اللي فعّلتها الإدارة (اللي تشتري بنفسها) */
-function setPurchasesEnabled_(enabled) {
-  purchasesEnabled_ = !!enabled;
-  purchasesLineOn_ = !!enabled;
+let purchasesEnabled_ = false, expensesEnabled_ = false;
+/* خياري «مشتريات» و«مصروفات» يظهران فقط للمراكز اللي فعّلتها الإدارة، و«فاتورة» دائماً */
+function setEntryTypesEnabled_(purchases, expenses) {
+  purchasesLineOn_ = !!purchases;
+  expensesLineOn_ = !!expenses;
   const sel = document.getElementById('invoiceEntryType');
   const cur = sel.value;
-  const has = Array.prototype.some.call(sel.options, function (o) { return o.value === 'مشتريات'; });
-  if (enabled && !has) {
+  sel.innerHTML = '';
+  [['فاتورة', 'فاتورة بضاعة', true],
+   ['مشتريات', 'مشتريات من المبالغ (فطاير، قهوة، شاي...)', purchases],
+   ['مصروفات', 'مصروفات (أكياس، أكواب...)', expenses]].forEach(function (x) {
+    if (!x[2]) return;
     const o = document.createElement('option');
-    o.value = 'مشتريات'; o.textContent = 'مشتريات من المبالغ (فطاير، قهوة، شاي...)';
-    sel.insertBefore(o, sel.querySelector('option[value="مصروفات"]'));
-  } else if (!enabled && has) {
-    Array.prototype.forEach.call(sel.options, function (o) { if (o.value === 'مشتريات') sel.removeChild(o); });
-  }
-  sel.value = cur && Array.prototype.some.call(sel.options, function (o) { return o.value === cur; }) ? cur : 'فاتورة';
+    o.value = x[0]; o.textContent = x[1];
+    sel.appendChild(o);
+  });
+  sel.value = Array.prototype.some.call(sel.options, function (o) { return o.value === cur; }) ? cur : 'فاتورة';
   onInvoiceEntryTypeChange();
 }
 
@@ -922,7 +922,7 @@ function editInvoice(row) {
   if (!inv) return;
   editingInvoiceRow = row;
   const type = invoiceEntryType_(inv);
-  setPurchasesEnabled_(purchasesEnabled_ || type === 'مشتريات');
+  setEntryTypesEnabled_(purchasesEnabled_ || type === 'مشتريات', expensesEnabled_ || type === 'مصروفات');
   document.getElementById('invoiceEntryType').value = type;
   onInvoiceEntryTypeChange();
   document.getElementById('invoiceNumber').value = inv['رقم الفاتورة'] || '';
@@ -939,7 +939,7 @@ function editInvoice(row) {
 
 function cancelEditInvoice() {
   editingInvoiceRow = null;
-  setPurchasesEnabled_(purchasesEnabled_);
+  setEntryTypesEnabled_(purchasesEnabled_, expensesEnabled_);
   document.getElementById('invoiceEntryType').value = 'فاتورة';
   onInvoiceEntryTypeChange();
   document.getElementById('invoiceNumber').value = '';
@@ -966,7 +966,7 @@ function loadInvoices() {
   populateTermFilter_('invoicesTermFilter');
   const term = document.getElementById('invoicesTermFilter').value;
   callApi('getInvoices', { center: currentCenter, term: term }).then(function (r) {
-    if (r.ok && !editingInvoiceRow) setPurchasesEnabled_(r.purchasesEnabled);
+    if (r.ok) { purchasesEnabled_ = !!r.purchasesEnabled; expensesEnabled_ = !!r.expensesEnabled; if (!editingInvoiceRow) setEntryTypesEnabled_(purchasesEnabled_, expensesEnabled_); }
     currentInvoicesData = r.invoices || [];
     const summaryBox = document.getElementById('invoicesSummary');
     if (!r.ok || !currentInvoicesData.length) {

@@ -356,11 +356,19 @@
     <div id="invoicesTab" class="admin-tab-panel hidden">
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">المراكز المفعّل لها «مشتريات»</h3>
-        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">نوع القيد «مشتريات» يظهر فقط للمراكز اللي تحددينها هنا (اللي تشتري بنفسها). «فاتورة» و«مصروفات» متاحة لجميع المراكز.</p>
+        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">نوع القيد «مشتريات» يظهر فقط للمراكز اللي تحددينها هنا (اللي تشتري بنفسها). «فاتورة» متاحة لجميع المراكز.</p>
         <label style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-bottom:8px;"><input type="checkbox" id="purchaseCentersAll" onchange="togglePurchaseCentersAll_(this.checked)"> <span>تحديد الكل</span></label>
         <div id="purchaseCentersBox">جاري التحميل...</div>
         <button class="btn" id="purchaseCentersSaveBtn" onclick="savePurchaseCenters()" style="margin-top:10px;">حفظ</button>
         <div class="success-msg" id="purchaseCentersSuccess">تم الحفظ بنجاح ✅</div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">المراكز المفعّل لها «مصروفات»</h3>
+        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">نوع القيد «مصروفات» يظهر فقط للمراكز اللي تحددينها هنا. «فاتورة» متاحة لجميع المراكز.</p>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-bottom:8px;"><input type="checkbox" id="expenseCentersAll" onchange="toggleExpenseCentersAll_(this.checked)"> <span>تحديد الكل</span></label>
+        <div id="expenseCentersBox">جاري التحميل...</div>
+        <button class="btn" id="expenseCentersSaveBtn" onclick="saveExpenseCenters()" style="margin-top:10px;">حفظ</button>
+        <div class="success-msg" id="expenseCentersSuccess">تم الحفظ بنجاح ✅</div>
       </div>
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">بيان الفواتير لكل مركز</h3>
@@ -1101,7 +1109,7 @@ function showAdminTab(tabId) {
   if (tabId === 'attendanceTab') loadAttendanceChecklist();
   if (tabId === 'salesTab') loadCenterSales();
   if (tabId === 'returnsTab') loadCenterReturns();
-  if (tabId === 'invoicesTab') { loadCenterInvoices(); loadPurchaseCentersAdmin(); }
+  if (tabId === 'invoicesTab') { loadCenterInvoices(); loadPurchaseCentersAdmin(); loadExpenseCentersAdmin(); }
   if (tabId === 'attachmentsTab') loadAttachments();
   if (tabId === 'difficultiesTab') loadDifficultiesAdmin();
   if (tabId === 'pledgesTab') loadPledgesStatus();
@@ -1899,6 +1907,53 @@ function savePurchaseCenters() {
     setBtnBusy(btn, false);
     if (r.ok) {
       const s = document.getElementById('purchaseCentersSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+    } else { alert(r.error || 'تعذّر الحفظ'); }
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+/* -------- المراكز المفعّل لها «مصروفات» -------- */
+function loadExpenseCentersAdmin() {
+  const box = document.getElementById('expenseCentersBox');
+  function render(selected) {
+    box.innerHTML = centersListCache.length ? '' : 'لا يوجد مراكز';
+    centersListCache.forEach(function (c) {
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:6px;';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.className = 'expense-center-check'; cb.value = c;
+      cb.checked = selected.indexOf(c) !== -1;
+      cb.onchange = syncExpenseCentersAll_;
+      const sp = document.createElement('span'); sp.textContent = c;
+      label.appendChild(cb); label.appendChild(sp);
+      box.appendChild(label);
+    });
+    syncExpenseCentersAll_();
+  }
+  function go() { callApi('getExpenseCenters').then(function (r) { render((r && r.centers) || []); }); }
+  if (centersListCache.length) { go(); return; }
+  callApi('getCenters').then(function (r) { centersListCache = r.centers || []; go(); });
+}
+
+function toggleExpenseCentersAll_(on) {
+  document.querySelectorAll('.expense-center-check').forEach(function (cb) { cb.checked = on; });
+}
+
+function syncExpenseCentersAll_() {
+  const all = document.querySelectorAll('.expense-center-check');
+  const checked = document.querySelectorAll('.expense-center-check:checked');
+  document.getElementById('expenseCentersAll').checked = all.length > 0 && all.length === checked.length;
+}
+
+function saveExpenseCenters() {
+  const btn = document.getElementById('expenseCentersSaveBtn');
+  const centers = Array.prototype.map.call(document.querySelectorAll('.expense-center-check:checked'), function (cb) { return cb.value; });
+  setBtnBusy(btn, true);
+  callApi('setExpenseCenters', { actor: 'admin', centers: centers }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (r.ok) {
+      const s = document.getElementById('expenseCentersSuccess');
       s.style.display = 'block';
       setTimeout(function () { s.style.display = 'none'; }, 2500);
     } else { alert(r.error || 'تعذّر الحفظ'); }
