@@ -1130,10 +1130,11 @@ function addInvoiceReturnRow_(item) {
     '<input type="number" class="ret-qty no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0" step="1">' +
     '<label>طريقة الخصم</label>' +
     '<select class="ret-mode" onchange="onReturnModeChange_(this)">' +
-      '<option value="split">جردت الفاتورة — أحدد الخصم من رأس المال ومن الربح</option>' +
+      '<option value="split">تم جرد الفاتورة بالكامل مسبقًا — يُخصم ما أكتبه أدناه من رأس المال والربح</option>' +
       '<option value="proof">إثبات فقط: الرجيع لم أكتب مبلغه في سجل الفواتير</option>' +
     '</select>' +
     '<div class="ret-split-wrap">' +
+      '<div style="font-size:0.8rem;color:#8a7d76;margin-top:4px;">أدخلي مقدار الرجيع من رأس المال ومن الربح؛ وبعد الحفظ يُخصم المبلغ المكتوب من المبلغ المسجَّل للفاتورة.</div>' +
       '<label>خصم من رأس المال (ريال)</label>' +
       '<input type="number" class="ret-cap no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01" oninput="updateReturnPreview_()">' +
       '<label>خصم من الربح (ريال)</label>' +
