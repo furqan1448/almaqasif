@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbxpmN2hp_xWoKuGnsmHS6UGZWYHdz7ytbuZnF9bRsGRWLJ1n5zfhAXAJWe4vme3ap5O/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxaTeGA_1GPBvDtokhC2rejB7e4GI8VUlOqbMBbliT_5ODkopBVvagWP5vXuBHlCpCU/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -1899,7 +1899,7 @@ function invoiceSummaryHtml_(s) {
       '"><span>' + l[0] + '</span><span dir="ltr">' + l[1].toFixed(2) + ' ريال</span></div>';
   });
   if (s.proofReturns > 0) {
-    h += '<div style="font-size:0.8rem;color:#8a7d76;margin-top:6px;">فيه رجيع للإثبات فقط بقيمة ' + s.proofReturns.toFixed(2) + ' ريال (غير مخصوم من المطلوب تسليمه).</div>';
+    h += '<div style="font-size:0.8rem;color:#8a7d76;margin-top:6px;">يوجد رجيع للإثبات فقط بقيمة ' + s.proofReturns.toFixed(2) + ' ريال (غير مخصوم من المطلوب تسليمه).</div>';
   }
   if (s.purchasesCost > 0) {
     h += '<div style="font-size:0.8rem;color:#8a7d76;margin-top:6px;">تكلفة المشتريات (' + s.purchasesCost.toFixed(2) +

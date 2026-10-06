@@ -218,7 +218,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
           <input type="number" id="invoiceProfit" oninput="updateReturnPreview_()" class="no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01">
         </div>
         <div id="invoiceReturnSection">
-          <label style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-top:10px;"><input type="checkbox" id="invoiceHasReturn" onchange="toggleInvoiceReturn_()"> <span>في هذي الفاتورة رجيع؟</span></label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-top:10px;"><input type="checkbox" id="invoiceHasReturn" onchange="toggleInvoiceReturn_()"> <span>يوجد رجيع</span></label>
           <div id="invoiceReturnWrap" class="hidden" style="border:1px dashed var(--gold,#C2AA85);border-radius:10px;padding:10px;margin-top:6px;">
             <label>وصف الصنف</label>
             <input type="text" id="invoiceReturnType" placeholder="مثال: بطاطس ليز - كرتون" oninput="updateReturnPreview_()">
@@ -963,7 +963,7 @@ function warnIfReturnNotSaved_(payload, r) {
   if (payload && payload.returnType && !(r && r.returnSaved)) {
     let tail = '';
     try { tail = String(API_URL).replace('/exec', '').slice(-14); } catch (e) {}
-    alert('تنبيه: الفاتورة انحفظت لكن الرجيع ما انحفظ، لأن الـ Web App اللي يرد عليه الموقع نسخته قديمة.\n\nرابط الـ API الحالي ينتهي بـ: ' + tail + '\nقارنيه بمعرّف النشر (Deployment ID) في Apps Script ← نشر ← إدارة عمليات النشر. لو مختلف، حدّثي API_URL في config.js. ولو نفسه، اختاري «إصدار جديد» عند النشر.');
+    alert('تنبيه: حُفظت الفاتورة لكن لم يُحفظ الرجيع، لأن نسخة الـ Web App التي يتصل بها الموقع قديمة.\n\nيَنتهي رابط الـ API الحالي بـ: ' + tail + '\nقارني ذلك بمعرّف النشر (Deployment ID) في Apps Script ← نشر ← إدارة عمليات النشر. إن اختلف فحدّثي API_URL في config.js، وإن تطابق فاختاري «إصدار جديد» عند النشر.');
   }
 }
 

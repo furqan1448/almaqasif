@@ -2007,7 +2007,7 @@ function getPurchaseCenters_() {
 }
 
 function setPurchaseCenters_(p) {
-  if (p.actor !== 'admin') return { ok: false, error: 'ما عندك صلاحية تعديل مراكز المشتريات' };
+  if (p.actor !== 'admin') return { ok: false, error: 'لا تملكين صلاحية تعديل مراكز المشتريات' };
   const list = (p.centers || []).map(function (x) { return String(x).trim(); }).filter(Boolean);
   setSettingValue_('مراكز المشتريات', JSON.stringify(list));
   return { ok: true };
@@ -2018,7 +2018,7 @@ function getExpenseCenters_() {
 }
 
 function setExpenseCenters_(p) {
-  if (p.actor !== 'admin') return { ok: false, error: 'ما عندك صلاحية تعديل مراكز المصروفات' };
+  if (p.actor !== 'admin') return { ok: false, error: 'لا تملكين صلاحية تعديل مراكز المصروفات' };
   const list = (p.centers || []).map(function (x) { return String(x).trim(); }).filter(Boolean);
   setSettingValue_('مراكز المصروفات', JSON.stringify(list));
   return { ok: true };
@@ -2032,8 +2032,8 @@ function cleanInvoiceReturn_(p, type, amount, profit) {
   const t = String(p.returnType || '').trim();
   const none = { type: '', cap: 0, profit: 0, proof: 0, qty: '', text: '' };
   if (type !== 'فاتورة' || (cap <= 0 && prf <= 0 && proof <= 0)) return none;
-  if (cap < 0 || prf < 0 || proof < 0) return { error: 'مبلغ الرجيع ما يصير سالب' };
-  if (!t) return { error: 'اكتبي نوع الرجيع' };
+  if (cap < 0 || prf < 0 || proof < 0) return { error: 'لا يجوز أن يكون مبلغ الرجيع سالبًا' };
+  if (!t) return { error: 'اكتبي وصف الصنف المرتجع' };
   if (cap > amount + 0.005) return { error: 'خصم الرجيع من رأس المال أكبر من رأس المال' };
   if (prf > profit + 0.005) return { error: 'خصم الرجيع من الربح أكبر من الربح' };
   const qty = String(p.returnQty === undefined || p.returnQty === null ? '' : p.returnQty).trim();
