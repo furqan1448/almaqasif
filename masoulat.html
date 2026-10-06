@@ -339,10 +339,10 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
           <option value="current">الفصل الحالي</option>
           <option value="all">كل الفصول</option>
         </select>
-        <table class="log-table" id="invoicesTable">
+        <div class="table-scroll"><table class="log-table" id="invoicesTable">
           <thead><tr><th>النوع</th><th>رقم الفاتورة</th><th>مصدر الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>رأس المال</th><th>الربح</th><th>المبلغ الإجمالي</th><th>المرتجعات</th><th>ملاحظات</th><th></th></tr></thead>
           <tbody id="invoicesTbody"><tr><td colspan="11">جاري التحميل...</td></tr></tbody>
-        </table>
+        </table></div>
         <div id="invoicesSummary"></div>
         <div class="export-row">
           <button class="btn outline" onclick="exportInvoicesReport()">⬇️ Excel</button>
@@ -1223,7 +1223,7 @@ function submitInvoice() {
       returnType: retPayload.returnType, returnCapital: retPayload.returnCapital, returnProfit: retPayload.returnProfit, returnProof: retPayload.returnProof, returnQty: retPayload.returnQty
     }).then(function (r) {
       setBtnBusy(btn, false);
-      if (r.ok) { cancelEditInvoice(); loadInvoices(); }
+      if (r.ok) { cancelEditInvoice(); loadInvoices(); } else { alert((r && r.error) || 'تعذّر حفظ التعديل'); }
     }).catch(function () { setBtnBusy(btn, false); });
     return;
   }
@@ -1245,7 +1245,7 @@ function submitInvoice() {
       s.style.display = 'block';
       setTimeout(function () { s.style.display = 'none'; }, 2500);
       loadInvoices();
-    }
+    } else { alert((r && r.error) || 'تعذّر حفظ القيد'); }
   }).catch(function () { setBtnBusy(btn, false); });
 }
 
