@@ -787,6 +787,7 @@ function showDashboard() {
   showView('homeView');
   loadDashboardData();
   loadHomeAnnouncements();
+  prefetchForCenter_(currentCenter);
 }
 
 /* تجيب كل بيانات اللوحة (الحضور + التعهد + المهام + عدد الإشعارات المعلّقة) بطلب واحد

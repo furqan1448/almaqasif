@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbxYNKUgByI8hHLPRgmprviV-q-eatgjxF767UtLQ0_LZDK27TLRC_84LqSJugjiXvnz/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxaTeGA_1GPBvDtokhC2rejB7e4GI8VUlOqbMBbliT_5ODkopBVvagWP5vXuBHlCpCU/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -12,7 +12,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbxYNKUgByI8hHLPRgmprviV
      فور نجاحه، عشان أي قراءة بعده ترجع البيانات المحدّثة دايماً ولا يصير تعارض. */
 const _apiCache_ = new Map();
 const _apiInFlight_ = new Map();
-const API_CACHE_MS = 45000;
+const API_CACHE_MS = 90000;
 
 function _apiCacheKey_(action, data) {
   const clean = Object.assign({}, data || {});
@@ -1992,4 +1992,36 @@ if (window.PDF_LIBS_ENABLED) {
   window.addEventListener('load', function () {
     setTimeout(function () { ensurePdfLibs_().catch(function () {}); }, 1500);
   });
+}
+
+
+/* ------------------- تسريع الاستجابة -------------------
+   1) إبقاء خادم Apps Script مستيقظاً: الطلب الأول بعد فترة خمول يتأخر عدة ثوانٍ (بدء بارد)،
+      لذلك نرسل طلب ping خفيفاً عند فتح الصفحة (أثناء كتابة المستخدمة لكلمة المرور)،
+      ثم كل 4 دقائق ما دامت الصفحة ظاهرة.
+   2) جلب مسبق: بعد الدخول نطلب بيانات الشاشات الأكثر استخداماً في الخلفية، فتُفتح الأيقونات من الذاكرة فوراً. */
+(function () {
+  function ping_() {
+    try {
+      if (document.visibilityState === 'hidden') return;
+      fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'ping' }), keepalive: true }).catch(function () {});
+    } catch (e) {}
+  }
+  if (typeof window !== 'undefined') {
+    ping_();
+    setInterval(ping_, 4 * 60 * 1000);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') ping_();
+    });
+  }
+})();
+
+function prefetchForCenter_(center) {
+  if (!center) return;
+  setTimeout(function () {
+    ['getTermsList', 'getPriceItems'].forEach(function (a) { callApi(a, {}).catch(function () {}); });
+    ['getSales', 'getInvoices', 'getReturns'].forEach(function (a) {
+      callApi(a, { center: center, term: 'current' }).catch(function () {});
+    });
+  }, 400);
 }

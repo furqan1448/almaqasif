@@ -665,6 +665,7 @@ function showDashboard() {
   showView('homeView');
   refreshPendingBadge();
   loadHomeAnnouncements();
+  prefetchForCenter_(currentCenter);
 }
 
 /* لو المركز محدد كـ"وضع العرض فقط" بشيت المراكز: نخفي أيقونات الإشعارات
