@@ -6,7 +6,8 @@
 <title>دخول المراكز - وحدة المقاصف</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;700;800&display=swap">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap"></noscript>
 <link rel="stylesheet" href="style.css">
 <style>
 /* حقول المبالغ: بدون أسهم الزيادة/النقصان، ولا تتغير القيمة بعجلة الماوس */
@@ -86,6 +87,10 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         <div class="icon-btn" onclick="showView('returnsView')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8 5 12l4 4"/><path d="M5 12h9a5 5 0 0 1 5 5v1"/></svg></div>
           <span class="label">البضائع المرتجعة</span>
+        </div>
+        <div class="icon-btn" id="ordersTile" onclick="showView('ordersView')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M3 4h2.2l2.1 10.2a1 1 0 0 0 1 .8h8.8a1 1 0 0 0 1-.8L20 8H6.2"/></svg></div>
+          <span class="label">طلبات المقاصف</span>
         </div>
         <div class="icon-btn" onclick="showView('attachmentsView')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12l4.5-4.5a3 3 0 1 1 4.2 4.2L9.5 19a5 5 0 1 1-7-7l7-7"/></svg></div>
@@ -408,6 +413,9 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
     </div>
 
     <!-- نموذج الإشعار (استلام/تسليم) -->
+    <!-- طلبات المقاصف (يُبنى بالكامل من orders.js) -->
+    <div id="ordersView" class="hidden"></div>
+
     <div id="noticeFormView" class="hidden">
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
       <div class="card">
@@ -548,10 +556,10 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
 <!-- قالب مخفي لتركيب صورة الإشعار -->
 <canvas id="noticeCanvas" width="900" height="710" style="display:none;"></canvas>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
+<script>window.PDF_LIBS_ENABLED = true; /* مكتبات الـPDF تتحمّل بالخلفية - انظر config.js */</script>
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
+<script src="orders.js"></script>
 <script>
 let currentCenter = sessionStorage.getItem('maqasif_center') || '';
 let isReadOnlyCenter = sessionStorage.getItem('maqasif_center_readonly') === '1';
@@ -664,7 +672,7 @@ function showDashboard() {
    العرض والجداول والتصدير شغالة، وإضافة المرفقات تضل شغالة زي ما هي دايماً. */
 function applyReadOnlyRestrictions() {
   if (!isReadOnlyCenter) return;
-  ['noticeReceiveTile', 'noticeDeliverTile', 'noticeFeeTile',
+  ['noticeReceiveTile', 'noticeDeliverTile', 'noticeFeeTile', 'ordersTile',
    'salesAddCard', 'invoicesAddCard', 'returnsAddCard', 'difficultyAddCard'
   ].forEach(function (id) {
     const el = document.getElementById(id);
@@ -678,7 +686,7 @@ function applyReadOnlyRestrictions() {
 }
 
 function showView(id) {
-  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'announcementsView', 'priceListView', 'cardsDeliverView', 'cardsReceiveView', 'cardsFollowupView', 'meetingMinutesView'].forEach(function (v) {
+  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'announcementsView', 'priceListView', 'cardsDeliverView', 'cardsReceiveView', 'cardsFollowupView', 'meetingMinutesView', 'ordersView'].forEach(function (v) {
     document.getElementById(v).classList.toggle('hidden', v !== id);
   });
   if (id === 'salesView') loadSales();
@@ -694,6 +702,7 @@ function showView(id) {
   if (id === 'cardsFollowupView') loadCardsFollowup_();
   if (id === 'meetingMinutesView') loadMeetingMinutesList();
   if (id === 'homeView') refreshPendingBadge();
+  if (id === 'ordersView') initOrdersView_(CARD_ROLE_LABEL_);
 }
 
 /* -------- سجل البيع اليومي -------- */

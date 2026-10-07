@@ -758,6 +758,7 @@ function fitVisitReportToPage_(root, done) {
    ونفتحه بتبويب جديد، ومنه تطبعين بـ Ctrl+P. هذا يتجنب هوامش نافذة الطباعة اللي كانت تسبب مسافة فاضية فوق الكليشة.
    لو مكتبة الـPDF ما اشتغلت نرجع للطباعة المباشرة القديمة. */
 async function printVisitReportWindow(opts) {
+  if (typeof html2pdf === 'undefined') { try { await ensurePdfLibs_(); } catch (e) {} }
   if (typeof html2pdf === 'undefined' || !document.getElementById('vrPdfHost')) {
     printVisitReportWindowLegacy_(opts);
     return;
@@ -946,9 +947,10 @@ function vrDownloadBlob_(blob, fileName) {
 }
 
 /* حفظ التقرير مباشرة كملف PDF بجهاز المستخدمة */
-function saveVisitReportPdf(opts) {
+async function saveVisitReportPdf(opts) {
   const host = renderVisitReportToHost_(opts);
   if (!host) return;
+  if (typeof html2pdf === 'undefined') { try { await ensurePdfLibs_(); } catch (e) {} }
   if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة ثانية'); return; }
   const fileName = visitReportFileName_(opts);
   fitVisitReportToPage_(host.querySelector('.vr-doc'), function () {
@@ -964,6 +966,7 @@ function saveVisitReportPdf(opts) {
 async function shareVisitReportPdf(opts) {
   const host = renderVisitReportToHost_(opts);
   if (!host) return;
+  if (typeof html2pdf === 'undefined') { try { await ensurePdfLibs_(); } catch (e) {} }
   if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة ثانية'); return; }
   const fileName = visitReportFileName_(opts);
   try {
@@ -1194,6 +1197,7 @@ async function meetingMinutesPdfBlob_(host, fileName) {
 
 /* معاينة وطباعة (نفس أسلوب تقرير الزيارة: نجهّز PDF ونفتحه بتبويب جديد) */
 async function printMeetingMinutesWindow(opts) {
+  if (typeof html2pdf === 'undefined') { try { await ensurePdfLibs_(); } catch (e) {} }
   if (typeof html2pdf === 'undefined' || !document.getElementById('mmPdfHost')) {
     printMeetingMinutesWindowLegacy_(opts);
     return;
@@ -1239,9 +1243,10 @@ function printMeetingMinutesWindowLegacy_(opts) {
   win.document.close();
 }
 
-function saveMeetingMinutesPdf(opts) {
+async function saveMeetingMinutesPdf(opts) {
   const host = renderMeetingMinutesToHost_(opts);
   if (!host) return;
+  if (typeof html2pdf === 'undefined') { try { await ensurePdfLibs_(); } catch (e) {} }
   if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة ثانية'); return; }
   const fileName = meetingMinutesFileName_(opts);
   fitMeetingMinutesToPage_(host.querySelector('.mm-doc'), function () {
@@ -1256,6 +1261,7 @@ function saveMeetingMinutesPdf(opts) {
 async function shareMeetingMinutesPdf(opts) {
   const host = renderMeetingMinutesToHost_(opts);
   if (!host) return;
+  if (typeof html2pdf === 'undefined') { try { await ensurePdfLibs_(); } catch (e) {} }
   if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة ثانية'); return; }
   const fileName = meetingMinutesFileName_(opts);
   try {
@@ -1946,4 +1952,44 @@ function appendInvoiceSummaryRows_(rows, s, labelKey, valueKey, asText) {
     rows.push(o);
   });
   return rows;
+}
+
+
+/* ------------------- مكتبات الـPDF (html2pdf + html-to-image): تحميل متأخر -------------------
+   كانت الصفحتين (المديرات والإدارة) تحمّلان ~1 ميقا من هالمكتبات قبل ما يشتغل أي كود بالصفحة، فتتأخر
+   شاشة الدخول وكل شي بعدها. الحين الصفحة تضبط window.PDF_LIBS_ENABLED = true وتتحمّل المكتبات بالخلفية
+   بعد اكتمال الصفحة، أو لحظة أول ضغطة على زر PDF لو سبقت التحميل. الصفحات اللي ما تضبط العلم
+   (مثل صفحة المسؤولات) سلوكها ما تغيّر. */
+const PDF_LIB_URLS_ = {
+  pdf: 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
+  img: 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js'
+};
+let _pdfLibsPromise_ = null;
+
+function _loadScriptOnce_(src) {
+  return new Promise(function (resolve, reject) {
+    const el = document.createElement('script');
+    el.src = src;
+    el.async = true;
+    el.onload = function () { resolve(); };
+    el.onerror = function () { el.remove(); reject(new Error('script load failed: ' + src)); };
+    document.head.appendChild(el);
+  });
+}
+
+function ensurePdfLibs_() {
+  if (typeof html2pdf !== 'undefined' || !window.PDF_LIBS_ENABLED) return Promise.resolve();
+  if (!_pdfLibsPromise_) {
+    _pdfLibsPromise_ = Promise.all([
+      _loadScriptOnce_(PDF_LIB_URLS_.pdf),
+      _loadScriptOnce_(PDF_LIB_URLS_.img).catch(function () { /* اختيارية: نرجع لـ html2canvas لو فشلت */ })
+    ]).then(function () {}).catch(function (e) { _pdfLibsPromise_ = null; throw e; });
+  }
+  return _pdfLibsPromise_;
+}
+
+if (window.PDF_LIBS_ENABLED) {
+  window.addEventListener('load', function () {
+    setTimeout(function () { ensurePdfLibs_().catch(function () {}); }, 1500);
+  });
 }

@@ -6,7 +6,8 @@
 <title>إدارة وحدة المقاصف</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;700;800&display=swap">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap"></noscript>
 <link rel="stylesheet" href="style.css">
 <style id="gradesStyles">
 /* درجات المسؤولات */
@@ -1047,14 +1048,28 @@
 
 <canvas id="noticeCanvas" width="900" height="710" style="display:none;"></canvas>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
+<script>window.PDF_LIBS_ENABLED = true; /* مكتبات الـPDF تتحمّل بالخلفية - انظر config.js */</script>
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
 <script>
 let isLoggedIn = sessionStorage.getItem('maqasif_admin') === 'yes';
 let allPending = [];
 let currentNotice = null;
+
+/* توقيع المركز (صورة كبيرة) ما يجي مع قائمة الإشعارات - نجيبه عند الحاجة فقط ونحفظ الوعد حسب معرف الإشعار
+   عشان ما نطلبه مرتين (بدون ما نلوّث كائن الإشعار نفسه). يرجّع {ok, dataUrl}: ok=false لو فشل الجلب،
+   فما نوقّع إشعار بدون توقيع المركز بالغلط. */
+const _centerSigCache_ = new Map();
+function getCenterSig_(n) {
+  const id = n['معرف'];
+  if (!_centerSigCache_.has(id)) {
+    _centerSigCache_.set(id, callApi('getNoticeCenterSignature', { id: id }).then(function (r) {
+      if (!r || !r.ok) { _centerSigCache_.delete(id); return { ok: false, dataUrl: '' }; }
+      return { ok: true, dataUrl: r.dataUrl || '' };
+    }).catch(function () { _centerSigCache_.delete(id); return { ok: false, dataUrl: '' }; }));
+  }
+  return _centerSigCache_.get(id);
+}
 let adminSigHandle = null;
 let currentSales = [];
 let currentReturns = [];
@@ -1590,6 +1605,7 @@ function buildNoticeRow_(n, isPending) {
 
 function openDetail(notice) {
   currentNotice = notice;
+  if (notice['الحالة'] === 'بانتظار الاطلاع') getCenterSig_(notice); // نجلب توقيع المركز بالخلفية عشان يكون جاهز وقت التوقيع
   document.getElementById('detailNoticeImg').src = notice['رابط صورة الإشعار الموقع'] || notice['رابط صورة الإشعار'];
   document.getElementById('receiverName').value = '';
   const isPending = notice['الحالة'] === 'بانتظار الاطلاع';
@@ -1698,9 +1714,11 @@ async function saveEditSigned() {
     if (!adminSig) { showErr('ارسمي توقيعك أو ارفعي صورته أولًا'); btn.disabled = false; btn.textContent = 'حفظ التعديل'; return; }
 
     const months = monthsText.split(/[،,]\s*/).filter(Boolean);
+    const centerSig = await getCenterSig_(n);
+    if (!centerSig.ok) { showErr('تعذّر جلب توقيع المركز، تأكدي من الاتصال وحاولي مرة أخرى'); btn.disabled = false; btn.textContent = 'حفظ التعديل'; return; }
     const composed = await generateNoticeImage({
       type: type, center: centerName, amount: amount,
-      sigDataUrl: n['بيانات توقيع المركز'], adminSigDataUrl: adminSig, adminLabel: 'توقيع المستلمة',
+      sigDataUrl: centerSig.dataUrl, adminSigDataUrl: adminSig, adminLabel: 'توقيع المستلمة',
       senderName: sender, receiverName: receiver,
       day: sendDay, date: sendDate,
       months: months, term: term, year: year, reason: reason
@@ -1749,17 +1767,26 @@ function signAndSend() {
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
 
   let composedImgResult = '';
-  generateNoticeImage({
-    type: currentNotice['النوع'], center: currentNotice['اسم المركز'], amount: currentNotice['المبلغ'],
-    sigDataUrl: currentNotice['بيانات توقيع المركز'], adminSigDataUrl: sigDataUrl, adminLabel: 'توقيع المستلمة',
-    senderName: currentNotice['اسم المسلّمة'], receiverName: receiverName,
-    day: currentNotice['يوم الإرسال'], date: currentNotice['تاريخ الإرسال'],
-    months: (currentNotice['الشهر'] || '').split(/،\s*/).filter(Boolean), term: currentNotice['الفصل الدراسي'], year: currentNotice['العام'],
-    reason: currentNotice['بيان مخصص'] || ''
+  const notice = currentNotice;
+  const fail = function (msg) {
+    btn.disabled = false; btn.textContent = 'تم الاطلاع - إرسال للمركز';
+    errBox.textContent = msg;
+    errBox.style.display = 'block';
+  };
+  getCenterSig_(notice).then(function (cs) {
+    if (!cs.ok) throw new Error('centerSig');
+    return generateNoticeImage({
+      type: notice['النوع'], center: notice['اسم المركز'], amount: notice['المبلغ'],
+      sigDataUrl: cs.dataUrl, adminSigDataUrl: sigDataUrl, adminLabel: 'توقيع المستلمة',
+      senderName: notice['اسم المسلّمة'], receiverName: receiverName,
+      day: notice['يوم الإرسال'], date: notice['تاريخ الإرسال'],
+      months: (notice['الشهر'] || '').split(/،\s*/).filter(Boolean), term: notice['الفصل الدراسي'], year: notice['العام'],
+      reason: notice['بيان مخصص'] || ''
+    });
   }).then(function (composedImg) {
     composedImgResult = composedImg;
     return callApi('adminSignNotice', {
-      id: currentNotice['معرف'],
+      id: notice['معرف'],
       signature: sigDataUrl,
       signedNoticeImage: composedImg,
       receiverName: receiverName
@@ -1774,6 +1801,8 @@ function signAndSend() {
       errBox.textContent = r.error || 'حدث خطأ أثناء الاطلاع';
       errBox.style.display = 'block';
     }
+  }).catch(function (e) {
+    fail(e && e.message === 'centerSig' ? 'تعذّر جلب توقيع المركز، تأكدي من الاتصال وحاولي مرة أخرى' : 'حدث خطأ أثناء الاطلاع، حاولي مرة أخرى');
   });
 }
 

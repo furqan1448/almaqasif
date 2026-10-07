@@ -17,6 +17,12 @@ const FOLDER_NAME = 'مرفقات نظام المقاصف';
 // ⚠️ حطي بريدك الإلكتروني هنا عشان تستلمي إشعار كل ما مركز يرسل إشعار استلام أو تسليم
 const ADMIN_NOTIFY_EMAIL = 'fainal.almqasif@gmail.com';
 
+// بريد استلام «طلبات المقاصف» (النموذج اللي ترسله المديرة/المسؤولة من أيقونة «طلبات المقاصف»)
+const ORDERS_NOTIFY_EMAIL = 'almuqasif1212@gmail.com';
+const ORDERS_SHEET_NAME_ = 'طلبات المقاصف';
+const ORDERS_HEADERS_ = ['معرف', 'اسم المركز', 'الفترة', 'الفصل الدراسي', 'العام', 'مسؤولة المقصف', 'مديرة المركز',
+  'عدد الأصناف', 'تفاصيل الطلب', 'ملاحظات', 'سجّل بواسطة', 'اليوم', 'التاريخ', 'الوقت'];
+
 // الأعمدة اللي المفروض دايماً تُحفظ وتُقرأ كنص خام (وليست تاريخ/وقت تلقائي من قوقل شيتس)
 // عشان نتفادى مشكلة "الأصفار الزايدة" (مثل 1899-12-30 أو 00:00:00.000Z) اللي تصير
 // لما قوقل شيتس يحوّل نص التاريخ/الوقت تلقائياً إلى كائن Date داخلي.
@@ -70,7 +76,9 @@ function setup() {
     // اعتماد اكتمال التسجيل: صح يدوي من الإدارة لكل مركز (للفصل الحالي - يتفرّغ عند الأرشفة)
     'اعتماد التسجيل': REG_VERIFY_HEADERS_,
     // إحصائية الزيارات: كل سطر زيارة وحدة (المركز + الفترة + التاريخ الهجري)
-    'إحصائية الزيارات': VISIT_STATS_HEADERS_
+    'إحصائية الزيارات': VISIT_STATS_HEADERS_,
+    // طلبات المقاصف: كل سطر طلب واحد (بنوده مكتوبة نصاً بعمود «تفاصيل الطلب»)
+    'طلبات المقاصف': ORDERS_HEADERS_
   };
 
   Object.keys(sheets).forEach(function (name) {
@@ -839,10 +847,24 @@ function invalidateCache_(name) {
   } catch (e) {}
 }
 
+/* أعمدة ثقيلة (صور توقيع base64 بحجم عشرات الكيلوبايت لكل سطر) ما نقراها ولا نخزّنها بالكاش مع القراءة
+   العادية للشيت أبداً. السبب: كل طلب يلمس شيت «الإشعارات» (حتى عدّاد الإشعارات بالصفحة الرئيسية)
+   كان يحمّل كل التواقيع معه، ومع زيادة الإشعارات يتجاوز حجمها حد الكاش فيُقرأ الشيت كاملاً بكل طلب.
+   تُجلب عند الحاجة فقط بدالة getNoticeCenterSignature_ (خلية واحدة). */
+const SKIP_READ_COLS_ = { 'الإشعارات': ['بيانات توقيع المركز'] };
+
+function skipColsFor_(name) {
+  const n = String(name || '');
+  const base = n.indexOf(ARCHIVE_PREFIX) === 0 ? n.slice(ARCHIVE_PREFIX.length) : n;
+  return SKIP_READ_COLS_[base] || null;
+}
+
 /* تقرأ الشيت من قوقل شيتس مباشرة وتحوّله لكائنات (بدون كاش) */
 function readSheetObjectsRaw_(name) {
   const sh = sheet_(name);
   if (!sh) return [];
+  const skip = skipColsFor_(name);
+  if (skip) return readSheetObjectsSkipping_(sh, skip);
   const data = sh.getDataRange().getValues();
   if (!data || data.length < 1) return [];
   const headers = data[0].map(function (h) { return String(h).trim(); });
@@ -853,6 +875,41 @@ function readSheetObjectsRaw_(name) {
       let val = data[i][idx];
       if (val instanceof Date) val = formatSheetDate_(val);
       obj[headers[idx]] = val;
+    }
+    obj._row = i + 1;
+    rows.push(obj);
+  }
+  return rows;
+}
+
+/* نفس القراءة أعلاه لكن بدون الأعمدة الثقيلة: نقرأ الأعمدة الباقية على مقاطع متصلة (غالباً مقطعين)،
+   فما ننقل بيانات التواقيع من قوقل شيتس أصلاً */
+function readSheetObjectsSkipping_(sh, skip) {
+  const lastRow = sh.getLastRow();
+  const lastCol = sh.getLastColumn();
+  if (lastRow < 1 || lastCol < 1) return [];
+  const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return String(h).trim(); });
+  const segs = [];
+  let start = -1;
+  for (let c = 0; c < lastCol; c++) {
+    const keep = skip.indexOf(headers[c]) === -1;
+    if (keep && start === -1) start = c;
+    if (!keep && start !== -1) { segs.push([start, c - 1]); start = -1; }
+  }
+  if (start !== -1) segs.push([start, lastCol - 1]);
+  const blocks = segs.map(function (seg) {
+    return sh.getRange(1, seg[0] + 1, lastRow, seg[1] - seg[0] + 1).getValues();
+  });
+  const rows = [];
+  for (let i = 1; i < lastRow; i++) {
+    const obj = {};
+    for (let b = 0; b < segs.length; b++) {
+      const seg = segs[b];
+      for (let c = seg[0]; c <= seg[1]; c++) {
+        let val = blocks[b][i][c - seg[0]];
+        if (val instanceof Date) val = formatSheetDate_(val);
+        obj[headers[c]] = val;
+      }
     }
     obj._row = i + 1;
     rows.push(obj);
@@ -1112,6 +1169,8 @@ function centerAliasMaps_() {
 }
 
 function mapCenterName_(str, dict) {
+  // النصوص الطويلة (صور base64 وروابط وغيرها) ما فيها اسم مركز - نتخطاها بدل ما نمسحها حرف حرف بكل طلب
+  if (str.length >= 500) return str;
   const t = str.trim();
   if (Object.prototype.hasOwnProperty.call(dict, t)) return dict[t];
   // استهداف الإعلانات: "مركز:الاسم|مسؤولة:الاسم"
@@ -1217,6 +1276,8 @@ function handleRequest_(p) {
       case 'adminSignNotice': return json_(adminSignNotice_(p));
       case 'updateSignedNotice': return json_(updateSignedNotice_(p));
       case 'getNoticeAdminSignature': return json_(getNoticeAdminSignature_(p));
+      case 'getNoticeCenterSignature': return json_(getNoticeCenterSignature_(p));
+      case 'submitCanteenOrder': return json_(submitCanteenOrder_(p));
       case 'updateNotice': return json_(updateNotice_(p));
       case 'deleteNotice': return json_(deleteNotice_(p));
       case 'exportNoticesToSheet': return json_(exportNoticesToSheet_(p));
@@ -1253,7 +1314,7 @@ function handleRequest_(p) {
       case 'getPriceListManager': return json_(getPriceListManager_());
       case 'setPriceListManager': return json_(setPriceListManager_(p));
 
-      case 'ping': return json_({ ok: true, version: '2026-10-06-returns', invoiceReturns: typeof cleanInvoiceReturn_ === 'function' });
+      case 'ping': return json_({ ok: true, version: '2026-10-07-orders', invoiceReturns: typeof cleanInvoiceReturn_ === 'function', canteenOrders: typeof submitCanteenOrder_ === 'function', lightNotices: typeof getNoticeCenterSignature_ === 'function' });
       case 'getPurchaseCenters': return json_(getPurchaseCenters_());
       case 'setPurchaseCenters': return json_(setPurchaseCenters_(p));
       case 'getExpenseCenters': return json_(getExpenseCenters_());
@@ -2522,7 +2583,7 @@ function getAllNotices_(p) {
   const rows = getRowsForTerm_('الإشعارات', p && p.term, 'فصل الأرشفة').slice().reverse();
   const pending = rows.filter(function (r) { return r['الحالة'] === 'بانتظار الاطلاع'; });
   const done = rows.filter(function (r) { return r['الحالة'] !== 'بانتظار الاطلاع'; });
-  return { ok: true, pending: pending, done: done, notices: rows };
+  return { ok: true, pending: pending, done: done };
 }
 
 function adminSignNotice_(p) {
@@ -2614,6 +2675,33 @@ function updateSignedNotice_(p) {
 
 /* ترجع توقيع الإدارة المحفوظ سابقًا (كصورة base64) عشان الصفحة تعيد رسم الإشعار بدون ما تطلب توقيع جديد.
    القراءة من Drive بالسيرفر تتجنب مشكلة منع المتصفح لقراءة صور من موقع ثاني. */
+/* توقيع المركز (صورة base64) لإشعار واحد - يُجلب عند الحاجة فقط (توقيع الإدارة/تعديل إشعار موقّع)
+   لأن عمود «بيانات توقيع المركز» ما يدخل بالقراءة العادية للشيت (انظر SKIP_READ_COLS_) */
+function getNoticeCenterSignature_(p) {
+  const id = String(p && p.id || '').trim();
+  if (!id) return { ok: false, error: 'معرف الإشعار مطلوب' };
+  const names = ['الإشعارات', ARCHIVE_PREFIX + 'الإشعارات'];
+  for (let i = 0; i < names.length; i++) {
+    const rows = sheetToObjects_(names[i]);
+    const target = rows.find(function (r) { return r['معرف'] === id; });
+    if (!target) continue;
+    const sh = sheet_(names[i]);
+    const col = colIndex_(sh, 'بيانات توقيع المركز');
+    if (col === -1) return { ok: true, dataUrl: '' };
+    let row = target._row;
+    // تأكيد إن رقم الصف ما تغيّر (مثلاً بعد حذف صف يدوياً بالشيت) قبل ما نقرأ الخلية
+    const idCol = colIndex_(sh, 'معرف');
+    if (idCol !== -1 && String(sh.getRange(row, idCol).getValue()).trim() !== id) {
+      const ids = sh.getRange(1, idCol, sh.getLastRow(), 1).getValues();
+      row = -1;
+      for (let k = 1; k < ids.length; k++) { if (String(ids[k][0]).trim() === id) { row = k + 1; break; } }
+      if (row === -1) return { ok: false, error: 'الإشعار غير موجود' };
+    }
+    return { ok: true, dataUrl: String(sh.getRange(row, col).getValue() || '') };
+  }
+  return { ok: false, error: 'الإشعار غير موجود' };
+}
+
 function getNoticeAdminSignature_(p) {
   const rows = sheetToObjects_('الإشعارات');
   const target = rows.find(function (r) { return r['معرف'] === p.id; });
@@ -3023,4 +3111,195 @@ function getRegistrationStats_(p) {
 
   return { ok: true, period: useDates ? 'range' : (period === 'all' ? 'all' : 'term'),
     from: useDates ? from : '', to: useDates ? to : '', centers: list, totals: totals };
+}
+
+
+/* ------------------- طلبات المقاصف -------------------
+   النموذج (أيقونة «طلبات المقاصف» بصفحات المديرات والمسؤولات): الأصناف مع الوحدة (علبة/كرتون/كيس) والعدد،
+   مع إمكانية إضافة أصناف أخرى. عند الإرسال: يُحفظ الطلب بشيت «طلبات المقاصف» ويوصل إشعار بالبريد
+   لعنوان ORDERS_NOTIFY_EMAIL أعلى الملف. فشل البريد (مثلاً تجاوز حد الإرسال اليومي) ما يلغي حفظ الطلب. */
+const ORDER_UNITS_ = ['علبة', 'كرتون', 'كيس', 'حبة'];
+const ORDER_PERIODS_ = ['صباحي', 'مسائي'];
+
+function htmlEsc_(v) {
+  return String(v === undefined || v === null ? '' : v).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+/* يرجّع شيت الطلبات، وينشئه بأعمدته لو ما كان موجود (حتى لو ما انشغّلت setup بعد) */
+function getOrdersSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(ORDERS_SHEET_NAME_);
+  if (!sh) {
+    sh = ss.insertSheet(ORDERS_SHEET_NAME_);
+    sh.appendRow(ORDERS_HEADERS_);
+    sh.getRange(1, 1, 1, ORDERS_HEADERS_.length).setFontWeight('bold');
+    sh.setRightToLeft(true);
+  }
+  if (sh.getLastRow() === 0) sh.appendRow(ORDERS_HEADERS_);
+  // أعمدة التاريخ/الوقت نص عادي حتى لا يحوّلها قوقل شيتس لتاريخ داخلي (نفس معالجة setup)
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (h) { return String(h).trim(); });
+  headers.forEach(function (h, idx) {
+    if (TEXT_COLUMNS_.indexOf(h) !== -1) {
+      sh.getRange(2, idx + 1, Math.max(sh.getMaxRows() - 1, 1), 1).setNumberFormat('@');
+    }
+  });
+  return sh;
+}
+
+function submitCanteenOrder_(p) {
+  const center = String(p.center || '').trim();
+  if (!center) return { ok: false, error: 'اسم المركز مطلوب' };
+  const period = String(p.period || '').trim();
+  if (ORDER_PERIODS_.indexOf(period) === -1) return { ok: false, error: 'الفترة مطلوبة (صباحي أو مسائي)' };
+  const term = String(p.term || '').trim().slice(0, 30);
+  const year = String(p.year || '').trim().slice(0, 30);
+  if (!term || !year) return { ok: false, error: 'الفصل الدراسي والعام مطلوبان' };
+
+  const raw = Array.isArray(p.items) ? p.items : [];
+  if (raw.length > 300) return { ok: false, error: 'عدد الأصناف كبير جداً' };
+  const items = [];
+  raw.forEach(function (it) {
+    if (!it) return;
+    const name = String(it.name || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+    const unit = String(it.unit || '').trim();
+    const qty = Math.floor(Number(it.qty));
+    if (!name || ORDER_UNITS_.indexOf(unit) === -1 || !(qty > 0) || qty > 9999) return;
+    items.push({ name: name, unit: unit, qty: qty, other: !!it.other });
+  });
+  if (!items.length) return { ok: false, error: 'لا توجد أصناف صالحة في الطلب (حدّدي الصنف والوحدة والعدد)' };
+
+  const role = String(p.role || '').trim().slice(0, 30);
+  const masoulaName = String(p.masoulaName || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  const managerName = String(p.managerName || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  const notes = String(p.notes || '').trim().slice(0, 500);
+
+  const lines = items.map(function (it) {
+    return (it.other ? '(صنف آخر) ' : '') + it.name + ' — ' + it.qty + ' ' + it.unit;
+  });
+  const details = lines.join('\n');
+
+  // حماية من التكرار: نفس الطلب بنفس التفاصيل خلال دقيقة يُحسب مرة وحدة (ضغطتين/إعادة اتصال)
+  let dupKey = '';
+  try {
+    const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, [center, period, term, year, details].join('|'));
+    dupKey = 'ord_' + digest.map(function (b) { return ('0' + (b & 0xFF).toString(16)).slice(-2); }).join('');
+    if (getCache_().get(dupKey)) return { ok: true, duplicate: true, count: items.length, emailSent: true };
+  } catch (e) { dupKey = ''; }
+
+  const now = nowParts_();
+  const id = Utilities.getUuid();
+  appendRowByHeaders_(getOrdersSheet_(), {
+    'معرف': id, 'اسم المركز': center, 'الفترة': period, 'الفصل الدراسي': term, 'العام': year,
+    'مسؤولة المقصف': masoulaName, 'مديرة المركز': managerName,
+    'عدد الأصناف': items.length, 'تفاصيل الطلب': details, 'ملاحظات': notes, 'سجّل بواسطة': role,
+    'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
+  });
+  if (dupKey) { try { getCache_().put(dupKey, '1', 60); } catch (e) {} }
+
+  const emailSent = notifyCanteenOrder_({
+    center: center, period: period, term: term, year: year, masoulaName: masoulaName, managerName: managerName,
+    notes: notes, items: items, now: now, role: role
+  });
+  return { ok: true, id: id, count: items.length, emailSent: emailSent };
+}
+
+function notifyCanteenOrder_(o) {
+  if (!ORDERS_NOTIFY_EMAIL || ORDERS_NOTIFY_EMAIL.indexOf('@example.com') !== -1) return false;
+  try {
+    const center = centerDisplay_(o.center);
+    const subject = ('طلب مقصف جديد — ' + center + ' — الفترة ' + o.period + ' — الفصل ' + o.term + ' ' + o.year)
+      .replace(/[\r\n]+/g, ' ');
+
+    const listed = o.items.filter(function (i) { return !i.other; });
+    const others = o.items.filter(function (i) { return i.other; });
+    const row = function (it, n) {
+      return '<tr><td style="padding:7px 10px;border:1px solid #d9cdb4;text-align:center;">' + n + '</td>' +
+        '<td style="padding:7px 10px;border:1px solid #d9cdb4;">' + htmlEsc_(it.name) + '</td>' +
+        '<td style="padding:7px 10px;border:1px solid #d9cdb4;text-align:center;">' + htmlEsc_(it.unit) + '</td>' +
+        '<td style="padding:7px 10px;border:1px solid #d9cdb4;text-align:center;font-weight:bold;">' + it.qty + '</td></tr>';
+    };
+    const table = function (title, arr) {
+      if (!arr.length) return '';
+      return '<h3 style="color:#6e1523;margin:18px 0 6px;">' + title + '</h3>' +
+        '<table style="border-collapse:collapse;width:100%;font-size:14px;"><thead><tr style="background:#6e1523;color:#fff;">' +
+        '<th style="padding:8px 10px;border:1px solid #6e1523;width:40px;">#</th>' +
+        '<th style="padding:8px 10px;border:1px solid #6e1523;">الصنف</th>' +
+        '<th style="padding:8px 10px;border:1px solid #6e1523;width:90px;">الوحدة</th>' +
+        '<th style="padding:8px 10px;border:1px solid #6e1523;width:80px;">العدد</th></tr></thead><tbody>' +
+        arr.map(function (it, i) { return row(it, i + 1); }).join('') + '</tbody></table>';
+    };
+    const info = function (k, v) {
+      return v ? '<tr><td style="padding:4px 0;color:#6f6467;width:130px;">' + k + '</td><td style="padding:4px 0;font-weight:bold;">' + htmlEsc_(v) + '</td></tr>' : '';
+    };
+    const html = '<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;max-width:640px;margin:auto;color:#2b2325;">' +
+      '<div style="background:#6e1523;color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;font-size:18px;font-weight:bold;">طلب مقصف جديد</div>' +
+      '<div style="border:1px solid #e8dfe1;border-top:0;padding:16px 18px;border-radius:0 0 10px 10px;">' +
+      '<table style="font-size:14px;border-collapse:collapse;">' +
+      info('المركز', center) + info('الفترة', o.period) + info('الفصل الدراسي', o.term) + info('العام', o.year) +
+      info('مسؤولة المقصف', o.masoulaName) + info('مديرة المركز', o.managerName) +
+      info('تاريخ الطلب', o.now.day + ' ' + o.now.date + ' ' + o.now.time) +
+      '</table>' +
+      table('الأصناف المطلوبة', listed) + table('أصناف أخرى', others) +
+      (o.notes ? '<h3 style="color:#6e1523;margin:18px 0 6px;">ملاحظات</h3><div style="background:#faf8f8;border:1px solid #e8dfe1;border-radius:8px;padding:10px;white-space:pre-wrap;">' + htmlEsc_(o.notes) + '</div>' : '') +
+      '<p style="color:#6f6467;font-size:12px;margin-top:20px;">إجمالي الأصناف: ' + o.items.length + ' — الطلب محفوظ أيضاً بشيت «' + ORDERS_SHEET_NAME_ + '». — نظام وحدة المقاصف، جمعية فرقان لتحفيظ القرآن الكريم</p>' +
+      '</div></div>';
+
+    const text = 'طلب مقصف جديد\n' +
+      'المركز: ' + center + '\nالفترة: ' + o.period + '\nالفصل الدراسي: ' + o.term + ' ' + o.year + '\n' +
+      (o.masoulaName ? 'مسؤولة المقصف: ' + o.masoulaName + '\n' : '') +
+      (o.managerName ? 'مديرة المركز: ' + o.managerName + '\n' : '') +
+      'تاريخ الطلب: ' + o.now.day + ' ' + o.now.date + ' ' + o.now.time + '\n\nالأصناف:\n' +
+      o.items.map(function (it) { return '- ' + (it.other ? '(صنف آخر) ' : '') + it.name + ' — ' + it.qty + ' ' + it.unit; }).join('\n') +
+      (o.notes ? '\n\nملاحظات: ' + o.notes : '');
+
+    MailApp.sendEmail({ to: ORDERS_NOTIFY_EMAIL, subject: subject, body: text, htmlBody: html, name: 'نظام وحدة المقاصف' });
+    return true;
+  } catch (e) {
+    Logger.log('تعذّر إرسال بريد طلب المقصف: ' + e);
+    return false;
+  }
+}
+
+/* تقرير سرعة (تشغيل يدوي من قائمة الدوال ▶️ Run): يوضح حجم كل شيت وأثقل عمود فيه، عشان نعرف
+   وين البطء بالضبط. يقرأ كل الشيتات مرة وحدة فقط (قد ياخذ دقيقة أو أكثر لو البيانات كبيرة). */
+function speedReport() {
+  const t0 = Date.now();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const report = [];
+  ss.getSheets().forEach(function (sh) {
+    if (Date.now() - t0 > 240000) return; // نتوقف قبل حد الوقت
+    const rows = Math.max(sh.getLastRow() - 1, 0);
+    const cols = sh.getLastColumn();
+    if (!rows || !cols) return;
+    try {
+      const headers = sh.getRange(1, 1, 1, cols).getValues()[0].map(function (h) { return String(h).trim(); });
+      const data = sh.getRange(2, 1, rows, cols).getValues();
+      const sizes = headers.map(function () { return 0; });
+      for (let r = 0; r < data.length; r++) {
+        for (let c = 0; c < cols; c++) { const v = data[r][c]; if (v !== '' && v !== null) sizes[c] += String(v).length; }
+      }
+      const skip = skipColsFor_(sh.getName()) || [];
+      let total = 0, light = 0, heavyIdx = 0;
+      sizes.forEach(function (n, c) {
+        total += n;
+        if (skip.indexOf(headers[c]) === -1) light += n;
+        if (n > sizes[heavyIdx]) heavyIdx = c;
+      });
+      report.push({
+        name: sh.getName(), rows: rows, totalKB: Math.round(total / 1024), lightKB: Math.round(light / 1024),
+        heaviest: headers[heavyIdx], heaviestKB: Math.round(sizes[heavyIdx] / 1024)
+      });
+    } catch (e) { report.push({ name: sh.getName(), rows: rows, totalKB: -1, lightKB: -1, heaviest: String(e), heaviestKB: 0 }); }
+  });
+  report.sort(function (a, b) { return b.totalKB - a.totalKB; });
+  const lines = report.map(function (x) {
+    return x.name + ': ' + x.rows + ' صف — الحجم ' + x.totalKB + ' ك.ب' +
+      (x.lightKB !== x.totalKB ? ' (الجزء الذي يُقرأ فعلياً ' + x.lightKB + ' ك.ب)' : '') +
+      ' — أثقل عمود: «' + x.heaviest + '» ' + x.heaviestKB + ' ك.ب';
+  });
+  Logger.log(lines.join('\n'));
+  notify_('تقرير حجم الشيتات (الأكبر أولاً):\n\n' + lines.slice(0, 12).join('\n') +
+    '\n\nحد الذاكرة المؤقتة لكل شيت تقريباً ' + Math.round(CACHE_CHUNK_CHARS_ * CACHE_MAX_CHUNKS_ / 1024) + ' ك.ب؛ أي شيت (مما يُقرأ فعلياً) فوق هذا الحد يُقرأ كاملاً من قوقل شيتس بكل طلب.');
 }
