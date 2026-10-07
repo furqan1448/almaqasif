@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>فحص سرعة النظام</title>
+<style>body{font-family:Tahoma,Arial,sans-serif;background:#FBF8F3;margin:0;padding:16px;color:#333}
+h1{color:#8C1A2C;font-size:1.2rem}button{background:#8C1A2C;color:#fff;border:0;border-radius:8px;padding:12px 20px;font-size:1rem}
+table{width:100%;border-collapse:collapse;margin-top:14px;background:#fff}td,th{border:1px solid #e8dcc8;padding:8px;text-align:center;font-size:.9rem}
+th{background:#8C1A2C;color:#fff}.bad{color:#b00020;font-weight:700}.ok{color:#1b7a3a;font-weight:700}#sum{margin-top:14px;line-height:1.9}</style>
+<script src="config.js"></script></head><body>
+<h1>فحص سرعة النظام</h1>
+<p>اضغطي الزر وانتظري حتى تكتمل النتائج، ثم أرسلي لي لقطة شاشة للجدول.</p>
+<button id="go" onclick="run()">ابدأ الفحص</button>
+<table id="t" style="display:none"><tr><th>الطلب</th><th>الزمن الكلي (ث)</th><th>زمن الخادم (ث)</th><th>زمن الشبكة (ث)</th></tr></table>
+<div id="sum"></div>
+<script>
+async function one(label, action, extra){
+  const t0=performance.now();
+  let r={};
+  try{ const res=await fetch(API_URL,{method:'POST',body:JSON.stringify(Object.assign({action:action},extra||{}))}); r=await res.json(); }catch(e){ r={err:String(e)}; }
+  const total=(performance.now()-t0)/1000;
+  const srv=(typeof r.serverMs==='number')?r.serverMs/1000:null;
+  const tr=document.createElement('tr');
+  const cls=total>3?'bad':'ok';
+  tr.innerHTML='<td>'+label+(r.err?' (فشل)':'')+'</td><td class="'+cls+'">'+total.toFixed(2)+'</td><td>'+(srv===null?'—':srv.toFixed(2))+'</td><td>'+(srv===null?'—':(total-srv).toFixed(2))+'</td>';
+  document.getElementById('t').appendChild(tr);
+  return {total:total,srv:srv};
+}
+async function run(){
+  document.getElementById('go').disabled=true;
+  document.getElementById('t').style.display='';
+  const rows=document.getElementById('t').rows; while(rows.length>1) rows[1].remove();
+  const res=[];
+  res.push(await one('اتصال 1 (قد يكون بداية باردة)','ping'));
+  res.push(await one('اتصال 2','ping'));
+  res.push(await one('اتصال 3','ping'));
+  res.push(await one('قائمة المراكز','getCenters'));
+  res.push(await one('قائمة الأسعار','getPriceItems'));
+  const avg=(res[1].total+res[2].total)/2;
+  const srvAvg=((res[1].srv||0)+(res[2].srv||0))/2;
+  let msg='متوسط الاتصال وهو دافئ: <b>'+avg.toFixed(2)+'</b> ثانية، منها <b>'+srvAvg.toFixed(2)+'</b> ثانية داخل الخادم.<br>';
+  if(res[0].srv===null) msg+='<span class="bad">لم يصل حقل زمن الخادم: النسخة الجديدة من Code.gs لم تُنشر بعد.</span>';
+  document.getElementById('sum').innerHTML=msg;
+  document.getElementById('go').disabled=false;
+}
+</script></body></html>

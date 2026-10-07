@@ -1224,6 +1224,7 @@ function doPost(e) {
 }
 
 function handleRequest_(p) {
+  const T0_ = Date.now();
   try {
     const aliasMaps = centerAliasMaps_();
     DISPLAY_MAP_ = aliasMaps.any ? aliasMaps.toDisplay : null;
@@ -1314,7 +1315,7 @@ function handleRequest_(p) {
       case 'getPriceListManager': return json_(getPriceListManager_());
       case 'setPriceListManager': return json_(setPriceListManager_(p));
 
-      case 'ping': return json_({ ok: true, version: '2026-10-07-orders', invoiceReturns: typeof cleanInvoiceReturn_ === 'function', canteenOrders: typeof submitCanteenOrder_ === 'function', lightNotices: typeof getNoticeCenterSignature_ === 'function' });
+      case 'ping': return json_({ ok: true, serverMs: Date.now() - T0_, version: '2026-10-07-orders', invoiceReturns: typeof cleanInvoiceReturn_ === 'function', canteenOrders: typeof submitCanteenOrder_ === 'function', lightNotices: typeof getNoticeCenterSignature_ === 'function' });
       case 'getPurchaseCenters': return json_(getPurchaseCenters_());
       case 'setPurchaseCenters': return json_(setPurchaseCenters_(p));
       case 'getExpenseCenters': return json_(getExpenseCenters_());
