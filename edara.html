@@ -35,6 +35,16 @@
 .grade-foot .miss { color:#b3261e; }
 .grade-foot .unsaved { color:#8a7d76; font-weight:500; font-size:0.75rem; margin-right:8px; }
 </style>
+<style>
+.collapse-card > summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;color:var(--maroon);font-weight:bold;font-size:1.17em;}
+.collapse-card > summary::-webkit-details-marker{display:none;}
+.collapse-card > summary::after{content:'▾';font-size:1rem;transition:transform .2s;}
+.collapse-card[open] > summary::after{transform:rotate(180deg);}
+.collapse-card[open] > summary{margin-bottom:12px;}
+.collapse-card .collapse-count{font-size:0.8rem;font-weight:normal;background:var(--cream,#f6efe6);color:var(--maroon);padding:2px 10px;border-radius:999px;}
+.collapse-card .collapse-count:empty{display:none;}
+.collapse-card > summary > span:first-child{flex:1;}
+</style>
 </head>
 <body>
 
@@ -355,22 +365,22 @@
 
     <!-- ===== تبويب: الفواتير ===== -->
     <div id="invoicesTab" class="admin-tab-panel hidden">
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">المراكز المفعّل لها «مشتريات»</h3>
+      <details class="card collapse-card">
+        <summary><span>المراكز المفعّل لها «مشتريات»</span> <span class="collapse-count" id="purchaseCentersCount"></span></summary>
         <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">نوع القيد «مشتريات» يظهر فقط للمراكز التي تحددينها هنا (التي تشتري بنفسها). «فاتورة» متاحة لجميع المراكز.</p>
         <label style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-bottom:8px;"><input type="checkbox" id="purchaseCentersAll" onchange="togglePurchaseCentersAll_(this.checked)"> <span>تحديد الكل</span></label>
         <div id="purchaseCentersBox">جاري التحميل...</div>
         <button class="btn" id="purchaseCentersSaveBtn" onclick="savePurchaseCenters()" style="margin-top:10px;">حفظ</button>
         <div class="success-msg" id="purchaseCentersSuccess">تم الحفظ بنجاح ✅</div>
-      </div>
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">المراكز المفعّل لها «مصروفات»</h3>
+      </details>
+      <details class="card collapse-card">
+        <summary><span>المراكز المفعّل لها «مصروفات»</span> <span class="collapse-count" id="expenseCentersCount"></span></summary>
         <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">نوع القيد «مصروفات» يظهر فقط للمراكز التي تحددينها هنا. «فاتورة» متاحة لجميع المراكز.</p>
         <label style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-bottom:8px;"><input type="checkbox" id="expenseCentersAll" onchange="toggleExpenseCentersAll_(this.checked)"> <span>تحديد الكل</span></label>
         <div id="expenseCentersBox">جاري التحميل...</div>
         <button class="btn" id="expenseCentersSaveBtn" onclick="saveExpenseCenters()" style="margin-top:10px;">حفظ</button>
         <div class="success-msg" id="expenseCentersSuccess">تم الحفظ بنجاح ✅</div>
-      </div>
+      </details>
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">بيان الفواتير لكل مركز</h3>
         <div class="select-row">
@@ -1920,12 +1930,15 @@ function loadPurchaseCentersAdmin() {
 
 function togglePurchaseCentersAll_(on) {
   document.querySelectorAll('.purchase-center-check').forEach(function (cb) { cb.checked = on; });
+  syncPurchaseCentersAll_();
 }
 
 function syncPurchaseCentersAll_() {
   const all = document.querySelectorAll('.purchase-center-check');
   const checked = document.querySelectorAll('.purchase-center-check:checked');
   document.getElementById('purchaseCentersAll').checked = all.length > 0 && all.length === checked.length;
+  const cnt = document.getElementById('purchaseCentersCount');
+  if (cnt) cnt.textContent = checked.length + ' من ' + all.length;
 }
 
 function savePurchaseCenters() {
@@ -1967,12 +1980,15 @@ function loadExpenseCentersAdmin() {
 
 function toggleExpenseCentersAll_(on) {
   document.querySelectorAll('.expense-center-check').forEach(function (cb) { cb.checked = on; });
+  syncExpenseCentersAll_();
 }
 
 function syncExpenseCentersAll_() {
   const all = document.querySelectorAll('.expense-center-check');
   const checked = document.querySelectorAll('.expense-center-check:checked');
   document.getElementById('expenseCentersAll').checked = all.length > 0 && all.length === checked.length;
+  const cnt = document.getElementById('expenseCentersCount');
+  if (cnt) cnt.textContent = checked.length + ' من ' + all.length;
 }
 
 function saveExpenseCenters() {
