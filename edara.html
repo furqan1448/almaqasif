@@ -395,6 +395,16 @@
               <option value="all">كل الفصول</option>
             </select>
           </div>
+          <div>
+            <label>فرز</label>
+            <select id="invoicesReturnFilter" onchange="renderCenterInvoices_()">
+              <option value="">كل القيود</option>
+              <option value="any">الفواتير التي فيها مرتجعات</option>
+              <option value="deducted">مرتجعات مخصومة</option>
+              <option value="proof">مرتجعات للإثبات فقط</option>
+              <option value="none">فواتير بلا مرتجعات</option>
+            </select>
+          </div>
         </div>
         <div class="table-scroll"><table class="log-table" id="invoicesTable">
           <thead><tr><th>المركز</th><th>النوع</th><th>رقم الفاتورة</th><th>مصدر الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>رأس المال</th><th>الربح</th><th>المبلغ الإجمالي</th><th>المرتجعات</th><th>ملاحظات</th></tr></thead>
@@ -2013,22 +2023,51 @@ function loadCenterInvoices() {
   populateTermFilter_('invoicesTermFilter');
   const term = document.getElementById('invoicesTermFilter').value;
   callApi('getInvoices', { center: center, term: term }).then(function (r) {
-    currentInvoices = r.invoices || [];
-    const summaryBox = document.getElementById('invoicesSummary');
-    if (!r.ok || !currentInvoices.length) {
-      tbody.innerHTML = '<tr><td colspan="11">لا توجد فواتير بعد</td></tr>';
-      summaryBox.innerHTML = '';
-      return;
-    }
-    tbody.innerHTML = '';
-    currentInvoices.forEach(function (inv) {
-      const tr = document.createElement('tr');
-      const p = invoiceRowParts_(inv);
-      tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (invoiceReturnHtml_(inv) || '—') + '</td><td>' + invoiceNotesText_(inv) + '</td>';
-      tbody.appendChild(tr);
-    });
-    summaryBox.innerHTML = invoiceSummaryHtml_(invoiceSummary_(currentInvoices));
+    allCenterInvoices_ = (r && r.ok && r.invoices) || [];
+    renderCenterInvoices_();
   });
+}
+
+/* فرز بيان الفواتير حسب المرتجعات (يتم في المتصفح دون إعادة تحميل) */
+let allCenterInvoices_ = [];
+function invoiceMatchesReturnFilter_(inv, f) {
+  if (!f) return true;
+  const items = invoiceReturnItems_(inv);
+  if (f === 'none') return invoiceEntryType_(inv) === 'فاتورة' && !items.length;
+  if (f === 'any') return items.length > 0;
+  if (f === 'deducted') return items.some(function (it) { return !(it.proof > 0) && (it.cap + it.profit) > 0; });
+  if (f === 'proof') return items.some(function (it) { return it.proof > 0; });
+  return true;
+}
+
+function renderCenterInvoices_() {
+  const tbody = document.getElementById('invoicesTbody');
+  const summaryBox = document.getElementById('invoicesSummary');
+  const f = document.getElementById('invoicesReturnFilter').value;
+  currentInvoices = allCenterInvoices_.filter(function (inv) { return invoiceMatchesReturnFilter_(inv, f); });
+  if (!allCenterInvoices_.length) {
+    tbody.innerHTML = '<tr><td colspan="11">لا توجد فواتير بعد</td></tr>';
+    summaryBox.innerHTML = '';
+    return;
+  }
+  if (!currentInvoices.length) {
+    tbody.innerHTML = '<tr><td colspan="11">لا توجد قيود مطابقة للفرز المختار</td></tr>';
+    summaryBox.innerHTML = '';
+    return;
+  }
+  tbody.innerHTML = '';
+  currentInvoices.forEach(function (inv) {
+    const tr = document.createElement('tr');
+    const p = invoiceRowParts_(inv);
+    tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (invoiceReturnHtml_(inv) || '—') + '</td><td>' + invoiceNotesText_(inv) + '</td>';
+    tbody.appendChild(tr);
+  });
+  summaryBox.innerHTML = (f ? '<p style="color:var(--maroon);font-weight:bold;margin:10px 0 0;">عدد القيود المعروضة: ' + currentInvoices.length + ' من ' + allCenterInvoices_.length + '</p>' : '') + invoiceSummaryHtml_(invoiceSummary_(currentInvoices));
+}
+
+function invoicesFilterSuffix_(sep) {
+  const sel = document.getElementById('invoicesReturnFilter');
+  return sel && sel.value ? sep + sel.options[sel.selectedIndex].text : '';
 }
 
 function exportCurrentInvoices() {
@@ -2039,7 +2078,7 @@ function exportCurrentInvoices() {
     return { 'المركز': inv['اسم المركز'] || '', 'النوع': p.type, 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'مصدر الفاتورة': inv['مصدر الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'رأس المال': p.amount, 'الربح': p.profit, 'المبلغ الإجمالي': p.effect, 'المرتجعات': invoiceReturnText_(inv), 'ملاحظات': invoiceNotesText_(inv) };
   });
   appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoices), 'النوع', 'المبلغ الإجمالي', false);
-  exportToExcel(rows, 'فواتير-' + (center || 'كل-المراكز'), 'الفواتير');
+  exportToExcel(rows, 'فواتير-' + (center || 'كل-المراكز') + invoicesFilterSuffix_('-'), 'الفواتير');
 }
 
 function printCurrentInvoices() {
@@ -2050,7 +2089,7 @@ function printCurrentInvoices() {
     return { center: inv['اسم المركز'] || '', type: p.type, num: inv['رقم الفاتورة'] || '', source: inv['مصدر الفاتورة'] || '', day: inv['اليوم'] || '', date: toHijriStr(inv['التاريخ']), amount: p.amount.toFixed(2), profit: p.profit.toFixed(2), effect: '<span dir="ltr">' + p.effect.toFixed(2) + '</span>', returns: invoiceReturnText_(inv), notes: invoiceNotesText_(inv) };
   });
   appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoices), 'type', 'effect', true);
-  printReport('بيان الفواتير', center || 'كل المراكز', [
+  printReport('بيان الفواتير' + invoicesFilterSuffix_(' — '), center || 'كل المراكز', [
     { key: 'center', label: 'المركز' }, { key: 'type', label: 'النوع' }, { key: 'num', label: 'رقم الفاتورة' }, { key: 'source', label: 'مصدر الفاتورة' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' },
     { key: 'amount', label: 'رأس المال' }, { key: 'profit', label: 'الربح' }, { key: 'effect', label: 'المبلغ الإجمالي' }, { key: 'returns', label: 'المرتجعات' }, { key: 'notes', label: 'ملاحظات' }
   ], rows);
