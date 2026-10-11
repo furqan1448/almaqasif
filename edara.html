@@ -709,6 +709,12 @@
     <div id="visitReportTab" class="admin-tab-panel hidden">
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">تقرير الزيارة اليومي</h3>
+        <div class="vr-director-box">
+          <label for="vrDirectorPick">📇 اختاري المركز والمديرة من القائمة <span style="font-weight:normal;color:#8a7d76;">(تُملأ البيانات والجوال تلقائيًا)</span></label>
+          <input type="text" id="vrDirectorPick" list="vrDirectorsList" placeholder="اكتبي جزءًا من اسم المركز أو المديرة..." oninput="pickVrDirector_(this.value)" onfocus="loadVrDirectors_()" autocomplete="off">
+          <datalist id="vrDirectorsList"></datalist>
+          <div id="vrDirectorStatus" style="font-size:0.8rem;color:#8a7d76;margin:4px 0 10px;"></div>
+        </div>
         <div class="select-row">
           <div>
             <label>المركز</label>
@@ -789,8 +795,16 @@
         <button type="button" class="btn outline" onclick="addVrNoteRow()" style="width:auto;padding:6px 14px;margin-top:6px;">➕ إضافة ملاحظة</button>
         <label>التوصية (تظهر بأول صف فقط)</label>
         <textarea id="vrRecommendation" rows="2">نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والسداد</textarea>
-        <label>اسم مديرة المركز</label>
-        <input type="text" id="vrCenterHeadName" placeholder="اسم مديرة المركز">
+        <div class="select-row">
+          <div>
+            <label>اسم مديرة المركز</label>
+            <input type="text" id="vrCenterHeadName" placeholder="اسم مديرة المركز">
+          </div>
+          <div>
+            <label>جوال المديرة (واتساب)</label>
+            <input type="text" inputmode="tel" id="vrDirectorPhone" dir="ltr" placeholder="05xxxxxxxx" style="text-align:right;">
+          </div>
+        </div>
         <label>اسم رئيسة وحدة المقاصف</label>
         <input type="text" id="vrHeadName" value="فاطمة مبارك الكثيري">
         <label>توقيع رئيسة وحدة المقاصف (اختياري)</label>
@@ -811,6 +825,12 @@
           <button class="btn outline" onclick="printVisitReport()">🖨️ معاينة وطباعة</button>
           <button class="btn outline" onclick="saveVisitReport()">📄 حفظ PDF</button>
           <button class="btn" onclick="shareVisitReport()">📤 إرسال واتساب</button>
+          <button class="btn" id="vrSendDirectorBtn" onclick="sendVisitReportToDirector()" style="background:#1f8f4e;border-color:#1f8f4e;">📲 إرسال للمديرة مباشرة</button>
+        </div>
+        <div id="vrSendPanel" class="hidden" style="margin-top:12px;padding:12px 14px;border:1px solid #bfe3cd;background:#f1faf4;border-radius:10px;line-height:1.9;">
+          <div>✅ حُفظ ملف التقرير <b id="vrSendFileName"></b> في جهازكِ.</div>
+          <div>اضغطي الزر لفتح محادثة المديرة، ثم أرفقي الملف من زر الإرفاق 📎 ← «مستند».</div>
+          <a id="vrSendWaLink" class="btn" target="_blank" rel="noopener" style="display:inline-block;width:auto;margin-top:6px;background:#1f8f4e;border-color:#1f8f4e;color:#fff;text-decoration:none;padding:8px 18px;">💬 فتح محادثة المديرة في واتساب</a>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
           <button class="btn outline" onclick="saveVrDraft()">💾 حفظ مسودة</button>
@@ -1113,12 +1133,14 @@ function doLogin() {
       return;
     }
     sessionStorage.setItem('maqasif_admin', 'yes');
+    try { sessionStorage.setItem('maqasif_admin_pw', pass); } catch (e) {}
     showDashboard();
   });
 }
 
 function logout() {
   sessionStorage.removeItem('maqasif_admin');
+  sessionStorage.removeItem('maqasif_admin_pw');
   document.getElementById('dashScreen').classList.add('hidden');
   document.getElementById('loginScreen').classList.remove('hidden');
 }
@@ -3071,6 +3093,7 @@ function saveVrDraft() {
     notesLines: notesLines,
     recommendation: document.getElementById('vrRecommendation').value,
     centerHeadName: document.getElementById('vrCenterHeadName').value,
+    directorPhone: document.getElementById('vrDirectorPhone').value,
     headName: document.getElementById('vrHeadName').value,
     sigScale: document.getElementById('vrSigSize').value
   };
@@ -3103,6 +3126,7 @@ function loadVrDraft_() {
   document.getElementById('vrVisitNumber').value = draft.visitNumber || '';
   if (draft.recommendation !== undefined) document.getElementById('vrRecommendation').value = draft.recommendation;
   document.getElementById('vrCenterHeadName').value = draft.centerHeadName || '';
+  document.getElementById('vrDirectorPhone').value = draft.directorPhone || '';
   document.getElementById('vrHeadName').value = draft.headName || 'فاطمة مبارك الكثيري';
   if (draft.sigScale) {
     document.getElementById('vrSigSize').value = draft.sigScale;
@@ -3138,6 +3162,9 @@ function clearVrReport() {
   document.getElementById('vrVisitNumber').value = '';
   document.getElementById('vrRecommendation').value = 'نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والسداد';
   document.getElementById('vrCenterHeadName').value = '';
+  document.getElementById('vrDirectorPhone').value = '';
+  document.getElementById('vrDirectorPick').value = '';
+  document.getElementById('vrSendPanel').classList.add('hidden');
   document.getElementById('vrHeadName').value = 'فاطمة مبارك الكثيري';
   const container = document.getElementById('vrNotesContainer');
   container.innerHTML = '';
@@ -3257,6 +3284,109 @@ function saveVisitReport() {
 function shareVisitReport() {
   const opts = collectVisitReportOpts_();
   if (opts) shareVisitReportPdf(opts);
+}
+
+/* -------- إرسال تقرير الزيارة لمديرة المركز مباشرة (واتساب) -------- */
+let vrDirectors_ = null;
+let vrDirectorsLoading_ = null;
+
+function vrDirectorLabel_(d) {
+  return d.center + ' — ' + (d.period || '') + (d.name ? ' — ' + d.name : '');
+}
+
+function loadVrDirectors_(force) {
+  if (vrDirectors_ && !force) return Promise.resolve(vrDirectors_);
+  if (vrDirectorsLoading_) return vrDirectorsLoading_;
+  const status = document.getElementById('vrDirectorStatus');
+  let pw = '';
+  try { pw = sessionStorage.getItem('maqasif_admin_pw') || ''; } catch (e) {}
+  if (!pw) {
+    pw = prompt('لعرض أرقام المديرات، أدخلي كلمة مرور الإدارة مرة واحدة:') || '';
+    if (!pw) return Promise.resolve([]);
+  }
+  status.textContent = 'جارٍ تحميل قائمة المديرات...';
+  vrDirectorsLoading_ = callApi('getDirectors', { password: pw }).then(function (r) {
+    vrDirectorsLoading_ = null;
+    if (!r || !r.ok) {
+      if (r && r.auth) { try { sessionStorage.removeItem('maqasif_admin_pw'); } catch (e) {} }
+      status.textContent = (r && r.error) || 'تعذّر تحميل قائمة المديرات';
+      return [];
+    }
+    try { sessionStorage.setItem('maqasif_admin_pw', pw); } catch (e) {}
+    vrDirectors_ = r.directors || [];
+    const dl = document.getElementById('vrDirectorsList');
+    dl.innerHTML = '';
+    vrDirectors_.forEach(function (d) {
+      const o = document.createElement('option');
+      o.value = vrDirectorLabel_(d);
+      dl.appendChild(o);
+    });
+    status.textContent = vrDirectors_.length
+      ? 'عدد المديرات في القائمة: ' + vrDirectors_.length
+      : 'القائمة فارغة — أضيفي الأرقام في ورقة «أرقام المديرات» داخل شيت النظام.';
+    return vrDirectors_;
+  }).catch(function () {
+    vrDirectorsLoading_ = null;
+    status.textContent = 'تعذّر الاتصال، حاولي مرة أخرى';
+    return [];
+  });
+  return vrDirectorsLoading_;
+}
+
+function pickVrDirector_(val) {
+  if (!vrDirectors_) return;
+  const d = vrDirectors_.find(function (x) { return vrDirectorLabel_(x) === val; });
+  if (!d) return;
+  document.getElementById('vrCenterName').value = d.center;
+  document.getElementById('vrCenterHeadName').value = d.name || '';
+  document.getElementById('vrDirectorPhone').value = '0' + d.phone.slice(3);
+  document.getElementById('vrPeriodEvening').checked = !!d.evening;
+  document.getElementById('vrPeriodMorning').checked = !d.evening;
+  document.getElementById('vrSendPanel').classList.add('hidden');
+  document.getElementById('vrDirectorStatus').textContent = '✔️ تم اختيار: ' + (d.name || d.center);
+}
+
+function vrWaPhone_(v) {
+  let d = String(v || '').replace(/[٠-٩]/g, function (c) { return String(c.charCodeAt(0) - 0x0660); }).replace(/\D/g, '');
+  if (d.indexOf('00966') === 0) d = d.slice(5);
+  else if (d.indexOf('966') === 0) d = d.slice(3);
+  if (d.indexOf('0') === 0) d = d.slice(1);
+  return /^5\d{8}$/.test(d) ? '966' + d : '';
+}
+
+async function sendVisitReportToDirector() {
+  const opts = collectVisitReportOpts_();
+  if (!opts) return;
+  const phone = vrWaPhone_(document.getElementById('vrDirectorPhone').value);
+  if (!phone) { alert('اكتبي جوال المديرة بصيغة صحيحة (مثل 05xxxxxxxx)، أو اختاريها من القائمة أعلى التقرير.'); return; }
+  const btn = document.getElementById('vrSendDirectorBtn');
+  const panel = document.getElementById('vrSendPanel');
+  panel.classList.add('hidden');
+  const host = renderVisitReportToHost_(opts);
+  if (!host) return;
+  setBtnBusy(btn, true);
+  try {
+    if (typeof html2pdf === 'undefined') { try { await ensurePdfLibs_(); } catch (e) {} }
+    if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة أخرى'); return; }
+    const fileName = visitReportFileName_(opts);
+    await new Promise(function (resolve) { fitVisitReportToPage_(host.querySelector('.vr-doc'), resolve); });
+    const blob = await visitReportPdfBlob_(host, fileName);
+    vrDownloadBlob_(blob, fileName);
+    const head = opts.centerHeadName ? 'الأستاذة/ ' + opts.centerHeadName + ' — مديرة ' : 'مديرة ';
+    const msg = 'السلام عليكم ورحمة الله وبركاته\n' +
+      'سعادة ' + head + 'مركز ' + opts.center + ' المحترمة\n' +
+      'نرفق لكم تقرير الزيارة' + (opts.visitType ? ' (' + opts.visitType + ')' : '') + (document.getElementById('vrHijriDay').value.trim() ? ' بتاريخ ' + opts.hijriDate : '') + '.\n' +
+      'شاكرين لكم تعاونكم.\n' +
+      'وحدة المقاصف — جمعية فرقان';
+    document.getElementById('vrSendFileName').textContent = fileName;
+    document.getElementById('vrSendWaLink').href = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
+    panel.classList.remove('hidden');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (e) {
+    alert('حدث خطأ أثناء إنشاء ملف التقرير، حاولي مرة أخرى');
+  } finally {
+    setBtnBusy(btn, false);
+  }
 }
 
 /* ==================== محضر اجتماع ==================== */

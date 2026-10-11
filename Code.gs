@@ -1329,6 +1329,7 @@ function handleRequest_(p) {
 
       case 'loginSupervision': return json_(loginSupervision_(p));
       case 'loginAdmin': return json_(loginAdmin_(p));
+      case 'getDirectors': return json_(getDirectors_(p));
 
       case 'recordDifficulty': return json_(recordDifficulty_(p));
       case 'getDifficulties': return json_(getDifficulties_(p));
@@ -1659,6 +1660,64 @@ function loginAdmin_(p) {
     return { ok: false, error: 'كلمة المرور غير صحيحة' };
   }
   return { ok: true };
+}
+
+/* ------------------- أرقام مديرات المراكز (لإرسال تقرير الزيارة عبر واتساب) -------------------
+   الأرقام محفوظة في ورقة «أرقام المديرات» داخل هذا الشيت، وليست في ملفات الموقع على GitHub،
+   ولا تُعرض إلا لمن أدخلت كلمة مرور الإدارة.
+   أعمدة الورقة: اسم المركز | الفترة | اسم المديرة | الجوال
+   (إذا تُركت خلية «اسم المركز» فارغة فهي تابعة للمركز الذي في الصف السابق) */
+const DIRECTORS_SHEET_ = 'أرقام المديرات';
+
+function normalizeSaPhone_(v) {
+  let d = String(v === undefined || v === null ? '' : v)
+    .replace(/[٠-٩]/g, function (c) { return String(c.charCodeAt(0) - 0x0660); })
+    .replace(/[۰-۹]/g, function (c) { return String(c.charCodeAt(0) - 0x06F0); })
+    .replace(/\.0+$/, '')
+    .replace(/\D/g, '');
+  if (d.indexOf('00966') === 0) d = d.slice(5);
+  else if (d.indexOf('966') === 0) d = d.slice(3);
+  if (d.indexOf('0') === 0) d = d.slice(1);
+  return /^5\d{8}$/.test(d) ? '966' + d : '';
+}
+
+function getDirectors_(p) {
+  const auth = loginAdmin_(p);
+  if (!auth.ok) return { ok: false, auth: true, error: auth.error };
+  let sh = sheet_(DIRECTORS_SHEET_);
+  if (!sh) {
+    sh = SpreadsheetApp.getActiveSpreadsheet().insertSheet(DIRECTORS_SHEET_);
+    sh.getRange(1, 1, 1, 4).setValues([['اسم المركز', 'الفترة', 'اسم المديرة', 'الجوال']]).setFontWeight('bold');
+    sh.setRightToLeft(true);
+    return { ok: true, directors: [] };
+  }
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) return { ok: true, directors: [] };
+  const head = values[0].map(function (h) { return String(h).trim(); });
+  const col = function (names) {
+    for (let i = 0; i < names.length; i++) { const k = head.indexOf(names[i]); if (k !== -1) return k; }
+    return -1;
+  };
+  const cC = col(['اسم المركز', 'المركز']), cP = col(['الفترة']), cN = col(['اسم المديرة', 'المديرة']), cT = col(['الجوال', 'رقم الجوال']);
+  if (cC === -1 || cT === -1) return { ok: false, error: 'ورقة «' + DIRECTORS_SHEET_ + '» ينقصها عمود «اسم المركز» أو «الجوال».' };
+  const out = [];
+  let lastCenter = '';
+  for (let r = 1; r < values.length; r++) {
+    const row = values[r];
+    const center = String(row[cC] || '').trim();
+    if (center) lastCenter = center;
+    const phone = normalizeSaPhone_(row[cT]);
+    if (!lastCenter || !phone) continue;
+    const period = cP === -1 ? '' : String(row[cP] || '').trim();
+    out.push({
+      center: lastCenter,
+      period: period,
+      evening: /عصر|مساء|مسائ/.test(period),
+      name: cN === -1 ? '' : String(row[cN] || '').trim(),
+      phone: phone
+    });
+  }
+  return { ok: true, directors: out };
 }
 
 /* ------------------- المبيعات اليومية ------------------- */
