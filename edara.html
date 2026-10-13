@@ -709,16 +709,12 @@
     <div id="visitReportTab" class="admin-tab-panel hidden">
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">تقرير الزيارة اليومي</h3>
-        <div class="vr-director-box">
-          <label for="vrDirectorPick">📇 اختاري المركز والمديرة من القائمة <span style="font-weight:normal;color:#8a7d76;">(تُملأ البيانات والجوال تلقائيًا)</span></label>
-          <input type="text" id="vrDirectorPick" list="vrDirectorsList" placeholder="اكتبي جزءًا من اسم المركز أو المديرة..." oninput="pickVrDirector_(this.value)" onfocus="loadVrDirectors_()" autocomplete="off">
-          <datalist id="vrDirectorsList"></datalist>
-          <div id="vrDirectorStatus" style="font-size:0.8rem;color:#8a7d76;margin:4px 0 10px;"></div>
-        </div>
         <div class="select-row">
           <div>
             <label>المركز</label>
-            <input type="text" id="vrCenterName" placeholder="اكتبي اسم المركز">
+            <input type="text" id="vrCenterName" list="vrCentersDl" placeholder="اكتبي اسم المركز" autocomplete="off" oninput="vrAutoFillDirector_()" onchange="vrAutoFillDirector_()">
+            <datalist id="vrCentersDl"></datalist>
+            <div id="vrDirectorStatus" style="font-size:0.8rem;color:#8a7d76;margin:4px 0 0;"></div>
           </div>
           <div>
             <label>لعام (هـ)</label>
@@ -738,10 +734,10 @@
             <label>الفترة</label>
             <div style="display:flex;gap:18px;margin-top:8px;">
               <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:0;">
-                <input type="checkbox" id="vrPeriodMorning" style="width:auto;" onchange="if(this.checked)document.getElementById('vrPeriodEvening').checked=false;"> صباحي
+                <input type="checkbox" id="vrPeriodMorning" style="width:auto;" onchange="if(this.checked)document.getElementById('vrPeriodEvening').checked=false;vrAutoFillDirector_();"> صباحي
               </label>
               <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:0;">
-                <input type="checkbox" id="vrPeriodEvening" style="width:auto;" onchange="if(this.checked)document.getElementById('vrPeriodMorning').checked=false;"> مسائي
+                <input type="checkbox" id="vrPeriodEvening" style="width:auto;" onchange="if(this.checked)document.getElementById('vrPeriodMorning').checked=false;vrAutoFillDirector_();"> مسائي
               </label>
             </div>
           </div>
@@ -827,6 +823,8 @@
           <button class="btn" onclick="shareVisitReport()">📤 إرسال واتساب</button>
           <button class="btn" id="vrSendDirectorBtn" onclick="sendVisitReportToDirector()" style="background:#1f8f4e;border-color:#1f8f4e;">📲 إرسال للمديرة مباشرة</button>
         </div>
+        <p style="font-size:0.78rem;color:#8a7d76;margin:8px 0 0;">عند «حفظ PDF» أو الإرسال تُسجَّل الزيارة تلقائيًا في «إحصائية الزيارات» (مرة واحدة فقط لنفس المركز والفترة والتاريخ).</p>
+        <div class="success-msg" id="vrStatMsg"></div>
         <div id="vrSendPanel" class="hidden" style="margin-top:12px;padding:12px 14px;border:1px solid #bfe3cd;background:#f1faf4;border-radius:10px;line-height:1.9;">
           <div>✅ حُفظ ملف التقرير <b id="vrSendFileName"></b> في جهازكِ.</div>
           <div>اضغطي الزر لفتح محادثة المديرة، ثم أرفقي الملف من زر الإرفاق 📎 ← «مستند».</div>
@@ -3141,6 +3139,7 @@ function loadVrDraft_() {
 
 /* تُستدعى مرة وحدة بس أول ما يُفتح التبويب: تحمّل المسودة لو موجودة، وإلا تبدأ بصفين فاضيين */
 function initVisitReportTab_() {
+  loadVrDirectors_();
   if (vrDraftInited_) return;
   vrDraftInited_ = true;
   const hasDraft = loadVrDraft_();
@@ -3163,7 +3162,8 @@ function clearVrReport() {
   document.getElementById('vrRecommendation').value = 'نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والسداد';
   document.getElementById('vrCenterHeadName').value = '';
   document.getElementById('vrDirectorPhone').value = '';
-  document.getElementById('vrDirectorPick').value = '';
+  document.getElementById('vrDirectorStatus').textContent = '';
+  document.getElementById('vrStatMsg').style.display = 'none';
   document.getElementById('vrSendPanel').classList.add('hidden');
   document.getElementById('vrHeadName').value = 'فاطمة مبارك الكثيري';
   const container = document.getElementById('vrNotesContainer');
@@ -3278,12 +3278,104 @@ function printVisitReport() {
 
 function saveVisitReport() {
   const opts = collectVisitReportOpts_();
-  if (opts) saveVisitReportPdf(opts);
+  if (!opts || !vrStatReady_()) return;
+  saveVisitReportPdf(opts);
+  vrRecordVisitStat_();
 }
 
 function shareVisitReport() {
   const opts = collectVisitReportOpts_();
-  if (opts) shareVisitReportPdf(opts);
+  if (!opts || !vrStatReady_()) return;
+  shareVisitReportPdf(opts);
+  vrRecordVisitStat_();
+}
+
+/* -------- ربط تقرير الزيارة بإحصائية الزيارات -------- */
+function vrNum_(v) {
+  return parseInt(String(v || '').replace(/[٠-٩]/g, function (c) { return String(c.charCodeAt(0) - 0x0660); }).replace(/\D/g, ''), 10) || 0;
+}
+
+/* بيانات الزيارة من حقول التقرير بنفس صيغة «إحصائية الزيارات» */
+function vrStatData_() {
+  const center = document.getElementById('vrCenterName').value.replace(/\s+/g, ' ').trim();
+  const morning = document.getElementById('vrPeriodMorning').checked;
+  const evening = document.getElementById('vrPeriodEvening').checked;
+  const d = vrNum_(document.getElementById('vrHijriDay').value);
+  const m = vrNum_(document.getElementById('vrHijriMonth').value);
+  const y = vrNum_(document.getElementById('vrYear').value) || vsTodayHijri_().y;
+  return {
+    center: center,
+    period: morning ? 'صباحية' : (evening ? 'مسائية' : ''),
+    ok: !!(center && (morning || evening) && d >= 1 && d <= 30 && m >= 1 && m <= 12),
+    hijriDate: vsAr_(d) + ' ' + VS_MONTHS_[(m || 1) - 1] + ' ' + vsAr_(y) + 'هـ',
+    dateKey: y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0')
+  };
+}
+
+function vrStatReady_() {
+  const v = vrStatData_();
+  if (v.ok) return true;
+  if (!v.period) alert('اختاري الفترة (صباحي أو مسائي) لتُسجَّل الزيارة في الإحصائية.');
+  else alert('اكتبي يوم التاريخ الهجري لتُسجَّل الزيارة في الإحصائية.');
+  return false;
+}
+
+/* تسجّل الزيارة مرة واحدة فقط: إذا كانت مسجّلة بنفس المركز والفترة والتاريخ لا تتكرر */
+function vrRecordVisitStat_() {
+  const v = vrStatData_();
+  if (!v.ok) return Promise.resolve();
+  const msg = document.getElementById('vrStatMsg');
+  const show = function (t, err) {
+    msg.textContent = t;
+    msg.style.display = 'block';
+    msg.style.color = err ? '#b3261e' : '';
+  };
+  const same = function (a, b) { return vsNorm_(a) === vsNorm_(b); };
+  return callApi('getVisitStats').then(function (r) {
+    const list = (r && r.ok && r.visits) || [];
+    const mine = list.filter(function (x) { return same(x.center, v.center); });
+    if (mine.some(function (x) { return x.period === v.period && x.dateKey === v.dateKey; })) {
+      show('الزيارة مسجّلة سابقًا في الإحصائية — ' + v.center + ': ' + vsCountLabel_(mine.length));
+      return;
+    }
+    return callApi('recordVisitStat', { center: v.center, period: v.period, hijriDate: v.hijriDate, dateKey: v.dateKey }).then(function (res) {
+      if (!res || !res.ok) { show('تعذّر تسجيل الزيارة في الإحصائية' + (res && res.error ? ': ' + res.error : ''), true); return; }
+      show('✅ سُجّلت الزيارة في الإحصائية — ' + res.center + ': ' + vsCountLabel_(res.count));
+    });
+  }).catch(function () { show('تعذّر تسجيل الزيارة في الإحصائية، تحقّقي من الاتصال.', true); });
+}
+
+/* عند كتابة اسم المركز (أو تغيير الفترة) تُملأ المديرة وجوالها من ورقة «أرقام المديرات» */
+function vrAutoFillDirector_() {
+  const status = document.getElementById('vrDirectorStatus');
+  const center = document.getElementById('vrCenterName').value;
+  if (!vrDirectors_ || !center.trim()) { if (status) status.textContent = ''; return; }
+  const list = vrDirectors_.filter(function (d) { return vsNorm_(d.center) === vsNorm_(center); });
+  if (!list.length) { status.textContent = ''; return; }
+  const mBox = document.getElementById('vrPeriodMorning'), eBox = document.getElementById('vrPeriodEvening');
+  let evening = eBox.checked ? true : (mBox.checked ? false : null);
+  if (evening === null) {
+    const hasM = list.some(function (d) { return !d.evening; }), hasE = list.some(function (d) { return d.evening; });
+    if (hasM && hasE) {
+      status.textContent = 'لهذا المركز فترتان: اختاري الفترة لتظهر بيانات المديرة.';
+      return;
+    }
+    evening = hasE;
+    eBox.checked = evening;
+    mBox.checked = !evening;
+  }
+  const d = list.find(function (x) { return x.evening === evening; });
+  document.getElementById('vrSendPanel').classList.add('hidden');
+  if (!d) {
+    document.getElementById('vrCenterHeadName').value = '';
+    document.getElementById('vrDirectorPhone').value = '';
+    status.textContent = 'لا توجد مديرة مسجّلة لهذا المركز في الفترة ' + (evening ? 'المسائية' : 'الصباحية') + '.';
+    return;
+  }
+  document.getElementById('vrCenterName').value = d.center;
+  document.getElementById('vrCenterHeadName').value = d.name || '';
+  document.getElementById('vrDirectorPhone').value = '0' + d.phone.slice(3);
+  status.textContent = '✔️ المديرة: ' + (d.name || '—');
 }
 
 /* -------- إرسال تقرير الزيارة لمديرة المركز مباشرة (واتساب) -------- */
@@ -3314,16 +3406,14 @@ function loadVrDirectors_(force) {
     }
     try { sessionStorage.setItem('maqasif_admin_pw', pw); } catch (e) {}
     vrDirectors_ = r.directors || [];
-    const dl = document.getElementById('vrDirectorsList');
-    dl.innerHTML = '';
-    vrDirectors_.forEach(function (d) {
-      const o = document.createElement('option');
-      o.value = vrDirectorLabel_(d);
-      dl.appendChild(o);
-    });
-    status.textContent = vrDirectors_.length
-      ? 'عدد المديرات في القائمة: ' + vrDirectors_.length
-      : 'القائمة فارغة — أضيفي الأرقام في ورقة «أرقام المديرات» داخل شيت النظام.';
+    const seen = {};
+    document.getElementById('vrCentersDl').innerHTML = vrDirectors_.filter(function (d) {
+      if (seen[d.center]) return false;
+      seen[d.center] = 1;
+      return true;
+    }).map(function (d) { return '<option value="' + vsEsc_(d.center) + '">'; }).join('');
+    status.textContent = vrDirectors_.length ? '' : 'قائمة المديرات فارغة — أضيفيها في ورقة «أرقام المديرات» داخل شيت النظام.';
+    vrAutoFillDirector_();
     return vrDirectors_;
   }).catch(function () {
     vrDirectorsLoading_ = null;
@@ -3356,9 +3446,10 @@ function vrWaPhone_(v) {
 
 async function sendVisitReportToDirector() {
   const opts = collectVisitReportOpts_();
-  if (!opts) return;
+  if (!opts || !vrStatReady_()) return;
   const phone = vrWaPhone_(document.getElementById('vrDirectorPhone').value);
-  if (!phone) { alert('اكتبي جوال المديرة بصيغة صحيحة (مثل 05xxxxxxxx)، أو اختاريها من القائمة أعلى التقرير.'); return; }
+  if (!phone) { alert('اكتبي جوال المديرة بصيغة صحيحة (مثل 05xxxxxxxx)، أو اكتبي اسم المركز لتظهر بياناتها تلقائيًا.'); return; }
+  vrRecordVisitStat_();
   const btn = document.getElementById('vrSendDirectorBtn');
   const panel = document.getElementById('vrSendPanel');
   panel.classList.add('hidden');
