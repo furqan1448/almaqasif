@@ -35,6 +35,25 @@
 .grade-foot .miss { color:#b3261e; }
 .grade-foot .unsaved { color:#8a7d76; font-weight:500; font-size:0.75rem; margin-right:8px; }
 </style>
+<style id="canteenSurveyStyles">
+.vs-unv-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 4px; border-bottom: 1px dashed var(--gold-light); font-size: 0.88rem; }
+.vs-unv-row:last-child { border-bottom: none; }
+.vs-unv-row b { color: var(--maroon-dark); }
+.vs-unv-tag { flex: none; font-size: 0.75rem; font-weight: 700; border-radius: 999px; padding: 2px 10px; background: #fbeef0; color: #8a1f2b; }
+.vs-unv-ok { padding: 10px 12px; border-radius: 10px; background: #eaf6ee; border: 1px solid #b9dfc6; color: #1f6b3a; font-size: 0.9rem; }
+.cs-row { border: 1px solid var(--gold-light); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; background: #fff; }
+.cs-row.no { background: #fbf6f6; border-color: #e9c3c8; }
+.cs-head { display: flex; align-items: center; gap: 10px; }
+.cs-tick { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 2px solid #2e8b57; background: #2e8b57; color: #fff; font-size: 1.1rem; font-weight: 900; cursor: pointer; display: grid; place-items: center; padding: 0; }
+.cs-row.no .cs-tick { background: #fff; border-color: #c9b9b9; color: transparent; }
+.cs-name { flex: 1; min-width: 0; font-weight: 700; color: var(--maroon-dark); font-size: 0.92rem; }
+.cs-name small { font-weight: 500; color: #8a7d76; margin-right: 4px; }
+.cs-note-btn { flex: none; background: none; border: 1px solid var(--gold-light); border-radius: 8px; padding: 4px 9px; cursor: pointer; font-size: 0.95rem; }
+.cs-note-btn.has { background: #fbf3df; border-color: #d9b766; }
+.cs-none { margin-top: 8px; color: #b3261e; font-weight: 700; font-size: 0.86rem; }
+.cs-row textarea { margin-top: 8px; width: 100%; min-height: 60px; box-sizing: border-box; }
+.cs-dirty { margin: 8px 0; color: #9a6b00; font-size: 0.82rem; font-weight: 700; }
+</style>
 <style>
 .collapse-card > summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;color:var(--maroon);font-weight:bold;font-size:1.17em;}
 .collapse-card > summary::-webkit-details-marker{display:none;}
@@ -148,6 +167,10 @@
         <div class="icon-btn" onclick="showAdminTab('visitStatsTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><path d="M9.5 10.5l1.8 1.8 3.4-3.6"/></svg></div>
           <span class="label">إحصائية الزيارات</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('canteenSurveyTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5L5.5 4h13L20 9.5"/><path d="M4 9.5h16v1a2.7 2.7 0 0 1-5.3 0 2.7 2.7 0 0 1-5.4 0 2.7 2.7 0 0 1-5.3 0z"/><path d="M5.5 13v7h13v-7"/><path d="M9.5 16.5l1.8 1.8 3.4-3.6"/></svg></div>
+          <span class="label">حصر المقاصف</span>
         </div>
         <div class="icon-btn" onclick="showAdminTab('cardsAdminTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="7.5" cy="14" r="1"/></svg></div>
@@ -703,6 +726,32 @@
           <button class="btn outline" onclick="exportVisitStats()">⬇️ Excel</button>
         </div>
       </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">المراكز التي لم تتم زيارتها</h3>
+        <p style="font-size:0.78rem;color:#8a7d76;margin:0 0 10px;">القائمة مأخوذة من ورقة «أرقام المديرات» (كل مركز بفترته)، ولا تشمل المراكز المسجّل في «حصر المقاصف» أنه لا يوجد بها مقصف.</p>
+        <div id="vsUnvisited">جارِ التحميل...</div>
+        <div class="export-row" style="margin-top:12px;">
+          <button class="btn outline" onclick="exportUnvisited()">⬇️ Excel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: حصر المقاصف ===== -->
+    <div id="canteenSurveyTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">حصر المقاصف</h3>
+        <p style="font-size:0.8rem;color:#8a7d76;margin:0 0 10px;">جميع المراكز من ورقة «أرقام المديرات». علامة ✔ تعني أن بالمركز مقصفًا؛ اضغطي عليها لإزالتها إذا لم يكن به مقصف، ثم اكتبي السبب في الملاحظات واضغطي «حفظ الحصر».</p>
+        <div id="csSummary" class="vs-total"></div>
+        <input type="text" id="csSearch" placeholder="🔍 ابحثي عن مركز" autocomplete="off" oninput="renderCanteenSurvey_()">
+        <div id="csList" style="margin-top:10px;">جارِ التحميل...</div>
+        <div class="cs-dirty hidden" id="csDirty">توجد تغييرات لم تُحفظ بعد.</div>
+        <button class="btn" id="csSaveBtn" onclick="saveCanteenSurvey()">حفظ الحصر</button>
+        <div class="success-msg" id="csSuccess"></div>
+        <div class="export-row" style="margin-top:12px;">
+          <button class="btn outline" onclick="exportCanteenSurvey()">⬇️ Excel</button>
+        </div>
+      </div>
     </div>
 
     <!-- ===== تبويب: تقرير الزيارة ===== -->
@@ -1175,6 +1224,7 @@ function showAdminTab(tabId) {
   if (tabId === 'priceListTab') { loadPriceManagerSelect(); loadPriceItemsAdmin(); loadPriceListFileAdmin(); }
   if (tabId === 'visitReportTab') { initVisitReportTab_(); }
   if (tabId === 'visitStatsTab') { initVisitStatsTab_(); }
+  if (tabId === 'canteenSurveyTab') { loadCanteenSurvey(); }
   if (tabId === 'meetingMinutesTab') { initMeetingMinutesTab_(); renderMmTargetLists(); loadMeetingMinutesAdmin(); }
   if (tabId === 'cardsAdminTab') { initAdminCardForm_(); loadCardsAdminOverview(); }
   if (tabId === 'gradesTab') { initGradesTab_(); }
@@ -3956,6 +4006,7 @@ function initVisitStatsTab_() {
   const dl = document.getElementById('vsCentersList');
   dl.innerHTML = (centersListCache || []).map(function (c) { return '<option value="' + vsEsc_(c) + '">'; }).join('');
   loadVisitStats();
+  vsLoadUnvisitedDeps_();
 }
 
 function vsSelectedDate_() {
@@ -4088,6 +4139,7 @@ function vsGroups_() {
 }
 
 function renderVisitStats_() {
+  renderUnvisited_();
   const box = document.getElementById('vsSummary');
   const groups = vsGroups_();
   if (!groups.length) { box.innerHTML = '<div style="color:#8a7d76;">لا توجد زيارات مسجّلة بعد.</div>'; return; }
@@ -4143,6 +4195,208 @@ function exportVisitStats() {
     });
   });
   exportToExcel(rows, 'إحصائية-الزيارات', 'إحصائية الزيارات');
+}
+
+/* ==================== المراكز التي لم تتم زيارتها + حصر المقاصف ====================
+   المصدر: ورقة «أرقام المديرات» (كل مركز بفترته). «حصر المقاصف» يُحفظ في ورقة بالاسم نفسه. */
+let csSaved_ = null;        // آخر حصر محفوظ من الخادم
+let csItems_ = [];          // الحصر المعروض حاليًا (مع التعديلات)
+let csDirty_ = false;
+let vsUnvReady_ = false;
+
+/* اسم المركز بدون كلمة الفترة (الصباحية/المسائية) للمقارنة */
+function vsBase_(s) {
+  return vsNorm_(s).replace(/(^|\s)(ال)?(صباحيه|صباحي|مسائيه|مسائي)(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function csPeriodOf_(d) {
+  if (d.evening) return 'مسائية';
+  return d.period ? 'صباحية' : '';
+}
+
+function csKey_(center, period) {
+  return vsBase_(center) + '|' + (period || '');
+}
+
+function loadCsSaved_(force) {
+  if (csSaved_ && !force) return Promise.resolve(csSaved_);
+  return callApi('getCanteenSurvey').then(function (r) {
+    if (!r || !r.ok) throw new Error((r && r.error) || 'تعذّر تحميل حصر المقاصف');
+    csSaved_ = r.items || [];
+    return csSaved_;
+  });
+}
+
+/* يبني قائمة الحصر: كل مركز+فترة من أرقام المديرات، مع ما حُفظ سابقًا */
+function csBuildItems_(directors, saved) {
+  const savedMap = {};
+  (saved || []).forEach(function (it) { savedMap[csKey_(it.center, it.period)] = it; });
+  const out = [], seen = {};
+  (directors || []).forEach(function (d) {
+    const period = csPeriodOf_(d);
+    const k = csKey_(d.center, period);
+    if (seen[k]) return;
+    seen[k] = 1;
+    const sv = savedMap[k];
+    out.push({ center: d.center, period: period, has: sv ? sv.has : true, notes: sv ? (sv.notes || '') : '' });
+  });
+  // مراكز محفوظة سابقًا ولم تعد في ورقة المديرات: تبقى ظاهرة حتى لا يضيع ما سُجّل
+  (saved || []).forEach(function (it) {
+    const k = csKey_(it.center, it.period);
+    if (seen[k]) return;
+    seen[k] = 1;
+    out.push({ center: it.center, period: it.period || '', has: it.has, notes: it.notes || '' });
+  });
+  out.sort(function (a, b) { return a.center.localeCompare(b.center, 'ar') || a.period.localeCompare(b.period, 'ar'); });
+  return out;
+}
+
+/* ---------- المراكز التي لم تتم زيارتها ---------- */
+function vsLoadUnvisitedDeps_() {
+  const box = document.getElementById('vsUnvisited');
+  vsUnvReady_ = false;
+  box.innerHTML = 'جارِ التحميل...';
+  Promise.all([loadVrDirectors_(), loadCsSaved_(true).catch(function () { return []; })]).then(function (res) {
+    if (!vrDirectors_) { box.innerHTML = '<div style="color:#8a7d76;">تعذّر تحميل قائمة المديرات (تحتاج كلمة مرور الإدارة).</div>'; return; }
+    vsUnvReady_ = true;
+    renderUnvisited_();
+  });
+}
+
+function vsUnvisitedList_() {
+  const noCanteen = {};
+  (csSaved_ || []).forEach(function (it) { if (!it.has) noCanteen[csKey_(it.center, it.period)] = 1; });
+  const visited = {};
+  vsVisits_.forEach(function (v) {
+    const b = vsBase_(v.center);
+    visited[b + '|' + v.period] = 1;
+    visited[b + '|'] = 1;   // أي فترة (للمراكز التي لم تُحدَّد فترتها في ورقة المديرات)
+  });
+  return csBuildItems_(vrDirectors_, []).filter(function (it) {
+    if (noCanteen[csKey_(it.center, it.period)]) return false;
+    return !visited[csKey_(it.center, it.period)];
+  });
+}
+
+function renderUnvisited_() {
+  const box = document.getElementById('vsUnvisited');
+  if (!box || !vsUnvReady_) return;
+  const list = vsUnvisitedList_();
+  if (!vrDirectors_.length) { box.innerHTML = '<div style="color:#8a7d76;">ورقة «أرقام المديرات» فارغة.</div>'; return; }
+  if (!list.length) { box.innerHTML = '<div class="vs-unv-ok">✅ تمت زيارة جميع المراكز.</div>'; return; }
+  box.innerHTML = '<div class="vs-total">عدد المراكز التي لم تتم زيارتها: <b>' + vsAr_(list.length) + '</b></div>' +
+    list.map(function (it, i) {
+      return '<div class="vs-unv-row"><span>' + vsAr_(i + 1) + '. <b>' + vsEsc_(it.center) + '</b>' +
+        (it.period ? ' — ' + vsEsc_(it.period) : '') + '</span><span class="vs-unv-tag">لم تتم الزيارة</span></div>';
+    }).join('');
+}
+
+function exportUnvisited() {
+  if (!vsUnvReady_) { alert('القائمة لم تُحمَّل بعد'); return; }
+  const list = vsUnvisitedList_();
+  if (!list.length) { alert('لا توجد مراكز لم تتم زيارتها'); return; }
+  exportToExcel(list.map(function (it, i) {
+    return { 'م': i + 1, 'المركز': it.center, 'الفترة': it.period, 'الحالة': 'لم تتم الزيارة' };
+  }), 'المراكز-التي-لم-تتم-زيارتها', 'لم تتم زيارتها');
+}
+
+/* ---------- حصر المقاصف ---------- */
+function loadCanteenSurvey() {
+  const box = document.getElementById('csList');
+  if (csDirty_ && csItems_.length) { renderCanteenSurvey_(); return; }   // لا نمسح تعديلات لم تُحفظ
+  box.innerHTML = 'جارِ التحميل...';
+  document.getElementById('csSummary').textContent = '';
+  Promise.all([loadVrDirectors_(), loadCsSaved_(true)]).then(function (res) {
+    if (!vrDirectors_ && !(csSaved_ || []).length) {
+      box.innerHTML = '<div style="color:#8a7d76;">تعذّر تحميل قائمة المراكز (تحتاج كلمة مرور الإدارة).</div>';
+      return;
+    }
+    csItems_ = csBuildItems_(vrDirectors_ || [], csSaved_);
+    csSetDirty_(false);
+    renderCanteenSurvey_();
+  }).catch(function (e) {
+    box.innerHTML = '<div style="color:#8a7d76;">' + vsEsc_(e && e.message ? e.message : 'تعذّر الاتصال بالخادم.') + '</div>';
+  });
+}
+
+function csSetDirty_(v) {
+  csDirty_ = v;
+  document.getElementById('csDirty').classList.toggle('hidden', !v);
+}
+
+function renderCanteenSurvey_() {
+  const box = document.getElementById('csList');
+  const total = csItems_.length;
+  const none = csItems_.filter(function (it) { return !it.has; }).length;
+  document.getElementById('csSummary').innerHTML = total
+    ? 'إجمالي المراكز: <b>' + vsAr_(total) + '</b> · بها مقصف: <b>' + vsAr_(total - none) + '</b> · لا يوجد بها مقصف: <b>' + vsAr_(none) + '</b>'
+    : '';
+  if (!total) { box.innerHTML = '<div style="color:#8a7d76;">لا توجد مراكز في ورقة «أرقام المديرات».</div>'; return; }
+  const q = vsNorm_(document.getElementById('csSearch').value);
+  let h = '';
+  csItems_.forEach(function (it, i) {
+    if (q && vsNorm_(it.center).indexOf(q) === -1) return;
+    const showNote = !it.has || it._open || it.notes;
+    h += '<div class="cs-row' + (it.has ? '' : ' no') + '">' +
+      '<div class="cs-head">' +
+        '<button type="button" class="cs-tick" onclick="csToggle_(' + i + ')" title="' + (it.has ? 'يوجد مقصف — اضغطي للإزالة' : 'لا يوجد مقصف — اضغطي لإعادة العلامة') + '">✓</button>' +
+        '<span class="cs-name">' + vsEsc_(it.center) + (it.period ? '<small>(' + vsEsc_(it.period) + ')</small>' : '') + '</span>' +
+        '<button type="button" class="cs-note-btn' + (it.notes ? ' has' : '') + '" onclick="csToggleNote_(' + i + ')" title="ملاحظات">📝</button>' +
+      '</div>' +
+      (it.has ? '' : '<div class="cs-none">لا يوجد مقصف بها</div>') +
+      (showNote ? '<textarea id="csNote_' + i + '" placeholder="' + (it.has ? 'ملاحظات' : 'اكتبي السبب...') + '" oninput="csNote_(' + i + ', this.value)">' + vsEsc_(it.notes) + '</textarea>' : '') +
+    '</div>';
+  });
+  box.innerHTML = h || '<div style="color:#8a7d76;">لا يوجد مركز بهذا الاسم.</div>';
+}
+
+function csToggle_(i) {
+  const it = csItems_[i];
+  it.has = !it.has;
+  csSetDirty_(true);
+  renderCanteenSurvey_();
+  if (!it.has) { const t = document.getElementById('csNote_' + i); if (t && !t.value) t.focus(); }
+}
+
+function csToggleNote_(i) {
+  const it = csItems_[i];
+  it._open = !it._open;
+  renderCanteenSurvey_();
+  const t = document.getElementById('csNote_' + i);
+  if (t) t.focus();
+}
+
+function csNote_(i, v) {
+  csItems_[i].notes = v;
+  csSetDirty_(true);
+}
+
+function saveCanteenSurvey() {
+  if (!csItems_.length) { alert('لا توجد مراكز للحفظ'); return; }
+  const btn = document.getElementById('csSaveBtn');
+  const msg = document.getElementById('csSuccess');
+  msg.style.display = 'none';
+  setBtnBusy(btn, true);
+  callApi('saveCanteenSurvey', {
+    items: csItems_.map(function (it) { return { center: it.center, period: it.period, has: !!it.has, notes: String(it.notes || '').trim() }; })
+  }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) { alert('تعذّر الحفظ' + (r && r.error ? ': ' + r.error : '')); return; }
+    csSaved_ = csItems_.map(function (it) { return { center: it.center, period: it.period, has: !!it.has, notes: String(it.notes || '').trim() }; });
+    csSetDirty_(false);
+    msg.textContent = 'تم حفظ الحصر ✅';
+    msg.style.display = 'block';
+  }).catch(function () {
+    setBtnBusy(btn, false);
+    alert('تعذّر الاتصال بالخادم، حاولي مرة أخرى.');
+  });
+}
+
+function exportCanteenSurvey() {
+  if (!csItems_.length) { alert('لا توجد بيانات للتصدير'); return; }
+  exportToExcel(csItems_.map(function (it, i) {
+    return { 'م': i + 1, 'المركز': it.center, 'الفترة': it.period, 'يوجد مقصف': it.has ? 'نعم ✔' : 'لا يوجد مقصف بها', 'الملاحظات': it.notes || '' };
+  }), 'حصر-المقاصف', 'حصر المقاصف');
 }
 
 /* ==================== إحصائيات التسجيل ==================== */
