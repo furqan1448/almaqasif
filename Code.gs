@@ -1,3365 +1,4687 @@
-/**
- * نظام وحدة المقاصف - جمعية فرقان لتحفيظ القرآن الكريم
- * الكود الخلفي (Google Apps Script)
- *
- * طريقة التركيب:
- * 1) افتحي Google Sheet جديد فاضي (أو استخدمي شيتك الحالي).
- * 2) من القائمة: Extensions > Apps Script
- * 3) احذفي أي كود موجود، والصقي هذا الكود كامل.
- * 4) عدّلي القيمة ADMIN_NOTIFY_EMAIL أدناه ببريدك الإلكتروني.
- * 5) شغلي دالة setup() مرة وحدة من القائمة أعلى المحرر (لإنشاء الشيتات والأعمدة الناقصة تلقائياً).
- * 6) Deploy > Manage deployments > ✏️ تعديل > New version > Deploy
- *    (أو New deployment لو أول مرة، وبعدها حطي الرابط بملف config.js)
- */
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إدارة وحدة المقاصف</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap"></noscript>
+<link rel="stylesheet" href="style.css">
+<style id="gradesStyles">
+/* درجات المسؤولات */
+.grade-hint { color:#8a7d76; font-size:0.88rem; margin:0 0 4px; }
+.grade-legend { font-size:0.8rem; color:#8a7d76; margin-top:10px; line-height:1.9; }
+.grade-toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.grade-toolbar button { flex:1; min-width:120px; margin:0; }
+.grade-summary { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+.grade-summary > div { flex:1; min-width:110px; background:var(--cream); border:1px solid var(--gold-light); border-radius:12px; padding:10px 8px; text-align:center; }
+.grade-summary .v { font-family:'Amiri',serif; font-size:1.5rem; font-weight:700; color:var(--maroon); line-height:1.2; }
+.grade-summary .l { font-size:0.75rem; color:#8a7d76; margin-top:2px; }
+.grade-card { background:#fff; border:1px solid var(--gold-light); border-radius:14px; padding:12px 14px; margin-top:12px; box-shadow:var(--shadow); }
+.grade-head { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.grade-name { font-weight:800; color:var(--maroon-dark); }
+.grade-meta { font-size:0.8rem; color:#8a7d76; margin-top:2px; }
+.grade-score { font-family:'Amiri',serif; font-size:1.8rem; font-weight:700; color:var(--success); line-height:1; white-space:nowrap; }
+.grade-score small { font-family:'Tajawal',sans-serif; font-size:0.85rem; color:#8a7d76; font-weight:500; }
+.grade-score.part { color:var(--pending); }
+.grade-chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.grade-chip { font-family:inherit; font-size:0.82rem; font-weight:700; border-radius:999px; padding:7px 12px; cursor:pointer; border:1.5px solid var(--success); background:#e2f4e9; color:var(--success); }
+.grade-chip small { font-weight:500; opacity:0.85; margin-right:4px; }
+.grade-chip.miss { border-color:#b3261e; background:#fdeceb; color:#b3261e; }
+.grade-foot { margin-top:8px; font-size:0.83rem; font-weight:700; }
+.grade-foot .ok { color:var(--success); }
+.grade-foot .miss { color:#b3261e; }
+.grade-foot .unsaved { color:#8a7d76; font-weight:500; font-size:0.75rem; margin-right:8px; }
+</style>
+<style id="canteenSurveyStyles">
+.vs-unv-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 4px; border-bottom: 1px dashed var(--gold-light); font-size: 0.88rem; }
+.vs-unv-row:last-child { border-bottom: none; }
+.vs-unv-row b { color: var(--maroon-dark); }
+.vs-unv-tag { flex: none; font-size: 0.75rem; font-weight: 700; border-radius: 999px; padding: 2px 10px; background: #fbeef0; color: #8a1f2b; }
+.vs-unv-ok { padding: 10px 12px; border-radius: 10px; background: #eaf6ee; border: 1px solid #b9dfc6; color: #1f6b3a; font-size: 0.9rem; }
+.cs-row { border: 1px solid var(--gold-light); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; background: #fff; }
+.cs-row.no { background: #fbf6f6; border-color: #e9c3c8; }
+.cs-head { display: flex; align-items: center; gap: 10px; }
+.cs-tick { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 2px solid #2e8b57; background: #2e8b57; color: #fff; font-size: 1.1rem; font-weight: 900; cursor: pointer; display: grid; place-items: center; padding: 0; }
+.cs-row.no .cs-tick { background: #fff; border-color: #c9b9b9; color: transparent; }
+.cs-name { flex: 1; min-width: 0; font-weight: 700; color: var(--maroon-dark); font-size: 0.92rem; }
+.cs-name small { font-weight: 500; color: #8a7d76; margin-right: 4px; }
+.cs-note-btn { flex: none; background: none; border: 1px solid var(--gold-light); border-radius: 8px; padding: 4px 9px; cursor: pointer; font-size: 0.95rem; }
+.cs-note-btn.has { background: #fbf3df; border-color: #d9b766; }
+.cs-none { margin-top: 8px; color: #b3261e; font-weight: 700; font-size: 0.86rem; }
+.cs-row textarea { margin-top: 8px; width: 100%; min-height: 60px; box-sizing: border-box; }
+.cs-dirty { margin: 8px 0; color: #9a6b00; font-size: 0.82rem; font-weight: 700; }
+</style>
+<style>
+.collapse-card > summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;color:var(--maroon);font-weight:bold;font-size:1.17em;}
+.collapse-card > summary::-webkit-details-marker{display:none;}
+.collapse-card > summary::after{content:'▾';font-size:1rem;transition:transform .2s;}
+.collapse-card[open] > summary::after{transform:rotate(180deg);}
+.collapse-card[open] > summary{margin-bottom:12px;}
+.collapse-card .collapse-count{font-size:0.8rem;font-weight:normal;background:var(--cream,#f6efe6);color:var(--maroon);padding:2px 10px;border-radius:999px;}
+.collapse-card .collapse-count:empty{display:none;}
+.collapse-card > summary > span:first-child{flex:1;}
+</style>
+</head>
+<body>
 
-const FOLDER_NAME = 'مرفقات نظام المقاصف';
+<!-- ===================== شاشة الدخول ===================== -->
+<div id="loginScreen" class="center-wrap">
+  <div class="login-card">
+    <h1>دخول إدارة وحدة المقاصف</h1>
+    <p class="sub">جمعية فرقان لتحفيظ القرآن الكريم</p>
 
-// ⚠️ حطي بريدك الإلكتروني هنا عشان تستلمي إشعار كل ما مركز يرسل إشعار استلام أو تسليم
-const ADMIN_NOTIFY_EMAIL = 'fainal.almqasif@gmail.com';
+    <label>كلمة مرور الإدارة</label>
+    <div class="pw-wrap">
+      <input type="password" id="adminPassword" placeholder="أدخلي كلمة المرور">
+      <button type="button" class="pw-toggle" onclick="togglePassword('adminPassword', this)" aria-label="إظهار كلمة المرور"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </div>
 
-// بريد استلام «طلبات المقاصف» (النموذج اللي ترسله المديرة/المسؤولة من أيقونة «طلبات المقاصف»)
-const ORDERS_NOTIFY_EMAIL = 'almuqasif1212@gmail.com';
-const ORDERS_SHEET_NAME_ = 'طلبات المقاصف';
-const ORDERS_HEADERS_ = ['معرف', 'اسم المركز', 'الفترة', 'الفصل الدراسي', 'العام', 'مسؤولة المقصف', 'مديرة المركز',
-  'عدد الأصناف', 'تفاصيل الطلب', 'ملاحظات', 'سجّل بواسطة', 'اليوم', 'التاريخ', 'الوقت'];
+    <button class="btn" id="loginBtn" onclick="doLogin()">دخول</button>
+    <div class="error-msg" id="loginError"></div>
+    <p style="font-size:0.78rem;color:#8a7d76;margin-top:14px;">
+      * لتغيير كلمة مرور الإدارة: من محرر Apps Script ← ⚙️ Project Settings ← Script Properties
+    </p>
+  </div>
+  <a href="index.html" class="back-link" style="display:block;text-align:center;margin-top:16px;">⟵ الرجوع للصفحة الرئيسية</a>
+</div>
 
-// الأعمدة اللي المفروض دايماً تُحفظ وتُقرأ كنص خام (وليست تاريخ/وقت تلقائي من قوقل شيتس)
-// عشان نتفادى مشكلة "الأصفار الزايدة" (مثل 1899-12-30 أو 00:00:00.000Z) اللي تصير
-// لما قوقل شيتس يحوّل نص التاريخ/الوقت تلقائياً إلى كائن Date داخلي.
-const TEXT_COLUMNS_ = ['اليوم', 'التاريخ', 'الوقت', 'تاريخ الإرسال', 'يوم الإرسال', 'وقت الإرسال',
-  'يوم اطلاع الإدارة', 'تاريخ اطلاع الإدارة', 'وقت اطلاع الإدارة', 'تاريخ توقيع الإدارة',
-  'رقم الفاتورة', 'العام', 'وقت التسجيل الفعلي', 'التاريخ الهجري', 'مفتاح التاريخ', 'يوم الاجتماع', 'تاريخ الاجتماع الهجري', 'رقم الاجتماع'];
+<!-- ===================== اللوحة ===================== -->
+<div id="dashScreen" class="hidden">
+  <div class="topbar">
+    <div class="brand"><span class="dot" id="brandDot"></span><img class="logo-img hidden" id="brandLogo" alt="شعار فرقان"> إدارة وحدة المقاصف</div>
+    <button class="logout" onclick="logout()">خروج</button>
+  </div>
 
-function setup() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  <div id="adminHomeView">
+    <div class="wrap">
+      <h2 style="color:var(--maroon);margin-top:14px;">الرئيسية</h2>
+      <div class="icon-grid">
+        <div class="icon-btn" onclick="showAdminTab('priceListTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12.5 12 21l-8.5-8.5V5A2 2 0 0 1 5.5 3h7z"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></div>
+          <span class="label">قائمة الأسعار</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('salesTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.3 15c0 1.1 1.2 2 2.7 2s2.7-.7 2.7-1.8-1.2-1.7-2.7-2-2.7-.9-2.7-2S10.5 9.5 12 9.5s2.5.6 2.7 1.5"/></svg></div>
+          <span class="label">المبيعات</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('invoicesTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10v18l-2.5-1.6L12 21l-2.5-1.6L7 21z"/><path d="M9.5 8h5M9.5 11.5h5"/></svg></div>
+          <span class="label">الفواتير</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('noticesTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="1.5"/><path d="M4 9.5h16M8 3v3.5M16 3v3.5"/></svg></div>
+          <span class="label">الإشعارات</span>
+          <div class="badge hidden" id="adminPendingBadge">0</div>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('returnsTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8 5 12l4 4"/><path d="M5 12h9a5 5 0 0 1 5 5v1"/></svg></div>
+          <span class="label">المرتجعات</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('attendanceTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h2M4 12h2M4 18h2"/><path d="M9 6h11M9 12h11M9 18h11"/></svg></div>
+          <span class="label">الحضور</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('statsTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="12" width="4" height="8"/><rect x="10" y="7" width="4" height="13"/><rect x="16" y="3" width="4" height="17"/></svg></div>
+          <span class="label">الإحصائيات</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('regStatsTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 3.5h6v2H9z"/><path d="M8.5 16.5v-2.5M12 16.5v-5M15.5 16.5v-3.5"/></svg></div>
+          <span class="label">إحصائيات التسجيل</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('announcementsTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 8.5a4 4 0 0 1 0 7"/><path d="M18 6a8 8 0 0 1 0 12"/></svg></div>
+          <span class="label">إشعارات هامة</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('attachmentsTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12l4.5-4.5a3 3 0 1 1 4.2 4.2L9.5 19a5 5 0 1 1-7-7l7-7"/></svg></div>
+          <span class="label">المرفقات</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('difficultiesTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 3 20h18z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg></div>
+          <span class="label">الصعوبات والمقترحات</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('termTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8.5 14.5l2 2 4-4"/></svg></div>
+          <span class="label">أرشفة الفصل السابق</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('pledgesTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l3.5-1 10-10a1.5 1.5 0 0 0-3-3l-10 10z"/><path d="M13 8l3 3"/></svg></div>
+          <span class="label">متابعة التعهدات</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('tasksStatusTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 3.5h6v2H9z"/><path d="M8.5 11.5h7M8.5 15h7"/></svg></div>
+          <span class="label">متابعة اطلاع المهام</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('incomeTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M7 7.5c0-1.5 1.8-2.5 5-2.5s5 1 5 2.5-1.8 2.5-5 2.5-5 1-5 2.5 1.8 2.5 5 2.5 5 1 5 2.5-1.8 2.5-5 2.5-5-1-5-2.5"/></svg></div>
+          <span class="label">قائمة الدخل</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('visitReportTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h4"/></svg></div>
+          <span class="label">تقرير الزيارة</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('visitStatsTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><path d="M9.5 10.5l1.8 1.8 3.4-3.6"/></svg></div>
+          <span class="label">إحصائية الزيارات</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('canteenSurveyTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5L5.5 4h13L20 9.5"/><path d="M4 9.5h16v1a2.7 2.7 0 0 1-5.3 0 2.7 2.7 0 0 1-5.4 0 2.7 2.7 0 0 1-5.3 0z"/><path d="M5.5 13v7h13v-7"/><path d="M9.5 16.5l1.8 1.8 3.4-3.6"/></svg></div>
+          <span class="label">حصر المقاصف</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('cardsAdminTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="7.5" cy="14" r="1"/></svg></div>
+          <span class="label">بطاقات التحفيز</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('gradesTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 3.5h6v2H9z"/><path d="M9 13.5l2 2 4-4.5"/></svg></div>
+          <span class="label">درجات المسؤولات</span>
+        </div>
+        <div class="icon-btn" onclick="showAdminTab('meetingMinutesTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v2M16 3v2"/><rect x="4" y="4.5" width="16" height="16" rx="1.5"/><path d="M4 9.5h16"/><path d="M8.5 13.5l2 2 4-4.5"/><path d="M8.5 17.5h4"/></svg></div>
+          <span class="label">محضر اجتماع</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
-  const sheets = {
-    'المسؤولات': ['الاسم', 'البريد الإلكتروني', 'كلمة المرور', 'اسم المركز'],
-    'الحضور': ['الاسم', 'اليوم', 'التاريخ', 'الوقت'],
-    'التعهد': ['الاسم', 'نص التعهد', 'اليوم', 'التاريخ', 'الوقت', 'الحالة'],
-    'المهام': ['الاسم', 'البريد الإلكتروني', 'نص المهام', 'اليوم', 'التاريخ', 'الوقت', 'الحالة'],
-    'المراكز': ['اسم المركز', 'كلمة المرور', 'وضع العرض فقط', 'الاسم المعروض'],
-    'المبيعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'الوقت', 'المبلغ', 'ملاحظات', 'الفصل الدراسي', 'وقت التسجيل الفعلي'],
-    'المرتجعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'وصف الصنف', 'الكمية', 'القيمة', 'ملاحظات', 'الفصل الدراسي'],
-    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'مصدر الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح', 'ملاحظات', 'الفصل الدراسي', 'نوع القيد', 'نوع الرجيع', 'رجيع رأس المال', 'رجيع الربح', 'رجيع للإثبات', 'كمية الرجيع', 'المرتجعات', 'تفاصيل الرجيع'],
-    'الإشعارات': ['معرف', 'النوع', 'اسم المركز', 'يوم الإرسال', 'تاريخ الإرسال', 'وقت الإرسال',
-      'اسم المسلّمة', 'المبلغ', 'الشهر', 'الفصل الدراسي', 'العام', 'بيان مخصص',
-      'رابط توقيع المركز', 'رابط صورة الإشعار', 'الحالة',
-      'رابط توقيع الإدارة', 'رابط صورة الإشعار الموقع',
-      'يوم اطلاع الإدارة', 'تاريخ اطلاع الإدارة', 'وقت اطلاع الإدارة',
-      'اسم المستلمة', 'بيانات توقيع المركز', 'فصل الأرشفة'],
-    'المرفقات': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'المالك', 'اليوم', 'التاريخ', 'الوقت'],
-    'مرفقات الإشراف': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
-    'الإعلانات الهامة': ['معرف', 'النص', 'استهداف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
-    // محاضر الاجتماعات: كل الحقول التي تُطبع بالمحضر + استهداف (زي الإعلانات الهامة) يحدد مين يشوفه بالمراكز/المسؤولات
-    'محاضر الاجتماعات': ['معرف', 'رقم الاجتماع', 'يوم الاجتماع', 'تاريخ الاجتماع الهجري', 'طريقة الانعقاد',
-      'نقاط الاجتماع', 'المشاركات', 'الروابط',
-      'اسم الرئيسة', 'توقيع الرئيسة', 'حجم توقيع الرئيسة',
-      'اسم المساعدة', 'توقيع المساعدة', 'حجم توقيع المساعدة',
-      'استهداف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
-    'قائمة الأسعار': ['معرف', 'التصنيف', 'اسم الصنف', 'السعر', 'ترتيب'],
-    'الإعدادات': ['المفتاح', 'القيمة'],
-    'دخول الإشراف': ['البريد الإلكتروني', 'كلمة المرور', 'الاسم'],
-    'الصعوبات والمقترحات': ['معرف', 'اسم المركز', 'من', 'النوع', 'النص', 'اليوم', 'التاريخ', 'الوقت'],
-    'قائمة الدخل': ['معرف', 'البند', 'البيان', 'المبلغ', 'المبلغ كتابة', 'اليوم', 'التاريخ', 'الفصل الدراسي', 'رابط المرفق', 'اسم المرفق'],
-    // بطاقات التحفيز: سجلّين منفصلين بنفس الشيت (نوع السجل: تسليم / استلام)، كل سطر بطاقة موقّعة
-    // (رسم أو صورة) من الشخص المستلم وقتها. بدون أرشفة تلقائية عشان الحقوق تفضل واضحة
-    'بطاقات التحفيز': ['معرف', 'اسم المركز', 'الدور', 'نوع السجل', 'نوع البطاقة', 'القيمة', 'الكمية',
-      'اسم المستلمة', 'التوقيع', 'اليوم', 'التاريخ', 'الوقت', 'ملاحظات', 'سجّل بواسطة'],
-    // متابعة بطاقات التحفيز: توزيع الكمية الواحدة (من سطر "تسليم") على أكثر من مستفيدة -
-    // كل سطر هنا = جزء من الكمية الأصلية باسم مستفيدة معيّنة وحالتها، ومجموعها ما يتجاوز
-    // الكمية المسجّلة بسطر التسليم الأصلي (يُتحقق منه بـ addIncentiveFollowupSplit_)
-    'متابعة بطاقات التحفيز': ['معرف', 'معرف السطر الأصلي', 'اسم المركز', 'اسم المستفيدة', 'العدد',
-      'الحالة', 'اليوم', 'التاريخ'],
-    // درجات المسؤولات: تقييم نهاية الفصل من 13 (يدوي من لوحة الإدارة) - صف لكل (فصل + مسؤولة)
-    'درجات المسؤولات': GRADES_HEADERS_,
-    // اعتماد اكتمال التسجيل: صح يدوي من الإدارة لكل مركز (للفصل الحالي - يتفرّغ عند الأرشفة)
-    'اعتماد التسجيل': REG_VERIFY_HEADERS_,
-    // إحصائية الزيارات: كل سطر زيارة وحدة (المركز + الفترة + التاريخ الهجري)
-    'إحصائية الزيارات': VISIT_STATS_HEADERS_,
-    // طلبات المقاصف: كل سطر طلب واحد (بنوده مكتوبة نصاً بعمود «تفاصيل الطلب»)
-    'طلبات المقاصف': ORDERS_HEADERS_
-  };
+  <a class="back-link hidden" id="adminBackLink" onclick="showAdminTab()" style="display:block;max-width:720px;margin:14px auto 0;padding:0 18px;">⟵ الرئيسية</a>
 
-  Object.keys(sheets).forEach(function (name) {
-    let sh = ss.getSheetByName(name);
-    if (!sh) sh = ss.insertSheet(name);
-    if (sh.getLastRow() === 0) {
-      sh.appendRow(sheets[name]);
-      sh.getRange(1, 1, 1, sheets[name].length).setFontWeight('bold');
-      sh.setRightToLeft(true);
-    } else {
-      // إذا كان الشيت موجود من قبل بأعمدة أقل (تحديث نظام قديم)، نضيف الأعمدة الناقصة بآخر الصف.
-      // نتجاهل المسافات الزائدة بالمقارنة (نفس سبب مشكلة "اليوم ما ينكتب") حتى ما ينضاف
-      // عمود مكرر لو كان الموجود مسبقاً فيه مسافة خفية بالاسم.
-      const existingHeaders = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (h) { return String(h).trim(); });
-      sheets[name].forEach(function (col) {
-        if (existingHeaders.indexOf(col) === -1) {
-          sh.getRange(1, sh.getLastColumn() + 1).setValue(col).setFontWeight('bold');
-          existingHeaders.push(col); // نحدّث القائمة بالذاكرة عشان ما نضيف نفس العمود مرتين بهذي التشغيلة
-        }
-      });
-    }
+  <div class="wrap">
 
-    // نجبر أعمدة التاريخ/الوقت على تنسيق "نص عادي" حتى لا يحوّلها قوقل شيتس
-    // تلقائياً إلى كائن Date (وهذا هو مصدر "الأصفار الزايدة")
-    const headersNow = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
-    headersNow.forEach(function (h, idx) {
-      if (TEXT_COLUMNS_.indexOf(h) !== -1) {
-        sh.getRange(2, idx + 1, Math.max(sh.getMaxRows() - 1, 1), 1).setNumberFormat('@');
-      }
-    });
-  });
+    <!-- ===== تبويب: الإشعارات ===== -->
+    <div id="noticesTab" class="admin-tab-panel hidden">
+      <div class="card" id="alertCard" style="display:none;border-right:5px solid var(--pending);">
+        <strong style="color:var(--pending);">يوجد <span id="alertCount">0</span> إشعار بانتظار الاطلاع</strong>
+      </div>
 
-  // شيت مثال - عدليه بأسماء المراكز الحقيقية وكلمات المرور
-  const centersSheet = ss.getSheetByName('المراكز');
-  if (centersSheet.getLastRow() === 1) {
-    centersSheet.appendRow(['مركز تحفيظ 1', '1234']);
-    centersSheet.appendRow(['مركز تحفيظ 2', '5678']);
+      <div id="listView">
+        <div class="card">
+          <div class="select-row">
+            <div>
+              <label>نوع الإشعار</label>
+              <select id="noticeTypeFilter" onchange="renderNoticeLists()">
+                <option value="">الكل (استلام وتسليم)</option>
+                <option value="استلام">استلام</option>
+                <option value="تسليم">تسليم</option>
+              </select>
+            </div>
+            <div>
+              <label>المركز</label>
+              <select id="noticeCenterFilter" onchange="renderNoticeLists()"><option value="">كل المراكز</option></select>
+            </div>
+            <div>
+              <label>الفصل الدراسي</label>
+              <select id="noticesTermFilter" class="term-filter-select" onchange="loadPending()">
+                <option value="current">الفصل الحالي</option>
+              </select>
+            </div>
+          </div>
+          <div class="export-row" style="margin-top:12px;">
+            <button class="btn outline" onclick="exportAdminNoticesExcel()">⬇️ تحميل Excel (مع إجمالي المبالغ)</button>
+            <button class="btn outline" onclick="exportAdminNoticesGoogleSheet(this)">📊 تحديث وفتح شيت الإشعارات (Google Sheets)</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--maroon);">إشعارات بانتظار الاطلاع</h3>
+          <div id="pendingList">جاري التحميل...</div>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--maroon);">إشعارات تم الاطلاع عليها</h3>
+          <div id="doneList">جاري التحميل...</div>
+        </div>
+      </div>
+
+      <div id="detailView" class="hidden">
+        <a class="back-link" onclick="backToList()">⟵ رجوع للقائمة</a>
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--maroon);">معاينة الإشعار المستلم من المركز</h3>
+          <img id="detailNoticeImg" class="notice-preview">
+        </div>
+
+        <div class="card" id="signCard">
+          <h3 style="margin-top:0;color:var(--maroon);">توقيع الاطلاع</h3>
+          <label>اسم المستلمة</label>
+          <input type="text" id="receiverName" placeholder="اكتبي اسمك">
+          <div class="sig-mode-toggle">
+            <button type="button" class="sig-mode-btn active" data-sigtoggle="adminSigPad" data-mode="draw" onclick="setSigMode('adminSigPad','draw')">رسم التوقيع</button>
+            <button type="button" class="sig-mode-btn" data-sigtoggle="adminSigPad" data-mode="upload" onclick="setSigMode('adminSigPad','upload')">رفع صورة توقيع</button>
+          </div>
+          <div class="sig-wrap" id="adminSigPad_drawWrap"><canvas id="adminSigPad" class="sig-pad"></canvas></div>
+          <div class="sig-upload-wrap hidden" id="adminSigPad_uploadWrap">
+            <input type="file" accept="image/*" id="adminSigPad_file">
+            <img id="adminSigPad_preview" class="sig-upload-preview hidden">
+          </div>
+          <div class="sig-actions"><button onclick="clearAdminSig()">مسح التوقيع</button></div>
+          <button class="btn" onclick="signAndSend()" style="margin-top:18px;">تم الاطلاع - إرسال للمركز</button>
+          <div class="error-msg" id="adminError"></div>
+        </div>
+
+        <div class="card hidden" id="alreadySignedCard">
+          <div class="success-msg" style="display:block;">تم الاطلاع على هذا الإشعار</div>
+          <img id="signedNoticeImg" class="notice-preview">
+          <button class="btn outline" onclick="openEditSigned()" style="margin-top:14px;">✏️ تعديل الإشعار</button>
+        </div>
+
+        <div class="card hidden" id="editSignedCard">
+          <h3 style="margin-top:0;color:var(--maroon);">تعديل الإشعار بعد توقيعه</h3>
+          <p style="font-size:0.82rem;color:#8a7d76;margin-top:0;">عدّلي اللي تبينه واضغطي حفظ، وتنرسم صورة الإشعار من جديد بالبيانات المعدّلة (مع توقيع المركز وتوقيعك).</p>
+          <div class="select-row">
+            <div>
+              <label>المركز</label>
+              <select id="esCenter"></select>
+            </div>
+            <div>
+              <label>تاريخ الإرسال</label>
+              <input type="date" id="esDate" onchange="esDateChanged()">
+            </div>
+          </div>
+          <label>يوم الإرسال</label>
+          <select id="esDay">
+            <option>الأحد</option><option>الاثنين</option><option>الثلاثاء</option><option>الأربعاء</option><option>الخميس</option><option>الجمعة</option><option>السبت</option>
+          </select>
+          <div class="select-row">
+            <div>
+              <label>نوع الإشعار</label>
+              <select id="esType"><option value="استلام">استلام</option><option value="تسليم">تسليم</option></select>
+            </div>
+            <div>
+              <label>المبلغ (ريال)</label>
+              <input type="number" id="esAmount" min="0" step="0.01">
+            </div>
+          </div>
+          <div class="select-row">
+            <div><label>اسم المسلّمة</label><input type="text" id="esSender"></div>
+            <div><label>اسم المستلمة</label><input type="text" id="esReceiver"></div>
+          </div>
+          <label>الأشهر (افصلي بينها بفاصلة، مثال: محرم، صفر)</label>
+          <input type="text" id="esMonths">
+          <div class="select-row">
+            <div><label>الفصل الدراسي</label><input type="text" id="esTerm"></div>
+            <div><label>العام</label><input type="text" id="esYear"></div>
+          </div>
+          <label>بيان مخصص (اتركيه فاضي للبيان التلقائي)</label>
+          <textarea id="esReason" rows="2"></textarea>
+
+          <label style="margin-top:12px;">توقيعك (الاطلاع)</label>
+          <p id="esSigHint" style="font-size:0.8rem;color:#8a7d76;margin:2px 0 6px;"></p>
+          <div class="sig-mode-toggle">
+            <button type="button" class="sig-mode-btn active" data-sigtoggle="editSigPad" data-mode="draw" onclick="setSigMode('editSigPad','draw')">رسم التوقيع</button>
+            <button type="button" class="sig-mode-btn" data-sigtoggle="editSigPad" data-mode="upload" onclick="setSigMode('editSigPad','upload')">رفع صورة توقيع</button>
+          </div>
+          <div class="sig-wrap" id="editSigPad_drawWrap"><canvas id="editSigPad" class="sig-pad"></canvas></div>
+          <div class="sig-upload-wrap hidden" id="editSigPad_uploadWrap">
+            <input type="file" accept="image/*" id="editSigPad_file">
+            <img id="editSigPad_preview" class="sig-upload-preview hidden">
+          </div>
+          <div class="sig-actions"><button onclick="clearSignatureWidget('editSigPad')">مسح التوقيع</button></div>
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
+            <button class="btn" id="esSaveBtn" onclick="saveEditSigned()">حفظ التعديل</button>
+            <button class="btn outline" onclick="closeEditSigned()">إلغاء</button>
+          </div>
+          <div class="error-msg" id="esError"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: المبيعات ===== -->
+    <div id="salesTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">سجل البيع اليومي لكل مركز</h3>
+        <div class="select-row">
+          <div>
+            <label>اختاري المركز</label>
+            <select id="salesCenterSelect" onchange="loadCenterSales()"><option value="">جاري التحميل...</option></select>
+          </div>
+          <div>
+            <label>عرض بيانات</label>
+            <select id="salesTermFilter" class="term-filter-select" onchange="loadCenterSales()">
+              <option value="current">الفصل الحالي</option>
+              <option value="all">كل الفصول</option>
+            </select>
+          </div>
+        </div>
+        <table class="log-table" id="salesTable">
+          <thead><tr><th>المركز</th><th>اليوم</th><th>التاريخ</th><th>الوقت</th><th>المبلغ</th><th>ملاحظات</th></tr></thead>
+          <tbody id="salesTbody"><tr><td colspan="6">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
+          <tfoot><tr><td colspan="4">الإجمالي</td><td id="salesTotal">0</td><td></td></tr></tfoot>
+        </table>
+        <div class="export-row">
+          <button class="btn outline" onclick="exportCurrentSales()">⬇️ Excel</button>
+          <button class="btn outline" onclick="printCurrentSales()">🖨️ PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: المرتجعات ===== -->
+    <div id="returnsTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">↩️ البضائع المرتجعة لكل مركز</h3>
+        <div class="select-row">
+          <div>
+            <label>اختاري المركز</label>
+            <select id="returnsCenterSelect" onchange="loadCenterReturns()"><option value="">جاري التحميل...</option></select>
+          </div>
+          <div>
+            <label>عرض بيانات</label>
+            <select id="returnsTermFilter" class="term-filter-select" onchange="loadCenterReturns()">
+              <option value="current">الفصل الحالي</option>
+              <option value="all">كل الفصول</option>
+            </select>
+          </div>
+        </div>
+        <table class="log-table" id="returnsTable">
+          <thead><tr><th>المركز</th><th>اليوم</th><th>التاريخ</th><th>الصنف</th><th>الكمية</th><th>القيمة</th><th>ملاحظات</th></tr></thead>
+          <tbody id="returnsTbody"><tr><td colspan="7">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
+          <tfoot><tr><td colspan="5">إجمالي المرتجعات</td><td id="returnsTotal">0</td><td></td></tr></tfoot>
+        </table>
+        <div class="export-row">
+          <button class="btn outline" onclick="exportCurrentReturns()">⬇️ Excel</button>
+          <button class="btn outline" onclick="printCurrentReturns()">🖨️ PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: الفواتير ===== -->
+    <div id="invoicesTab" class="admin-tab-panel hidden">
+      <details class="card collapse-card">
+        <summary><span>المراكز المفعّل لها «مشتريات»</span> <span class="collapse-count" id="purchaseCentersCount"></span></summary>
+        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">نوع القيد «مشتريات» يظهر فقط للمراكز التي تحددينها هنا (التي تشتري بنفسها). «فاتورة» متاحة لجميع المراكز.</p>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-bottom:8px;"><input type="checkbox" id="purchaseCentersAll" onchange="togglePurchaseCentersAll_(this.checked)"> <span>تحديد الكل</span></label>
+        <div id="purchaseCentersBox">جاري التحميل...</div>
+        <button class="btn" id="purchaseCentersSaveBtn" onclick="savePurchaseCenters()" style="margin-top:10px;">حفظ</button>
+        <div class="success-msg" id="purchaseCentersSuccess">تم الحفظ بنجاح ✅</div>
+      </details>
+      <details class="card collapse-card">
+        <summary><span>المراكز المفعّل لها «مصروفات»</span> <span class="collapse-count" id="expenseCentersCount"></span></summary>
+        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">نوع القيد «مصروفات» يظهر فقط للمراكز التي تحددينها هنا. «فاتورة» متاحة لجميع المراكز.</p>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-bottom:8px;"><input type="checkbox" id="expenseCentersAll" onchange="toggleExpenseCentersAll_(this.checked)"> <span>تحديد الكل</span></label>
+        <div id="expenseCentersBox">جاري التحميل...</div>
+        <button class="btn" id="expenseCentersSaveBtn" onclick="saveExpenseCenters()" style="margin-top:10px;">حفظ</button>
+        <div class="success-msg" id="expenseCentersSuccess">تم الحفظ بنجاح ✅</div>
+      </details>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">بيان الفواتير لكل مركز</h3>
+        <div class="select-row">
+          <div>
+            <label>اختاري المركز</label>
+            <select id="invoicesCenterSelect" onchange="loadCenterInvoices()"><option value="">جاري التحميل...</option></select>
+          </div>
+          <div>
+            <label>عرض بيانات</label>
+            <select id="invoicesTermFilter" class="term-filter-select" onchange="loadCenterInvoices()">
+              <option value="current">الفصل الحالي</option>
+              <option value="all">كل الفصول</option>
+            </select>
+          </div>
+          <div>
+            <label>فرز</label>
+            <select id="invoicesReturnFilter" onchange="renderCenterInvoices_()">
+              <option value="">كل القيود</option>
+              <option value="any">الفواتير التي فيها مرتجعات</option>
+              <option value="deducted">مرتجعات مخصومة</option>
+              <option value="proof">مرتجعات للإثبات فقط</option>
+              <option value="none">فواتير بلا مرتجعات</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-scroll"><table class="log-table" id="invoicesTable">
+          <thead><tr><th>المركز</th><th>النوع</th><th>رقم الفاتورة</th><th>مصدر الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>رأس المال</th><th>الربح</th><th>المبلغ الإجمالي</th><th>المرتجعات</th><th>ملاحظات</th></tr></thead>
+          <tbody id="invoicesTbody"><tr><td colspan="11">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
+        </table></div>
+        <div id="invoicesSummary"></div>
+        <div class="export-row">
+          <button class="btn outline" onclick="exportCurrentInvoices()">⬇️ Excel</button>
+          <button class="btn outline" onclick="printCurrentInvoices()">🖨️ PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: الحضور ===== -->
+    <div id="attendanceTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">تسجيل حضور اجتماع المسؤولات</h3>
+        <label>تاريخ الاجتماع</label>
+        <input type="date" id="attendanceDate" onchange="loadAttendanceChecklist()">
+        <div class="attendance-checklist" id="attendanceChecklist">جاري التحميل...</div>
+        <button class="btn" id="attendanceSaveBtn" onclick="saveAttendance()" style="margin-top:16px;">حفظ الحضور</button>
+        <div class="success-msg" id="attendanceSaveSuccess">تم حفظ الحضور بنجاح ✅</div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: الإحصائيات ===== -->
+    <div id="statsTab" class="admin-tab-panel hidden">
+      <div class="stat-hero">
+        <div class="label">إجمالي إيرادات المقاصف</div>
+        <div class="amount" id="totalRevenueVal">0 ريال</div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">ترتيب المراكز حسب الإيرادات</h3>
+        <div id="chartWrap">جاري التحميل...</div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: إحصائيات التسجيل ===== -->
+    <div id="regStatsTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">إحصائيات التسجيل</h3>
+        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;line-height:1.8;">عدد الإشعارات لكل نوع، وعدد بيان الفواتير، والنواقص لكل مركز.</p>
+        <div class="select-row">
+          <div>
+            <label>الفترة</label>
+            <select id="rsPeriod" onchange="onRsPeriodChange()">
+              <option value="term" selected>الفصل الحالي</option>
+              <option value="month">هذا الشهر</option>
+              <option value="30">آخر 30 يوماً</option>
+              <option value="all">كل الفصول</option>
+              <option value="custom">فترة مخصصة</option>
+            </select>
+          </div>
+        </div>
+        <div class="select-row hidden" id="rsCustomRow">
+          <div><label>من تاريخ</label><input type="date" id="rsFrom"></div>
+          <div><label>إلى تاريخ</label><input type="date" id="rsTo"></div>
+        </div>
+        <button class="btn" id="rsRunBtn" onclick="loadRegStats(true)">تحديث</button>
+      </div>
+      <div id="rsResult"></div>
+    </div>
+
+    <!-- ===== تبويب: إشعارات هامة ===== -->
+    <div id="announcementsTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">نشر إشعار هام</h3>
+        <label>نص الإشعار</label>
+        <textarea id="announceText" rows="4" placeholder="اكتبي نص الإشعار هنا..."></textarea>
+
+        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:14px;">
+          <input type="checkbox" id="announceAllCheck" checked onchange="toggleAnnounceTargets()">
+          <span>يظهر لكل المراكز والمسؤولات</span>
+        </label>
+
+        <div id="announceTargetsBox" class="hidden" style="margin-top:10px;">
+          <label style="display:flex;align-items:center;justify-content:space-between;">
+            <span>مراكز محددة</span>
+            <span style="display:flex;align-items:center;gap:6px;font-weight:normal;font-size:0.85rem;">
+              <input type="checkbox" id="announceCentersAllCheck" onchange="toggleAnnounceGroupAll('center')"> تحديد الكل
+            </span>
+          </label>
+          <div id="announceCentersList" style="max-height:160px;overflow-y:auto;border:1.5px solid var(--gold-light);border-radius:8px;padding:8px 10px;margin-bottom:12px;">جاري التحميل...</div>
+          <label style="display:flex;align-items:center;justify-content:space-between;">
+            <span>مسؤولات محددات</span>
+            <span style="display:flex;align-items:center;gap:6px;font-weight:normal;font-size:0.85rem;">
+              <input type="checkbox" id="announceMasoulatAllCheck" onchange="toggleAnnounceGroupAll('masoula')"> تحديد الكل
+            </span>
+          </label>
+          <div id="announceMasoulatList" style="max-height:160px;overflow-y:auto;border:1.5px solid var(--gold-light);border-radius:8px;padding:8px 10px;">جاري التحميل...</div>
+        </div>
+
+        <button class="btn" id="announceSubmitBtn" onclick="submitAnnouncement()" style="margin-top:14px;">نشر الإشعار</button>
+        <div class="success-msg" id="announceSuccess">تم نشر الإشعار بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">الإشعارات الهامة المنشورة</h3>
+        <div id="announcementsList">جاري التحميل...</div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: المرفقات ===== -->
+    <div id="attachmentsTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">إضافة مرفق</h3>
+        <label>عنوان المرفق</label>
+        <input type="text" id="attachTitle" placeholder="مثال: نموذج طلب إجازة">
+        <label>نوع المرفق</label>
+        <div style="display:flex;gap:18px;margin-bottom:6px;">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;">
+            <input type="radio" name="attachKind" value="link" checked onchange="toggleAttachKind()"> رابط
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;">
+            <input type="radio" name="attachKind" value="file" onchange="toggleAttachKind()"> ملف
+          </label>
+        </div>
+        <div id="attachLinkRow">
+          <label>الرابط</label>
+          <input type="url" id="attachLink" placeholder="https://...">
+        </div>
+        <div id="attachFileRow" class="hidden">
+          <label>الملف</label>
+          <input type="file" id="attachFile">
+        </div>
+        <button class="btn" id="attachSubmitBtn" onclick="submitAttachment()">حفظ المرفق</button>
+        <div class="success-msg" id="attachSuccess">تم إضافة المرفق بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">المرفقات المضافة</h3>
+        <div id="attachmentsList">جاري التحميل...</div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: الصعوبات والمقترحات ===== -->
+    <div id="difficultiesTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">الصعوبات والمقترحات الواردة</h3>
+        <div id="difficultiesList">جاري التحميل...</div>
+        <div class="export-row">
+          <button class="btn outline" onclick="exportDifficulties()">⬇️ Excel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: أرشفة الفصل السابق ===== -->
+    <div id="termTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">أرشفة الفصل السابق</h3>
+        <p style="color:#8a7d76;font-size:0.9rem;margin-top:0;">
+          هذا الإجراء يرحّل كل بيانات المبيعات والمرتجعات والفواتير والإشعارات "الحالية" (اللي لسا ما انسمّت باسم فصل، من كل المراكز) وينسبها لاسم الفصل المنتهي اللي تحددينه تحت. البيانات نفسها ما تُحذف ولا تتغيّر، بس تصير موسومة بالفصل.
+        </p>
+        <label>الفصل الدراسي الذي انتهى</label>
+        <select id="termNumberSelect">
+          <option value="">اختاري...</option>
+          <option value="الأول">الأول</option>
+          <option value="الثاني">الثاني</option>
+          <option value="الثالث">الثالث</option>
+        </select>
+        <label>السنة الهجرية</label>
+        <input type="text" id="termYearInput" placeholder="مثال: ١٤٤٨">
+        <button class="btn gold" id="termArchiveBtn" onclick="submitTermArchive()" style="margin-top:12px;">تأكيد الأرشفة</button>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: متابعة التعهدات ===== -->
+    <div id="pledgesTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">متابعة التعهدات</h3>
+        <label>اسم المسؤولة</label>
+        <select id="pledgesNameFilter" onchange="loadPledgesStatus()"><option value="">جاري التحميل...</option></select>
+        <table class="log-table" id="pledgesTable">
+          <thead><tr><th>الاسم</th><th>المركز</th><th>الحالة</th><th>التاريخ</th></tr></thead>
+          <tbody id="pledgesTbody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: متابعة اطلاع المهام ===== -->
+    <div id="tasksStatusTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">متابعة اطلاع المهام</h3>
+        <label>اسم المسؤولة</label>
+        <select id="tasksNameFilter" onchange="loadTasksStatus()"><option value="">جاري التحميل...</option></select>
+        <table class="log-table" id="tasksStatusTable">
+          <thead><tr><th>الاسم</th><th>المركز</th><th>الحالة</th><th>التاريخ</th></tr></thead>
+          <tbody id="tasksStatusTbody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: درجات المسؤولات (تقييم نهاية الفصل من 13) ===== -->
+    <div id="gradesTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">درجات المسؤولات (من ١٣)</h3>
+        <p class="grade-hint">كل البنود «مكتملة» افتراضياً، اضغطي على البند الناقص فقط وتنحسب الدرجة تلقائياً. بعد المراجعة اضغطي «حفظ الدرجات».</p>
+        <div class="select-row">
+          <div>
+            <label>الفصل الدراسي</label>
+            <select id="gradesTermNum" onchange="onGradesTermChange_()">
+              <option value="">اختاري...</option>
+              <option value="الأول">الأول</option>
+              <option value="الثاني">الثاني</option>
+              <option value="الثالث">الثالث</option>
+            </select>
+          </div>
+          <div>
+            <label>السنة الهجرية</label>
+            <input type="text" id="gradesTermYear" placeholder="مثال: ١٤٤٨" onchange="onGradesTermChange_()">
+          </div>
+        </div>
+        <div class="grade-legend">توزيع الدرجات: تسجيل المبيعات ٤ · الفواتير ٣ · إشعار الاستلام ٢ · توقيع التعهد ٢ · تأكيد الاطلاع على المهام ٢</div>
+      </div>
+      <div id="gradesBody"></div>
+    </div>
+
+    <!-- ===== تبويب: قائمة الدخل ===== -->
+    <div id="incomeTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);" id="incomeFormTitle">إضافة بند لقائمة الدخل</h3>
+        <label>البند</label>
+        <select id="incomeCategory">
+          <option value="إيراد">إيراد</option>
+          <option value="مصروفات">مصروفات</option>
+          <option value="ربح">ربح</option>
+        </select>
+        <label>البيان</label>
+        <input type="text" id="incomeDescription" placeholder="مثال: أرباح الفطائر">
+        <label>المبلغ (ريال)</label>
+        <input type="number" id="incomeAmount" placeholder="0.00" step="0.01" oninput="updateIncomeAmountWords()">
+        <p id="incomeAmountWords" style="color:#8a7d76;font-size:0.85rem;margin:6px 0 0;"></p>
+        <label>مرفق (اختياري) — مثال: صورة فاتورة أو إثبات</label>
+        <input type="file" id="incomeAttachment">
+        <div id="incomeExistingAttachment" class="hidden" style="font-size:0.85rem;margin-top:6px;"></div>
+        <button class="btn" id="incomeSubmitBtn" onclick="submitIncomeItem()" style="margin-top:12px;">حفظ البند</button>
+        <button class="btn secondary hidden" id="incomeCancelEditBtn" onclick="cancelEditIncomeItem()">إلغاء التعديل</button>
+        <div class="success-msg" id="incomeSuccess">تم حفظ البند بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">قائمة الدخل</h3>
+        <label>عرض بيانات</label>
+        <select id="incomeTermFilter" class="term-filter-select" onchange="loadIncomeItems()">
+          <option value="current">الفصل الحالي</option>
+          <option value="all">كل الفصول</option>
+        </select>
+        <table class="log-table" id="incomeTable">
+          <thead><tr><th>البند</th><th>البيان</th><th>المبلغ</th><th>اليوم</th><th>التاريخ</th><th>مرفق</th><th></th></tr></thead>
+          <tbody id="incomeTbody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
+        </table>
+        <div class="card" style="background:var(--cream);box-shadow:none;margin-top:14px;">
+          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>إجمالي الإيرادات</span><strong id="incomeTotalRevenue">0</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>إجمالي المصروفات</span><strong id="incomeTotalExpenses">0</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid var(--gold-light);margin-top:4px;"><span>الربح</span><strong id="incomeNetProfit" style="color:var(--maroon);">0</strong></div>
+        </div>
+        <div class="export-row">
+          <button class="btn outline" onclick="exportIncomeItems()">⬇️ Excel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: إحصائية الزيارات ===== -->
+    <div id="visitStatsTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">تسجيل زيارة</h3>
+        <label>اسم المركز</label>
+        <div class="vs-search-row">
+          <input type="text" id="vsCenter" list="vsCentersList" placeholder="اكتبي اسم المركز" autocomplete="off">
+          <button type="button" class="vs-search-btn" id="vsSearchBtn" onclick="vsSearchVisit()" title="بحث عن زيارات المركز في الفترة المختارة" aria-label="بحث عن زيارة">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          </button>
+        </div>
+        <datalist id="vsCentersList"></datalist>
+        <div class="vs-search-result hidden" id="vsSearchResult"></div>
+        <label>الفترة</label>
+        <select id="vsPeriod">
+          <option value="صباحية">صباحية</option>
+          <option value="مسائية">مسائية</option>
+        </select>
+        <label>تاريخ الزيارة (هجري)</label>
+        <div class="vs-date">
+          <select id="vsDay"></select>
+          <select id="vsMonth"></select>
+          <select id="vsYear"></select>
+        </div>
+        <div class="vs-date-preview" id="vsDatePreview"></div>
+        <button class="btn" id="vsSaveBtn" onclick="saveVisitStat()">حفظ الزيارة</button>
+        <div class="success-msg" id="vsSuccess"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">عدد الزيارات لكل مركز</h3>
+        <div id="vsSummary">جارِ التحميل...</div>
+        <div class="export-row" style="margin-top:12px;">
+          <button class="btn outline" onclick="exportVisitStats()">⬇️ Excel</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">المراكز التي لم تتم زيارتها</h3>
+        <p style="font-size:0.78rem;color:#8a7d76;margin:0 0 10px;">القائمة مأخوذة من ورقة «أرقام المديرات» (كل مركز بفترته)، ولا تشمل المراكز المسجّل في «حصر المقاصف» أنه لا يوجد بها مقصف.</p>
+        <div id="vsUnvisited">جارِ التحميل...</div>
+        <div class="export-row" style="margin-top:12px;">
+          <button class="btn outline" onclick="exportUnvisited()">⬇️ Excel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: حصر المقاصف ===== -->
+    <div id="canteenSurveyTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">حصر المقاصف</h3>
+        <p style="font-size:0.8rem;color:#8a7d76;margin:0 0 10px;">جميع المراكز من ورقة «أرقام المديرات». علامة ✔ تعني أن بالمركز مقصفًا؛ اضغطي عليها لإزالتها إذا لم يكن به مقصف، ثم اكتبي السبب في الملاحظات واضغطي «حفظ الحصر».</p>
+        <div id="csSummary" class="vs-total"></div>
+        <input type="text" id="csSearch" placeholder="🔍 ابحثي عن مركز" autocomplete="off" oninput="renderCanteenSurvey_()">
+        <div id="csList" style="margin-top:10px;">جارِ التحميل...</div>
+        <div class="cs-dirty hidden" id="csDirty">توجد تغييرات لم تُحفظ بعد.</div>
+        <button class="btn" id="csSaveBtn" onclick="saveCanteenSurvey()">حفظ الحصر</button>
+        <div class="success-msg" id="csSuccess"></div>
+        <div class="export-row" style="margin-top:12px;">
+          <button class="btn outline" onclick="exportCanteenSurvey()">⬇️ Excel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: تقرير الزيارة ===== -->
+    <div id="visitReportTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">تقرير الزيارة اليومي</h3>
+        <div class="select-row">
+          <div>
+            <label>المركز</label>
+            <input type="text" id="vrCenterName" list="vrCentersDl" placeholder="اكتبي اسم المركز" autocomplete="off" oninput="vrAutoFillDirector_();vrUpdateVisitNumber_()" onchange="vrAutoFillDirector_();vrUpdateVisitNumber_()">
+            <datalist id="vrCentersDl"></datalist>
+            <div id="vrDirectorStatus" style="font-size:0.8rem;color:#8a7d76;margin:4px 0 0;"></div>
+          </div>
+          <div>
+            <label>لعام (هـ)</label>
+            <input type="text" id="vrYear" placeholder="١٤٤٨" oninput="vrUpdateVisitNumber_()">
+          </div>
+        </div>
+        <div class="select-row">
+          <div>
+            <label>الفصل الدراسي</label>
+            <select id="vrTerm">
+              <option value="الأول">الأول</option>
+              <option value="الثاني">الثاني</option>
+              <option value="الثالث">الثالث</option>
+            </select>
+          </div>
+          <div>
+            <label>الفترة</label>
+            <div style="display:flex;gap:18px;margin-top:8px;">
+              <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:0;">
+                <input type="checkbox" id="vrPeriodMorning" style="width:auto;" onchange="if(this.checked)document.getElementById('vrPeriodEvening').checked=false;vrAutoFillDirector_();vrUpdateVisitNumber_();"> صباحي
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:0;">
+                <input type="checkbox" id="vrPeriodEvening" style="width:auto;" onchange="if(this.checked)document.getElementById('vrPeriodMorning').checked=false;vrAutoFillDirector_();vrUpdateVisitNumber_();"> مسائي
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="select-row">
+          <div>
+            <label>اليوم</label>
+            <select id="vrDayName">
+              <option value="الأحد">الأحد</option>
+              <option value="الاثنين">الاثنين</option>
+              <option value="الثلاثاء">الثلاثاء</option>
+              <option value="الأربعاء">الأربعاء</option>
+              <option value="الخميس">الخميس</option>
+              <option value="الجمعة">الجمعة</option>
+              <option value="السبت">السبت</option>
+            </select>
+          </div>
+          <div>
+            <label>التاريخ الهجري (يوم / شهر)</label>
+            <div style="display:flex;gap:8px;">
+              <input type="number" id="vrHijriDay" min="1" max="30" placeholder="اليوم" style="width:35%;" oninput="vrUpdateVisitNumber_()">
+              <select id="vrHijriMonth" style="width:65%;" onchange="vrUpdateVisitNumber_()">
+                <option value="١">١</option>
+                <option value="٢">٢</option>
+                <option value="٣">٣</option>
+                <option value="٤">٤</option>
+                <option value="٥">٥</option>
+                <option value="٦">٦</option>
+                <option value="٧">٧</option>
+                <option value="٨">٨</option>
+                <option value="٩">٩</option>
+                <option value="١٠">١٠</option>
+                <option value="١١">١١</option>
+                <option value="١٢">١٢</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="select-row">
+          <div>
+            <label>نوع الزيارة</label>
+            <input type="text" id="vrVisitType" value="تقييم">
+          </div>
+          <div>
+            <label>رقم الزيارة</label>
+            <input type="number" id="vrVisitNumber" placeholder="١">
+            <div id="vrVisitNumberHint" style="font-size:0.78rem;color:#8a7d76;margin-top:4px;"></div>
+          </div>
+        </div>
+        <label>الملاحظات — كل ملاحظة برقمها الخاص، زي جدول التقرير بالضبط</label>
+        <div id="vrNotesContainer"></div>
+        <button type="button" class="btn outline" onclick="addVrNoteRow()" style="width:auto;padding:6px 14px;margin-top:6px;">➕ إضافة ملاحظة</button>
+        <label>التوصية (تظهر بأول صف فقط)</label>
+        <textarea id="vrRecommendation" rows="2">نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والسداد</textarea>
+        <div class="select-row">
+          <div>
+            <label>اسم مديرة المركز</label>
+            <input type="text" id="vrCenterHeadName" placeholder="اسم مديرة المركز">
+          </div>
+          <div>
+            <label>جوال المديرة (واتساب)</label>
+            <input type="text" inputmode="tel" id="vrDirectorPhone" dir="ltr" placeholder="05xxxxxxxx" style="text-align:right;">
+          </div>
+        </div>
+        <label>اسم رئيسة وحدة المقاصف</label>
+        <input type="text" id="vrHeadName" value="فاطمة مبارك الكثيري">
+        <label>توقيع رئيسة وحدة المقاصف (اختياري)</label>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <input type="file" id="vrSigUpload" accept="image/*" onchange="handleVrSigUpload(event)" style="width:auto;">
+          <img id="vrSigPreview" class="hidden" alt="معاينة التوقيع" style="max-width:100px;max-height:55px;object-fit:contain;border:1px solid var(--gold-light);border-radius:6px;padding:2px;">
+          <button type="button" class="btn outline" id="vrSigClearBtn" onclick="clearVrSigUpload()" style="width:auto;padding:6px 14px;display:none;">مسح</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+          <label style="margin:0;white-space:nowrap;">حجم التوقيع</label>
+          <input type="range" id="vrSigSize" min="50" max="400" value="100" step="10" style="width:160px;" oninput="document.getElementById('vrSigSizeLabel').textContent=this.value+'%'">
+          <span id="vrSigSizeLabel" style="font-weight:700;color:var(--maroon);">100%</span>
+        </div>
+        <p style="font-size:0.78rem;color:#8a7d76;margin:4px 0 0;">
+          ارفعي صورة التوقيع هنا وبتظهر تحت اسمها بهذا التقرير فقط. أو، عشان تظهر تلقائيًا بكل التقارير بدون ما ترفعيها كل مرة، ارفعي الصورة مرة وحدة بمستودع GitHub باسم fatima-signature.png جنب باقي صور الموقع.
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+          <button class="btn outline" onclick="printVisitReport()">🖨️ معاينة وطباعة</button>
+          <button class="btn outline" onclick="saveVisitReport()">📄 حفظ PDF</button>
+          <button class="btn" onclick="shareVisitReport()">📤 إرسال واتساب</button>
+          <button class="btn" id="vrSendDirectorBtn" onclick="sendVisitReportToDirector()" style="background:#1f8f4e;border-color:#1f8f4e;">📲 إرسال للمديرة مباشرة</button>
+        </div>
+        <p style="font-size:0.78rem;color:#8a7d76;margin:8px 0 0;">عند «حفظ PDF» أو الإرسال تُسجَّل الزيارة تلقائيًا في «إحصائية الزيارات» (مرة واحدة فقط لنفس المركز والفترة والتاريخ).</p>
+        <div class="success-msg" id="vrStatMsg"></div>
+        <div id="vrSendPanel" class="hidden" style="margin-top:12px;padding:12px 14px;border:1px solid #bfe3cd;background:#f1faf4;border-radius:10px;line-height:1.9;">
+          <div>✅ حُفظ ملف التقرير <b id="vrSendFileName"></b> في جهازكِ.</div>
+          <div>اضغطي الزر لفتح محادثة المديرة، ثم أرفقي الملف من زر الإرفاق 📎 ← «مستند».</div>
+          <a id="vrSendWaLink" class="btn" target="_blank" rel="noopener" style="display:inline-block;width:auto;margin-top:6px;background:#1f8f4e;border-color:#1f8f4e;color:#fff;text-decoration:none;padding:8px 18px;">💬 فتح محادثة المديرة في واتساب</a>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
+          <button class="btn outline" onclick="saveVrDraft()">💾 حفظ مسودة</button>
+          <button class="btn outline" onclick="clearVrReport()">🗑️ مسح التقرير</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: محضر اجتماع ===== -->
+    <div id="meetingMinutesTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">محضر اجتماع جديد</h3>
+        <div class="select-row">
+          <div>
+            <label>رقم الاجتماع</label>
+            <input type="text" id="mmNumber" placeholder="مثال: ١">
+          </div>
+          <div>
+            <label>طريقة الانعقاد</label>
+            <input type="text" id="mmMethod" value="عبر برنامج الزوم">
+          </div>
+        </div>
+        <div class="select-row">
+          <div>
+            <label>يوم الاجتماع</label>
+            <select id="mmDayName">
+              <option value="الأحد">الأحد</option>
+              <option value="الاثنين">الاثنين</option>
+              <option value="الثلاثاء">الثلاثاء</option>
+              <option value="الأربعاء">الأربعاء</option>
+              <option value="الخميس">الخميس</option>
+              <option value="الجمعة">الجمعة</option>
+              <option value="السبت">السبت</option>
+            </select>
+          </div>
+          <div>
+            <label>التاريخ الهجري (يوم / شهر / سنة)</label>
+            <div style="display:flex;gap:8px;">
+              <input type="number" id="mmHijriDay" min="1" max="30" placeholder="اليوم" style="width:28%;">
+              <select id="mmHijriMonth" style="width:38%;">
+                <option value="١">١</option><option value="٢">٢</option><option value="٣">٣</option>
+                <option value="٤">٤</option><option value="٥">٥</option><option value="٦">٦</option>
+                <option value="٧">٧</option><option value="٨">٨</option><option value="٩">٩</option>
+                <option value="١٠">١٠</option><option value="١١">١١</option><option value="١٢">١٢</option>
+              </select>
+              <input type="text" id="mmHijriYear" placeholder="١٤٤٧" style="width:34%;">
+            </div>
+          </div>
+        </div>
+
+        <label>نقاط الاجتماع — كل نقطة بسطر مستقل، وتترقم تلقائي</label>
+        <div id="mmPointsContainer"></div>
+        <button type="button" class="btn outline" onclick="addMmPointRow()" style="width:auto;padding:6px 14px;margin-top:6px;">➕ إضافة نقطة</button>
+
+        <label style="margin-top:14px;">المشاركات في الاجتماع — اسم كل مشاركة بسطر مستقل</label>
+        <div id="mmParticipantsContainer"></div>
+        <button type="button" class="btn outline" onclick="addMmParticipantRow()" style="width:auto;padding:6px 14px;margin-top:6px;">➕ إضافة مشاركة</button>
+
+        <label style="margin-top:14px;">روابط إضافية (اختياري) — فيديو، عرض تقديمي، أو أي رابط آخر</label>
+        <div id="mmLinksContainer"></div>
+        <button type="button" class="btn outline" onclick="addMmLinkRow()" style="width:auto;padding:6px 14px;margin-top:6px;">➕ إضافة رابط</button>
+
+        <label style="margin-top:14px;">اسم رئيسة وحدة المقاصف</label>
+        <input type="text" id="mmHeadName" value="فاطمة مبارك الكثيري">
+        <label>توقيع رئيسة وحدة المقاصف (اختياري)</label>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <input type="file" id="mmHeadSigUpload" accept="image/*" onchange="handleMmSigUpload(event,'head')" style="width:auto;">
+          <img id="mmHeadSigPreview" class="hidden" alt="معاينة التوقيع" style="max-width:100px;max-height:55px;object-fit:contain;border:1px solid var(--gold-light);border-radius:6px;padding:2px;">
+          <button type="button" class="btn outline" id="mmHeadSigClearBtn" onclick="clearMmSigUpload('head')" style="width:auto;padding:6px 14px;display:none;">مسح</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+          <label style="margin:0;white-space:nowrap;">حجم التوقيع</label>
+          <input type="range" id="mmHeadSigSize" min="50" max="400" value="100" step="10" style="width:160px;" oninput="document.getElementById('mmHeadSigSizeLabel').textContent=this.value+'%'">
+          <span id="mmHeadSigSizeLabel" style="font-weight:700;color:var(--maroon);">100%</span>
+        </div>
+
+        <label style="margin-top:14px;">اسم مساعدة وحدة المقاصف</label>
+        <input type="text" id="mmAssistantName" value="مرام فوزي محسن النفاعي">
+        <label>توقيع مساعدة وحدة المقاصف (اختياري)</label>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <input type="file" id="mmAssistantSigUpload" accept="image/*" onchange="handleMmSigUpload(event,'assistant')" style="width:auto;">
+          <img id="mmAssistantSigPreview" class="hidden" alt="معاينة التوقيع" style="max-width:100px;max-height:55px;object-fit:contain;border:1px solid var(--gold-light);border-radius:6px;padding:2px;">
+          <button type="button" class="btn outline" id="mmAssistantSigClearBtn" onclick="clearMmSigUpload('assistant')" style="width:auto;padding:6px 14px;display:none;">مسح</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+          <label style="margin:0;white-space:nowrap;">حجم التوقيع</label>
+          <input type="range" id="mmAssistantSigSize" min="50" max="400" value="100" step="10" style="width:160px;" oninput="document.getElementById('mmAssistantSigSizeLabel').textContent=this.value+'%'">
+          <span id="mmAssistantSigSizeLabel" style="font-weight:700;color:var(--maroon);">100%</span>
+        </div>
+
+        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:16px;">
+          <input type="checkbox" id="mmAllCheck" checked onchange="toggleMmTargets()">
+          <span>يظهر لكل المراكز والمسؤولات</span>
+        </label>
+        <div id="mmTargetsBox" class="hidden" style="margin-top:10px;">
+          <label style="display:flex;align-items:center;justify-content:space-between;">
+            <span>مراكز محددة</span>
+            <span style="display:flex;align-items:center;gap:6px;font-weight:normal;font-size:0.85rem;">
+              <input type="checkbox" id="mmCentersAllCheck" onchange="toggleMmGroupAll('center')"> تحديد الكل
+            </span>
+          </label>
+          <div id="mmCentersList" style="max-height:160px;overflow-y:auto;border:1.5px solid var(--gold-light);border-radius:8px;padding:8px 10px;margin-bottom:12px;">جاري التحميل...</div>
+          <label style="display:flex;align-items:center;justify-content:space-between;">
+            <span>مسؤولات محددات</span>
+            <span style="display:flex;align-items:center;gap:6px;font-weight:normal;font-size:0.85rem;">
+              <input type="checkbox" id="mmMasoulatAllCheck" onchange="toggleMmGroupAll('masoula')"> تحديد الكل
+            </span>
+          </label>
+          <div id="mmMasoulatList" style="max-height:160px;overflow-y:auto;border:1.5px solid var(--gold-light);border-radius:8px;padding:8px 10px;">جاري التحميل...</div>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+          <button class="btn outline" onclick="printMeetingMinutes()">🖨️ معاينة وطباعة</button>
+          <button class="btn outline" onclick="saveMeetingMinutes()">📄 حفظ PDF</button>
+          <button class="btn outline" onclick="shareMeetingMinutes()">📤 إرسال واتساب</button>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
+          <button class="btn" id="mmPublishBtn" onclick="publishMeetingMinutes()">✅ نشر المحضر</button>
+          <button class="btn outline" onclick="saveMmDraft()">💾 حفظ مسودة</button>
+          <button class="btn outline" onclick="clearMmForm()">🗑️ مسح النموذج</button>
+        </div>
+        <div class="success-msg" id="mmPublishSuccess">تم نشر المحضر بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">المحاضر المنشورة</h3>
+        <div id="mmAdminList">جاري التحميل...</div>
+      </div>
+    </div>
+
+    <!-- عنصر مخفي: يُستخدم داخليًا لتحويل محضر الاجتماع لملف PDF (حفظ/مشاركة) - لا يظهر بالشاشة -->
+    <div style="position:fixed;top:0;left:0;width:0;height:0;overflow:hidden;z-index:-1;">
+      <div id="mmPdfHost" style="width:794px;background:#fff;"></div>
+    </div>
+
+    <!-- ===== تبويب: بطاقات التحفيز (نظرة الإدارة) ===== -->
+    <div id="cardsAdminTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">تسجيل بطاقة تحفيز - نيابةً عن المديرة/المسؤولة</h3>
+        <p style="font-size:0.85rem;color:#8a7d76;margin-top:0;">للاستخدام عند عدم التسجيل من قبل المديرة أو المسؤولة (استلام من الإدارة، أو تسليم لمنسوبة). يُسجَّل بنفس السجل ويظهر عندهن، ويُعلَّم بأنه «سُجّل من الإدارة».</p>
+        <label>نوع السجل</label>
+        <select id="adCardKind" onchange="onAdCardKindChange_()"><option value="استلام">استلام (المديرة/المسؤولة استلمت البطاقات)</option><option value="تسليم">تسليم (المديرة/المسؤولة سلّمت لمنسوبة)</option></select>
+        <div class="select-row">
+          <div><label>المركز</label><select id="adCardCenter"><option value="">اختاري المركز</option></select></div>
+          <div><label>الصفة</label>
+            <select id="adCardRole"><option value="مديرة المركز">مديرة المركز</option><option value="مسؤولة المقصف">مسؤولة المقصف</option></select>
+          </div>
+        </div>
+        <label id="adCardLinesLabel">البطاقات المستلَمة (يمكن إضافة أكثر من نوع/قيمة بنفس التسجيل)</label>
+        <div id="adLinesList"></div>
+        <button type="button" class="btn outline" onclick="addAdCardLine_()" style="width:auto;padding:6px 14px;margin:4px 0 12px;">+ إضافة نوع/قيمة أخرى</button>
+        <label id="adCardRecipientLabel">اسم المستلمة</label>
+        <input type="text" id="adCardRecipient" placeholder="اسم المستلمة">
+        <label>ملاحظات</label>
+        <textarea id="adCardNotes" rows="3" placeholder="مثال: لم يتم التسجيل من قبل المديرة/المسؤولة، وسُجّل من الإدارة بناءً على الاستلام/التسليم الفعلي"></textarea>
+        <label>التوقيع (اختياري - اتركيه فاضي لتقرّ وتوقّع المديرة/المسؤولة بنفسها عندها)</label>
+        <div class="sig-mode-toggle">
+          <button type="button" class="sig-mode-btn active" data-sigtoggle="adCardSig" data-mode="draw" onclick="setSigMode('adCardSig','draw')">رسم التوقيع</button>
+          <button type="button" class="sig-mode-btn" data-sigtoggle="adCardSig" data-mode="upload" onclick="setSigMode('adCardSig','upload')">رفع صورة توقيع</button>
+        </div>
+        <div class="sig-wrap" id="adCardSig_drawWrap"><canvas id="adCardSig" class="sig-pad"></canvas></div>
+        <div class="sig-upload-wrap hidden" id="adCardSig_uploadWrap">
+          <input type="file" accept="image/*" id="adCardSig_file">
+          <img id="adCardSig_preview" class="sig-upload-preview hidden">
+        </div>
+        <div class="sig-actions"><button type="button" onclick="clearSignatureWidget('adCardSig')">مسح التوقيع</button></div>
+        <button class="btn" id="adCardSubmitBtn" onclick="submitAdminCardEntry()" style="margin-top:14px;">حفظ</button>
+        <div class="success-msg" id="adCardSuccess">تم التسجيل بنجاح ✅</div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">إجمالي بطاقات المديرات والمسؤولات</h3>
+        <div id="cardsManagersSummary">جاري التحميل...</div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">سجل المديرة والمسؤولة</h3>
+        <table class="log-table" id="cardsManagersTable">
+          <thead><tr><th>المركز</th><th>الصفة</th><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th><th>التوقيع</th><th>ملاحظات</th></tr></thead>
+          <tbody id="cardsManagersTbody"><tr><td colspan="10">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">سجل التسليم للمنسوبات</h3>
+        <table class="log-table" id="cardsDeliveriesTable">
+          <thead><tr><th>المركز</th><th>الصفة</th><th>اليوم</th><th>التاريخ</th><th>النوع</th><th>القيمة</th><th>الكمية</th><th>اسم المستلمة</th><th>التوقيع</th><th>ملاحظات</th></tr></thead>
+          <tbody id="cardsDeliveriesTbody"><tr><td colspan="10">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">متابعة الصرف</h3>
+        <div id="cardsFollowupChart" style="margin-bottom:16px;">جاري التحميل...</div>
+      </div>
+      <div id="cardsFollowupGroups"><div class="card">جاري التحميل...</div></div>
+    </div>
+
+    <!-- عنصر مخفي: يُستخدم داخليًا لتحويل تقرير الزيارة لملف PDF (حفظ/مشاركة) - لا يظهر بالشاشة
+         ملاحظة: نستخدم "قص" (overflow:hidden بأبعاد صفر) بدل إحداثيات بعيدة جدًا (مثل left:-99999px)
+         لأن الإحداثيات البعيدة جدًا تخلي أداة تحويل PDF تحاول تنشئ لوحة رسم ضخمة جدًا وتوقف الصفحة (شاشة بيضاء) -->
+    <div style="position:fixed;top:0;left:0;width:0;height:0;overflow:hidden;z-index:-1;">
+      <div id="vrPdfHost" style="width:1123px;background:#fff;"></div>
+    </div>
+
+    <!-- ===== تبويب: قائمة الأسعار ===== -->
+    <div id="priceListTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">تخويل مسؤولة بإدارة قائمة الأسعار</h3>
+        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">اختاري مسؤولة وحدة وحدة تقدر تضيف/تعدّل/تحذف أصناف وأسعار بنفس صلاحيتك هنا. اتركيه "بدون" لو تبين الإدارة بس اللي تتحكم.</p>
+        <label>المسؤولة المخوّلة</label>
+        <select id="priceManagerSelect"></select>
+        <button class="btn" id="priceManagerSaveBtn" onclick="savePriceListManager()" style="margin-top:10px;">حفظ</button>
+        <div class="success-msg" id="priceManagerSuccess">تم الحفظ بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">ملف أو رابط إضافي لقائمة الأسعار</h3>
+        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">يظهر كزر "📎 ملف/رابط القائمة" لكل المراكز والمسؤولات (عرض فقط، الإدارة هي وحدها اللي تضيفه أو تعدّله).</p>
+        <div id="priceFileCurrent" style="margin-bottom:10px;color:#8a7d76;font-size:0.9rem;">جاري التحميل...</div>
+        <label>رابط خارجي</label>
+        <input type="text" id="priceFileLinkInput" placeholder="https://...">
+        <label style="margin-top:10px;">أو ارفعي ملف (PDF/صورة...) - يلغي الرابط أعلاه لو اتعبّى</label>
+        <input type="file" id="priceFileUploadInput">
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="btn" id="priceFileSaveBtn" onclick="savePriceListFile()">حفظ</button>
+          <button class="btn secondary" onclick="removePriceListFile()">إزالة</button>
+        </div>
+        <div class="success-msg" id="priceFileSuccess">تم الحفظ بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);" id="priceItemFormTitle">إضافة صنف</h3>
+        <label>التصنيف</label>
+        <input type="text" id="priceItemCategory" list="priceCategoriesList" placeholder="مثال: البطاطسات">
+        <datalist id="priceCategoriesList"></datalist>
+        <label>اسم الصنف</label>
+        <input type="text" id="priceItemName" placeholder="مثال: ليز">
+        <label>السعر</label>
+        <input type="text" id="priceItemPrice" placeholder="مثال: 1 أو 1.5 أو حبتين بريال">
+        <button class="btn" id="priceItemSubmitBtn" onclick="submitPriceItem()" style="margin-top:12px;">إضافة الصنف</button>
+        <button class="btn secondary hidden" id="priceItemCancelEditBtn" onclick="cancelEditPriceItem()">إلغاء التعديل</button>
+        <div class="success-msg" id="priceItemSuccess">تم الحفظ بنجاح ✅</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">الأصناف الحالية</h3>
+        <input type="text" id="priceSearchInput" class="price-search" placeholder="🔍 ابحثي عن صنف..." oninput="filterPriceItemsAdmin()">
+        <div id="priceItemsList">جاري التحميل...</div>
+        <div class="export-row">
+          <button class="btn outline" onclick="exportPriceListExcel()">⬇️ Excel</button>
+          <button class="btn outline" onclick="printPriceListReport()">🖨️ PDF</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<canvas id="noticeCanvas" width="900" height="710" style="display:none;"></canvas>
+
+<script>window.PDF_LIBS_ENABLED = true; /* مكتبات الـPDF تتحمّل بالخلفية - انظر config.js */</script>
+<script src="logo-config.js"></script>
+<script src="config.js"></script>
+<script>
+let isLoggedIn = sessionStorage.getItem('maqasif_admin') === 'yes';
+let allPending = [];
+let currentNotice = null;
+
+/* توقيع المركز (صورة كبيرة) ما يجي مع قائمة الإشعارات - نجيبه عند الحاجة فقط ونحفظ الوعد حسب معرف الإشعار
+   عشان ما نطلبه مرتين (بدون ما نلوّث كائن الإشعار نفسه). يرجّع {ok, dataUrl}: ok=false لو فشل الجلب،
+   فما نوقّع إشعار بدون توقيع المركز بالغلط. */
+const _centerSigCache_ = new Map();
+function getCenterSig_(n) {
+  const id = n['معرف'];
+  if (!_centerSigCache_.has(id)) {
+    _centerSigCache_.set(id, callApi('getNoticeCenterSignature', { id: id }).then(function (r) {
+      if (!r || !r.ok) { _centerSigCache_.delete(id); return { ok: false, dataUrl: '' }; }
+      return { ok: true, dataUrl: r.dataUrl || '' };
+    }).catch(function () { _centerSigCache_.delete(id); return { ok: false, dataUrl: '' }; }));
   }
-
-  // تعبئة قائمة الأسعار بالأصناف الأولية (مرة وحدة بس - لو الشيت لسا فاضي)
-  const priceSheet = ss.getSheetByName('قائمة الأسعار');
-  if (priceSheet.getLastRow() === 1) {
-    seedPriceList_(priceSheet);
-  }
-
-  notify_('تم إنشاء/تحديث جميع الشيتات بنجاح. تأكدي من تعبئة عمود "اسم المركز" بشيت "المسؤولات" لكل مسؤولة، وتحطي بريدك في ADMIN_NOTIFY_EMAIL أعلى الكود.\n\nملاحظة: لو كان عندك شيت قديم وفيه بيانات، شغّلي أيضاً دالة fixOldDateColumns من قائمة الدوال فوق المحرر مرة وحدة عشان تصلح صيغة الأعمدة القديمة، ودالة fillMissingDayNames لو لاحظتِ إن عمود "اليوم" فاضي بصفوف قديمة بالمبيعات/المرتجعات/الفواتير.');
+  return _centerSigCache_.get(id);
 }
+let adminSigHandle = null;
+let currentSales = [];
+let currentReturns = [];
+let currentInvoices = [];
+let centersListCache = [];
+let masoulatListCache = [];
 
-/* تعبئة أولية لقائمة الأسعار من قائمة المقصف الورقية - تتنفذ تلقائياً من setup() مرة وحدة بس
-   (لو الشيت فاضي). بعدها التعديل/الإضافة/الحذف من لوحة الإدارة (أو المسؤولة المخوّلة) مباشرة. */
-function seedPriceList_(sh) {
-  const items = [
-    ['البطاطسات', 'فخذ الدجاج', '1'], ['البطاطسات', 'فانتزي', '1'], ['البطاطسات', 'حروف صغيرة', '1'],
-    ['البطاطسات', 'ليز', '1'], ['البطاطسات', 'تسالي صغير', '1'], ['البطاطسات', 'البطل دبي', '1'],
-    ['البطاطسات', 'مرامي صغير', '1'], ['البطاطسات', 'البطل فشار صغير', '1'], ['البطاطسات', 'فرفشة عيدان', '1'],
-    ['البطاطسات', 'لولز', '1'], ['البطاطسات', 'زورو', '1'], ['البطاطسات', 'زيكو', '1'],
-    ['البطاطسات', 'راجا', '1'], ['البطاطسات', 'زمزم طماطم', 'حبتين بريال'], ['البطاطسات', 'عيدان ستيكس علب', '3'],
-    ['البطاطسات', 'ستيكس اكياس', '1'], ['البطاطسات', 'عيدان الذرة مليونير', '1'], ['البطاطسات', 'دوريتوس', '2'],
-    ['البطاطسات', 'بطاطس عمان', '1.5'],
+if (isLoggedIn) showDashboard();
 
-    ['الحلويات', 'حلاوة قلب', 'حبتين بريال'], ['الحلويات', 'مصاص ديما', 'حبتين بريال'],
-    ['الحلويات', 'فروتي ديما', '1'], ['الحلويات', 'ملعقة سينو', '1'], ['الحلويات', 'بهلول', '1'],
-
-    ['الماء والعصيرات', 'مياه العين', '1'], ['الماء والعصيرات', 'مياه فو', '1'],
-    ['الماء والعصيرات', 'عصير أورجينال صغير', '1'], ['الماء والعصيرات', 'عصير نكتار أورجينال كبير', '1.5'],
-    ['الماء والعصيرات', 'حليب مراعي', '1.5'], ['الماء والعصيرات', 'حليب نادك', '1.5'],
-    ['الماء والعصيرات', 'كأس شاي', '1'], ['الماء والعصيرات', 'كأس حليب', '2'],
-    ['الماء والعصيرات', 'نسكافيه', '3'], ['الماء والعصيرات', 'أربعة أكواب فارغة', '1'],
-    ['الماء والعصيرات', 'قهوة سوداء', '5'],
-
-    ['الكيك والكروسون', 'فطاير', '1.5'], ['الكيك والكروسون', 'كرواسون سفن دايز', '2'],
-    ['الكيك والكروسون', 'كيك يمامة', '1'], ['الكيك والكروسون', 'كيك نحول', '1'],
-    ['الكيك والكروسون', 'كيك مفن', '1'], ['الكيك والكروسون', 'كيك سراي', '1'],
-
-    ['البساكيت', 'لواكر', '2'], ['البساكيت', 'سندوتش ميرو بالمارشملو', '1'],
-    ['البساكيت', 'ساندوتش اولكر صغير', '1'], ['البساكيت', 'بريك صغير اصبعين', '1'],
-    ['البساكيت', 'ويفر تايم كريب', '1'], ['البساكيت', 'ويف هيرو ستار بندق', '1'],
-    ['البساكيت', 'سبلاش بيكادلي', '1'], ['البساكيت', 'امادا شكولوف', '1'],
-    ['البساكيت', 'فول سوداني', '1'], ['البساكيت', 'وافل غندور', '1'],
-    ['البساكيت', 'بسكوت بريك', '1'], ['البساكيت', 'بسكوت اوه بوي', '1'],
-    ['البساكيت', 'واو بافل', '1'], ['البساكيت', 'بسكوت فايف مش', '1'],
-    ['البساكيت', 'سويش كوكيز', '1'], ['البساكيت', 'ويفر مثلثات', '1'],
-
-    ['الشوكولاتات', 'فليك', '2'], ['الشوكولاتات', 'تويكس أصبعين', '3'], ['الشوكولاتات', 'توكس أصبع', '2'],
-    ['الشوكولاتات', 'سنيكرس كبير', '3'], ['الشوكولاتات', 'سنيكرس صغير', '2'],
-    ['الشوكولاتات', 'جالكسي سادة كبير', '3'], ['الشوكولاتات', 'جالكسي فلوتات', '2'],
-    ['الشوكولاتات', 'جالكسي كرسبي صغير', '2'], ['الشوكولاتات', 'جالكسي كراميل صغير', '2'],
-    ['الشوكولاتات', 'مارس صغير', '2'], ['الشوكولاتات', 'كيندربوينو', '3'],
-    ['الشوكولاتات', 'باونتي كبير', '3'], ['الشوكولاتات', 'كيكت كات شنكي', '3'],
-    ['الشوكولاتات', 'كيت كات صغير', '1.5'], ['الشوكولاتات', 'كاراميلا صغير', '2'],
-    ['الشوكولاتات', 'شوكولاتة بالو 3 أصابع', '1'], ['الشوكولاتات', 'تريكسي', '1'],
-    ['الشوكولاتات', 'شوكولاتة غونتس', '1']
-  ];
-  const rows = items.map(function (it, idx) {
-    return [Utilities.getUuid(), it[0], it[1], it[2], idx + 1];
-  });
-  sh.getRange(2, 1, rows.length, 5).setValues(rows);
-}
-
-/* تشغّل مرة وحدة (اختياري) لو عندك شيتات قديمة فيها بيانات تاريخ/وقت محفوظة
-   كـ Date تلقائي من قوقل شيتس، عشان تحوّلها لنص واضح بدون أصفار زايدة. */
-function fixOldDateColumns() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  ['المبيعات', 'المرتجعات', 'الفواتير', 'الحضور', 'التعهد', 'المهام', 'الإشعارات'].forEach(function (name) {
-    const sh = ss.getSheetByName(name);
-    if (!sh || sh.getLastRow() < 2) return;
-    const lastCol = sh.getLastColumn();
-    const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0];
-    const range = sh.getRange(2, 1, sh.getLastRow() - 1, lastCol);
-    const values = range.getValues();
-    headers.forEach(function (h, idx) {
-      if (TEXT_COLUMNS_.indexOf(h) === -1) return;
-      const isTimeCol = (h === 'الوقت' || h === 'وقت الإرسال' || h === 'وقت اطلاع الإدارة');
-      for (let i = 0; i < values.length; i++) {
-        const v = values[i][idx];
-        if (v instanceof Date) {
-          values[i][idx] = isTimeCol
-            ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'HH:mm')
-            : Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-        }
-      }
-    });
-    sh.getRange(1, 1, 1, lastCol).setNumberFormat('@'); // احتياط
-    range.setNumberFormat('@');
-    range.setValues(values);
-  });
-  invalidateCache_('المبيعات'); invalidateCache_('المرتجعات'); invalidateCache_('الفواتير');
-  invalidateCache_('الحضور'); invalidateCache_('التعهد'); invalidateCache_('الإشعارات');
-  notify_('تم تحويل أعمدة التاريخ والوقت القديمة إلى نص واضح بدون أصفار زايدة.');
-}
-
-/* أسماء أيام الأسبوع بالعربي - الأحد أول الأسبوع */
-const AR_DAYS_ = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-
-/* بديل آمن لـ SpreadsheetApp.getUi().alert() - يشتغل سواء نفّذتِ الدالة من زر
-   "تشغيل" بمحرر Apps Script مباشرة (ما فيه واجهة شيت متاحة وقتها) أو من قائمة
-   مخصصة داخل الشيت نفسه. لو ما قدر يفتح نافذة تنبيه، يسجّل الرسالة بسجل التنفيذ
-   (Logger) عشان تقدري تشوفينها من "عرض" ← "سجلات التنفيذ" (Execution log). */
-function notify_(message) {
-  try {
-    SpreadsheetApp.getUi().alert(message);
-  } catch (e) {
-    Logger.log(message);
-  }
-}
-
-function dayName_(d) {
-  return AR_DAYS_[d.getDay()];
-}
-
-/* ترجع اليوم/التاريخ/الوقت الحالي كنص واضح بدون أي أصفار زايدة */
-function nowParts_() {
-  const tz = Session.getScriptTimeZone();
-  const now = new Date();
-  return {
-    day: dayName_(now),
-    date: Utilities.formatDate(now, tz, 'yyyy-MM-dd'),
-    time: Utilities.formatDate(now, tz, 'HH:mm')
-  };
-}
-
-/* ترجع اسم اليوم بالعربي لتاريخ نصي بصيغة yyyy-MM-dd (تُستخدم لو المستخدمة
-   عدّلت التاريخ يدوياً في الواجهة عشان يبقى اسم اليوم مطابق للتاريخ المختار) */
-function dayNameForDateStr_(dateStr) {
-  if (!dateStr) return dayName_(new Date());
-  const parts = String(dateStr).split('-');
-  if (parts.length !== 3) return dayName_(new Date());
-  const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-  return dayName_(d);
-}
-
-function getOrCreateFolder_() {
-  const folders = DriveApp.getFoldersByName(FOLDER_NAME);
-  if (folders.hasNext()) return folders.next();
-  return DriveApp.createFolder(FOLDER_NAME);
-}
-
-/* ينظّف اسم مجلد/ملف من الرموز الممنوعة بـ Drive */
-function safeName_(s) {
-  return String(s || '').replace(/[\\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim() || 'بدون اسم';
-}
-
-/* يرجّع مجلد فرعي داخل المجلد الرئيسي حسب المسار (مثلاً ['الإشعارات', 'اسم المركز']) وينشئه لو مو موجود.
-   نخزّن معرّف كل مجلد بالكاش عشان ما نبحث بـ Drive كل مرة (أسرع بالحفظ). */
-function getOrCreateSubFolder_(pathArr) {
-  const cache = CacheService.getScriptCache();
-  let parent = getOrCreateFolder_();
-  let key = 'fld';
-  for (let i = 0; i < pathArr.length; i++) {
-    const name = safeName_(pathArr[i]);
-    key += '/' + name;
-    const ck = key.length > 240 ? key.slice(0, 240) : key;
-    let folder = null;
-    const cachedId = cache.get(ck);
-    if (cachedId) {
-      try { folder = DriveApp.getFolderById(cachedId); } catch (e) { folder = null; }
-    }
-    if (!folder) {
-      const it = parent.getFoldersByName(name);
-      folder = it.hasNext() ? it.next() : parent.createFolder(name);
-      cache.put(ck, folder.getId(), 21600);
-    }
-    parent = folder;
-  }
-  return parent;
-}
-
-/* subPath (اختياري): مسار المجلد الفرعي، مثلاً ['الإشعارات', 'اسم المركز'].
-   لو ما انمرّر تنحفظ الصورة بالمجلد الرئيسي مثل قبل. */
-function saveImage_(base64Data, fileName, subPath) {
-  if (!base64Data) return '';
-  const cleaned = base64Data.replace(/^data:image\/\w+;base64,/, '');
-  const bytes = Utilities.base64Decode(cleaned);
-  const blob = Utilities.newBlob(bytes, 'image/png', safeName_(fileName) + '.png');
-  const folder = (subPath && subPath.length) ? getOrCreateSubFolder_(subPath) : getOrCreateFolder_();
-  const file = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  // file.getUrl() ترجع رابط صفحة عرض بقوقل درايف، وما تشتغل مباشرة داخل <img src>.
-  // هذا الرابط هو الصيغة الصحيحة لعرض الصورة مباشرة بالمتصفح (وبتاق <img>)
-  return 'https://lh3.googleusercontent.com/d/' + file.getId();
-}
-
-/* اسم ملف واضح للإشعار: النوع - المركز - التاريخ - جزء من المعرف */
-function noticeFileName_(prefix, type, center, date, id) {
-  return [prefix, type, center, date, String(id || '').slice(0, 6)]
-    .filter(function (x) { return String(x || '').trim(); }).join(' - ');
-}
-
-/* نفس فكرة saveImage_ بس لأي نوع ملف (PDF، Word، صورة...) مو بس PNG -
-   تُستخدم لرفع مرفقات المستخدمات (خانة "إضافة مرفقات"). ترجع رابط عرض/تحميل
-   عادي بقوقل درايف (يشتغل بفتح تبويب جديد، عكس رابط saveImage_ المخصص للعرض داخل <img>) */
-function saveAttachmentFile_(base64Data, fileName, mimeType) {
-  if (!base64Data) return '';
-  const cleaned = String(base64Data).replace(/^data:[^;]+;base64,/, '');
-  const bytes = Utilities.base64Decode(cleaned);
-  const blob = Utilities.newBlob(bytes, mimeType || 'application/octet-stream', fileName || 'مرفق');
-  const root = getOrCreateFolder_();
-  const folders = root.getFoldersByName('المرفقات');
-  const folder = folders.hasNext() ? folders.next() : root.createFolder('المرفقات');
-  const file = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  return file.getUrl();
-}
-
-/* تسجّل مرفق جديد (ملف أو رابط). p.store: اسم الشيت الوجهة - افتراضياً 'المرفقات'
-   (المشتركة بين المراكز/المسؤولات/الإدارة)، أو 'مرفقات الإشراف' لمكتب إشراف الداخل.
-   p.kind: 'file' أو 'link'. لو 'file' لازم p.fileData (base64) و p.fileName و p.mimeType.
-   لو 'link' لازم p.link. p.from: اسم الجهة المضيفة (مركز/مسؤولة/الإدارة) للعرض بس.
-   p.owner: مُعرّف الجهة المالكة (اسم المركز عادةً، أو بريد المسؤولة لو ما لها مركز) -
-   يُستخدم لإخفاء المرفق عن باقي المراكز/المسؤولات (كل جهة تشوف مرفقاتها هي بس، والإدارة تشوف الكل). */
-function recordAttachment_(p) {
-  const sh = sheet_(p.store || 'المرفقات');
-  const id = Utilities.getUuid();
-  const now = nowParts_();
-  let link = '';
-  let fileName = '';
-  if (p.kind === 'file') {
-    link = saveAttachmentFile_(p.fileData, p.fileName || (p.title || id), p.mimeType || '');
-    fileName = p.fileName || '';
-  } else {
-    link = p.link || '';
-  }
-  appendRowByHeaders_(sh, {
-    'معرف': id, 'العنوان': p.title || '', 'النوع': p.kind === 'file' ? 'ملف' : 'رابط',
-    'الرابط': link, 'اسم الملف': fileName, 'من': p.from || '', 'المالك': p.owner || '',
-    'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
-  });
-  invalidateCache_(p.store || 'المرفقات');
-  return { ok: true, id: id };
-}
-
-/* p.owner: لو انمرّر، ترجع بس المرفقات اللي مالكها يطابقه (مركز/مسؤولة معيّنة تشوف مرفقاتها هي بس).
-   لو ما انمرّر (حالة الإدارة)، ترجع كل المرفقات بدون فلترة. */
-function getAttachments_(p) {
-  let rows = sheetToObjects_((p && p.store) || 'المرفقات');
-  if (p && p.owner) {
-    const owner = String(p.owner).trim();
-    rows = rows.filter(function (r) { return String(r['المالك'] || '').trim() === owner; });
-  }
-  return { ok: true, attachments: rows.reverse() };
-}
-
-function deleteAttachment_(p) {
-  const sh = sheet_(p.store || 'المرفقات');
-  sh.deleteRow(Number(p.row));
-  invalidateCache_(p.store || 'المرفقات');
-  return { ok: true };
-}
-
-/* ------------------- الإعلانات الهامة (إدارة → مراكز/مسؤولات) ------------------- */
-/* p.text: نص الإعلان. p.all: true لو يُنشر لكل المراكز والمسؤولات.
-   لو p.all غير موجود/false: p.centers مصفوفة أسماء مراكز مستهدفة، p.masoulat مصفوفة أسماء مسؤولات مستهدفات
-   (يمديها الاثنين مع بعض بنفس الإعلان). لو الاثنين فاضيين يتحول تلقائياً لـ"الكل". */
-function recordAnnouncement_(p) {
-  const sh = sheet_('الإعلانات الهامة');
-  const id = Utilities.getUuid();
-  const now = nowParts_();
-  let targets = 'الكل';
-  if (!p.all) {
-    const list = [];
-    (p.centers || []).forEach(function (c) { if (c) list.push('مركز:' + c); });
-    (p.masoulat || []).forEach(function (m) { if (m) list.push('مسؤولة:' + m); });
-    targets = list.length ? list.join('|') : 'الكل';
-  }
-  appendRowByHeaders_(sh, {
-    'معرف': id, 'النص': p.text || '', 'استهداف': targets, 'من': p.from || 'الإدارة',
-    'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
-  });
-  invalidateCache_('الإعلانات الهامة');
-  return { ok: true, id: id };
-}
-
-/* لوحة الإدارة: ترجع كل الإعلانات (بدون فلترة) لعرضها وحذفها. */
-function getAllAnnouncements_() {
-  const rows = sheetToObjects_('الإعلانات الهامة');
-  return { ok: true, announcements: rows.reverse() };
-}
-
-/* p.center و/أو p.masoula: ترجع بس الإعلانات اللي تخص هذا المركز/المسؤولة، أو اللي استهدافها "الكل". */
-function getAnnouncementsFor_(p) {
-  const rows = sheetToObjects_('الإعلانات الهامة');
-  const center = p && p.center ? String(p.center).trim() : '';
-  const masoula = p && p.masoula ? String(p.masoula).trim() : '';
-  const matched = rows.filter(function (r) {
-    const target = String(r['استهداف'] || '').trim();
-    if (target === 'الكل' || !target) return true;
-    const tokens = target.split('|');
-    return tokens.some(function (t) {
-      if (center && t === 'مركز:' + center) return true;
-      if (masoula && t === 'مسؤولة:' + masoula) return true;
-      return false;
-    });
-  });
-  return { ok: true, announcements: matched.reverse() };
-}
-
-function deleteAnnouncement_(p) {
-  const sh = sheet_('الإعلانات الهامة');
-  sh.deleteRow(Number(p.row));
-  invalidateCache_('الإعلانات الهامة');
-  return { ok: true };
-}
-
-/* ------------------- محاضر الاجتماعات (إدارة → مراكز/مسؤولات) -------------------
-   نفس منطق استهداف الإعلانات الهامة بالضبط (p.all أو p.centers/p.masoulat).
-   نقاط الاجتماع والمشاركات والروابط تُحفظ كنص JSON بعمود واحد، وتُفكّ بالواجهة عند العرض/الطباعة. */
-function recordMeetingMinutes_(p) {
-  const sh = sheet_('محاضر الاجتماعات');
-  const id = Utilities.getUuid();
-  const now = nowParts_();
-  let targets = 'الكل';
-  if (!p.all) {
-    const list = [];
-    (p.centers || []).forEach(function (c) { if (c) list.push('مركز:' + c); });
-    (p.masoulat || []).forEach(function (m) { if (m) list.push('مسؤولة:' + m); });
-    targets = list.length ? list.join('|') : 'الكل';
-  }
-  appendRowByHeaders_(sh, {
-    'معرف': id,
-    'رقم الاجتماع': p.number || '',
-    'يوم الاجتماع': p.day || '',
-    'تاريخ الاجتماع الهجري': p.hijriDate || '',
-    'طريقة الانعقاد': p.method || '',
-    'نقاط الاجتماع': JSON.stringify(p.points || []),
-    'المشاركات': JSON.stringify(p.participants || []),
-    'الروابط': JSON.stringify(p.links || []),
-    'اسم الرئيسة': p.headName || '',
-    'توقيع الرئيسة': p.headSignature || '',
-    'حجم توقيع الرئيسة': p.headSigScale || '',
-    'اسم المساعدة': p.assistantName || '',
-    'توقيع المساعدة': p.assistantSignature || '',
-    'حجم توقيع المساعدة': p.assistantSigScale || '',
-    'استهداف': targets, 'من': p.from || 'الإدارة',
-    'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
-  });
-  invalidateCache_('محاضر الاجتماعات');
-  return { ok: true, id: id };
-}
-
-/* لوحة الإدارة: كل المحاضر بدون فلترة، لعرضها وحذفها */
-function getAllMeetingMinutes_() {
-  const rows = sheetToObjects_('محاضر الاجتماعات');
-  return { ok: true, minutes: rows.reverse() };
-}
-
-/* p.center و/أو p.masoula: ترجع بس المحاضر اللي تخص هذا المركز/المسؤولة، أو اللي استهدافها "الكل" */
-function getMeetingMinutesFor_(p) {
-  const rows = sheetToObjects_('محاضر الاجتماعات');
-  const center = p && p.center ? String(p.center).trim() : '';
-  const masoula = p && p.masoula ? String(p.masoula).trim() : '';
-  const matched = rows.filter(function (r) {
-    const target = String(r['استهداف'] || '').trim();
-    if (target === 'الكل' || !target) return true;
-    const tokens = target.split('|');
-    return tokens.some(function (t) {
-      if (center && t === 'مركز:' + center) return true;
-      if (masoula && t === 'مسؤولة:' + masoula) return true;
-      return false;
-    });
-  });
-  return { ok: true, minutes: matched.reverse() };
-}
-
-function deleteMeetingMinutes_(p) {
-  const sh = sheet_('محاضر الاجتماعات');
-  sh.deleteRow(Number(p.row));
-  invalidateCache_('محاضر الاجتماعات');
-  return { ok: true };
-}
-
-/* ------------------- قائمة الأسعار (قائمة المقصف) ------------------- */
-/* الكل (مراكز/مسؤولات/إدارة) يشوفون القائمة. الإضافة/التعديل/الحذف مسموحة للإدارة دايماً،
-   ولمسؤولة وحدة واحدة تحددها الإدارة (تُحفظ بشيت "الإعدادات"). */
-
-function getPriceItems_() {
-  const rows = sheetToObjects_('قائمة الأسعار');
-  rows.sort(function (a, b) { return (Number(a['ترتيب']) || 0) - (Number(b['ترتيب']) || 0); });
-  return { ok: true, items: rows };
-}
-
-/* تتأكد إن اللي يحاول يعدّل مسموح له: إما 'admin'، أو مسؤولة اسمها يطابق
-   المسؤولة المخوّلة المحفوظة بشيت الإعدادات. */
-function checkPriceListPermission_(actor) {
-  if (actor === 'admin') return true;
-  const manager = getSettingValue_('مسؤولة قائمة الأسعار');
-  return !!manager && String(actor || '').trim() === manager;
-}
-
-function addPriceItem_(p) {
-  if (!checkPriceListPermission_(p.actor)) return { ok: false, error: 'ما عندك صلاحية تعديل قائمة الأسعار' };
-  const sh = sheet_('قائمة الأسعار');
-  const id = Utilities.getUuid();
-  const lastRow = sh.getLastRow();
-  const order = lastRow; // أول صف بعد الهيدر يصير ترتيبه = عدد الصفوف الحالية
-  appendRowByHeaders_(sh, {
-    'معرف': id, 'التصنيف': p.category || '', 'اسم الصنف': p.name || '', 'السعر': p.price || '', 'ترتيب': order
-  });
-  invalidateCache_('قائمة الأسعار');
-  return { ok: true, id: id };
-}
-
-function updatePriceItem_(p) {
-  if (!checkPriceListPermission_(p.actor)) return { ok: false, error: 'ما عندك صلاحية تعديل قائمة الأسعار' };
-  const sh = sheet_('قائمة الأسعار');
-  const row = Number(p.row);
-  if (p.category !== undefined) sh.getRange(row, colIndex_(sh, 'التصنيف')).setValue(p.category);
-  if (p.name !== undefined) sh.getRange(row, colIndex_(sh, 'اسم الصنف')).setValue(p.name);
-  if (p.price !== undefined) sh.getRange(row, colIndex_(sh, 'السعر')).setValue(p.price);
-  invalidateCache_('قائمة الأسعار');
-  return { ok: true };
-}
-
-function deletePriceItem_(p) {
-  if (!checkPriceListPermission_(p.actor)) return { ok: false, error: 'ما عندك صلاحية تعديل قائمة الأسعار' };
-  const sh = sheet_('قائمة الأسعار');
-  sh.deleteRow(Number(p.row));
-  invalidateCache_('قائمة الأسعار');
-  return { ok: true };
-}
-
-/* -------- شيت "الإعدادات" - مفتاح/قيمة عام، مستخدم حالياً بس لتحديد مسؤولة قائمة الأسعار -------- */
-function getSettingValue_(key) {
-  const rows = sheetToObjects_('الإعدادات');
-  const found = rows.find(function (r) { return String(r['المفتاح'] || '').trim() === key; });
-  return found ? String(found['القيمة'] || '').trim() : '';
-}
-
-function setSettingValue_(key, value) {
-  const sh = sheet_('الإعدادات');
-  const data = sh.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim() === key) {
-      sh.getRange(i + 1, 2).setValue(value);
-      invalidateCache_('الإعدادات');
+function doLogin() {
+  const pass = document.getElementById('adminPassword').value;
+  const errBox = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+  errBox.style.display = 'none';
+  btn.disabled = true;
+  callApi('loginAdmin', { password: pass }).then(function (r) {
+    btn.disabled = false;
+    if (!r.ok) {
+      errBox.textContent = r.error || 'كلمة المرور غير صحيحة';
+      errBox.style.display = 'block';
       return;
     }
-  }
-  sh.appendRow([key, value]);
-  invalidateCache_('الإعدادات');
-}
-
-function getPriceListManager_() {
-  return { ok: true, masoula: getSettingValue_('مسؤولة قائمة الأسعار') };
-}
-
-function setPriceListManager_(p) {
-  setSettingValue_('مسؤولة قائمة الأسعار', p.masoula || '');
-  return { ok: true };
-}
-
-/* -------- ملف/رابط قائمة الأسعار (يظهر للجميع، الإدارة فقط تضيفه/تعدّله) -------- */
-/* ------------------- إحصائية الزيارات (لوحة الإدارة) -------------------
-   الإدارة تسجّل كل زيارة: اسم المركز + الفترة (صباحية/مسائية) + تاريخ الزيارة الهجري،
-   والنظام يعدّ عدد الزيارات لكل مركز. «مفتاح التاريخ» (1448-03-15) للترتيب فقط. */
-const VISIT_STATS_SHEET_ = 'إحصائية الزيارات';
-const VISIT_STATS_HEADERS_ = ['معرف', 'اسم المركز', 'الفترة', 'التاريخ الهجري', 'مفتاح التاريخ', 'اليوم', 'التاريخ', 'الوقت'];
-
-function visitStatsSheet_() {
-  let sh = sheet_(VISIT_STATS_SHEET_);
-  if (!sh) {
-    sh = SpreadsheetApp.getActiveSpreadsheet().insertSheet(VISIT_STATS_SHEET_);
-    sh.getRange(1, 1, 1, VISIT_STATS_HEADERS_.length).setValues([VISIT_STATS_HEADERS_]);
-    sh.getRange(2, 1, sh.getMaxRows() - 1, VISIT_STATS_HEADERS_.length).setNumberFormat('@');
-  }
-  return sh;
-}
-
-function visitCenterKey_(name) {
-  return String(name || '').replace(/\s+/g, ' ').trim();
-}
-
-function recordVisitStat_(p) {
-  const center = visitCenterKey_(p.center);
-  if (!center) return { ok: false, error: 'اسم المركز مطلوب' };
-  if (!p.hijriDate) return { ok: false, error: 'تاريخ الزيارة مطلوب' };
-  const sh = visitStatsSheet_();
-  const id = Utilities.getUuid();
-  const now = nowParts_();
-  appendRowByHeaders_(sh, {
-    'معرف': id, 'اسم المركز': center, 'الفترة': p.period || '',
-    'التاريخ الهجري': p.hijriDate, 'مفتاح التاريخ': p.dateKey || '',
-    'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
+    sessionStorage.setItem('maqasif_admin', 'yes');
+    try { sessionStorage.setItem('maqasif_admin_pw', pass); } catch (e) {}
+    showDashboard();
   });
-  invalidateCache_(VISIT_STATS_SHEET_);
-  const count = sheetToObjects_(VISIT_STATS_SHEET_).filter(function (r) {
-    return visitCenterKey_(r['اسم المركز']) === center;
-  }).length;
-  return { ok: true, id: id, center: center, count: count };
 }
 
-function getVisitStats_() {
-  if (!sheet_(VISIT_STATS_SHEET_)) return { ok: true, visits: [] };
-  const visits = sheetToObjects_(VISIT_STATS_SHEET_).filter(function (r) {
-    return visitCenterKey_(r['اسم المركز']);
-  }).map(function (r) {
+function logout() {
+  sessionStorage.removeItem('maqasif_admin');
+  sessionStorage.removeItem('maqasif_admin_pw');
+  document.getElementById('dashScreen').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+}
+
+function showDashboard() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('dashScreen').classList.remove('hidden');
+  showAdminTab();
+  loadPendingBadgeOnly();
+  loadCentersDropdowns();
+}
+
+/* -------- التبويبات -------- */
+function showAdminTab(tabId) {
+  document.getElementById('adminHomeView').classList.toggle('hidden', !!tabId);
+  document.getElementById('adminBackLink').classList.toggle('hidden', !tabId);
+  document.querySelectorAll('.admin-tab-panel').forEach(function (el) {
+    el.classList.toggle('hidden', el.id !== tabId);
+  });
+  if (tabId === 'statsTab') loadStats();
+  if (tabId === 'regStatsTab') loadRegStats();
+  if (tabId === 'noticesTab') loadPending();
+  if (tabId === 'attendanceTab') loadAttendanceChecklist();
+  if (tabId === 'salesTab') loadCenterSales();
+  if (tabId === 'returnsTab') loadCenterReturns();
+  if (tabId === 'invoicesTab') { loadCenterInvoices(); loadPurchaseCentersAdmin(); loadExpenseCentersAdmin(); }
+  if (tabId === 'attachmentsTab') loadAttachments();
+  if (tabId === 'difficultiesTab') loadDifficultiesAdmin();
+  if (tabId === 'pledgesTab') loadPledgesStatus();
+  if (tabId === 'tasksStatusTab') loadTasksStatus();
+  if (tabId === 'incomeTab') loadIncomeItems();
+  if (tabId === 'announcementsTab') { renderAnnounceTargetLists(); loadAnnouncementsAdmin(); }
+  if (tabId === 'priceListTab') { loadPriceManagerSelect(); loadPriceItemsAdmin(); loadPriceListFileAdmin(); }
+  if (tabId === 'visitReportTab') { initVisitReportTab_(); }
+  if (tabId === 'visitStatsTab') { initVisitStatsTab_(); }
+  if (tabId === 'canteenSurveyTab') { loadCanteenSurvey(); }
+  if (tabId === 'meetingMinutesTab') { initMeetingMinutesTab_(); renderMmTargetLists(); loadMeetingMinutesAdmin(); }
+  if (tabId === 'cardsAdminTab') { initAdminCardForm_(); loadCardsAdminOverview(); }
+  if (tabId === 'gradesTab') { initGradesTab_(); }
+}
+
+/* -------- بطاقات التحفيز: نظرة الإدارة -------- */
+function cardPriceLabel_(p) { return Number(p) === 3 ? '3 ريال' : 'ريالين'; }
+
+let adCardLineIdx_ = 0, adCardSigReady_ = false;
+
+function adCardEsc_(t) {
+  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function adCardLineHtml_(idx) {
+  return '<div class="select-row card-line-row" data-idx="' + idx + '">' +
+    '<div><label>النوع</label><select class="ad-line-cat"><option value="مكافأة">مكافأة</option><option value="هدية">هدية</option></select></div>' +
+    '<div><label>القيمة</label><select class="ad-line-price"><option value="3">3 ريال</option><option value="2">ريالين</option></select></div>' +
+    '<div><label>الكمية</label><input type="text" inputmode="numeric" pattern="[0-9]*" class="ad-line-qty" placeholder="العدد"></div>' +
+    '<div style="display:flex;align-items:flex-end;"><button type="button" class="btn outline" style="width:auto;padding:8px 12px;" onclick="removeAdCardLine_(this)">حذف</button></div>' +
+  '</div>';
+}
+
+function addAdCardLine_() {
+  const wrap = document.createElement('div');
+  wrap.innerHTML = adCardLineHtml_(adCardLineIdx_++);
+  document.getElementById('adLinesList').appendChild(wrap.firstElementChild);
+}
+
+function removeAdCardLine_(btn) {
+  btn.closest('.card-line-row').remove();
+  if (!document.querySelector('#adLinesList .card-line-row')) addAdCardLine_();
+}
+
+function readAdCardLines_() {
+  return Array.from(document.querySelectorAll('#adLinesList .card-line-row')).map(function (row) {
     return {
-      id: r['معرف'], row: r._row, center: visitCenterKey_(r['اسم المركز']),
-      period: String(r['الفترة'] || ''), hijriDate: String(r['التاريخ الهجري'] || ''),
-      dateKey: String(r['مفتاح التاريخ'] || '')
+      category: row.querySelector('.ad-line-cat').value,
+      price: Number(row.querySelector('.ad-line-price').value),
+      qty: Number(row.querySelector('.ad-line-qty').value) || 0
     };
+  }).filter(function (l) { return l.qty > 0; });
+}
+
+function onAdCardKindChange_() {
+  const isDelivery = document.getElementById('adCardKind').value === 'تسليم';
+  document.getElementById('adCardLinesLabel').textContent = isDelivery
+    ? 'البطاقات المسلَّمة (يمكن إضافة أكثر من نوع/قيمة بنفس التسجيل)'
+    : 'البطاقات المستلَمة (يمكن إضافة أكثر من نوع/قيمة بنفس التسجيل)';
+  document.getElementById('adCardRecipientLabel').textContent = isDelivery ? 'اسم المنسوبة المستلمة للبطاقة' : 'اسم المستلمة';
+  document.getElementById('adCardRecipient').placeholder = isDelivery ? 'اسم المنسوبة' : 'اسم المستلمة';
+}
+
+/* التواقيع صور كبيرة؛ نجيبها عند الطلب فقط عشان التبويب يفتح بسرعة */
+function adShowSig_(btn, id) {
+  setBtnBusy(btn, true, '...');
+  callApi('getIncentiveEntries', { id: id }).then(function (r) {
+    const row = ((r && r.list) || []).find(function (x) { return x['معرف'] === id; });
+    const td = btn.parentNode;
+    if (row && row['التوقيع'] && row['التوقيع'] !== 'HAS') {
+      td.innerHTML = '<img src="' + row['التوقيع'] + '" alt="توقيع" style="max-width:70px;max-height:36px;">';
+    } else { setBtnBusy(btn, false); alert('تعذر تحميل التوقيع'); }
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+function adCardRowHtml_(row) {
+  const adminBadge = row['سجّل بواسطة'] === 'الإدارة' ? '<div style="color:var(--maroon);font-weight:700;font-size:0.8rem;">سُجّل من الإدارة</div>' : '';
+  const sg = row['التوقيع'];
+  const sigCell = sg === 'HAS'
+    ? '<button type="button" class="btn outline" style="width:auto;padding:3px 10px;font-size:0.8rem;" onclick="adShowSig_(this,\'' + row['معرف'] + '\')">عرض</button>'
+    : (sg ? '<img src="' + sg + '" alt="توقيع" style="max-width:70px;max-height:36px;">' : (row['سجّل بواسطة'] === 'الإدارة' ? '<span style="color:#b45309;font-size:0.8rem;font-weight:700;">بانتظار إقرار وتوقيع المديرة/المسؤولة</span>' : '<span style="color:#8a7d76;font-size:0.8rem;">بدون توقيع</span>'));
+  return '<td>' + (row['اسم المركز'] || '') + '</td><td>' + (row['الدور'] || '') + '</td><td>' + (row['اليوم'] || '') + '</td><td>' + toHijriStr(row['التاريخ']) + '</td><td>' + (row['نوع البطاقة'] || '') + '</td><td>' + cardPriceLabel_(row['القيمة']) + '</td><td>' + (row['الكمية'] || '') + '</td><td>' + (row['اسم المستلمة'] || '') + '</td><td>' + sigCell + '</td><td>' + adminBadge + adCardEsc_(row['ملاحظات']) + '</td>';
+}
+
+function adminAddSplit_(parentId, card) {
+  const name = card.querySelector('.ad-split-name').value.trim();
+  const qty = Number(card.querySelector('.ad-split-qty').value) || 0;
+  const status = card.querySelector('.ad-split-status').value;
+  if (!name) { alert('اكتبي اسم المستفيدة'); return; }
+  if (qty < 1) { alert('اكتبي العدد'); return; }
+  const btn = card.querySelector('.ad-split-add');
+  setBtnBusy(btn, true);
+  callApi('addIncentiveFollowupSplit', { parentId: parentId, beneficiaryName: name, qty: qty, status: status }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r.ok) { alert(r.error || 'تعذر الحفظ'); return; }
+    loadCardsAdminOverview();
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+function adminDeleteSplit_(splitId) {
+  if (!confirm('حذف هذا السطر من متابعة الصرف؟')) return;
+  callApi('deleteIncentiveFollowupSplit', { id: splitId }).then(function (r) {
+    if (!r.ok) { alert(r.error || 'تعذر الحذف'); return; }
+    loadCardsAdminOverview();
   });
-  return { ok: true, visits: visits };
 }
 
-function deleteVisitStat_(p) {
-  const sh = sheet_(VISIT_STATS_SHEET_);
-  if (!sh) return { ok: false, error: 'الشيت غير موجود' };
-  const rows = sheetToObjects_(VISIT_STATS_SHEET_);
-  const target = rows.find(function (r) { return String(r['معرف']) === String(p.id); });
-  if (!target) return { ok: false, error: 'السجل غير موجود' };
-  sh.deleteRow(target._row);
-  invalidateCache_(VISIT_STATS_SHEET_);
-  return { ok: true };
+function fillAdCardCenters_() {
+  const sel = document.getElementById('adCardCenter');
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">اختاري المركز</option>';
+  (centersListCache || []).forEach(function (c) {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+  if (keep) sel.value = keep;
 }
 
-/* ---- بيانات التواصل (الصفحة الرئيسية) ----
-   تنحفظ بشيت «الإعدادات» بدل ملفات الموقع، عشان ما تظهر بمستودع GitHub.
-   أضيفي بشيت الإعدادات 3 صفوف (عمود المفتاح بالضبط كذا):
-     تواصل - جوال رئيسة الوحدة
-     تواصل - جوال مساعدة الوحدة
-     تواصل - إيميل الوحدة */
-function contactPhone_(v) {
-  let d = String(v || '').replace(/\D/g, '');
-  if (d.length === 9 && d.charAt(0) === '5') d = '0' + d;   // قوقل شيتس يحذف الصفر اللي بالبداية
-  return d;
-}
-
-function getContacts_() {
-  return {
-    ok: true,
-    headPhone: contactPhone_(getSettingValue_('تواصل - جوال رئيسة الوحدة')),
-    assistantPhone: contactPhone_(getSettingValue_('تواصل - جوال مساعدة الوحدة')),
-    unitEmail: getSettingValue_('تواصل - إيميل الوحدة')
-  };
-}
-
-function getPriceListFile_() {
-  return {
-    ok: true,
-    link: getSettingValue_('رابط ملف قائمة الأسعار'),
-    label: getSettingValue_('اسم ملف قائمة الأسعار')
-  };
-}
-
-function setPriceListFile_(p) {
-  if (p.actor !== 'admin') return { ok: false, error: 'ما عندك صلاحية تعديل ملف قائمة الأسعار' };
-  let link = '';
-  if (p.kind === 'file') {
-    link = saveAttachmentFile_(p.fileData, p.fileName || 'ملف قائمة الأسعار', p.mimeType || '');
+function initAdminCardForm_() {
+  if (centersListCache && centersListCache.length) {
+    fillAdCardCenters_();
   } else {
-    link = p.link || '';
+    callApi('getCenters').then(function (r) { centersListCache = r.centers || []; fillAdCardCenters_(); });
   }
-  setSettingValue_('رابط ملف قائمة الأسعار', link);
-  setSettingValue_('اسم ملف قائمة الأسعار', p.label || p.fileName || '');
-  return { ok: true };
+  if (!document.querySelector('#adLinesList .card-line-row')) addAdCardLine_();
+  if (!adCardSigReady_) {
+    adCardSigReady_ = true;
+    setTimeout(function () { setupSignatureWidget('adCardSig'); }, 50);
+  }
 }
 
-// تشغّل مرة وحدة (اختياري): تصلح روابط الصور القديمة المحفوظة بشيت "الإشعارات"
-// اللي كانت بالصيغة الغلط (drive.google.com/file/d/.../view) وتحوّلها للصيغة الصحيحة
-function fixOldImageUrls() {
-  const sh = sheet_('الإشعارات');
-  if (!sh || sh.getLastRow() < 2) { notify_('لا يوجد بيانات لتصليحها'); return; }
-  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
-  const urlCols = ['رابط صورة الإشعار', 'رابط صورة الإشعار الموقع'];
-  const range = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn());
-  const values = range.getValues();
-  let fixed = 0;
-  headers.forEach(function (h, idx) {
-    if (urlCols.indexOf(h) === -1) return;
-    for (let i = 0; i < values.length; i++) {
-      const v = values[i][idx];
-      const match = /drive\.google\.com\/file\/d\/([^/]+)\//.exec(v);
-      if (match) {
-        values[i][idx] = 'https://lh3.googleusercontent.com/d/' + match[1];
-        fixed++;
+function adCardSigBlank_() {
+  const dataUrl = getSignatureDataUrl('adCardSig');
+  if (!dataUrl) return true;
+  if (_sigWidgets['adCardSig'] && _sigWidgets['adCardSig'].mode === 'upload') return false;
+  const canvas = document.getElementById('adCardSig');
+  const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let i = 3; i < data.length; i += 4) { if (data[i] !== 0) return false; }
+  return true;
+}
+
+function submitAdminCardEntry() {
+  const center = document.getElementById('adCardCenter').value;
+  const role = document.getElementById('adCardRole').value;
+  const kind = document.getElementById('adCardKind').value;
+  const lines = readAdCardLines_();
+  const recipient = document.getElementById('adCardRecipient').value.trim();
+  const notes = document.getElementById('adCardNotes').value.trim();
+  if (!center) { alert('اختاري المركز'); return; }
+  if (!lines.length) { alert('اكتبي كمية لنوع واحد على الأقل'); return; }
+  if (!recipient) { alert('اكتبي اسم المستلمة'); return; }
+  const sig = adCardSigBlank_() ? '' : getSignatureDataUrl('adCardSig');
+  const btn = document.getElementById('adCardSubmitBtn');
+  setBtnBusy(btn, true);
+  Promise.all(lines.map(function (l) {
+    return callApi('recordIncentiveEntry', {
+      center: center, role: role, kind: kind, category: l.category, price: l.price,
+      qty: l.qty, recipientName: recipient, signature: sig, notes: notes, byAdmin: true
+    });
+  })).then(function (results) {
+    setBtnBusy(btn, false);
+    const failed = results.find(function (r) { return !r.ok; });
+    if (failed) { alert(failed.error || 'تعذر تسجيل بعض الأنواع'); }
+    document.getElementById('adLinesList').innerHTML = '';
+    addAdCardLine_();
+    document.getElementById('adCardRecipient').value = '';
+    document.getElementById('adCardNotes').value = '';
+    clearSignatureWidget('adCardSig');
+    const s = document.getElementById('adCardSuccess');
+    s.style.display = 'block';
+    setTimeout(function () { s.style.display = 'none'; }, 2500);
+    loadCardsAdminOverview();
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+function loadCardsAdminOverview() {
+  const managersTbody = document.getElementById('cardsManagersTbody');
+  const managersSummary = document.getElementById('cardsManagersSummary');
+  const groupsWrap = document.getElementById('cardsFollowupGroups');
+  const chartWrap = document.getElementById('cardsFollowupChart');
+  managersTbody.innerHTML = '<tr><td colspan="10">جاري التحميل...</td></tr>';
+  managersSummary.innerHTML = 'جاري التحميل...';
+  groupsWrap.innerHTML = '<div class="card">جاري التحميل...</div>';
+  chartWrap.innerHTML = 'جاري التحميل...';
+
+  Promise.all([
+    callApi('getIncentiveEntries', { kind: 'استلام', light: true }),
+    callApi('getIncentiveEntries', { kind: 'تسليم', light: true }),
+    callApi('getIncentiveFollowupSplits', {})
+  ]).then(function (results) {
+    const managerEntries = (results[0].ok ? results[0].list : []) || [];
+    const entries = (results[1].ok ? results[1].list : []) || [];
+    const splits = (results[2].ok ? results[2].list : []) || [];
+
+    // -------- جدول سجل المديرة والمسؤولة --------
+    managersTbody.innerHTML = '';
+    if (!managerEntries.length) { managersTbody.innerHTML = '<tr><td colspan="10">لا يوجد بيانات</td></tr>'; }
+    managerEntries.forEach(function (row) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = adCardRowHtml_(row);
+      managersTbody.appendChild(tr);
+    });
+
+    // -------- جدول سجل التسليم للمنسوبات (نفس جدول المديرة/المسؤولة) --------
+    const deliveriesTbody = document.getElementById('cardsDeliveriesTbody');
+    deliveriesTbody.innerHTML = '';
+    if (!entries.length) { deliveriesTbody.innerHTML = '<tr><td colspan="10">لا يوجد بيانات</td></tr>'; }
+    entries.slice(0, 100).forEach(function (row) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = adCardRowHtml_(row);
+      deliveriesTbody.appendChild(tr);
+    });
+
+    // -------- إجمالي بطاقات كل مديرة/مسؤولة (مجمّعة حسب المركز + الصفة) --------
+    const byManager = {};
+    managerEntries.forEach(function (e) {
+      const key = (e['اسم المركز'] || '') + '|' + (e['الدور'] || '');
+      if (!byManager[key]) byManager[key] = { center: e['اسم المركز'] || '', role: e['الدور'] || '', total: 0, breakdown: {} };
+      const qty = Number(e['الكمية']) || 0;
+      byManager[key].total += qty;
+      const bKey = (e['نوع البطاقة'] || '') + ' - ' + cardPriceLabel_(e['القيمة']);
+      byManager[key].breakdown[bKey] = (byManager[key].breakdown[bKey] || 0) + qty;
+    });
+    const managerKeys = Object.keys(byManager);
+    if (!managerKeys.length) {
+      managersSummary.innerHTML = '<p style="color:#8a7d76;">لا يوجد بيانات</p>';
+    } else {
+      managersSummary.innerHTML = '<ul style="margin:0;padding-inline-start:20px;line-height:2;">' +
+        managerKeys.map(function (k) {
+          const m = byManager[k];
+          const parts = Object.keys(m.breakdown).map(function (bk) { return m.breakdown[bk] + ' ' + bk; }).join(' و');
+          return '<li><strong>' + m.center + ' - ' + m.role + '</strong>: إجمالي بطاقات التحفيز ' + m.total + ' (' + parts + ')</li>';
+        }).join('') + '</ul>';
+    }
+
+    // -------- الرسم البياني: إجمالي الكميات حسب الحالة والصفة --------
+    const totalDelivered = entries.reduce(function (s, e) { return s + (Number(e['الكمية']) || 0); }, 0);
+    const totalRedeemed = splits.filter(function (s) { return s['الحالة'] === 'تم استبدال القيمة'; }).reduce(function (s, r) { return s + (Number(r['العدد']) || 0); }, 0);
+    const totalReturned = splits.filter(function (s) { return s['الحالة'] === 'تم إرجاع البطاقة'; }).reduce(function (s, r) { return s + (Number(r['العدد']) || 0); }, 0);
+    const totalPending = Math.max(0, totalDelivered - totalRedeemed - totalReturned);
+    const totalManagersRole = managerEntries.filter(function (e) { return e['الدور'] === 'مديرة المركز'; }).reduce(function (s, e) { return s + (Number(e['الكمية']) || 0); }, 0);
+    const totalSupervisorsRole = managerEntries.filter(function (e) { return e['الدور'] === 'مسؤولة المقصف'; }).reduce(function (s, e) { return s + (Number(e['الكمية']) || 0); }, 0);
+    const chartRows = [
+      { label: 'إجمالي بطاقات المديرات', value: totalManagersRole },
+      { label: 'إجمالي بطاقات المسؤولات', value: totalSupervisorsRole },
+      { label: 'إجمالي المسلَّم للمنسوبات', value: totalDelivered },
+      { label: 'تم استبدال القيمة', value: totalRedeemed },
+      { label: 'تم إرجاع البطاقة', value: totalReturned },
+      { label: 'متبقٍ غير محسوم', value: totalPending }
+    ];
+    const maxVal = Math.max(1, totalManagersRole, totalSupervisorsRole, totalDelivered);
+    chartWrap.innerHTML = '';
+    chartRows.forEach(function (row) {
+      const pct = Math.max(4, Math.round((row.value / maxVal) * 100));
+      const rowDiv = document.createElement('div');
+      rowDiv.className = 'bar-row';
+      rowDiv.innerHTML =
+        '<div class="bar-head"><span>' + row.label + '</span><span>' + row.value + '</span></div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;"></div></div>';
+      chartWrap.appendChild(rowDiv);
+    });
+
+    // -------- كرت لكل سطر تسليم (الكمية الإجمالية تُكتب مرة وحدة بالكرت، مو مكررة بكل صف) --------
+    groupsWrap.innerHTML = '';
+    if (!entries.length) { groupsWrap.innerHTML = '<div class="card">لا يوجد سجل بعد</div>'; return; }
+    entries.forEach(function (entry) {
+      const parentId = entry['معرف'];
+      const mySplits = splits.filter(function (s) { return s['معرف السطر الأصلي'] === parentId; });
+      const total = Number(entry['الكمية']) || 0;
+      const allocated = mySplits.reduce(function (s, r) { return s + (Number(r['العدد']) || 0); }, 0);
+      const remaining = total - allocated;
+      const card = document.createElement('div');
+      card.className = 'card';
+      let splitsHtml = '';
+      if (mySplits.length) {
+        splitsHtml = '<table class="log-table" style="margin-top:10px;"><thead><tr><th>اسم المستفيدة</th><th>العدد</th><th>الحالة</th><th>التاريخ</th><th></th></tr></thead><tbody>' +
+          mySplits.map(function (s) {
+            return '<tr><td>' + (s['اسم المستفيدة'] || '') + '</td><td>' + (s['العدد'] || '') + '</td><td>' + (s['الحالة'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td><td><button type="button" class="btn outline" style="width:auto;padding:4px 10px;" onclick="adminDeleteSplit_(\'' + s['معرف'] + '\')">حذف</button></td></tr>';
+          }).join('') + '</tbody></table>';
+      } else {
+        splitsHtml = '<p style="color:#8a7d76;font-size:0.85rem;margin:8px 0 0;">ما فيه توزيعات مسجّلة بعد لهذا السطر</p>';
       }
+      card.innerHTML =
+        '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">' +
+          '<strong style="color:var(--maroon);">' + (entry['اسم المركز'] || '') + ' - اسم المستلمة: ' + (entry['اسم المستلمة'] || '') + '</strong>' +
+          '<span style="color:#8a7d76;font-size:0.85rem;">' + (entry['نوع البطاقة'] || '') + ' - ' + cardPriceLabel_(entry['القيمة']) + ' - الكمية الإجمالية: ' + total + ' - المتبقي: ' + remaining + '</span>' +
+        '</div>' +
+        (entry['سجّل بواسطة'] === 'الإدارة' ? '<div style="color:var(--maroon);font-weight:700;font-size:0.8rem;margin-top:4px;">سُجّل من الإدارة</div>' : '') +
+        (entry['ملاحظات'] ? '<div style="color:#8a7d76;font-size:0.85rem;margin-top:4px;">ملاحظات: ' + adCardEsc_(entry['ملاحظات']) + '</div>' : '') +
+        splitsHtml +
+        '<div class="select-row" style="margin-top:10px;align-items:flex-end;">' +
+          '<div><label>اسم المستفيدة</label><input type="text" class="ad-split-name" placeholder="الاسم"></div>' +
+          '<div><label>العدد</label><input type="text" inputmode="numeric" pattern="[0-9]*" class="ad-split-qty" placeholder="العدد"></div>' +
+          '<div><label>الحالة</label><select class="ad-split-status"><option value="تم استبدال القيمة">تم استبدال القيمة</option><option value="تم إرجاع البطاقة">تم إرجاع البطاقة</option></select></div>' +
+          '<div><button type="button" class="btn ad-split-add" style="width:auto;padding:8px 14px;">إضافة</button></div>' +
+        '</div>';
+      card.querySelector('.ad-split-add').addEventListener('click', function () { adminAddSplit_(parentId, card); });
+      groupsWrap.appendChild(card);
+    });
+  });
+}
+
+/* -------- تحميل قوائم المراكز في كل القوائم المنسدلة -------- */
+function loadCentersDropdowns() {
+  callApi('getCenters').then(function (r) {
+    centersListCache = r.centers || [];
+    fillCenterSelect('salesCenterSelect');
+    fillCenterSelect('returnsCenterSelect');
+    fillCenterSelect('invoicesCenterSelect');
+    fillCenterSelect('noticeCenterFilter');
+  });
+  callApi('getMasoulat').then(function (r) {
+    masoulatListCache = r.masoulat || [];
+    fillNameSelect('pledgesNameFilter');
+    fillNameSelect('tasksNameFilter');
+  });
+}
+
+function fillNameSelect(id) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = '<option value="">عرض الكل</option>';
+  masoulatListCache.forEach(function (n) {
+    const opt = document.createElement('option');
+    opt.value = n; opt.textContent = n;
+    sel.appendChild(opt);
+  });
+}
+
+function fillCenterSelect(id) {
+  const sel = document.getElementById(id);
+  const placeholder = id === 'noticeCenterFilter' ? 'كل المراكز' : 'عرض جميع المراكز';
+  sel.innerHTML = '<option value="">' + placeholder + '</option>';
+  centersListCache.forEach(function (c) {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+}
+
+/* -------- الإشعارات (تعرض جميع إشعارات الاستلام والتسليم) -------- */
+let allNoticesPending = [];
+let allNoticesDone = [];
+
+/* نسخة خفيفة تُستخدم فور الدخول: تجيب رقم عدد الإشعارات المعلّقة بس (لتحديث النقطة
+   الحمراء على أيقونة "الإشعارات" بالشاشة الرئيسية)، بدون تحميل كل سجل الإشعارات
+   (اللي ما يظهر أصلاً إلا لما تُفتح شاشة "الإشعارات" - يتحمّل حينها بدالة loadPending). */
+function loadPendingBadgeOnly() {
+  callApi('getPendingNoticesCount').then(function (r) {
+    const homeBadge = document.getElementById('adminPendingBadge');
+    if (!homeBadge) return;
+    if (r.ok && r.count > 0) { homeBadge.textContent = r.count; homeBadge.classList.remove('hidden'); }
+    else { homeBadge.classList.add('hidden'); }
+  });
+}
+
+function loadPending() {
+  populateTermFilter_('noticesTermFilter');
+  const term = document.getElementById('noticesTermFilter').value;
+  loadPendingForTerm_(term);
+}
+
+function loadPendingForTerm_(term) {
+  document.getElementById('pendingList').innerHTML = 'جاري التحميل...';
+  document.getElementById('doneList').innerHTML = 'جاري التحميل...';
+  callApi('getAllNotices', { term: term }).then(function (r) {
+    if (!r.ok) {
+      const msg = '<p style="color:#b8321f;">تعذّر تحميل الإشعارات: ' + (r.error || 'الرجاء التأكد من نشر آخر نسخة من الكود بـ Apps Script (Deploy ← Manage deployments ← New version)') + '</p>';
+      document.getElementById('pendingList').innerHTML = msg;
+      document.getElementById('doneList').innerHTML = msg;
+      return;
+    }
+    allNoticesPending = r.pending || [];
+    allNoticesDone = r.done || [];
+    allPending = allNoticesPending; // توافق مع بقية الكود
+
+    const alertCard = document.getElementById('alertCard');
+    const homeBadge = document.getElementById('adminPendingBadge');
+    if (allNoticesPending.length > 0) {
+      alertCard.style.display = 'block';
+      document.getElementById('alertCount').textContent = allNoticesPending.length;
+      if (homeBadge) { homeBadge.textContent = allNoticesPending.length; homeBadge.classList.remove('hidden'); }
+    } else {
+      alertCard.style.display = 'none';
+      if (homeBadge) homeBadge.classList.add('hidden');
+    }
+
+    renderNoticeLists();
+
+    // تشخيص تلقائي: لو رجعت القائمتين فاضيتين تماماً (لا بانتظار ولا تم)، نطلع
+    // معلومات الملف المتصل فيه الكود فعلاً - عشان تكتشفي فوراً لو كنتِ متصلة بملف إكسل غلط
+    if (!allNoticesPending.length && !allNoticesDone.length) {
+      showConnectedFileDebug_();
+    }
+  }).catch(function (err) {
+    const msg = '<p style="color:#b8321f;">تعذّر الاتصال بالسيرفر: ' + err.message + '</p>';
+    document.getElementById('pendingList').innerHTML = msg;
+    document.getElementById('doneList').innerHTML = msg;
+  });
+}
+
+function showConnectedFileDebug_() {
+  const existing = document.getElementById('connDebugBox');
+  if (existing) existing.remove();
+  callApi('debugInfo').then(function (d) {
+    if (!d.ok) return;
+    const noticesSheet = d.sheets.find(function (s) { return s.name === 'الإشعارات'; });
+    const rowsText = noticesSheet ? (noticesSheet.exists ? (noticesSheet.rows + ' صف بيانات') : 'الشيت غير موجود بهذا الملف!') : '';
+    const box = document.createElement('div');
+    box.id = 'connDebugBox';
+    box.className = 'card';
+    box.style.borderRight = '5px solid var(--pending)';
+    box.innerHTML =
+      '<strong style="color:var(--pending);">تنبيه تشخيصي</strong>' +
+      '<p style="margin:8px 0 4px;">الموقع الآن متصل بملف الإكسل التالي:</p>' +
+      '<p style="font-weight:700;">' + d.spreadsheetName + '</p>' +
+      '<p style="font-size:0.85rem;"><a href="' + d.spreadsheetUrl + '" target="_blank">فتح هذا الملف</a></p>' +
+      '<p style="font-size:0.85rem;color:#8a7d76;">شيت "الإشعارات" بهذا الملف فيه: ' + rowsText + '</p>' +
+      '<p style="font-size:0.85rem;color:#8a7d76;">لو هذا مو نفس ملف الإكسل اللي انتِ شايفة فيه الإشعارات المرسلة، فهذا سبب المشكلة: افتحي Apps Script من داخل الملف الصحيح (إضافات ← Apps Script) وأعيدي لصق الأكواد ونشرها من هناك.</p>';
+    document.getElementById('listView').insertBefore(box, document.getElementById('listView').firstChild);
+  });
+}
+
+function renderNoticeLists() {
+  const typeFilter = document.getElementById('noticeTypeFilter').value;
+  const centerFilter = document.getElementById('noticeCenterFilter').value;
+
+  function matches(n) {
+    return (!typeFilter || n['النوع'] === typeFilter) &&
+      (!centerFilter || String(n['اسم المركز']).trim() === centerFilter);
+  }
+
+  const pendingFiltered = allNoticesPending.filter(matches);
+  const doneFiltered = allNoticesDone.filter(matches);
+
+  const pendingBox = document.getElementById('pendingList');
+  if (!pendingFiltered.length) {
+    pendingBox.innerHTML = '<p style="color:#8a7d76;">لا توجد إشعارات بانتظار الاطلاع</p>';
+  } else {
+    pendingBox.innerHTML = '';
+    const pendingBoxTotals = buildNoticesTotalsBar_(pendingFiltered);
+    if (pendingBoxTotals) pendingBox.appendChild(pendingBoxTotals);
+    pendingFiltered.forEach(function (n) {
+      pendingBox.appendChild(buildNoticeRow_(n, true));
+    });
+  }
+
+  const doneBox = document.getElementById('doneList');
+  if (!doneFiltered.length) {
+    doneBox.innerHTML = '<p style="color:#8a7d76;">لا توجد إشعارات تم الاطلاع عليها بعد</p>';
+  } else {
+    doneBox.innerHTML = '';
+    const doneBoxTotals = buildNoticesTotalsBar_(doneFiltered);
+    if (doneBoxTotals) doneBox.appendChild(doneBoxTotals);
+    doneFiltered.forEach(function (n) {
+      doneBox.appendChild(buildNoticeRow_(n, false));
+    });
+  }
+}
+
+function buildNoticeRow_(n, isPending) {
+  const div = document.createElement('div');
+  div.className = 'notice-item';
+  div.style.cursor = 'pointer';
+  div.onclick = function () { openDetail(n); };
+  const salesInfo = n['الشهر'] ? ('<div class="meta">مبيعات ' + n['الشهر'] + ' · الفصل ' + n['الفصل الدراسي'] + ' · ' + n['العام'] + '</div>') : '';
+  const timeInfo = isPending
+    ? formatDayDateTime(n['يوم الإرسال'], n['تاريخ الإرسال'], n['وقت الإرسال'])
+    : formatDayDateTime(n['يوم اطلاع الإدارة'], n['تاريخ اطلاع الإدارة'], n['وقت اطلاع الإدارة']);
+  div.innerHTML =
+    '<div>' +
+      '<div><strong>' + n['اسم المركز'] + '</strong> - إشعار ' + n['النوع'] + '</div>' +
+      '<div class="meta">' + Number(n['المبلغ']).toFixed(2) + ' ريال · ' + timeInfo + '</div>' +
+      salesInfo +
+    '</div>' +
+    '<span class="status-pill ' + (isPending ? 'pending' : 'done') + '">' + (isPending ? 'بانتظار الاطلاع' : 'تم الاطلاع') + '</span>';
+  return div;
+}
+
+function openDetail(notice) {
+  currentNotice = notice;
+  if (notice['الحالة'] === 'بانتظار الاطلاع') getCenterSig_(notice); // نجلب توقيع المركز بالخلفية عشان يكون جاهز وقت التوقيع
+  document.getElementById('detailNoticeImg').src = notice['رابط صورة الإشعار الموقع'] || notice['رابط صورة الإشعار'];
+  document.getElementById('receiverName').value = '';
+  const isPending = notice['الحالة'] === 'بانتظار الاطلاع';
+  document.getElementById('signCard').classList.toggle('hidden', !isPending);
+  document.getElementById('alreadySignedCard').classList.toggle('hidden', isPending);
+  if (!isPending) {
+    document.getElementById('signedNoticeImg').src = notice['رابط صورة الإشعار الموقع'] || notice['رابط صورة الإشعار'];
+  }
+  document.getElementById('listView').classList.add('hidden');
+  document.getElementById('detailView').classList.remove('hidden');
+  setSigMode('adminSigPad', 'draw');
+  setTimeout(function () { setupSignatureWidget('adminSigPad'); }, 50);
+  document.getElementById('editSignedCard').classList.add('hidden');
+}
+
+/* -------- تعديل إشعار بعد توقيعه -------- */
+function openEditSigned() {
+  const n = currentNotice;
+  if (!n) return;
+  document.getElementById('esType').value = n['النوع'] || 'استلام';
+  document.getElementById('esAmount').value = n['المبلغ'] || '';
+  document.getElementById('esSender').value = n['اسم المسلّمة'] || '';
+  document.getElementById('esReceiver').value = n['اسم المستلمة'] || '';
+  document.getElementById('esMonths').value = n['الشهر'] || '';
+  document.getElementById('esTerm').value = n['الفصل الدراسي'] || '';
+  document.getElementById('esYear').value = n['العام'] || '';
+  document.getElementById('esReason').value = n['بيان مخصص'] || '';
+  document.getElementById('esError').style.display = 'none';
+  const centerSel = document.getElementById('esCenter');
+  centerSel.innerHTML = '<option>' + (n['اسم المركز'] || '') + '</option>';
+  callApi('getCenters').then(function (rc) {
+    const names = (rc && rc.ok && rc.centers) ? rc.centers.slice() : [];
+    if (names.indexOf(n['اسم المركز']) === -1 && n['اسم المركز']) names.unshift(n['اسم المركز']);
+    centerSel.innerHTML = '';
+    names.forEach(function (nm) {
+      const o = document.createElement('option'); o.value = nm; o.textContent = nm; centerSel.appendChild(o);
+    });
+    centerSel.value = n['اسم المركز'] || names[0] || '';
+  });
+  const dm = String(n['تاريخ الإرسال'] || '').match(/^(\d{4}-\d{2}-\d{2})/);
+  document.getElementById('esDate').value = dm ? dm[1] : '';
+  document.getElementById('esDay').value = n['يوم الإرسال'] || (dm ? dayNameFor(dm[1]) : 'الأحد');
+  const hasStored = !!n['رابط توقيع الإدارة'];
+  document.getElementById('esSigHint').textContent = hasStored
+    ? 'توقيعك محفوظ من قبل، اتركي الخانة فاضية لاستخدامه، أو ارسمي/ارفعي توقيع جديد.'
+    : 'هذا الإشعار ما انحفظ له توقيعك (أو تم توقيعه قبل التحديث)، ارسمي توقيعك هنا مرة وحدة وبنحفظه لتعديلاتك الجاية.';
+  document.getElementById('editSignedCard').classList.remove('hidden');
+  setSigMode('editSigPad', 'draw');
+  setTimeout(function () {
+    setupSignatureWidget('editSigPad');
+    clearSignatureWidget('editSigPad');
+    document.getElementById('editSignedCard').scrollIntoView({ behavior: 'smooth' });
+  }, 50);
+}
+
+function esDateChanged() {
+  const v = document.getElementById('esDate').value;
+  if (v) document.getElementById('esDay').value = dayNameFor(v);
+}
+
+function closeEditSigned() {
+  document.getElementById('editSignedCard').classList.add('hidden');
+}
+
+function editSigHasInk_() {
+  const w = _sigWidgets['editSigPad'];
+  if (!w) return false;
+  if (w.mode === 'upload') return !!w.uploadDataUrl;
+  const canvas = document.getElementById('editSigPad');
+  const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let i = 3; i < data.length; i += 4) { if (data[i] !== 0) return true; }
+  return false;
+}
+
+async function saveEditSigned() {
+  const errBox = document.getElementById('esError');
+  errBox.style.display = 'none';
+  const n = currentNotice;
+  const showErr = function (m) { errBox.textContent = m; errBox.style.display = 'block'; };
+  const amount = document.getElementById('esAmount').value;
+  if (!(Number(amount) > 0)) { showErr('أدخلي مبلغ صحيح'); return; }
+  const type = document.getElementById('esType').value;
+  const centerName = document.getElementById('esCenter').value || n['اسم المركز'];
+  const sendDate = document.getElementById('esDate').value || n['تاريخ الإرسال'];
+  const sendDay = document.getElementById('esDay').value || n['يوم الإرسال'];
+  const sender = document.getElementById('esSender').value.trim();
+  const receiver = document.getElementById('esReceiver').value.trim();
+  const monthsText = document.getElementById('esMonths').value.trim();
+  const term = document.getElementById('esTerm').value.trim();
+  const year = document.getElementById('esYear').value.trim();
+  const reason = document.getElementById('esReason').value.trim();
+
+  const btn = document.getElementById('esSaveBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    // توقيع الإدارة: الجديد لو انرسم/انرفع، وإلا المحفوظ سابقًا
+    let adminSig = '';
+    let newAdminSig = '';
+    if (editSigHasInk_()) {
+      adminSig = getSignatureDataUrl('editSigPad');
+      newAdminSig = adminSig;
+    } else if (n['رابط توقيع الإدارة']) {
+      const r0 = await callApi('getNoticeAdminSignature', { id: n['معرف'] });
+      adminSig = (r0 && r0.ok && r0.dataUrl) ? r0.dataUrl : '';
+    }
+    if (!adminSig) { showErr('ارسمي توقيعك أو ارفعي صورته أولًا'); btn.disabled = false; btn.textContent = 'حفظ التعديل'; return; }
+
+    const months = monthsText.split(/[،,]\s*/).filter(Boolean);
+    const centerSig = await getCenterSig_(n);
+    if (!centerSig.ok) { showErr('تعذّر جلب توقيع المركز، تأكدي من الاتصال وحاولي مرة أخرى'); btn.disabled = false; btn.textContent = 'حفظ التعديل'; return; }
+    const composed = await generateNoticeImage({
+      type: type, center: centerName, amount: amount,
+      sigDataUrl: centerSig.dataUrl, adminSigDataUrl: adminSig, adminLabel: 'توقيع المستلمة',
+      senderName: sender, receiverName: receiver,
+      day: sendDay, date: sendDate,
+      months: months, term: term, year: year, reason: reason
+    });
+    const r = await callApi('updateSignedNotice', {
+      id: n['معرف'], type: type, center: centerName, date: sendDate, day: sendDay,
+      amount: amount, senderName: sender, receiverName: receiver,
+      month: months.join('، '), term: term, year: year, reason: reason,
+      signedNoticeImage: composed, adminSignature: newAdminSig
+    });
+    btn.disabled = false; btn.textContent = 'حفظ التعديل';
+    if (!r || !r.ok) { showErr((r && r.error) || 'تعذّر حفظ التعديل، حاولي مرة أخرى'); return; }
+    n['اسم المركز'] = centerName; n['تاريخ الإرسال'] = sendDate; n['يوم الإرسال'] = sendDay;
+    n['النوع'] = type; n['المبلغ'] = amount; n['اسم المسلّمة'] = sender; n['اسم المستلمة'] = receiver;
+    n['الشهر'] = months.join('، '); n['الفصل الدراسي'] = term; n['العام'] = year; n['بيان مخصص'] = reason;
+    if (r.signedImageUrl) n['رابط صورة الإشعار الموقع'] = r.signedImageUrl;
+    if (r.adminSigUrl) n['رابط توقيع الإدارة'] = r.adminSigUrl;
+    document.getElementById('signedNoticeImg').src = composed;
+    document.getElementById('detailNoticeImg').src = composed;
+    closeEditSigned();
+    alert('تم حفظ التعديل ✅');
+  } catch (err) {
+    btn.disabled = false; btn.textContent = 'حفظ التعديل';
+    showErr('صار خطأ أثناء الحفظ: ' + (err && err.message ? err.message : err));
+  }
+}
+
+function backToList() {
+  document.getElementById('detailView').classList.add('hidden');
+  document.getElementById('listView').classList.remove('hidden');
+  loadPending();
+}
+
+function clearAdminSig() {
+  clearSignatureWidget('adminSigPad');
+}
+
+function signAndSend() {
+  const errBox = document.getElementById('adminError');
+  errBox.style.display = 'none';
+  const receiverName = document.getElementById('receiverName').value.trim();
+  if (!receiverName) { errBox.textContent = 'أدخلي اسم المستلمة'; errBox.style.display = 'block'; return; }
+  const sigDataUrl = getSignatureDataUrl('adminSigPad');
+
+  const btn = event.target;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+
+  let composedImgResult = '';
+  const notice = currentNotice;
+  const fail = function (msg) {
+    btn.disabled = false; btn.textContent = 'تم الاطلاع - إرسال للمركز';
+    errBox.textContent = msg;
+    errBox.style.display = 'block';
+  };
+  getCenterSig_(notice).then(function (cs) {
+    if (!cs.ok) throw new Error('centerSig');
+    return generateNoticeImage({
+      type: notice['النوع'], center: notice['اسم المركز'], amount: notice['المبلغ'],
+      sigDataUrl: cs.dataUrl, adminSigDataUrl: sigDataUrl, adminLabel: 'توقيع المستلمة',
+      senderName: notice['اسم المسلّمة'], receiverName: receiverName,
+      day: notice['يوم الإرسال'], date: notice['تاريخ الإرسال'],
+      months: (notice['الشهر'] || '').split(/،\s*/).filter(Boolean), term: notice['الفصل الدراسي'], year: notice['العام'],
+      reason: notice['بيان مخصص'] || ''
+    });
+  }).then(function (composedImg) {
+    composedImgResult = composedImg;
+    return callApi('adminSignNotice', {
+      id: notice['معرف'],
+      signature: sigDataUrl,
+      signedNoticeImage: composedImg,
+      receiverName: receiverName
+    });
+  }).then(function (r) {
+    btn.disabled = false; btn.textContent = 'تم الاطلاع - إرسال للمركز';
+    if (r.ok) {
+      document.getElementById('signCard').classList.add('hidden');
+      document.getElementById('alreadySignedCard').classList.remove('hidden');
+      document.getElementById('signedNoticeImg').src = composedImgResult;
+    } else {
+      errBox.textContent = r.error || 'حدث خطأ أثناء الاطلاع';
+      errBox.style.display = 'block';
+    }
+  }).catch(function (e) {
+    fail(e && e.message === 'centerSig' ? 'تعذّر جلب توقيع المركز، تأكدي من الاتصال وحاولي مرة أخرى' : 'حدث خطأ أثناء الاطلاع، حاولي مرة أخرى');
+  });
+}
+
+/* -------- المبيعات لكل مركز -------- */
+function loadCenterSales() {
+  const center = document.getElementById('salesCenterSelect').value;
+  const tbody = document.getElementById('salesTbody');
+  tbody.innerHTML = '<tr><td colspan="6">جاري التحميل...</td></tr>';
+  populateTermFilter_('salesTermFilter');
+  const term = document.getElementById('salesTermFilter').value;
+  callApi('getSales', { center: center, term: term }).then(function (r) {
+    currentSales = r.sales || [];
+    if (!r.ok || !currentSales.length) {
+      tbody.innerHTML = '<tr><td colspan="6">لا يوجد سجل بعد</td></tr>';
+      document.getElementById('salesTotal').textContent = '0';
+      return;
+    }
+    tbody.innerHTML = '';
+    currentSales.forEach(function (s) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + (s['اسم المركز'] || '') + '</td><td>' + (s['اليوم'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td><td>' + (s['ملاحظات'] || '') + '</td>';
+      tbody.appendChild(tr);
+    });
+    document.getElementById('salesTotal').textContent = r.total.toFixed(2);
+  });
+}
+
+function exportCurrentSales() {
+  const center = document.getElementById('salesCenterSelect').value;
+  if (!currentSales.length) { alert('لا يوجد سجل مبيعات لتصديره'); return; }
+  const rows = currentSales.map(function (s) {
+    return { 'المركز': s['اسم المركز'] || '', 'اليوم': s['اليوم'] || '', 'التاريخ': toHijriStr(s['التاريخ']), 'المبلغ': Number(s['المبلغ']), 'ملاحظات': s['ملاحظات'] || '' };
+  });
+  exportToExcel(rows, 'مبيعات-' + (center || 'كل-المراكز'), 'المبيعات', { key: 'المبلغ', label: 'الإجمالي' });
+}
+
+function printCurrentSales() {
+  const center = document.getElementById('salesCenterSelect').value;
+  if (!currentSales.length) { alert('لا يوجد سجل مبيعات لطباعته'); return; }
+  const rows = currentSales.map(function (s) {
+    return { center: s['اسم المركز'] || '', day: s['اليوم'] || '', date: toHijriStr(s['التاريخ']), amount: Number(s['المبلغ']).toFixed(2), notes: s['ملاحظات'] || '' };
+  });
+  printReport('سجل المبيعات', center || 'كل المراكز', [
+    { key: 'center', label: 'المركز' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'amount', label: 'المبلغ' }, { key: 'notes', label: 'ملاحظات' }
+  ], rows, { key: 'amount', label: 'الإجمالي' });
+}
+
+/* -------- المرتجعات لكل مركز -------- */
+function loadCenterReturns() {
+  const center = document.getElementById('returnsCenterSelect').value;
+  const tbody = document.getElementById('returnsTbody');
+  tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
+  populateTermFilter_('returnsTermFilter');
+  const term = document.getElementById('returnsTermFilter').value;
+  callApi('getReturns', { center: center, term: term }).then(function (r) {
+    currentReturns = r.returns || [];
+    if (!r.ok || !currentReturns.length) {
+      tbody.innerHTML = '<tr><td colspan="7">لا توجد مرتجعات بعد</td></tr>';
+      document.getElementById('returnsTotal').textContent = '0';
+      return;
+    }
+    tbody.innerHTML = '';
+    currentReturns.forEach(function (rt) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + (rt['اسم المركز'] || '') + '</td><td>' + (rt['اليوم'] || '') + '</td><td>' + toHijriStr(rt['التاريخ']) + '</td><td>' + (rt['وصف الصنف'] || '') + '</td><td>' + (rt['الكمية'] || 0) + '</td><td>' + Number(rt['القيمة']).toFixed(2) + '</td><td>' + (rt['ملاحظات'] || '') + '</td>';
+      tbody.appendChild(tr);
+    });
+    document.getElementById('returnsTotal').textContent = r.total.toFixed(2);
+  });
+}
+
+function exportCurrentReturns() {
+  const center = document.getElementById('returnsCenterSelect').value;
+  if (!currentReturns.length) { alert('لا يوجد سجل مرتجعات لتصديره'); return; }
+  const rows = currentReturns.map(function (rt) {
+    return { 'المركز': rt['اسم المركز'] || '', 'اليوم': rt['اليوم'] || '', 'التاريخ': rt['التاريخ'], 'الصنف': rt['وصف الصنف'] || '', 'الكمية': rt['الكمية'] || 0, 'القيمة': Number(rt['القيمة']), 'ملاحظات': rt['ملاحظات'] || '' };
+  });
+  exportToExcel(rows, 'مرتجعات-' + (center || 'كل-المراكز'), 'المرتجعات');
+}
+
+function printCurrentReturns() {
+  const center = document.getElementById('returnsCenterSelect').value;
+  if (!currentReturns.length) { alert('لا يوجد سجل مرتجعات لطباعته'); return; }
+  const rows = currentReturns.map(function (rt) {
+    return { center: rt['اسم المركز'] || '', day: rt['اليوم'] || '', date: toHijriStr(rt['التاريخ']), item: rt['وصف الصنف'] || '', qty: rt['الكمية'] || 0, value: Number(rt['القيمة']).toFixed(2), notes: rt['ملاحظات'] || '' };
+  });
+  printReport('البضائع المرتجعة', center || 'كل المراكز', [
+    { key: 'center', label: 'المركز' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' }, { key: 'item', label: 'الصنف' },
+    { key: 'qty', label: 'الكمية' }, { key: 'value', label: 'القيمة' }, { key: 'notes', label: 'ملاحظات' }
+  ], rows);
+}
+
+/* -------- المراكز المفعّل لها «مشتريات» -------- */
+function loadPurchaseCentersAdmin() {
+  const box = document.getElementById('purchaseCentersBox');
+  function render(selected) {
+    box.innerHTML = centersListCache.length ? '' : 'لا يوجد مراكز';
+    centersListCache.forEach(function (c) {
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:6px;';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.className = 'purchase-center-check'; cb.value = c;
+      cb.checked = selected.indexOf(c) !== -1;
+      cb.onchange = syncPurchaseCentersAll_;
+      const sp = document.createElement('span'); sp.textContent = c;
+      label.appendChild(cb); label.appendChild(sp);
+      box.appendChild(label);
+    });
+    syncPurchaseCentersAll_();
+  }
+  function go() { callApi('getPurchaseCenters').then(function (r) { render((r && r.centers) || []); }); }
+  if (centersListCache.length) { go(); return; }
+  callApi('getCenters').then(function (r) { centersListCache = r.centers || []; go(); });
+}
+
+function togglePurchaseCentersAll_(on) {
+  document.querySelectorAll('.purchase-center-check').forEach(function (cb) { cb.checked = on; });
+  syncPurchaseCentersAll_();
+}
+
+function syncPurchaseCentersAll_() {
+  const all = document.querySelectorAll('.purchase-center-check');
+  const checked = document.querySelectorAll('.purchase-center-check:checked');
+  document.getElementById('purchaseCentersAll').checked = all.length > 0 && all.length === checked.length;
+  const cnt = document.getElementById('purchaseCentersCount');
+  if (cnt) cnt.textContent = checked.length + ' من ' + all.length;
+}
+
+function savePurchaseCenters() {
+  const btn = document.getElementById('purchaseCentersSaveBtn');
+  const centers = Array.prototype.map.call(document.querySelectorAll('.purchase-center-check:checked'), function (cb) { return cb.value; });
+  setBtnBusy(btn, true);
+  callApi('setPurchaseCenters', { actor: 'admin', centers: centers }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (r.ok) {
+      const s = document.getElementById('purchaseCentersSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+    } else { alert(r.error || 'تعذّر الحفظ'); }
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+/* -------- المراكز المفعّل لها «مصروفات» -------- */
+function loadExpenseCentersAdmin() {
+  const box = document.getElementById('expenseCentersBox');
+  function render(selected) {
+    box.innerHTML = centersListCache.length ? '' : 'لا يوجد مراكز';
+    centersListCache.forEach(function (c) {
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:6px;';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.className = 'expense-center-check'; cb.value = c;
+      cb.checked = selected.indexOf(c) !== -1;
+      cb.onchange = syncExpenseCentersAll_;
+      const sp = document.createElement('span'); sp.textContent = c;
+      label.appendChild(cb); label.appendChild(sp);
+      box.appendChild(label);
+    });
+    syncExpenseCentersAll_();
+  }
+  function go() { callApi('getExpenseCenters').then(function (r) { render((r && r.centers) || []); }); }
+  if (centersListCache.length) { go(); return; }
+  callApi('getCenters').then(function (r) { centersListCache = r.centers || []; go(); });
+}
+
+function toggleExpenseCentersAll_(on) {
+  document.querySelectorAll('.expense-center-check').forEach(function (cb) { cb.checked = on; });
+  syncExpenseCentersAll_();
+}
+
+function syncExpenseCentersAll_() {
+  const all = document.querySelectorAll('.expense-center-check');
+  const checked = document.querySelectorAll('.expense-center-check:checked');
+  document.getElementById('expenseCentersAll').checked = all.length > 0 && all.length === checked.length;
+  const cnt = document.getElementById('expenseCentersCount');
+  if (cnt) cnt.textContent = checked.length + ' من ' + all.length;
+}
+
+function saveExpenseCenters() {
+  const btn = document.getElementById('expenseCentersSaveBtn');
+  const centers = Array.prototype.map.call(document.querySelectorAll('.expense-center-check:checked'), function (cb) { return cb.value; });
+  setBtnBusy(btn, true);
+  callApi('setExpenseCenters', { actor: 'admin', centers: centers }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (r.ok) {
+      const s = document.getElementById('expenseCentersSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+    } else { alert(r.error || 'تعذّر الحفظ'); }
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+/* -------- الفواتير لكل مركز -------- */
+function loadCenterInvoices() {
+  const center = document.getElementById('invoicesCenterSelect').value;
+  const tbody = document.getElementById('invoicesTbody');
+  tbody.innerHTML = '<tr><td colspan="10">جاري التحميل...</td></tr>';
+  populateTermFilter_('invoicesTermFilter');
+  const term = document.getElementById('invoicesTermFilter').value;
+  callApi('getInvoices', { center: center, term: term }).then(function (r) {
+    allCenterInvoices_ = (r && r.ok && r.invoices) || [];
+    renderCenterInvoices_();
+  });
+}
+
+/* فرز بيان الفواتير حسب المرتجعات (يتم في المتصفح دون إعادة تحميل) */
+let allCenterInvoices_ = [];
+function invoiceMatchesReturnFilter_(inv, f) {
+  if (!f) return true;
+  const items = invoiceReturnItems_(inv);
+  if (f === 'none') return invoiceEntryType_(inv) === 'فاتورة' && !items.length;
+  if (f === 'any') return items.length > 0;
+  if (f === 'deducted') return items.some(function (it) { return !(it.proof > 0) && (it.cap + it.profit) > 0; });
+  if (f === 'proof') return items.some(function (it) { return it.proof > 0; });
+  return true;
+}
+
+function renderCenterInvoices_() {
+  const tbody = document.getElementById('invoicesTbody');
+  const summaryBox = document.getElementById('invoicesSummary');
+  const f = document.getElementById('invoicesReturnFilter').value;
+  currentInvoices = allCenterInvoices_.filter(function (inv) { return invoiceMatchesReturnFilter_(inv, f); });
+  if (!allCenterInvoices_.length) {
+    tbody.innerHTML = '<tr><td colspan="11">لا توجد فواتير بعد</td></tr>';
+    summaryBox.innerHTML = '';
+    return;
+  }
+  if (!currentInvoices.length) {
+    tbody.innerHTML = '<tr><td colspan="11">لا توجد قيود مطابقة للفرز المختار</td></tr>';
+    summaryBox.innerHTML = '';
+    return;
+  }
+  tbody.innerHTML = '';
+  currentInvoices.forEach(function (inv) {
+    const tr = document.createElement('tr');
+    const p = invoiceRowParts_(inv);
+    tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (invoiceReturnHtml_(inv) || '—') + '</td><td>' + invoiceNotesText_(inv) + '</td>';
+    tbody.appendChild(tr);
+  });
+  summaryBox.innerHTML = (f ? '<p style="color:var(--maroon);font-weight:bold;margin:10px 0 0;">عدد القيود المعروضة: ' + currentInvoices.length + ' من ' + allCenterInvoices_.length + '</p>' : '') + invoiceSummaryHtml_(invoiceSummary_(currentInvoices));
+}
+
+function invoicesFilterSuffix_(sep) {
+  const sel = document.getElementById('invoicesReturnFilter');
+  return sel && sel.value ? sep + sel.options[sel.selectedIndex].text : '';
+}
+
+function exportCurrentInvoices() {
+  const center = document.getElementById('invoicesCenterSelect').value;
+  if (!currentInvoices.length) { alert('لا يوجد فواتير لتصديرها'); return; }
+  const rows = currentInvoices.map(function (inv) {
+    const p = invoiceRowParts_(inv);
+    return { 'المركز': inv['اسم المركز'] || '', 'النوع': p.type, 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'مصدر الفاتورة': inv['مصدر الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'رأس المال': p.amount, 'الربح': p.profit, 'المبلغ الإجمالي': p.effect, 'المرتجعات': invoiceReturnText_(inv), 'ملاحظات': invoiceNotesText_(inv) };
+  });
+  appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoices), 'النوع', 'المبلغ الإجمالي', false);
+  exportToExcel(rows, 'فواتير-' + (center || 'كل-المراكز') + invoicesFilterSuffix_('-'), 'الفواتير');
+}
+
+function printCurrentInvoices() {
+  const center = document.getElementById('invoicesCenterSelect').value;
+  if (!currentInvoices.length) { alert('لا يوجد فواتير لطباعتها'); return; }
+  const rows = currentInvoices.map(function (inv) {
+    const p = invoiceRowParts_(inv);
+    return { center: inv['اسم المركز'] || '', type: p.type, num: inv['رقم الفاتورة'] || '', source: inv['مصدر الفاتورة'] || '', day: inv['اليوم'] || '', date: toHijriStr(inv['التاريخ']), amount: p.amount.toFixed(2), profit: p.profit.toFixed(2), effect: '<span dir="ltr">' + p.effect.toFixed(2) + '</span>', returns: invoiceReturnText_(inv), notes: invoiceNotesText_(inv) };
+  });
+  appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoices), 'type', 'effect', true);
+  printReport('بيان الفواتير' + invoicesFilterSuffix_(' — '), center || 'كل المراكز', [
+    { key: 'center', label: 'المركز' }, { key: 'type', label: 'النوع' }, { key: 'num', label: 'رقم الفاتورة' }, { key: 'source', label: 'مصدر الفاتورة' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' },
+    { key: 'amount', label: 'رأس المال' }, { key: 'profit', label: 'الربح' }, { key: 'effect', label: 'المبلغ الإجمالي' }, { key: 'returns', label: 'المرتجعات' }, { key: 'notes', label: 'ملاحظات' }
+  ], rows);
+}
+
+/* -------- الحضور -------- */
+document.getElementById('attendanceDate') && (document.getElementById('attendanceDate').value = todayStr());
+
+function loadAttendanceChecklist() {
+  const wrap = document.getElementById('attendanceChecklist');
+  wrap.innerHTML = 'جاري التحميل...';
+  const date = document.getElementById('attendanceDate').value;
+
+  Promise.all([
+    masoulatListCache.length ? Promise.resolve({ ok: true, masoulat: masoulatListCache }) : callApi('getMasoulat'),
+    callApi('getAttendanceForDate', { date: date })
+  ]).then(function (results) {
+    const masoulatRes = results[0];
+    const attRes = results[1];
+    masoulatListCache = masoulatRes.masoulat || [];
+    const presentNames = (attRes.names || []);
+
+    if (!masoulatListCache.length) {
+      wrap.innerHTML = '<p style="color:#8a7d76;">لا توجد مسؤولات مسجّلات بشيت "المسؤولات" بعد</p>';
+      return;
+    }
+    wrap.innerHTML = '';
+    masoulatListCache.forEach(function (name) {
+      const checked = presentNames.indexOf(name) !== -1;
+      const label = document.createElement('label');
+      label.innerHTML = '<input type="checkbox" value="' + name + '" ' + (checked ? 'checked' : '') + '> ' + name;
+      wrap.appendChild(label);
+    });
+  });
+}
+
+function saveAttendance() {
+  const date = document.getElementById('attendanceDate').value;
+  if (!date) { alert('اختاري تاريخ الاجتماع'); return; }
+  const btn = document.getElementById('attendanceSaveBtn');
+  const checked = Array.from(document.querySelectorAll('#attendanceChecklist input:checked')).map(function (el) { return el.value; });
+  setBtnBusy(btn, true);
+  callApi('recordAttendanceBulk', { date: date, names: JSON.stringify(checked) }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (r.ok) {
+      const s = document.getElementById('attendanceSaveSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+    }
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+/* -------- الإحصائيات -------- */
+function loadStats() {
+  const wrap = document.getElementById('chartWrap');
+  wrap.innerHTML = 'جاري التحميل...';
+  callApi('getStats').then(function (r) {
+    if (!r.ok) { wrap.innerHTML = 'تعذر تحميل الإحصائيات'; return; }
+    document.getElementById('totalRevenueVal').textContent = r.totalRevenue.toFixed(2) + ' ريال';
+    if (!r.centers.length) { wrap.innerHTML = '<p style="color:#8a7d76;">لا توجد بيانات مبيعات بعد</p>'; return; }
+    const max = r.centers[0].total || 1;
+    wrap.innerHTML = '';
+    r.centers.forEach(function (c, idx) {
+      const pct = Math.max(4, Math.round((c.total / max) * 100));
+      const row = document.createElement('div');
+      row.className = 'bar-row';
+      row.innerHTML =
+        '<div class="bar-head"><span><span class="rank">#' + (idx + 1) + '</span>' + c.center + '</span><span>' + c.total.toFixed(2) + ' ريال</span></div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;"></div></div>';
+      wrap.appendChild(row);
+    });
+  });
+}
+
+/* -------- إشعارات هامة -------- */
+function toggleAnnounceTargets() {
+  const all = document.getElementById('announceAllCheck').checked;
+  document.getElementById('announceTargetsBox').classList.toggle('hidden', all);
+}
+
+function toggleAnnounceGroupAll(type) {
+  const selector = type === 'center' ? '.announce-center-check' : '.announce-masoula-check';
+  const allCheckId = type === 'center' ? 'announceCentersAllCheck' : 'announceMasoulatAllCheck';
+  const checked = document.getElementById(allCheckId).checked;
+  document.querySelectorAll(selector).forEach(function (el) { el.checked = checked; });
+}
+
+function syncAnnounceGroupAllCheck_(type) {
+  const selector = type === 'center' ? '.announce-center-check' : '.announce-masoula-check';
+  const allCheckId = type === 'center' ? 'announceCentersAllCheck' : 'announceMasoulatAllCheck';
+  const boxes = Array.from(document.querySelectorAll(selector));
+  const allChecked = boxes.length > 0 && boxes.every(function (el) { return el.checked; });
+  document.getElementById(allCheckId).checked = allChecked;
+}
+
+function renderAnnounceTargetLists() {
+  const centersBox = document.getElementById('announceCentersList');
+  const masoulatBox = document.getElementById('announceMasoulatList');
+
+  function render() {
+    centersBox.innerHTML = centersListCache.length ? '' : 'لا يوجد مراكز';
+    centersListCache.forEach(function (c) {
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:6px;';
+      label.innerHTML = '<input type="checkbox" class="announce-center-check" value="' + c + '" onchange="syncAnnounceGroupAllCheck_(\'center\')"> <span>' + c + '</span>';
+      centersBox.appendChild(label);
+    });
+    masoulatBox.innerHTML = masoulatListCache.length ? '' : 'لا يوجد مسؤولات';
+    masoulatListCache.forEach(function (m) {
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:6px;';
+      label.innerHTML = '<input type="checkbox" class="announce-masoula-check" value="' + m + '" onchange="syncAnnounceGroupAllCheck_(\'masoula\')"> <span>' + m + '</span>';
+      masoulatBox.appendChild(label);
+    });
+    document.getElementById('announceCentersAllCheck').checked = false;
+    document.getElementById('announceMasoulatAllCheck').checked = false;
+  }
+
+  if (centersListCache.length || masoulatListCache.length) { render(); return; }
+  Promise.all([callApi('getCenters'), callApi('getMasoulat')]).then(function (results) {
+    centersListCache = results[0].centers || [];
+    masoulatListCache = results[1].masoulat || [];
+    render();
+  });
+}
+
+function submitAnnouncement() {
+  const text = document.getElementById('announceText').value.trim();
+  if (!text) { alert('اكتبي نص الإشعار'); return; }
+  const all = document.getElementById('announceAllCheck').checked;
+  const payload = { text: text, all: all, from: 'الإدارة' };
+  if (!all) {
+    payload.centers = Array.from(document.querySelectorAll('.announce-center-check:checked')).map(function (el) { return el.value; });
+    payload.masoulat = Array.from(document.querySelectorAll('.announce-masoula-check:checked')).map(function (el) { return el.value; });
+    if (!payload.centers.length && !payload.masoulat.length) { alert('اختاري مركز أو مسؤولة واحدة على الأقل، أو فعّلي "يظهر لكل المراكز والمسؤولات"'); return; }
+  }
+  const btn = document.getElementById('announceSubmitBtn');
+  setBtnBusy(btn, true);
+  callApi('recordAnnouncement', payload).then(function (r) {
+    setBtnBusy(btn, false);
+    if (r.ok) {
+      document.getElementById('announceText').value = '';
+      document.getElementById('announceAllCheck').checked = true;
+      toggleAnnounceTargets();
+      document.querySelectorAll('.announce-center-check, .announce-masoula-check').forEach(function (el) { el.checked = false; });
+      document.getElementById('announceCentersAllCheck').checked = false;
+      document.getElementById('announceMasoulatAllCheck').checked = false;
+      const s = document.getElementById('announceSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+      loadAnnouncementsAdmin();
+    } else {
+      alert('صار خطأ أثناء نشر الإشعار:\n' + (r.error || 'خطأ غير معروف'));
+    }
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+function announceTargetLabel_(target) {
+  if (!target || target === 'الكل') return 'الكل';
+  return target.split('|').map(function (t) {
+    const parts = t.split(':');
+    return parts[1] || t;
+  }).join('، ');
+}
+
+function loadAnnouncementsAdmin() {
+  const box = document.getElementById('announcementsList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getAllAnnouncements', {}).then(function (r) {
+    const list = r.announcements || [];
+    if (!r.ok || !list.length) {
+      box.innerHTML = 'لا توجد إشعارات بعد';
+      return;
+    }
+    box.innerHTML = '';
+    list.forEach(function (a) {
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div>' +
+          '<div>' + (a['النص'] || '') + '</div>' +
+          '<div class="meta">إلى: ' + announceTargetLabel_(a['استهداف']) + ' · ' + (a['اليوم'] || '') + ' ' + toHijriStr(a['التاريخ']) + '</div>' +
+          '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;">' +
+            '<a href="#" onclick="deleteAnnouncementRow(' + a._row + '); return false;">حذف</a>' +
+          '</div>' +
+        '</div>';
+      box.appendChild(div);
+    });
+  });
+}
+
+function deleteAnnouncementRow(row) {
+  if (!confirm('متأكدة تبين تحذفين هذا الإشعار؟')) return;
+  callApi('deleteAnnouncement', { row: row }).then(function (r) {
+    if (r.ok) loadAnnouncementsAdmin();
+  });
+}
+
+/* -------- قائمة الأسعار -------- */
+let editingPriceItemRow = null;
+let currentPriceItemsCache_ = [];
+
+function loadPriceManagerSelect() {
+  const sel = document.getElementById('priceManagerSelect');
+  function render() {
+    sel.innerHTML = '<option value="">بدون (الإدارة فقط)</option>';
+    masoulatListCache.forEach(function (m) {
+      const opt = document.createElement('option');
+      opt.value = m; opt.textContent = m;
+      sel.appendChild(opt);
+    });
+    callApi('getPriceListManager').then(function (r) {
+      sel.value = (r && r.masoula) || '';
+    });
+  }
+  if (masoulatListCache.length) { render(); return; }
+  callApi('getMasoulat').then(function (r) {
+    masoulatListCache = r.masoulat || [];
+    render();
+  });
+}
+
+function savePriceListManager() {
+  const btn = document.getElementById('priceManagerSaveBtn');
+  setBtnBusy(btn, true);
+  callApi('setPriceListManager', { masoula: document.getElementById('priceManagerSelect').value }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (r.ok) {
+      const s = document.getElementById('priceManagerSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+    }
+  }).catch(function () { setBtnBusy(btn, false); });
+}
+
+/* -------- ملف/رابط إضافي لقائمة الأسعار (الإدارة فقط) -------- */
+function loadPriceListFileAdmin() {
+  const box = document.getElementById('priceFileCurrent');
+  callApi('getPriceListFile').then(function (r) {
+    if (r && r.link) {
+      box.innerHTML = 'الحالي: <a href="' + r.link + '" target="_blank">' + (r.label || 'فتح الملف/الرابط') + '</a>';
+      document.getElementById('priceFileLinkInput').value = r.link;
+    } else {
+      box.textContent = 'لا يوجد ملف حالياً';
+      document.getElementById('priceFileLinkInput').value = '';
     }
   });
-  range.setValues(values);
-  invalidateCache_('الإشعارات');
-  notify_('تم تصليح ' + fixed + ' رابط صورة قديم.');
 }
 
-/* تشغّل مرة وحدة (اختياري): تصلح صفوف "المبيعات" اللي انكتبت بترتيب أعمدة غلط
-   (كان فيها خلل قديم يخلي المبلغ ينكتب تحت عمود "اليوم" وهكذا بالتسلسل).
-   تتعرف على الصفوف المتضررة بنمط واضح: عمود "المبلغ" فيه وقت (مثل 14:05) بدل رقم،
-   وعمود "اليوم" فيه رقم بدل اسم يوم، وعمود "التاريخ" فيه اسم يوم بدل تاريخ - وترجع كل قيمة لعمودها الصحيح. */
-function fixMisalignedSalesRows_() {
-  const sh = sheet_('المبيعات');
-  if (!sh || sh.getLastRow() < 2) { notify_('لا يوجد بيانات لتصليحها'); return; }
+function savePriceListFile() {
+  const btn = document.getElementById('priceFileSaveBtn');
+  const fileInput = document.getElementById('priceFileUploadInput');
+  const file = fileInput.files[0];
 
-  const dayCol = colIndex_(sh, 'اليوم');
-  const dateCol = colIndex_(sh, 'التاريخ');
-  const timeCol = colIndex_(sh, 'الوقت');
-  const amountCol = colIndex_(sh, 'المبلغ');
-  if ([dayCol, dateCol, timeCol, amountCol].indexOf(-1) !== -1) {
-    notify_('تعذر إيجاد كل الأعمدة المطلوبة (اليوم/التاريخ/الوقت/المبلغ) بشيت المبيعات.');
+  function finish(payload) {
+    payload.actor = 'admin';
+    setBtnBusy(btn, true);
+    callApi('setPriceListFile', payload).then(function (r) {
+      setBtnBusy(btn, false);
+      if (r.ok) {
+        fileInput.value = '';
+        const s = document.getElementById('priceFileSuccess');
+        s.style.display = 'block';
+        setTimeout(function () { s.style.display = 'none'; }, 2500);
+        loadPriceListFileAdmin();
+      } else {
+        alert('صار خطأ أثناء الحفظ:\n' + (r.error || 'خطأ غير معروف'));
+      }
+    }).catch(function () { setBtnBusy(btn, false); });
+  }
+
+  if (file) {
+    if (file.size > 15 * 1024 * 1024) { alert('حجم الملف كبير جداً (الحد الأقصى 15 ميجا)'); return; }
+    const reader = new FileReader();
+    reader.onload = function () {
+      finish({ kind: 'file', fileData: reader.result, fileName: file.name, mimeType: file.type, label: file.name });
+    };
+    reader.readAsDataURL(file);
     return;
   }
 
-  const range = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn());
-  const values = range.getValues();
-  const timePattern = /^\d{1,2}:\d{2}$/;
-  const dayNames = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-  let fixed = 0;
-
-  values.forEach(function (row) {
-    const amountVal = row[amountCol - 1];
-    const dayVal = row[dayCol - 1];
-    const dateVal = row[dateCol - 1];
-    const timeVal = row[timeCol - 1];
-
-    const amountLooksLikeTime = timePattern.test(String(amountVal).trim());
-    const dayLooksNumeric = dayVal !== '' && dayVal !== null && !isNaN(parseFloat(dayVal));
-    const dateLooksLikeDayName = dayNames.indexOf(String(dateVal).trim()) !== -1;
-
-    // نصلح الصف بس لو انطبقت كل علامات الخلل الثلاث سوا - تفادياً لتعديل صفوف سليمة بالغلط
-    if (amountLooksLikeTime && dayLooksNumeric && dateLooksLikeDayName) {
-      row[dayCol - 1] = dateVal;   // كان فيه اسم اليوم أصلاً
-      row[dateCol - 1] = timeVal;  // كان فيه التاريخ أصلاً
-      row[timeCol - 1] = amountVal; // كان فيه الوقت أصلاً
-      row[amountCol - 1] = dayVal; // كان فيه المبلغ أصلاً
-      fixed++;
-    }
-  });
-
-  range.setValues(values);
-  invalidateCache_('المبيعات');
-  notify_('تم تصليح ' + fixed + ' صف من صفوف المبيعات المتضررة.');
+  const link = document.getElementById('priceFileLinkInput').value.trim();
+  if (!link) { alert('اكتبي رابط أو اختاري ملف'); return; }
+  finish({ kind: 'link', link: link, label: 'رابط قائمة الأسعار' });
 }
 
+function removePriceListFile() {
+  if (!confirm('متأكدة تبين تزيلين الملف/الرابط الحالي؟')) return;
+  callApi('setPriceListFile', { actor: 'admin', kind: 'link', link: '', label: '' }).then(function (r) {
+    if (r.ok) loadPriceListFileAdmin();
+  });
+}
 
-/* تشغّل مرة وحدة (اختياري): تعبّي عمود "اليوم" لأي صف قديم فاضي فيه، بالاعتماد
-   على عمود "التاريخ" بنفس الصف. تستخدمينها لو لاحظتِ إن اسم اليوم ما ينكتب
-   بالمبيعات/المرتجعات/الفواتير (سواء لصفوف قديمة، أو لأن عمود "اليوم" ما كان
-   موجود أصلاً بالشيت وقت ما انسجلت هذي الصفوف). */
-function fillMissingDayNames_() {
-  const sheetNames = ['المبيعات', 'المرتجعات', 'الفواتير'];
-  let totalFixed = 0;
-  const missingSheets = [];
-  sheetNames.forEach(function (name) {
-    const sh = sheet_(name);
-    if (!sh) return;
-    const dayCol = colIndex_(sh, 'اليوم');
-    const dateCol = colIndex_(sh, 'التاريخ');
-    if (dayCol === -1 || dateCol === -1) { missingSheets.push(name); return; }
-    if (sh.getLastRow() < 2) return;
-    const range = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn());
-    const values = range.getValues();
-    let fixed = 0;
-    values.forEach(function (row) {
-      const dayVal = String(row[dayCol - 1]).trim();
-      const dateVal = row[dateCol - 1];
-      if (!dayVal && dateVal) {
-        row[dayCol - 1] = dayNameForDateStr_(String(dateVal));
-        fixed++;
-      }
+function loadPriceItemsAdmin() {
+  const box = document.getElementById('priceItemsList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getPriceItems').then(function (r) {
+    currentPriceItemsCache_ = r.items || [];
+    const categories = Array.from(new Set(currentPriceItemsCache_.map(function (it) { return it['التصنيف']; }).filter(Boolean)));
+    document.getElementById('priceCategoriesList').innerHTML = categories.map(function (c) { return '<option value="' + c + '">'; }).join('');
+    document.getElementById('priceSearchInput').value = '';
+    renderPriceItemsAdminGrid_(currentPriceItemsCache_);
+  });
+}
+
+function filterPriceItemsAdmin() {
+  const q = document.getElementById('priceSearchInput').value.trim().toLowerCase();
+  if (!q) { renderPriceItemsAdminGrid_(currentPriceItemsCache_); return; }
+  const filtered = currentPriceItemsCache_.filter(function (it) {
+    return String(it['اسم الصنف'] || '').toLowerCase().indexOf(q) !== -1 ||
+      String(it['التصنيف'] || '').toLowerCase().indexOf(q) !== -1;
+  });
+  renderPriceItemsAdminGrid_(filtered);
+}
+
+function renderPriceItemsAdminGrid_(items) {
+  const box = document.getElementById('priceItemsList');
+  if (!items.length) { box.innerHTML = 'ما فيه أصناف مطابقة'; return; }
+  const categories = Array.from(new Set(items.map(function (it) { return it['التصنيف']; }).filter(Boolean)));
+  box.innerHTML = '';
+  categories.forEach(function (cat) {
+    const catWrap = document.createElement('div');
+    const grid = document.createElement('div');
+    grid.className = 'price-grid';
+    items.filter(function (it) { return it['التصنيف'] === cat; }).forEach(function (it) {
+      const chip = document.createElement('div');
+      chip.className = 'price-chip';
+      chip.innerHTML =
+        '<div class="pactions">' +
+          '<a href="#" onclick="editPriceItem(' + it._row + ', ' + JSON.stringify(it['التصنيف']) + ', ' + JSON.stringify(it['اسم الصنف']) + ', ' + JSON.stringify(it['السعر']) + '); return false;">✎</a>' +
+          '<a href="#" onclick="deletePriceItemRow(' + it._row + '); return false;">×</a>' +
+        '</div>' +
+        '<div class="pname">' + (it['اسم الصنف'] || '') + '</div>' +
+        '<div class="pprice">' + (it['السعر'] || '') + '</div>';
+      grid.appendChild(chip);
     });
-    if (fixed > 0) range.setValues(values);
-    invalidateCache_(name);
-    totalFixed += fixed;
-  });
-  let msg = 'تم تعبئة اسم اليوم لـ ' + totalFixed + ' صف كان فاضي.';
-  if (missingSheets.length) {
-    msg += '\n\nتنبيه: عمود "اليوم" أو "التاريخ" غير موجود أصلاً بشيت: ' + missingSheets.join('، ') + '. شغّلي دالة setup أولاً لإضافته، ثم أعيدي تشغيل هذي الدالة.';
-  }
-  notify_(msg);
-}
-
-/* تشغّل مرة وحدة (تشخيص): تطلع لك بالضبط أسماء أعمدة شيتات المبيعات/المرتجعات/الفواتير،
-   كل اسم عمود بين قوسين [ ] عشان توضّح أي مسافة خفية بأول أو آخر الاسم، وتحدد
-   أي عمود هو "اليوم" اللي يتعرف عليه الكود فعلياً. شغليها لو مازال اليوم ما ينكتب
-   بعد تشغيل setup و fillMissingDayNames، وابعتيلي محتوى الرسالة اللي تطلع لك. */
-function debugDayColumn_() {
-  const names = ['المبيعات', 'المرتجعات', 'الفواتير'];
-  let msg = '';
-  names.forEach(function (name) {
-    const sh = sheet_(name);
-    if (!sh) { msg += name + ': ⚠️ الشيت غير موجود\n\n'; return; }
-    const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
-    const foundCol = colIndex_(sh, 'اليوم');
-    msg += name + ' (يجدها الكود بعمود رقم: ' + (foundCol === -1 ? 'ما لقاها ❌' : foundCol) + '):\n';
-    headers.forEach(function (h, i) {
-      const isMatch = String(h).trim() === 'اليوم';
-      msg += '  عمود ' + (i + 1) + ': [' + h + ']' + (isMatch ? '  ← تطابق مع "اليوم"' : '') + '\n';
-    });
-    // نموذج: وش راح ينكتب لو سجّلنا صف اليوم بالضبط
-    msg += '  مثال: اسم اليوم المحسوب لتاريخ اليوم = ' + dayNameForDateStr_(nowParts_().date) + '\n\n';
-  });
-  notify_(msg);
-}
-
-function sheet_(name) {
-  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
-}
-
-/* ------------------- تخزين مؤقت (Cache) لتسريع القراءة -------------------
-   ليش كان الموقع يبطأ لما يفتح أكثر من شخص؟
-   الكاش حق قوقل ما يقبل أكثر من 100KB للقيمة الوحدة، وشيت الإشعارات (فيه بيانات
-   التواقيع) وشيت المبيعات أكبر من كذا، فكان الحفظ بالكاش يفشل بصمت وكل طلب من كل
-   مستخدمة يقرأ الشيت كامل من جديد. الحين البيانات الكبيرة تتقسم لأجزاء صغيرة
-   وتنحفظ كلها بالكاش، فأغلب الطلبات ترجع من الذاكرة فوراً مهما كان عدد المستخدمات.
-   ولضمان عدم رجوع بيانات قديمة: كل شيت له «رقم نسخة» يتغيّر مع أي حفظ/تعديل/حذف،
-   وأي نسخة بالكاش ما تطابق الرقم الحالي تنرمى تلقائياً. */
-const CACHE_SECONDS = 900;          // 15 دقيقة - أي حفظ/تعديل/حذف من الموقع يمسحه فوراً
-const CACHE_SECONDS_LONG = 900;     // المراكز والمسؤولات (التعديل اليدوي بالشيت يظهر خلال 10 دقائق مع التسخين التلقائي، أو فوراً بـ clearCache)
-const CACHE_CHUNK_CHARS_ = 45000;   // حجم الجزء الواحد (أقل من حد 100KB حتى مع الحروف العربية)
-const CACHE_MAX_CHUNKS_ = 200;      // حد أعلى احتياطي (~9 ميقا) - لو أكبر ما نخزّن
-const CACHE_GEN_SECONDS_ = 21600;   // عمر رقم النسخة (6 ساعات - الحد الأعلى المسموح)
-
-function getCache_() {
-  return CacheService.getScriptCache();
-}
-
-function newCacheGen_() {
-  return Utilities.getUuid().slice(0, 8);
-}
-
-/* يمسح نسخة الشيت من الكاش بتغيير رقم نسختها (أي أجزاء قديمة تصير غير صالحة تلقائياً) */
-function invalidateCache_(name) {
-  if (typeof REQ_SHEET_MEMO_ !== 'undefined') delete REQ_SHEET_MEMO_[name];
-  try {
-    const cache = getCache_();
-    cache.put('gen_' + name, newCacheGen_(), CACHE_GEN_SECONDS_);
-    cache.remove('sheet_' + name);
-  } catch (e) {}
-}
-
-/* أعمدة ثقيلة (صور توقيع base64 بحجم عشرات الكيلوبايت لكل سطر) ما نقراها ولا نخزّنها بالكاش مع القراءة
-   العادية للشيت أبداً. السبب: كل طلب يلمس شيت «الإشعارات» (حتى عدّاد الإشعارات بالصفحة الرئيسية)
-   كان يحمّل كل التواقيع معه، ومع زيادة الإشعارات يتجاوز حجمها حد الكاش فيُقرأ الشيت كاملاً بكل طلب.
-   تُجلب عند الحاجة فقط بدالة getNoticeCenterSignature_ (خلية واحدة). */
-const SKIP_READ_COLS_ = { 'الإشعارات': ['بيانات توقيع المركز'] };
-
-function skipColsFor_(name) {
-  const n = String(name || '');
-  const base = n.indexOf(ARCHIVE_PREFIX) === 0 ? n.slice(ARCHIVE_PREFIX.length) : n;
-  return SKIP_READ_COLS_[base] || null;
-}
-
-/* تقرأ الشيت من قوقل شيتس مباشرة وتحوّله لكائنات (بدون كاش) */
-function readSheetObjectsRaw_(name) {
-  const sh = sheet_(name);
-  if (!sh) return [];
-  const skip = skipColsFor_(name);
-  if (skip) return readSheetObjectsSkipping_(sh, skip);
-  const data = sh.getDataRange().getValues();
-  if (!data || data.length < 1) return [];
-  const headers = data[0].map(function (h) { return String(h).trim(); });
-  const rows = [];
-  for (let i = 1; i < data.length; i++) {
-    const obj = {};
-    for (let idx = 0; idx < headers.length; idx++) {
-      let val = data[i][idx];
-      if (val instanceof Date) val = formatSheetDate_(val);
-      obj[headers[idx]] = val;
-    }
-    obj._row = i + 1;
-    rows.push(obj);
-  }
-  return rows;
-}
-
-/* نفس القراءة أعلاه لكن بدون الأعمدة الثقيلة: نقرأ الأعمدة الباقية على مقاطع متصلة (غالباً مقطعين)،
-   فما ننقل بيانات التواقيع من قوقل شيتس أصلاً */
-function readSheetObjectsSkipping_(sh, skip) {
-  const lastRow = sh.getLastRow();
-  const lastCol = sh.getLastColumn();
-  if (lastRow < 1 || lastCol < 1) return [];
-  const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return String(h).trim(); });
-  const segs = [];
-  let start = -1;
-  for (let c = 0; c < lastCol; c++) {
-    const keep = skip.indexOf(headers[c]) === -1;
-    if (keep && start === -1) start = c;
-    if (!keep && start !== -1) { segs.push([start, c - 1]); start = -1; }
-  }
-  if (start !== -1) segs.push([start, lastCol - 1]);
-  const blocks = segs.map(function (seg) {
-    return sh.getRange(1, seg[0] + 1, lastRow, seg[1] - seg[0] + 1).getValues();
-  });
-  const rows = [];
-  for (let i = 1; i < lastRow; i++) {
-    const obj = {};
-    for (let b = 0; b < segs.length; b++) {
-      const seg = segs[b];
-      for (let c = seg[0]; c <= seg[1]; c++) {
-        let val = blocks[b][i][c - seg[0]];
-        if (val instanceof Date) val = formatSheetDate_(val);
-        obj[headers[c]] = val;
-      }
-    }
-    obj._row = i + 1;
-    rows.push(obj);
-  }
-  return rows;
-}
-
-/* يحفظ صفوف شيت بالكاش مقسّمة لأجزاء - بشرط إن رقم النسخة ما تغيّر أثناء القراءة
-   (يعني ما صار حفظ جديد بنفس اللحظة)، عشان ما نحفظ بيانات قديمة فوق الجديدة */
-function putSheetCache_(name, rows, gen, duration) {
-  try {
-    const cache = getCache_();
-    if (cache.get('gen_' + name) !== gen) return;
-    const str = JSON.stringify(rows);
-    const n = Math.max(1, Math.ceil(str.length / CACHE_CHUNK_CHARS_));
-    if (n > CACHE_MAX_CHUNKS_) return;
-    const items = {};
-    for (let i = 0; i < n; i++) {
-      items['sheet_' + name + '_' + gen + '_' + i] = str.slice(i * CACHE_CHUNK_CHARS_, (i + 1) * CACHE_CHUNK_CHARS_);
-    }
-    cache.putAll(items, duration);
-    cache.put('sheet_' + name, JSON.stringify({ g: gen, n: n }), duration);
-  } catch (e) {
-    // لو الكاش رفض لأي سبب نكمل عادي بدون تخزين
-  }
-}
-
-/* ترجّع رقم النسخة الحالي للشيت (وتنشئ واحد لو ما فيه) */
-function currentCacheGen_(name, known) {
-  if (known) return known;
-  const g = newCacheGen_();
-  try { getCache_().put('gen_' + name, g, CACHE_GEN_SECONDS_); } catch (e) {}
-  return g;
-}
-
-/* شغّليها يدوياً من قائمة الدوال أعلى المحرر (▶️ Run) في أي وقت بعد ما تعدّلي
-   أي شيت يدوياً، عشان التغييرات تنعكس بالموقع فوراً بدون ما تنتظري. */
-function clearCache() {
-  ['المسؤولات', 'المراكز', 'المبيعات', 'المرتجعات', 'الفواتير', 'الحضور', 'التعهد', 'المهام', 'الإشعارات',
-   'المرفقات', 'مرفقات الإشراف', 'الإعلانات الهامة', 'محاضر الاجتماعات', 'قائمة الأسعار', 'الإعدادات',
-   'دخول الإشراف', 'الصعوبات والمقترحات', 'قائمة الدخل', 'بطاقات التحفيز', 'متابعة بطاقات التحفيز', 'درجات المسؤولات',
-   ARCHIVE_PREFIX + 'المبيعات', ARCHIVE_PREFIX + 'المرتجعات', ARCHIVE_PREFIX + 'الفواتير', ARCHIVE_PREFIX + 'الإشعارات', ARCHIVE_PREFIX + 'قائمة الدخل'
-  ].forEach(function (n) { invalidateCache_(n); });
-  notify_('تم تفريغ الذاكرة المؤقتة. جربي الدخول بالموقع الحين.');
-}
-
-/* ------------------- التسخين التلقائي (يخلي الموقع سريع من أول ضغطة) -------------------
-   تشتغل كل 10 دقائق تلقائياً: تقرأ الشيتات الأساسية وتحفظها جاهزة بالكاش، فأول مستخدمة
-   تفتح الموقع ما تنتظر قراءة الشيت، وأي تعديل يدوي بالشيت ينعكس خلال 10 دقائق بالكثير.
-   ⚠️ شغّلي installWarmupTrigger مرة وحدة بس من قائمة الدوال (▶️ Run) ووافقي على الصلاحيات. */
-const WARM_SHEETS_ = ['المراكز', 'المسؤولات', 'المبيعات', 'الفواتير', 'الإشعارات', 'المرتجعات',
-  'الإعلانات الهامة', 'قائمة الأسعار', 'الإعدادات', 'الحضور', 'التعهد', 'المهام'];
-
-function warmCache() {
-  WARM_SHEETS_.forEach(function (name) {
-    try {
-      const gen = currentCacheGen_(name, getCache_().get('gen_' + name));
-      const rows = readSheetObjectsRaw_(name);
-      putSheetCache_(name, rows, gen, CACHE_SECONDS);
-    } catch (e) {}
+    catWrap.innerHTML = '<h4 class="price-cat-title">' + cat + '</h4>';
+    catWrap.appendChild(grid);
+    box.appendChild(catWrap);
   });
 }
 
-function installWarmupTrigger() {
-  ScriptApp.getProjectTriggers().forEach(function (t) {
-    if (t.getHandlerFunction() === 'warmCache') ScriptApp.deleteTrigger(t);
-  });
-  ScriptApp.newTrigger('warmCache').timeBased().everyMinutes(10).create();
-  warmCache();
-  notify_('تم تفعيل التسخين التلقائي كل 10 دقائق ✅');
-}
-
-/* ------------------- الأرشفة الحقيقية (نقل فعلي بدل التوسيم بس) -------------------
-   قبل هذا التعديل كانت "الأرشفة" توسيم بس (تكتب اسم الفصل بعمود الفصل الدراسي)
-   والبيانات القديمة تضل بنفس الشيت الحيّ للأبد، فيكبر حجمه مع كل فصل جديد ويصير
-   كل طلب (حتى لو للفصل الحالي بس) يقرأ تاريخ النظام كامل من أول يوم. الحين
-   الأرشفة تنقل الصفوف فعلياً لشيت منفصل اسمه "أرشيف_<اسم الشيت>"، فيبقى الشيت
-   الحيّ يحتوي بيانات الفصل الحالي بس وصغير دايماً. */
-const ARCHIVE_PREFIX = 'أرشيف_';
-
-function getOrCreateArchiveSheet_(name) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const archiveName = ARCHIVE_PREFIX + name;
-  let sh = ss.getSheetByName(archiveName);
-  if (!sh) {
-    sh = ss.insertSheet(archiveName);
-    const live = sheet_(name);
-    if (live && live.getLastColumn() > 0) {
-      const headers = live.getRange(1, 1, 1, live.getLastColumn()).getValues()[0];
-      sh.getRange(1, 1, 1, headers.length).setValues([headers]);
-    }
-  }
-  return sh;
-}
-
-/* تنقل من الشيت الحيّ كل صف يحقق matchFn(قيمة عمود الأرشفة) لشيت الأرشيف،
-   وتعيد كتابة الشيت الحيّ بالصفوف الباقية بس (بعملية واحدة أسرع من حذف صف صف).
-   لو انمرّر newLabel تُكتب هالقيمة بعمود الأرشفة بالصفوف المنقولة قبل نقلها
-   (تُستخدم وقت إغلاق فصل حالي: الصفوف الفاضية تتحول لموسومة باسم الفصل).
-   بدون newLabel تُنقل الصفوف بقيمتها الحالية كما هي (تُستخدم بالترحيل لمرة وحدة
-   للصفوف اللي كانت موسومة قبل بس ما انتقلت فعلياً). */
-function archiveRowsMatching_(sh, archiveSh, colIdx, matchFn, newLabel) {
-  const lastRow = sh.getLastRow();
-  if (lastRow < 2) return 0;
-  const numCols = sh.getLastColumn();
-  const data = sh.getRange(2, 1, lastRow - 1, numCols).getValues();
-  const toArchive = [];
-  const keepRows = [];
-  for (let i = 0; i < data.length; i++) {
-    const row = data[i];
-    if (matchFn(row[colIdx - 1])) {
-      if (newLabel !== undefined) row[colIdx - 1] = newLabel;
-      toArchive.push(row);
+function submitPriceItem() {
+  const category = document.getElementById('priceItemCategory').value.trim();
+  const name = document.getElementById('priceItemName').value.trim();
+  const price = document.getElementById('priceItemPrice').value.trim();
+  if (!category || !name || !price) { alert('أكملي التصنيف واسم الصنف والسعر'); return; }
+  const btn = document.getElementById('priceItemSubmitBtn');
+  setBtnBusy(btn, true);
+  const action = editingPriceItemRow ? 'updatePriceItem' : 'addPriceItem';
+  const payload = { actor: 'admin', category: category, name: name, price: price };
+  if (editingPriceItemRow) payload.row = editingPriceItemRow;
+  callApi(action, payload).then(function (r) {
+    setBtnBusy(btn, false);
+    if (r.ok) {
+      cancelEditPriceItem();
+      const s = document.getElementById('priceItemSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+      loadPriceItemsAdmin();
     } else {
-      keepRows.push(row);
+      alert(r.error || 'صار خطأ أثناء الحفظ');
     }
-  }
-  if (toArchive.length) {
-    // لو انضاف عمود جديد للشيت الحيّ بعد ما انعمل شيت الأرشيف (مثل عمود «وقت التسجيل الفعلي»)،
-    // نضيف نفس العمود لآخر الأرشيف قبل النقل، وإلا النقل ينهار بسبب اختلاف عدد الأعمدة
-    const archCols = archiveSh.getLastColumn();
-    if (archCols < numCols) {
-      const liveHeaders = sh.getRange(1, 1, 1, numCols).getValues()[0];
-      if (archiveSh.getMaxColumns() < numCols) {
-        archiveSh.insertColumnsAfter(archiveSh.getMaxColumns(), numCols - archiveSh.getMaxColumns());
-      }
-      archiveSh.getRange(1, archCols + 1, 1, numCols - archCols).setValues([liveHeaders.slice(archCols)]);
-    }
-    archiveSh.getRange(archiveSh.getLastRow() + 1, 1, toArchive.length, numCols).setValues(toArchive);
-  }
-  sh.getRange(2, 1, lastRow - 1, numCols).clearContent();
-  if (keepRows.length) {
-    sh.getRange(2, 1, keepRows.length, numCols).setValues(keepRows);
-  }
-  return toArchive.length;
+  }).catch(function () { setBtnBusy(btn, false); });
 }
 
-/* ترجّع صفوف شيت معيّن حسب الفصل المطلوب:
-   - بدون فصل أو "current": صفوف الشيت الحيّ اللي عمود أرشفتها فاضي (الفصل الحالي)
-   - "all": كل الصفوف، من الشيت الحيّ + شيت الأرشيف مع بعض
-   - اسم فصل محدد: صفوف شيت الأرشيف اللي عمود أرشفتها يساوي هالاسم بالضبط */
-function getRowsForTerm_(name, term, archiveCol, cacheSeconds) {
-  const col = archiveCol || 'الفصل الدراسي';
-  const archiveName = ARCHIVE_PREFIX + name;
-  const t = term ? String(term).trim() : '';
-  if (!t || t === 'current') {
-    return sheetToObjects_(name, cacheSeconds).filter(function (r) { return String(r[col] || '').trim() === ''; });
-  }
-  if (t === 'all') {
-    return sheetToObjects_(name, cacheSeconds).concat(sheetToObjects_(archiveName, cacheSeconds));
-  }
-  return sheetToObjects_(archiveName, cacheSeconds).filter(function (r) { return String(r[col] || '').trim() === t; });
+function editPriceItem(row, category, name, price) {
+  editingPriceItemRow = row;
+  document.getElementById('priceItemCategory').value = category || '';
+  document.getElementById('priceItemName').value = name || '';
+  document.getElementById('priceItemPrice').value = price || '';
+  document.getElementById('priceItemFormTitle').textContent = 'تعديل صنف';
+  document.getElementById('priceItemSubmitBtn').textContent = 'حفظ التعديل';
+  document.getElementById('priceItemCancelEditBtn').classList.remove('hidden');
+  document.getElementById('priceItemCategory').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-/* دالة ترحيل تُشغَّل يدوياً مرة وحدة بس (من قائمة الدوال أعلى محرر Apps Script):
-   تنقل كل الصفوف اللي كانت موسومة قبل باسم فصل (من نظام الأرشفة القديم) من
-   الشيتات الحيّة لشيتات الأرشيف المقابلة، فيرجع حجم الشيتات الحيّة صغير فوراً. */
-function migrateOldArchivedRowsToArchiveSheets_() {
-  const sheetsToMigrate = [
-    { name: 'المبيعات', col: 'الفصل الدراسي' },
-    { name: 'المرتجعات', col: 'الفصل الدراسي' },
-    { name: 'الفواتير', col: 'الفصل الدراسي' },
-    { name: 'الإشعارات', col: 'فصل الأرشفة' },
-    { name: 'قائمة الدخل', col: 'الفصل الدراسي' }
-  ];
-  const counts = {};
-  sheetsToMigrate.forEach(function (entry) {
-    const sh = sheet_(entry.name);
-    if (!sh || sh.getLastRow() < 2) { counts[entry.name] = 0; return; }
-    const col = colIndex_(sh, entry.col);
-    if (col === -1) { counts[entry.name] = 0; return; }
-    const archiveSh = getOrCreateArchiveSheet_(entry.name);
-    const n = archiveRowsMatching_(sh, archiveSh, col, function (v) { return String(v).trim() !== ''; });
-    counts[entry.name] = n;
-    invalidateCache_(entry.name);
-    invalidateCache_(ARCHIVE_PREFIX + entry.name);
+function cancelEditPriceItem() {
+  editingPriceItemRow = null;
+  document.getElementById('priceItemCategory').value = '';
+  document.getElementById('priceItemName').value = '';
+  document.getElementById('priceItemPrice').value = '';
+  document.getElementById('priceItemFormTitle').textContent = 'إضافة صنف';
+  document.getElementById('priceItemSubmitBtn').textContent = 'إضافة الصنف';
+  document.getElementById('priceItemCancelEditBtn').classList.add('hidden');
+}
+
+function deletePriceItemRow(row) {
+  if (!confirm('متأكدة تبين تحذفين هذا الصنف؟')) return;
+  callApi('deletePriceItem', { actor: 'admin', row: row }).then(function (r) {
+    if (r.ok) loadPriceItemsAdmin();
+    else alert(r.error || 'تعذّر الحذف');
   });
-  notify_('تم ترحيل البيانات القديمة لشيتات الأرشيف بنجاح:\n' + JSON.stringify(counts));
 }
 
-/* تنسيق التواريخ عند القراءة: قوقل شيتس يحوّل نصوص التاريخ تلقائياً لكائن Date،
-   وإذا رجعناه للواجهة كما هو يظهر بصيغة فيها أصفار زايدة (مثل 00:00:00.000Z).
-   هذي الدالة تصيغه نص واضح: تاريخ فقط، أو تاريخ ووقت لو فيه وقت فعلي. */
-function formatSheetDate_(d) {
-  const tz = Session.getScriptTimeZone();
-  // قيمة وقت فقط (بدون تاريخ حقيقي) يخزّنها قوقل شيتس داخلياً بتاريخ 30 ديسمبر 1899
-  const isTimeOnly = d.getFullYear() === 1899 && d.getMonth() === 11 && d.getDate() === 30;
-  if (isTimeOnly) return Utilities.formatDate(d, tz, 'HH:mm');
-  const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0 || d.getSeconds() !== 0;
-  return Utilities.formatDate(d, tz, hasTime ? 'yyyy-MM-dd HH:mm' : 'yyyy-MM-dd');
+function exportPriceListExcel() {
+  const rows = currentPriceItemsCache_.map(function (it) {
+    return { 'التصنيف': it['التصنيف'] || '', 'اسم الصنف': it['اسم الصنف'] || '', 'السعر': it['السعر'] || '' };
+  });
+  exportToExcel(rows, 'قائمة-الأسعار', 'الأسعار');
 }
 
-/* ذاكرة داخل نفس الطلب: لو نفس الشيت انطلب أكثر من مرة بنفس الطلب ما نعيد فك الكاش */
-const REQ_SHEET_MEMO_ = {};
+function printPriceListReport() {
+  const rows = currentPriceItemsCache_.map(function (it) {
+    return { category: it['التصنيف'] || '', name: it['اسم الصنف'] || '', price: it['السعر'] || '' };
+  });
+  printReport('قائمة أسعار المقصف', '', [
+    { key: 'category', label: 'التصنيف' }, { key: 'name', label: 'اسم الصنف' }, { key: 'price', label: 'السعر' }
+  ], rows);
+}
 
-function sheetToObjects_(name, cacheSeconds) {
-  if (REQ_SHEET_MEMO_[name]) return REQ_SHEET_MEMO_[name].slice();
-  const duration = cacheSeconds || CACHE_SECONDS;
-  const cache = getCache_();
-  let gen = null;
+/* -------- المرفقات -------- */
+function toggleAttachKind() {
+  const kind = document.querySelector('input[name="attachKind"]:checked').value;
+  document.getElementById('attachLinkRow').classList.toggle('hidden', kind !== 'link');
+  document.getElementById('attachFileRow').classList.toggle('hidden', kind !== 'file');
+}
 
-  try {
-    const head = cache.getAll(['sheet_' + name, 'gen_' + name]);
-    gen = head['gen_' + name] || null;
-    const metaStr = head['sheet_' + name];
-    if (metaStr && gen) {
-      const meta = JSON.parse(metaStr);
-      if (meta && meta.g === gen && meta.n > 0) {
-        const keys = [];
-        for (let i = 0; i < meta.n; i++) keys.push('sheet_' + name + '_' + gen + '_' + i);
-        const parts = cache.getAll(keys);
-        let complete = true, str = '';
-        for (let j = 0; j < keys.length; j++) {
-          if (parts[keys[j]] === undefined || parts[keys[j]] === null) { complete = false; break; }
-          str += parts[keys[j]];
-        }
-        if (complete) {
-          const rows = JSON.parse(str);
-          REQ_SHEET_MEMO_[name] = rows;
-          return rows.slice();
-        }
-      }
-    }
-  } catch (e) {
-    // تجاهل أي خطأ بالكاش وأكملي القراءة العادية من الشيت
+function submitAttachment() {
+  const title = document.getElementById('attachTitle').value.trim();
+  const kind = document.querySelector('input[name="attachKind"]:checked').value;
+  if (!title) { alert('اكتبي عنوان المرفق'); return; }
+
+  if (kind === 'link') {
+    const link = document.getElementById('attachLink').value.trim();
+    if (!link) { alert('اكتبي رابط المرفق'); return; }
+    sendAttachment({ title: title, kind: 'link', link: link });
+    return;
   }
 
-  gen = currentCacheGen_(name, gen);
-  const rows = readSheetObjectsRaw_(name);
-  putSheetCache_(name, rows, gen, duration);
-  REQ_SHEET_MEMO_[name] = rows;
-  return rows.slice();
+  const fileInput = document.getElementById('attachFile');
+  const file = fileInput.files[0];
+  if (!file) { alert('اختاري ملف'); return; }
+  if (file.size > 15 * 1024 * 1024) { alert('حجم الملف كبير جداً (الحد الأقصى 15 ميجا)'); return; }
+  const btn = document.getElementById('attachSubmitBtn');
+  setBtnBusy(btn, true);
+  const reader = new FileReader();
+  reader.onload = function () {
+    sendAttachment({ title: title, kind: 'file', fileData: reader.result, fileName: file.name, mimeType: file.type });
+  };
+  reader.onerror = function () { setBtnBusy(btn, false); alert('تعذرت قراءة الملف'); };
+  reader.readAsDataURL(file);
 }
 
-/* ------------------- الاسم المعروض للمركز (بدون تغيير الاسم الأصلي) -------------------
-   الاسم الأصلي بعمود "اسم المركز" بشيت المراكز هو المفتاح اللي تنربط فيه كل البيانات، فما نلمسه.
-   لو عبّيتي عمود "الاسم المعروض" لأي مركز (مثلاً: الأصلي "معهد النور" والمعروض "مركز النور")،
-   الموقع يعرض الاسم المعروض بكل مكان، والبيانات تبقى مربوطة بالاسم الأصلي.
-   الفكرة: عند دخول أي طلب نحوّل الاسم المعروض إلى الأصلي، وعند خروج أي ردّ نحوّل الأصلي إلى المعروض. */
-let DISPLAY_MAP_ = null;   // أصلي -> معروض (للردود الخارجة) - يُضبط بكل طلب
+function sendAttachment(payload) {
+  const btn = document.getElementById('attachSubmitBtn');
+  setBtnBusy(btn, true);
+  payload.from = 'الإدارة';
+  callApi('recordAttachment', payload).then(function (r) {
+    setBtnBusy(btn, false);
+    if (r.ok) {
+      document.getElementById('attachTitle').value = '';
+      document.getElementById('attachLink').value = '';
+      document.getElementById('attachFile').value = '';
+      const s = document.getElementById('attachSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+      loadAttachments();
+    } else {
+      alert('صار خطأ أثناء حفظ المرفق:\n' + (r.error || 'خطأ غير معروف') + '\n\nلو الخطأ يقول شي عن "المرفقات" أو null، معناته شيت "المرفقات" لسا ما انسوى بجوجل شيتس - شغّلي دالة setup من محرر Apps Script.');
+    }
+  }).catch(function () { setBtnBusy(btn, false); });
+}
 
-function centerAliasMaps_() {
-  const maps = { toReal: {}, toDisplay: {}, any: false };
-  try {
-    const rows = sheetToObjects_('المراكز', CACHE_SECONDS_LONG);
-    rows.forEach(function (r) {
-      const real = String(r['اسم المركز'] || '').trim();
-      const shown = String(r['الاسم المعروض'] || '').trim();
-      if (real && shown && shown !== real) {
-        maps.toDisplay[real] = shown;
-        maps.toReal[shown] = real;
-        maps.any = true;
-      }
+function loadAttachments() {
+  const box = document.getElementById('attachmentsList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getAttachments', {}).then(function (r) {
+    const list = r.attachments || [];
+    if (!r.ok || !list.length) {
+      box.innerHTML = 'لا توجد مرفقات بعد';
+      return;
+    }
+    box.innerHTML = '';
+    list.forEach(function (a) {
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div>' +
+          '<div>' + (a['العنوان'] || '') + '</div>' +
+          '<div class="meta">' + (a['النوع'] || '') + (a['من'] ? (' · بواسطة: ' + a['من']) : '') + ' · ' + (a['اليوم'] || '') + ' ' + toHijriStr(a['التاريخ']) + '</div>' +
+          '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;">' +
+            '<a href="' + (a['الرابط'] || '#') + '" target="_blank">فتح</a>' +
+            '<a href="#" onclick="deleteAttachmentRow(' + a._row + '); return false;">حذف</a>' +
+          '</div>' +
+        '</div>';
+      box.appendChild(div);
     });
-  } catch (e) { /* لو صار خطأ نكمل بدون أسماء معروضة */ }
-  return maps;
-}
-
-function mapCenterName_(str, dict) {
-  // النصوص الطويلة (صور base64 وروابط وغيرها) ما فيها اسم مركز - نتخطاها بدل ما نمسحها حرف حرف بكل طلب
-  if (str.length >= 500) return str;
-  const t = str.trim();
-  if (Object.prototype.hasOwnProperty.call(dict, t)) return dict[t];
-  // استهداف الإعلانات: "مركز:الاسم|مسؤولة:الاسم"
-  if (str.indexOf('مركز:') !== -1 && str.length < 500) {
-    return str.split('|').map(function (tok) {
-      const t2 = tok.trim();
-      if (t2.indexOf('مركز:') === 0) {
-        const nm = t2.slice(5);
-        if (Object.prototype.hasOwnProperty.call(dict, nm)) return 'مركز:' + dict[nm];
-      }
-      return tok;
-    }).join('|');
-  }
-  return str;
-}
-
-function mapStringsDeep_(v, dict) {
-  if (typeof v === 'string') return mapCenterName_(v, dict);
-  if (Array.isArray(v)) return v.map(function (x) { return mapStringsDeep_(x, dict); });
-  if (v && Object.prototype.toString.call(v) === '[object Object]') {
-    const o = {};
-    Object.keys(v).forEach(function (k) { o[k] = mapStringsDeep_(v[k], dict); });
-    return o;
-  }
-  return v;
-}
-
-function centerDisplay_(name) {
-  const n = String(name || '').trim();
-  return (DISPLAY_MAP_ && Object.prototype.hasOwnProperty.call(DISPLAY_MAP_, n)) ? DISPLAY_MAP_[n] : name;
-}
-
-function json_(obj) {
-  if (DISPLAY_MAP_ && Object.keys(DISPLAY_MAP_).length) obj = mapStringsDeep_(obj, DISPLAY_MAP_);
-  return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function doGet(e) {
-  return handleRequest_(e.parameter);
-}
-
-function doPost(e) {
-  let params = {};
-  try {
-    params = JSON.parse(e.postData.contents);
-  } catch (err) {
-    params = e.parameter;
-  }
-  return handleRequest_(params);
-}
-
-function handleRequest_(p) {
-  const T0_ = Date.now();
-  try {
-    const aliasMaps = centerAliasMaps_();
-    DISPLAY_MAP_ = aliasMaps.any ? aliasMaps.toDisplay : null;
-    if (aliasMaps.any) p = mapStringsDeep_(p, aliasMaps.toReal);   // الاسم المعروض -> الأصلي قبل المعالجة
-    const action = p.action;
-    switch (action) {
-      case 'getCenters': return json_(getCenters_());
-      case 'loginCenter': return json_(loginCenter_(p));
-      case 'loginMasoula': return json_(loginMasoula_(p));
-      case 'getMasoulat': return json_(getMasoulat_());
-      case 'getMasoulaGrades': return json_(getMasoulaGrades_(p));
-      case 'saveMasoulaGrades': return json_(saveMasoulaGrades_(p));
-
-      case 'recordSale': return json_(recordSale_(p));
-      case 'getSales': return json_(getSales_(p));
-      case 'updateSale': return json_(updateSale_(p));
-      case 'deleteSale': return json_(deleteSale_(p));
-
-      case 'recordReturn': return json_(recordReturn_(p));
-      case 'getReturns': return json_(getReturns_(p));
-      case 'updateReturn': return json_(updateReturn_(p));
-      case 'deleteReturn': return json_(deleteReturn_(p));
-
-      case 'recordInvoice': return json_(recordInvoice_(p));
-      case 'getInvoices': return json_(getInvoices_(p));
-      case 'updateInvoice': return json_(updateInvoice_(p));
-      case 'deleteInvoice': return json_(deleteInvoice_(p));
-
-      case 'getAttendance': return json_(getAttendance_(p));
-      case 'recordAttendance': return json_(recordAttendance_(p));
-      case 'recordAttendanceBulk': return json_(recordAttendanceBulk_(p));
-      case 'getAttendanceForDate': return json_(getAttendanceForDate_(p));
-
-      case 'getPledge': return json_(getPledge_(p));
-      case 'signPledge': return json_(signPledge_(p));
-      case 'getPledgeStatusAll': return json_(getPledgeStatusAll_());
-
-      case 'getTasksAck': return json_(getTasksAck_(p));
-      case 'acknowledgeTasks': return json_(acknowledgeTasks_(p));
-      case 'getTasksStatusAll': return json_(getTasksStatusAll_());
-
-      case 'getMasoulaDashboard': return json_(getMasoulaDashboard_(p));
-
-      case 'submitNotice': return json_(submitNotice_(p));
-      case 'getCenterNotices': return json_(getCenterNotices_(p));
-      case 'getCenterPendingCount': return json_(getCenterPendingCount_(p));
-      case 'getPendingNotices': return json_(getPendingNotices_());
-      case 'getPendingNoticesCount': return json_(getPendingNoticesCount_());
-      case 'getAllNotices': return json_(getAllNotices_(p));
-      case 'adminSignNotice': return json_(adminSignNotice_(p));
-      case 'updateSignedNotice': return json_(updateSignedNotice_(p));
-      case 'getNoticeAdminSignature': return json_(getNoticeAdminSignature_(p));
-      case 'getNoticeCenterSignature': return json_(getNoticeCenterSignature_(p));
-      case 'submitCanteenOrder': return json_(submitCanteenOrder_(p));
-      case 'updateNotice': return json_(updateNotice_(p));
-      case 'deleteNotice': return json_(deleteNotice_(p));
-      case 'exportNoticesToSheet': return json_(exportNoticesToSheet_(p));
-
-      case 'getStats': return json_(getStats_());
-      case 'getRegistrationStats': return json_(getRegistrationStats_(p));
-      case 'setRegistrationVerified': return json_(setRegistrationVerified_(p));
-
-      case 'archiveCurrentTerm': return json_(archiveCurrentTerm_(p));
-      case 'getTermsList': return json_(getTermsList_());
-
-      case 'recordIncomeItem': return json_(recordIncomeItem_(p));
-      case 'getIncomeItems': return json_(getIncomeItems_(p));
-      case 'updateIncomeItem': return json_(updateIncomeItem_(p));
-      case 'deleteIncomeItem': return json_(deleteIncomeItem_(p));
-
-      case 'recordAttachment': return json_(recordAttachment_(p));
-      case 'getAttachments': return json_(getAttachments_(p));
-      case 'deleteAttachment': return json_(deleteAttachment_(p));
-
-      case 'recordAnnouncement': return json_(recordAnnouncement_(p));
-      case 'getAllAnnouncements': return json_(getAllAnnouncements_());
-      case 'getAnnouncementsFor': return json_(getAnnouncementsFor_(p));
-      case 'deleteAnnouncement': return json_(deleteAnnouncement_(p));
-      case 'recordMeetingMinutes': return json_(recordMeetingMinutes_(p));
-      case 'getAllMeetingMinutes': return json_(getAllMeetingMinutes_());
-      case 'getMeetingMinutesFor': return json_(getMeetingMinutesFor_(p));
-      case 'deleteMeetingMinutes': return json_(deleteMeetingMinutes_(p));
-
-      case 'getPriceItems': return json_(getPriceItems_());
-      case 'addPriceItem': return json_(addPriceItem_(p));
-      case 'updatePriceItem': return json_(updatePriceItem_(p));
-      case 'deletePriceItem': return json_(deletePriceItem_(p));
-      case 'getPriceListManager': return json_(getPriceListManager_());
-      case 'setPriceListManager': return json_(setPriceListManager_(p));
-
-      case 'ping': return json_({ ok: true, serverMs: Date.now() - T0_, version: '2026-10-07-orders', invoiceReturns: typeof cleanInvoiceReturn_ === 'function', canteenOrders: typeof submitCanteenOrder_ === 'function', lightNotices: typeof getNoticeCenterSignature_ === 'function' });
-      case 'getPurchaseCenters': return json_(getPurchaseCenters_());
-      case 'setPurchaseCenters': return json_(setPurchaseCenters_(p));
-      case 'getExpenseCenters': return json_(getExpenseCenters_());
-      case 'setExpenseCenters': return json_(setExpenseCenters_(p));
-      case 'getPriceListFile': return json_(getPriceListFile_());
-      case 'getContacts': return json_(getContacts_());
-      case 'recordVisitStat': return json_(recordVisitStat_(p));
-      case 'getVisitStats': return json_(getVisitStats_());
-      case 'deleteVisitStat': return json_(deleteVisitStat_(p));
-      case 'setPriceListFile': return json_(setPriceListFile_(p));
-
-      case 'loginSupervision': return json_(loginSupervision_(p));
-      case 'loginAdmin': return json_(loginAdmin_(p));
-      case 'getDirectors': return json_(getDirectors_(p));
-
-      case 'recordDifficulty': return json_(recordDifficulty_(p));
-      case 'getDifficulties': return json_(getDifficulties_(p));
-      case 'deleteDifficulty': return json_(deleteDifficulty_(p));
-
-      case 'recordIncentiveEntry': return json_(recordIncentiveEntry_(p));
-      case 'getIncentiveEntries': return json_(getIncentiveEntries_(p));
-      case 'addIncentiveFollowupSplit': return json_(addIncentiveFollowupSplit_(p));
-      case 'getIncentiveFollowupSplits': return json_(getIncentiveFollowupSplits_(p));
-      case 'deleteIncentiveFollowupSplit': return json_(deleteIncentiveFollowupSplit_(p));
-      case 'acknowledgeIncentiveEntries': return json_(acknowledgeIncentiveEntries_(p));
-
-      case 'debugInfo': return json_(debugInfo_());
-
-      default: return json_({ ok: false, error: 'إجراء غير معروف' });
-    }
-  } catch (err) {
-    return json_({ ok: false, error: err.message });
-  }
-}
-
-/* تصدير إشعارات الاستلام/التسليم إلى Google Sheet واحد ثابت (للإدارة والإشراف).
-   أول مرة ينشئ الملف ويحفظ معرّفه، وبعدها كل تصدير يحدّث نفس الملف (نفس الرابط) بآخر الإشعارات والمبالغ.
-   p.rows: مصفوفة صفوف [المركز, النوع, المبلغ, اليوم, التاريخ, الحالة].
-   الإجماليات تنكتب كمعادلات (SUMIF / SUM). */
-const NOTICES_SHEET_PROP_ = 'NOTICES_EXPORT_SHEET_ID';
-
-function exportNoticesToSheet_(p) {
-  const rows = Array.isArray(p.rows) ? p.rows : [];
-  if (!rows.length) return { ok: false, error: 'لا توجد إشعارات للتصدير' };
-  if (rows.length > 5000) return { ok: false, error: 'عدد الإشعارات كبير جداً للتصدير' };
-
-  const headers = ['المركز', 'النوع', 'المبلغ', 'اليوم', 'التاريخ', 'الحالة'];
-  const data = rows.map(function (r) {
-    return [centerDisplay_(String(r[0] || '').trim()), String(r[1] || ''), Number(r[2]) || 0,
-            String(r[3] || ''), String(r[4] || ''), String(r[5] || '')];
   });
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(20000);
-  try {
-    const props = PropertiesService.getScriptProperties();
-    let ss = null;
-    const savedId = props.getProperty(NOTICES_SHEET_PROP_);
-    if (savedId) {
-      try { ss = SpreadsheetApp.openById(savedId); if (DriveApp.getFileById(savedId).isTrashed()) ss = null; } catch (e) { ss = null; }
-    }
-    let isNew = false;
-    if (!ss) {
-      ss = SpreadsheetApp.create('إشعارات الاستلام والتسليم');
-      props.setProperty(NOTICES_SHEET_PROP_, ss.getId());
-      isNew = true;
-    }
-
-    let sh = ss.getSheetByName('الإشعارات');
-    if (!sh) { sh = ss.getSheets()[0]; sh.setName('الإشعارات'); }
-    sh.clear();
-    sh.setRightToLeft(true);
-
-    const n = data.length;
-    const last = n + 1;
-    sh.getRange(2, 5, n, 1).setNumberFormat('@');           // التاريخ نص عشان ما يتحول لتاريخ ميلادي
-    sh.getRange(1, 1, 1, 6).setValues([headers])
-      .setFontWeight('bold').setBackground('#6e1523').setFontColor('#ffffff').setHorizontalAlignment('center');
-    sh.getRange(2, 1, n, 6).setValues(data);
-    sh.getRange(2, 3, n, 1).setNumberFormat('#,##0.00');
-
-    // صفوف الإجماليات
-    let r = last + 2;
-    const types = ['استلام', 'تسليم'].filter(function (t) { return data.some(function (d) { return d[1] === t; }); });
-    if (types.length > 1) {
-      types.forEach(function (t) {
-        sh.getRange(r, 1).setValue('إجمالي ' + t);
-        sh.getRange(r, 3).setFormula('=SUMIF($B$2:$B$' + last + ',"' + t + '",$C$2:$C$' + last + ')');
-        r++;
-      });
-    }
-    sh.getRange(r, 1).setValue('إجمالي المبالغ');
-    sh.getRange(r, 3).setFormula('=SUM($C$2:$C$' + last + ')');
-    const totalsFrom = last + 2;
-    sh.getRange(totalsFrom, 1, r - totalsFrom + 1, 6).setFontWeight('bold').setBackground('#f6efe2');
-    sh.getRange(totalsFrom, 3, r - totalsFrom + 1, 1).setNumberFormat('#,##0.00');
-
-    sh.getRange(r + 2, 1).setValue('آخر تحديث: ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm'))
-      .setFontColor('#777777');
-
-    sh.setFrozenRows(1);
-    sh.autoResizeColumns(1, 6);
-    SpreadsheetApp.flush();
-
-    if (isNew) {
-      // ننقل الملف لمجلد النظام وننشئ رابط عرض (نفس أسلوب مرفقات النظام الأخرى)
-      const file = DriveApp.getFileById(ss.getId());
-      file.moveTo(getOrCreateSubFolder_(['تقارير الإشعارات']));
-      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    }
-    return { ok: true, url: ss.getUrl(), created: isNew };
-  } finally {
-    lock.releaseLock();
-  }
 }
 
-/* ------------------- المراكز والمسؤولات: تسجيل الدخول ------------------- */
-
-function getCenters_() {
-  const rows = sheetToObjects_('المراكز', CACHE_SECONDS_LONG);
-  return { ok: true, centers: rows.map(function (r) { return r['اسم المركز']; }) };
-}
-
-function loginCenter_(p) {
-  const rows = sheetToObjects_('المراكز', CACHE_SECONDS_LONG);
-  const found = rows.find(function (r) {
-    return String(r['اسم المركز']).trim() === String(p.center).trim() &&
-      String(r['كلمة المرور']).trim() === String(p.password).trim();
+function deleteAttachmentRow(row) {
+  if (!confirm('متأكدة تبين تحذفين هذا المرفق؟')) return;
+  callApi('deleteAttachment', { row: row }).then(function (r) {
+    if (r.ok) loadAttachments();
   });
-  if (!found) return { ok: false, error: 'اسم المركز أو كلمة المرور غير صحيحة' };
-  const readOnly = String(found['وضع العرض فقط'] || '').trim() === 'نعم';
-  return { ok: true, center: found['اسم المركز'], readOnly: readOnly };
 }
 
-function loginMasoula_(p) {
-  const rows = sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG);
-  const username = String(p.username || '').trim();
-  const password = String(p.password || '').trim();
+/* -------- الصعوبات والمقترحات -------- */
+let currentDifficulties = [];
 
-  const nameMatch = rows.find(function (r) {
-    return String(r['الاسم']).trim() === username ||
-      String(r['البريد الإلكتروني']).trim().toLowerCase() === username.toLowerCase();
-  });
-
-  if (!nameMatch) {
-    return { ok: false, error: 'ما لقينا اسم "' + username + '" بشيت المسؤولات. تأكدي إنه مكتوب بالضبط نفس الشيت (بدون مسافات زايدة).' };
-  }
-  if (String(nameMatch['كلمة المرور']).trim() !== password) {
-    return { ok: false, error: 'الاسم صحيح، بس كلمة المرور مو مطابقة لللي بالشيت لهذا الاسم.' };
-  }
-
-  return { ok: true, name: nameMatch['الاسم'], email: nameMatch['البريد الإلكتروني'] || '', center: nameMatch['اسم المركز'] || '' };
-}
-
-function getMasoulat_() {
-  const rows = sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG);
-  return { ok: true, masoulat: rows.map(function (r) { return r['الاسم']; }).filter(Boolean) };
-}
-
-/* ------------------- درجات المسؤولات (تقييم نهاية الفصل من 13) -------------------
-   التقييم يدوي بالكامل من لوحة الإدارة (edara.html ← «درجات المسؤولات»): كل بند يكون
-   «مكتمل» أو «ناقص»، والدرجة = 13 ناقص درجات البنود الناقصة. تُحفظ بشيت «درجات المسؤولات»
-   بصف واحد لكل (فصل + مسؤولة)، ولو انحفظ نفس الفصل مرة ثانية تتحدّث الصفوف نفسها (ما تتكرر). */
-const GRADES_SHEET_ = 'درجات المسؤولات';
-const GRADES_ITEMS_ = [
-  { key: 'تسجيل المبيعات', max: 4 },
-  { key: 'الفواتير', max: 3 },
-  { key: 'إشعار الاستلام', max: 2 },
-  { key: 'توقيع التعهد', max: 2 },
-  { key: 'تأكيد الاطلاع على المهام', max: 2 }
-];
-const GRADES_TOTAL_ = 13;
-const GRADES_HEADERS_ = ['معرف', 'الفصل', 'اسم المسؤولة', 'اسم المركز']
-  .concat(GRADES_ITEMS_.map(function (i) { return i.key; }))
-  .concat(['الدرجة', 'الناقص', 'اليوم', 'التاريخ']);
-
-/* تنشئ الشيت تلقائياً لو ما كان موجود (فما يلزم تشغيل setup() عشان تشتغل الميزة) */
-function getGradesSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sh = ss.getSheetByName(GRADES_SHEET_);
-  if (!sh) {
-    sh = ss.insertSheet(GRADES_SHEET_);
-    sh.appendRow(GRADES_HEADERS_);
-    sh.getRange(1, 1, 1, GRADES_HEADERS_.length).setFontWeight('bold');
-    sh.setRightToLeft(true);
-    ['اليوم', 'التاريخ'].forEach(function (h) {
-      const idx = GRADES_HEADERS_.indexOf(h) + 1;
-      sh.getRange(2, idx, Math.max(sh.getMaxRows() - 1, 1), 1).setNumberFormat('@');
+function loadDifficultiesAdmin() {
+  const box = document.getElementById('difficultiesList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getDifficulties', {}).then(function (r) {
+    currentDifficulties = r.items || [];
+    if (!r.ok || !currentDifficulties.length) {
+      box.innerHTML = 'لا توجد صعوبات أو مقترحات بعد';
+      return;
+    }
+    box.innerHTML = '';
+    currentDifficulties.forEach(function (item) {
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div>' +
+          '<div>' + (item['النوع'] || '') + (item['اسم المركز'] ? (' · ' + item['اسم المركز']) : '') + '</div>' +
+          '<div class="meta">' + (item['من'] ? ('من: ' + item['من'] + ' · ') : '') + (item['اليوم'] || '') + ' ' + toHijriStr(item['التاريخ']) + '</div>' +
+          '<div style="margin-top:6px;white-space:pre-wrap;">' + (item['النص'] || '') + '</div>' +
+          '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;">' +
+            '<a href="#" onclick="deleteDifficultyRow(' + item._row + '); return false;">حذف</a>' +
+          '</div>' +
+        '</div>';
+      box.appendChild(div);
     });
-  }
-  return sh;
+  });
 }
 
-/* تحسب الدرجة والناقص من حالات البنود (أي قيمة غير «ناقص» تُعتبر «مكتمل») */
-function computeGrade_(items) {
-  const state = {};
-  const missing = [];
-  let score = GRADES_TOTAL_;
-  GRADES_ITEMS_.forEach(function (it) {
-    const isMissing = String((items || {})[it.key] || '').trim() === 'ناقص';
-    state[it.key] = isMissing ? 'ناقص' : 'مكتمل';
-    if (isMissing) { score -= it.max; missing.push(it.key); }
+function deleteDifficultyRow(row) {
+  if (!confirm('متأكدة تبين تحذفين هذا العنصر؟')) return;
+  callApi('deleteDifficulty', { row: row }).then(function (r) {
+    if (r.ok) loadDifficultiesAdmin();
   });
-  return { state: state, missing: missing, score: score };
 }
 
-/* p.term: اسم الفصل، مثال «الفصل الدراسي الأول ١٤٤٨هـ».
-   ترجع كل المسؤولات (من شيت المسؤولات) ومعها درجاتهم المحفوظة لهذا الفصل،
-   والمسؤولة اللي ما انحفظ لها شي تطلع «مكتمل» بكل البنود (saved: false). */
-function getMasoulaGrades_(p) {
-  const term = String(p.term || '').trim();
-  const masoulat = sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG).filter(function (r) {
-    return String(r['الاسم'] || '').trim();
-  });
-
-  const savedByName = {};
-  if (term) {
-    sheetToObjects_(GRADES_SHEET_).forEach(function (r) {
-      if (String(r['الفصل'] || '').trim() === term) savedByName[String(r['اسم المسؤولة'] || '').trim()] = r;
-    });
-  }
-
-  const list = masoulat.map(function (m) {
-    const name = String(m['الاسم']).trim();
-    const saved = savedByName[name];
-    const items = {};
-    GRADES_ITEMS_.forEach(function (it) { items[it.key] = saved ? saved[it.key] : 'مكتمل'; });
-    const g = computeGrade_(items);
+function exportDifficulties() {
+  if (!currentDifficulties.length) { alert('لا توجد بيانات لتصديرها'); return; }
+  const rows = currentDifficulties.map(function (item) {
     return {
-      name: name,
-      center: String(m['اسم المركز'] || '').trim(),
-      saved: !!saved,
-      items: g.state,
-      score: g.score,
-      missing: g.missing
+      'النوع': item['النوع'] || '', 'المركز': item['اسم المركز'] || '', 'من': item['من'] || '',
+      'النص': item['النص'] || '', 'اليوم': item['اليوم'] || '', 'التاريخ': item['التاريخ'] || ''
     };
   });
-
-  return { ok: true, term: term, total: GRADES_TOTAL_, items: GRADES_ITEMS_, list: list };
+  exportToExcel(rows, 'الصعوبات-والمقترحات', 'الصعوبات والمقترحات');
 }
 
-/* p.term + p.grades: [{ name, center, items: { «تسجيل المبيعات»: 'مكتمل'|'ناقص', ... } }]
-   تحدّث الصف الموجود لنفس (الفصل + المسؤولة) أو تضيف صف جديد، والدرجة تنحسب هنا بالسيرفر. */
-function saveMasoulaGrades_(p) {
-  const term = String(p.term || '').trim();
-  if (!term) return { ok: false, error: 'اسم الفصل الدراسي مطلوب' };
-  const grades = p.grades || [];
-  if (!grades.length) return { ok: false, error: 'لا يوجد درجات للحفظ' };
+/* -------- متابعة التعهدات (لكل مسؤولات المقصف) -------- */
+function loadPledgesStatus() {
+  const tbody = document.getElementById('pledgesTbody');
+  tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
+  callApi('getPledgeStatusAll', {}).then(function (r) {
+    if (!r.ok || !r.list) { tbody.innerHTML = '<tr><td colspan="4">تعذّر التحميل</td></tr>'; return; }
+    const name = document.getElementById('pledgesNameFilter').value;
+    const list = name ? r.list.filter(function (x) { return String(x.name).trim() === name; }) : r.list;
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="4">لا يوجد مسؤولات مسجّلات</td></tr>'; return; }
+    tbody.innerHTML = '';
+    list.forEach(function (x) {
+      const tr = document.createElement('tr');
+      const statusHtml = x.signed
+        ? '<span class="status-pill done">تم التعهد</span>'
+        : '<span class="status-pill pending">لم تتعهد بعد</span>';
+      tr.innerHTML = '<td>' + (x.name || '') + '</td><td>' + (x.center || '') + '</td><td>' + statusHtml + '</td><td>' + (x.signed ? formatDayDateTime(x.day, x.date, x.time) : '') + '</td>';
+      tbody.appendChild(tr);
+    });
+  });
+}
 
-  const sh = getGradesSheet_();
+/* -------- متابعة اطلاع المهام (لكل مسؤولات المقصف) -------- */
+function loadTasksStatus() {
+  const tbody = document.getElementById('tasksStatusTbody');
+  tbody.innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
+  callApi('getTasksStatusAll', {}).then(function (r) {
+    if (!r.ok || !r.list) { tbody.innerHTML = '<tr><td colspan="4">تعذّر التحميل</td></tr>'; return; }
+    const name = document.getElementById('tasksNameFilter').value;
+    const list = name ? r.list.filter(function (x) { return String(x.name).trim() === name; }) : r.list;
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="4">لا يوجد مسؤولات مسجّلات</td></tr>'; return; }
+    tbody.innerHTML = '';
+    list.forEach(function (x) {
+      const tr = document.createElement('tr');
+      const statusHtml = x.acknowledged
+        ? '<span class="status-pill done">تم الاطلاع</span>'
+        : '<span class="status-pill pending">لم تطّلع بعد</span>';
+      tr.innerHTML = '<td>' + (x.name || '') + '</td><td>' + (x.center || '') + '</td><td>' + statusHtml + '</td><td>' + (x.acknowledged ? formatDayDateTime(x.day, x.date, x.time) : '') + '</td>';
+      tbody.appendChild(tr);
+    });
+  });
+}
 
-  // نتأكد أن كل الأعمدة المطلوبة موجودة (لو انضاف الشيت يدوياً أو نقص منه عمود)
-  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (h) { return String(h).trim(); });
-  GRADES_HEADERS_.forEach(function (h) {
-    if (headers.indexOf(h) === -1) {
-      sh.getRange(1, sh.getLastColumn() + 1).setValue(h).setFontWeight('bold');
-      headers.push(h);
+/* ==================== درجات المسؤولات (تقييم نهاية الفصل من 13) ==================== */
+const GRADE_ITEMS_ = [
+  { key: 'تسجيل المبيعات', max: 4 },
+  { key: 'الفواتير', max: 4 },
+  { key: 'إشعار الاستلام', max: 3 },
+  { key: 'توقيع التعهد', max: 1 },
+  { key: 'تأكيد الاطلاع على المهام', max: 1 }
+];
+const GRADE_TOTAL_ = 13;
+let gradesState_ = { term: '', list: [], touched: false };
+
+function gradesEsc_(s) {
+  return String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function gradesDefaultYear_() {
+  try {
+    const parts = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', { year: 'numeric' }).formatToParts(new Date());
+    const y = parts.filter(function (x) { return x.type === 'year'; })[0];
+    return y ? toArabicDigits(y.value).replace(/[^٠-٩]/g, '') : '';
+  } catch (e) { return ''; }
+}
+
+function initGradesTab_() {
+  const yearEl = document.getElementById('gradesTermYear');
+  if (!yearEl.value) yearEl.value = gradesDefaultYear_();
+  if (!gradesState_.list.length) {
+    document.getElementById('gradesBody').innerHTML = '<div class="card" style="color:#8a7d76;">اختاري الفصل الدراسي لعرض المسؤولات.</div>';
+  }
+}
+
+/* اسم الفصل بنفس صيغة الأرشفة: «الفصل الدراسي الأول ١٤٤٨هـ» (الأرقام دايماً عربية عشان ما يختلف الاسم لو انكتب بأرقام لاتينية) */
+function gradesTermLabel_() {
+  const num = document.getElementById('gradesTermNum').value;
+  const year = toArabicDigits(document.getElementById('gradesTermYear').value.trim()).replace(/\s*هـ\s*$/, '');
+  if (!num || !year) return '';
+  return 'الفصل الدراسي ' + num + ' ' + year + 'هـ';
+}
+
+function onGradesTermChange_() {
+  const label = gradesTermLabel_();
+  if (!label) return;
+  if (gradesState_.touched && gradesState_.term && gradesState_.term !== label) {
+    if (!confirm('فيه تعديلات ما انحفظت لـ «' + gradesState_.term + '». تبين تتجاهلينها وتنتقلين للفصل الجديد؟')) return;
+  }
+  loadGrades_(label);
+}
+
+function loadGrades_(label) {
+  const body = document.getElementById('gradesBody');
+  body.innerHTML = '<div class="card">جاري التحميل...</div>';
+  callApi('getMasoulaGrades', { term: label }).then(function (r) {
+    if (!r || !r.ok) {
+      body.innerHTML = '<div class="card">تعذّر تحميل الدرجات' + (r && r.error ? ': ' + gradesEsc_(r.error) : '') +
+        '<br><span style="font-size:0.8rem;color:#8a7d76;">تأكدي أنك نشرتِ إصداراً جديداً من Apps Script بعد تحديث Code.gs.</span></div>';
+      return;
     }
-  });
-  const termCol = headers.indexOf('الفصل');
-  const nameCol = headers.indexOf('اسم المسؤولة');
-  const idCol = headers.indexOf('معرف');
-
-  const lastRow = sh.getLastRow();
-  const values = lastRow > 1 ? sh.getRange(2, 1, lastRow - 1, headers.length).getValues() : [];
-  const rowIndexByKey = {};
-  values.forEach(function (row, i) {
-    rowIndexByKey[String(row[termCol]).trim() + '||' + String(row[nameCol]).trim()] = i;
-  });
-
-  const now = nowParts_();
-  const newRows = [];
-  let updated = 0;
-
-  grades.forEach(function (g) {
-    const name = String(g.name || '').trim();
-    if (!name) return;
-    const calc = computeGrade_(g.items);
-    const fields = {
-      'الفصل': term,
-      'اسم المسؤولة': name,
-      'اسم المركز': String(g.center || '').trim(),
-      'الدرجة': calc.score,
-      'الناقص': calc.missing.length ? calc.missing.join('، ') : 'مكتمل',
-      'اليوم': now.day,
-      'التاريخ': now.date
+    gradesState_ = {
+      term: label,
+      touched: false,
+      list: r.list.map(function (m) {
+        return { name: m.name, center: m.center, saved: !!m.saved, items: m.items };
+      })
     };
-    GRADES_ITEMS_.forEach(function (it) { fields[it.key] = calc.state[it.key]; });
+    renderGrades_();
+  }).catch(function () {
+    body.innerHTML = '<div class="card">تعذّر الاتصال بالسيرفر، حاولي مرة ثانية.</div>';
+  });
+}
 
-    const key = term + '||' + name;
-    if (rowIndexByKey.hasOwnProperty(key)) {
-      const row = values[rowIndexByKey[key]];
-      headers.forEach(function (h, c) { if (fields.hasOwnProperty(h)) row[c] = fields[h]; });
-      updated++;
+function gradeCalc_(m) {
+  let score = GRADE_TOTAL_;
+  const missing = [];
+  GRADE_ITEMS_.forEach(function (it) {
+    if (m.items[it.key] === 'ناقص') { score -= it.max; missing.push(it.key); }
+  });
+  return { score: score, missing: missing };
+}
+
+function gradeCardInner_(i) {
+  const m = gradesState_.list[i];
+  const c = gradeCalc_(m);
+  const chips = GRADE_ITEMS_.map(function (it, k) {
+    const miss = m.items[it.key] === 'ناقص';
+    return '<button type="button" class="grade-chip' + (miss ? ' miss' : '') + '" onclick="toggleGradeItem_(' + i + ',' + k + ')">' +
+      (miss ? '✗ ' : '✓ ') + gradesEsc_(it.key) + '<small>' + it.max + '</small></button>';
+  }).join('');
+  const status = c.missing.length
+    ? '<span class="miss">الناقص: ' + c.missing.map(gradesEsc_).join('، ') + '</span>'
+    : '<span class="ok">مكتمل</span>';
+  return '<div class="grade-head"><div><div class="grade-name">' + gradesEsc_(m.name) + '</div>' +
+    '<div class="grade-meta">' + gradesEsc_(m.center || 'بدون مركز') + '</div></div>' +
+    '<div class="grade-score' + (c.score < GRADE_TOTAL_ ? ' part' : '') + '">' + toArabicDigits(c.score) + '<small> / ' + toArabicDigits(GRADE_TOTAL_) + '</small></div></div>' +
+    '<div class="grade-chips">' + chips + '</div>' +
+    '<div class="grade-foot">' + status + (m.saved ? '' : '<span class="unsaved">● لم تُحفظ بعد</span>') + '</div>';
+}
+
+function gradesSummaryHtml_() {
+  const list = gradesState_.list;
+  const scores = list.map(function (m) { return gradeCalc_(m).score; });
+  const complete = scores.filter(function (x) { return x === GRADE_TOTAL_; }).length;
+  const avg = scores.length ? (scores.reduce(function (a, b) { return a + b; }, 0) / scores.length) : 0;
+  return '<div><div class="v">' + toArabicDigits(list.length) + '</div><div class="l">عدد المسؤولات</div></div>' +
+    '<div><div class="v">' + toArabicDigits(complete) + '</div><div class="l">مكتملات (١٣/١٣)</div></div>' +
+    '<div><div class="v">' + toArabicDigits(avg.toFixed(1)) + '</div><div class="l">متوسط الدرجات</div></div>';
+}
+
+function renderGrades_() {
+  const body = document.getElementById('gradesBody');
+  const list = gradesState_.list;
+  if (!list.length) {
+    body.innerHTML = '<div class="card">لا توجد مسؤولات مسجّلات بشيت «المسؤولات».</div>';
+    return;
+  }
+  let html = '<div class="card">' +
+    '<div style="font-weight:800;color:var(--maroon-dark);">' + gradesEsc_(gradesState_.term) + '</div>' +
+    '<div class="grade-summary" id="gradesSummary">' + gradesSummaryHtml_() + '</div>' +
+    '<input type="text" id="gradesSearch" placeholder="بحث باسم المسؤولة أو المركز..." oninput="filterGrades_()" style="margin-top:12px;">' +
+    '<div class="grade-toolbar">' +
+      '<button class="btn" id="gradesSaveBtn" onclick="saveGrades_()">حفظ الدرجات</button>' +
+      '<button class="btn secondary" onclick="exportGradesExcel_()">Excel</button>' +
+      '<button class="btn secondary" onclick="printGrades_()">PDF / طباعة</button>' +
+    '</div></div>';
+  list.forEach(function (m, i) {
+    html += '<div class="grade-card" id="gradeCard_' + i + '" data-search="' + gradesEsc_((m.name + ' ' + m.center).toLowerCase()) + '">' + gradeCardInner_(i) + '</div>';
+  });
+  body.innerHTML = html;
+}
+
+function toggleGradeItem_(i, k) {
+  const m = gradesState_.list[i];
+  const key = GRADE_ITEMS_[k].key;
+  m.items[key] = m.items[key] === 'ناقص' ? 'مكتمل' : 'ناقص';
+  m.saved = false;
+  gradesState_.touched = true;
+  document.getElementById('gradeCard_' + i).innerHTML = gradeCardInner_(i);
+  document.getElementById('gradesSummary').innerHTML = gradesSummaryHtml_();
+}
+
+function filterGrades_() {
+  const q = document.getElementById('gradesSearch').value.trim().toLowerCase();
+  gradesState_.list.forEach(function (m, i) {
+    const el = document.getElementById('gradeCard_' + i);
+    if (el) el.classList.toggle('hidden', !!q && el.getAttribute('data-search').indexOf(q) === -1);
+  });
+}
+
+function saveGrades_() {
+  if (!gradesState_.term || !gradesState_.list.length) { alert('اختاري الفصل الدراسي أولاً'); return; }
+  const btn = document.getElementById('gradesSaveBtn');
+  setBtnBusy(btn, true);
+  const payload = gradesState_.list.map(function (m) {
+    return { name: m.name, center: m.center, items: m.items };
+  });
+  callApi('saveMasoulaGrades', { term: gradesState_.term, grades: payload }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (r && r.ok) {
+      gradesState_.list.forEach(function (m) { m.saved = true; });
+      gradesState_.touched = false;
+      renderGrades_();
+      alert('تم حفظ درجات ' + gradesState_.list.length + ' مسؤولة ✅');
     } else {
-      const row = headers.map(function (h) { return fields.hasOwnProperty(h) ? fields[h] : ''; });
-      row[idCol] = Utilities.getUuid();
-      newRows.push(row);
+      alert('صار خطأ: ' + ((r && r.error) || 'غير معروف') + '\n\nتأكدي أنك نشرتِ إصداراً جديداً من Apps Script بعد تحديث Code.gs.');
     }
+  }).catch(function () {
+    setBtnBusy(btn, false);
+    alert('تعذّر الاتصال بالسيرفر، حاولي مرة ثانية.');
   });
-
-  if (updated && values.length) sh.getRange(2, 1, values.length, headers.length).setValues(values);
-  if (newRows.length) sh.getRange(sh.getLastRow() + 1, 1, newRows.length, headers.length).setValues(newRows);
-
-  invalidateCache_(GRADES_SHEET_);
-  return { ok: true, added: newRows.length, updated: updated };
 }
 
-/* تسجيل دخول مكتب إشراف الداخل (eshraf.html) بالبريد الإلكتروني وكلمة المرور -
-   البيانات تُدارى يدوياً بشيت "دخول الإشراف" (تضيفين صف جديد لكل بريد مسموح له بالدخول). */
-function loginSupervision_(p) {
-  const rows = sheetToObjects_('دخول الإشراف', CACHE_SECONDS_LONG);
-  const email = String(p.email || '').trim().toLowerCase();
-  const password = String(p.password || '').trim();
-
-  const found = rows.find(function (r) {
-    return String(r['البريد الإلكتروني']).trim().toLowerCase() === email;
+function gradesRows_(forPrint) {
+  return gradesState_.list.map(function (m, i) {
+    const c = gradeCalc_(m);
+    const row = { 'م': i + 1, 'المسؤولة': m.name, 'المركز': m.center };
+    GRADE_ITEMS_.forEach(function (it) {
+      const miss = m.items[it.key] === 'ناقص';
+      row[it.key + ' (' + it.max + ')'] = forPrint ? (miss ? '✗' : '✓') : (miss ? 'ناقص' : 'مكتمل');
+    });
+    row['الدرجة من ' + GRADE_TOTAL_] = c.score;
+    row['الحالة'] = c.missing.length ? 'الناقص: ' + c.missing.join('، ') : 'مكتمل';
+    return row;
   });
-
-  if (!found) {
-    return { ok: false, error: 'ما لقينا هذا البريد الإلكتروني بشيت "دخول الإشراف". تأكدي إنه مضاف ومكتوب بالضبط.' };
-  }
-  if (String(found['كلمة المرور']).trim() !== password) {
-    return { ok: false, error: 'البريد الإلكتروني صحيح، بس كلمة المرور مو مطابقة.' };
-  }
-  return { ok: true, email: found['البريد الإلكتروني'], name: found['الاسم'] || '' };
 }
 
-/* تسجيل دخول لوحة إدارة وحدة المقاصف (edara.html) - كلمة المرور مخزّنة بـ
-   "Script Properties" (إعدادات المشروع بمحرر Apps Script)، مو بالكود نفسه،
-   عشان ما تظهر بملفات edara.html أو Code.gs المرفوعة على GitHub.
-   طريقة الإضافة/التعديل: من محرر Apps Script ← أيقونة الترس (⚙️ Project Settings)
-   يسار الشاشة ← "Script Properties" ← Add script property ←
-   Property: ADMIN_PASSWORD, Value: كلمة المرور اللي تبينها ← Save. */
-function loginAdmin_(p) {
-  const password = String(p.password || '').trim();
-  const stored = PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD');
-  if (!stored) {
-    return { ok: false, error: 'ما تم ضبط كلمة مرور الإدارة بعد. من محرر Apps Script: ⚙️ Project Settings ← Script Properties ← أضيفي Property باسم ADMIN_PASSWORD وقيمتها كلمة المرور.' };
-  }
-  if (password !== String(stored).trim()) {
-    return { ok: false, error: 'كلمة المرور غير صحيحة' };
-  }
-  return { ok: true };
+function exportGradesExcel_() {
+  if (!gradesState_.list.length) return;
+  exportToExcel(gradesRows_(false), 'درجات-المسؤولات-' + gradesState_.term.replace(/\s+/g, '-'), 'درجات المسؤولات');
 }
 
-/* ------------------- أرقام مديرات المراكز (لإرسال تقرير الزيارة عبر واتساب) -------------------
-   الأرقام محفوظة في ورقة «أرقام المديرات» داخل هذا الشيت، وليست في ملفات الموقع على GitHub،
-   ولا تُعرض إلا لمن أدخلت كلمة مرور الإدارة.
-   أعمدة الورقة: اسم المركز | الفترة | اسم المديرة | الجوال
-   (إذا تُركت خلية «اسم المركز» فارغة فهي تابعة للمركز الذي في الصف السابق) */
-const DIRECTORS_SHEET_ = 'أرقام المديرات';
+function printGrades_() {
+  if (!gradesState_.list.length) return;
+  const rows = gradesRows_(true);
+  const columns = Object.keys(rows[0]).map(function (k) { return { key: k, label: k }; });
+  printReport('درجات المسؤولات', gradesState_.term, columns, rows);
+}
 
-function normalizeSaPhone_(v) {
-  let d = String(v === undefined || v === null ? '' : v)
-    .replace(/[٠-٩]/g, function (c) { return String(c.charCodeAt(0) - 0x0660); })
-    .replace(/[۰-۹]/g, function (c) { return String(c.charCodeAt(0) - 0x06F0); })
-    .replace(/\.0+$/, '')
-    .replace(/\D/g, '');
+/* -------- قائمة الدخل -------- */
+let currentIncomeItems = [];
+let editingIncomeRow = null;
+
+function updateIncomeAmountWords() {
+  const amount = parseFloat(document.getElementById('incomeAmount').value);
+  const box = document.getElementById('incomeAmountWords');
+  box.textContent = (!isNaN(amount) && amount > 0) ? amountToArabicWords(amount) : '';
+}
+
+function submitIncomeItem() {
+  const category = document.getElementById('incomeCategory').value;
+  const description = document.getElementById('incomeDescription').value.trim();
+  const amount = parseFloat(document.getElementById('incomeAmount').value);
+  if (!description) { alert('اكتبي البيان'); return; }
+  if (isNaN(amount) || amount < 0) { alert('اكتبي مبلغ صحيح'); return; }
+  const amountWords = amountToArabicWords(amount);
+  const fileInput = document.getElementById('incomeAttachment');
+  const file = fileInput.files[0];
+
+  const btn = document.getElementById('incomeSubmitBtn');
+  setBtnBusy(btn, true);
+
+  function send(fileData, fileName, mimeType) {
+    const payload = { category: category, description: description, amount: amount, amountWords: amountWords };
+    if (fileData) { payload.fileData = fileData; payload.fileName = fileName; payload.mimeType = mimeType; }
+    const action = editingIncomeRow ? 'updateIncomeItem' : 'recordIncomeItem';
+    if (editingIncomeRow) payload.row = editingIncomeRow;
+    callApi(action, payload).then(function (r) {
+      setBtnBusy(btn, false);
+      if (r.ok) {
+        cancelEditIncomeItem();
+        document.getElementById('incomeSuccess').style.display = 'block';
+        setTimeout(function () { document.getElementById('incomeSuccess').style.display = 'none'; }, 2500);
+        loadIncomeItems();
+      } else {
+        alert('تعذّر الحفظ: ' + (r.error || 'خطأ غير معروف') + '\n\nلو الخطأ يتكلم عن شيت "قائمة الدخل" غير موجود، لازم تشغّلي دالة setup() مرة وحدة من قائمة الدوال أعلى محرر Apps Script.');
+      }
+    }).catch(function (err) {
+      setBtnBusy(btn, false);
+      alert('تعذّر الاتصال بالسيرفر: ' + err.message);
+    });
+  }
+
+  if (file) {
+    if (file.size > 15 * 1024 * 1024) { alert('حجم الملف كبير جداً (الحد الأقصى 15 ميجا)'); setBtnBusy(btn, false); return; }
+    const reader = new FileReader();
+    reader.onload = function () { send(reader.result, file.name, file.type); };
+    reader.readAsDataURL(file);
+  } else {
+    send();
+  }
+}
+
+function editIncomeItem(row) {
+  const item = currentIncomeItems.find(function (i) { return i._row === row; });
+  if (!item) return;
+  editingIncomeRow = row;
+  document.getElementById('incomeCategory').value = item['البند'] || 'إيراد';
+  document.getElementById('incomeDescription').value = item['البيان'] || '';
+  document.getElementById('incomeAmount').value = Number(item['المبلغ']) || 0;
+  updateIncomeAmountWords();
+  document.getElementById('incomeAttachment').value = '';
+  const existingBox = document.getElementById('incomeExistingAttachment');
+  if (item['رابط المرفق']) {
+    existingBox.innerHTML = 'المرفق الحالي: <a href="' + item['رابط المرفق'] + '" target="_blank">' + (item['اسم المرفق'] || 'عرض') + '</a> — اختاري ملف جديد بس لو تبين تستبدلينه';
+    existingBox.classList.remove('hidden');
+  } else {
+    existingBox.classList.add('hidden');
+  }
+  document.getElementById('incomeFormTitle').textContent = 'تعديل بند';
+  document.getElementById('incomeSubmitBtn').textContent = 'حفظ التعديل';
+  document.getElementById('incomeCancelEditBtn').classList.remove('hidden');
+  document.getElementById('incomeFormTitle').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelEditIncomeItem() {
+  editingIncomeRow = null;
+  document.getElementById('incomeCategory').value = 'إيراد';
+  document.getElementById('incomeDescription').value = '';
+  document.getElementById('incomeAmount').value = '';
+  document.getElementById('incomeAmountWords').textContent = '';
+  document.getElementById('incomeAttachment').value = '';
+  document.getElementById('incomeExistingAttachment').classList.add('hidden');
+  document.getElementById('incomeFormTitle').textContent = 'إضافة بند لقائمة الدخل';
+  document.getElementById('incomeSubmitBtn').textContent = 'حفظ البند';
+  document.getElementById('incomeCancelEditBtn').classList.add('hidden');
+}
+
+function loadIncomeItems() {
+  const tbody = document.getElementById('incomeTbody');
+  tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
+  populateTermFilter_('incomeTermFilter');
+  const term = document.getElementById('incomeTermFilter').value;
+  callApi('getIncomeItems', { term: term }).then(function (r) {
+    currentIncomeItems = r.items || [];
+    document.getElementById('incomeTotalRevenue').textContent = (r.totalIncome || 0).toFixed(2);
+    document.getElementById('incomeTotalExpenses').textContent = (r.totalExpenses || 0).toFixed(2);
+    document.getElementById('incomeNetProfit').textContent = (r.netProfit || 0).toFixed(2);
+    if (!currentIncomeItems.length) { tbody.innerHTML = '<tr><td colspan="7">لا توجد بنود بعد</td></tr>'; return; }
+    tbody.innerHTML = '';
+    currentIncomeItems.forEach(function (item) {
+      const tr = document.createElement('tr');
+      const attachHtml = item['رابط المرفق'] ? '<a href="' + item['رابط المرفق'] + '" target="_blank">عرض</a>' : '—';
+      tr.innerHTML = '<td>' + (item['البند'] || '') + '</td><td>' + (item['البيان'] || '') + '</td><td>' + Number(item['المبلغ']).toFixed(2) + '</td><td>' + (item['اليوم'] || '') + '</td><td>' + toHijriStr(item['التاريخ']) + '</td><td>' + attachHtml + '</td>' +
+        '<td><div class="row-actions"><a href="#" onclick="editIncomeItem(' + item._row + '); return false;">تعديل</a><a href="#" onclick="deleteIncomeRow(' + item._row + '); return false;">حذف</a></div></td>';
+      tbody.appendChild(tr);
+    });
+  });
+}
+
+function deleteIncomeRow(row) {
+  if (!confirm('متأكدة تبين تحذفين هذا البند؟')) return;
+  callApi('deleteIncomeItem', { row: row }).then(function (r) {
+    if (r.ok) loadIncomeItems();
+  });
+}
+
+function exportIncomeItems() {
+  if (!currentIncomeItems.length) { alert('لا توجد بيانات لتصديرها'); return; }
+  const rows = currentIncomeItems.map(function (item) {
+    return { 'البند': item['البند'] || '', 'البيان': item['البيان'] || '', 'المبلغ': Number(item['المبلغ']), 'المبلغ كتابة': item['المبلغ كتابة'] || '', 'اليوم': item['اليوم'] || '', 'التاريخ': item['التاريخ'] || '' };
+  });
+  exportToExcel(rows, 'قائمة-الدخل', 'قائمة الدخل');
+}
+
+/* -------- تقرير الزيارة اليومي -------- */
+let vrSignatureDataUrl = null;
+
+function addVrNoteRow(value) {
+  const container = document.getElementById('vrNotesContainer');
+  const row = document.createElement('div');
+  row.className = 'vr-note-row';
+  row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;';
+  const num = document.createElement('span');
+  num.className = 'vr-note-num';
+  num.style.cssText = 'font-weight:800;color:var(--maroon);min-width:22px;text-align:center;margin-top:8px;';
+  const input = document.createElement('textarea');
+  input.rows = 1;
+  input.placeholder = 'اكتبي الملاحظة...';
+  input.style.cssText = 'flex:1;resize:none;overflow:hidden;min-height:38px;';
+  input.value = value || '';
+  input.addEventListener('input', function () { autoResizeVrNote_(input); });
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.textContent = '✕';
+  removeBtn.style.cssText = 'width:auto;padding:4px 10px;background:transparent;border:1px solid var(--gold-light);border-radius:6px;color:#8a7d76;cursor:pointer;flex:none;margin-top:2px;';
+  removeBtn.onclick = function () { row.remove(); renumberVrNoteRows_(); };
+  row.appendChild(num);
+  row.appendChild(input);
+  row.appendChild(removeBtn);
+  container.appendChild(row);
+  renumberVrNoteRows_();
+  autoResizeVrNote_(input);
+}
+
+function autoResizeVrNote_(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+function renumberVrNoteRows_() {
+  document.querySelectorAll('#vrNotesContainer .vr-note-row .vr-note-num').forEach(function (el, i) {
+    el.textContent = toArabicDigits(i + 1);
+  });
+}
+
+function initVrNotesDefault_() {
+  const container = document.getElementById('vrNotesContainer');
+  if (container && !container.children.length) {
+    addVrNoteRow('');
+    addVrNoteRow('');
+  }
+}
+
+/* -------- حفظ/استرجاع مسودة تقرير الزيارة (بدون التوقيع) -------- */
+const VR_DRAFT_KEY_ = 'vrReportDraft';
+let vrDraftInited_ = false;
+
+function saveVrDraft() {
+  const notesLines = Array.from(document.querySelectorAll('#vrNotesContainer textarea')).map(function (t) { return t.value; });
+  const draft = {
+    center: document.getElementById('vrCenterName').value,
+    year: document.getElementById('vrYear').value,
+    term: document.getElementById('vrTerm').value,
+    morning: document.getElementById('vrPeriodMorning').checked,
+    evening: document.getElementById('vrPeriodEvening').checked,
+    day: document.getElementById('vrDayName').value,
+    hijriDay: document.getElementById('vrHijriDay').value,
+    hijriMonth: document.getElementById('vrHijriMonth').value,
+    visitType: document.getElementById('vrVisitType').value,
+    visitNumber: document.getElementById('vrVisitNumber').value,
+    notesLines: notesLines,
+    recommendation: document.getElementById('vrRecommendation').value,
+    centerHeadName: document.getElementById('vrCenterHeadName').value,
+    directorPhone: document.getElementById('vrDirectorPhone').value,
+    headName: document.getElementById('vrHeadName').value,
+    sigScale: document.getElementById('vrSigSize').value
+  };
+  try {
+    localStorage.setItem(VR_DRAFT_KEY_, JSON.stringify(draft));
+    alert('تم حفظ المسودة، وبتلقينها جاهزة لما ترجعين لهذا التبويب');
+  } catch (e) {
+    alert('تعذّر حفظ المسودة بهذا المتصفح');
+  }
+}
+
+/* يرجع true لو فيه مسودة محفوظة وتم تحميلها، false لو ما فيه */
+function loadVrDraft_() {
+  let draft;
+  try {
+    const raw = localStorage.getItem(VR_DRAFT_KEY_);
+    if (!raw) return false;
+    draft = JSON.parse(raw);
+  } catch (e) { return false; }
+  if (!draft) return false;
+  document.getElementById('vrCenterName').value = draft.center || '';
+  document.getElementById('vrYear').value = draft.year || '';
+  document.getElementById('vrTerm').value = draft.term || 'الأول';
+  document.getElementById('vrPeriodMorning').checked = !!draft.morning;
+  document.getElementById('vrPeriodEvening').checked = !!draft.evening;
+  document.getElementById('vrDayName').value = draft.day || 'الأحد';
+  document.getElementById('vrHijriDay').value = draft.hijriDay || '';
+  document.getElementById('vrHijriMonth').value = draft.hijriMonth || '١';
+  document.getElementById('vrVisitType').value = draft.visitType || 'تقييم';
+  document.getElementById('vrVisitNumber').value = draft.visitNumber || '';
+  if (draft.recommendation !== undefined) document.getElementById('vrRecommendation').value = draft.recommendation;
+  document.getElementById('vrCenterHeadName').value = draft.centerHeadName || '';
+  document.getElementById('vrDirectorPhone').value = draft.directorPhone || '';
+  document.getElementById('vrHeadName').value = draft.headName || 'فاطمة مبارك الكثيري';
+  if (draft.sigScale) {
+    document.getElementById('vrSigSize').value = draft.sigScale;
+    document.getElementById('vrSigSizeLabel').textContent = draft.sigScale + '%';
+  }
+  const container = document.getElementById('vrNotesContainer');
+  container.innerHTML = '';
+  const lines = (draft.notesLines && draft.notesLines.length) ? draft.notesLines : ['', ''];
+  lines.forEach(function (l) { addVrNoteRow(l); });
+  return true;
+}
+
+/* تُستدعى مرة وحدة بس أول ما يُفتح التبويب: تحمّل المسودة لو موجودة، وإلا تبدأ بصفين فاضيين */
+function initVisitReportTab_() {
+  loadVrDirectors_();
+  vrLoadStats_();
+  if (vrDraftInited_) return;
+  vrDraftInited_ = true;
+  const hasDraft = loadVrDraft_();
+  if (!hasDraft) initVrNotesDefault_();
+}
+
+/* تصفير كل حقول التقرير للبدء من جديد - ما عدا التوقيع (يبقى محفوظ زي ما هو) */
+function clearVrReport() {
+  if (!confirm('هل تبين تصفير كل حقول التقرير؟ (التوقيع بيضل كما هو)')) return;
+  document.getElementById('vrCenterName').value = '';
+  document.getElementById('vrYear').value = '';
+  document.getElementById('vrTerm').value = 'الأول';
+  document.getElementById('vrPeriodMorning').checked = false;
+  document.getElementById('vrPeriodEvening').checked = false;
+  document.getElementById('vrDayName').value = 'الأحد';
+  document.getElementById('vrHijriDay').value = '';
+  document.getElementById('vrHijriMonth').value = '١';
+  document.getElementById('vrVisitType').value = 'تقييم';
+  document.getElementById('vrVisitNumber').value = '';
+  document.getElementById('vrRecommendation').value = 'نشكركم على تعاونكم الفعّال ونسأل الله لكم التوفيق والسداد';
+  document.getElementById('vrCenterHeadName').value = '';
+  document.getElementById('vrDirectorPhone').value = '';
+  document.getElementById('vrDirectorStatus').textContent = '';
+  document.getElementById('vrStatMsg').style.display = 'none';
+  document.getElementById('vrVisitNumberHint').textContent = '';
+  document.getElementById('vrSendPanel').classList.add('hidden');
+  document.getElementById('vrHeadName').value = 'فاطمة مبارك الكثيري';
+  const container = document.getElementById('vrNotesContainer');
+  container.innerHTML = '';
+  addVrNoteRow('');
+  addVrNoteRow('');
+  try { localStorage.removeItem(VR_DRAFT_KEY_); } catch (e) { /* تجاهل */ }
+  /* التوقيع (vrSignatureDataUrl، المعاينة، وحجم التوقيع) عن قصد ما يتصفّر */
+}
+
+function handleVrSigUpload(evt) {
+  const file = evt.target.files && evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const img = new Image();
+    img.onload = function () {
+      let finalUrl = e.target.result;
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        finalUrl = trimSignatureCanvas_(canvas);
+      } catch (err) { /* لو صار خطأ بالقص، نستخدم الصورة الأصلية بدون تعديل */ }
+      vrSignatureDataUrl = finalUrl;
+      const preview = document.getElementById('vrSigPreview');
+      preview.src = vrSignatureDataUrl;
+      preview.classList.remove('hidden');
+      document.getElementById('vrSigClearBtn').style.display = 'inline-block';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* يقص المسافات الفاضية/البيضاء المحيطة بالتوقيع تلقائيًا من الصورة المرفوعة،
+   عشان ما تطلع فيه مسافة زايدة فوق أو حوالين التوقيع بالتقرير المطبوع/PDF */
+function trimSignatureCanvas_(canvas) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const data = ctx.getImageData(0, 0, w, h).data;
+  let minX = w, minY = h, maxX = 0, maxY = 0;
+  const whiteThreshold = 248;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = (y * w + x) * 4;
+      const r = data[idx], g = data[idx + 1], b = data[idx + 2], a = data[idx + 3];
+      const isBackground = a === 0 || (r >= whiteThreshold && g >= whiteThreshold && b >= whiteThreshold);
+      if (!isBackground) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX <= minX || maxY <= minY) return canvas.toDataURL('image/png');
+  const pad = 4;
+  minX = Math.max(0, minX - pad);
+  minY = Math.max(0, minY - pad);
+  maxX = Math.min(w - 1, maxX + pad);
+  maxY = Math.min(h - 1, maxY + pad);
+  const cw = maxX - minX + 1, ch = maxY - minY + 1;
+  const out = document.createElement('canvas');
+  out.width = cw; out.height = ch;
+  out.getContext('2d').drawImage(canvas, minX, minY, cw, ch, 0, 0, cw, ch);
+  return out.toDataURL('image/png');
+}
+
+function clearVrSigUpload() {
+  vrSignatureDataUrl = null;
+  document.getElementById('vrSigUpload').value = '';
+  const preview = document.getElementById('vrSigPreview');
+  preview.src = '';
+  preview.classList.add('hidden');
+  document.getElementById('vrSigClearBtn').style.display = 'none';
+}
+
+function collectVisitReportOpts_() {
+  const center = document.getElementById('vrCenterName').value.trim();
+  if (!center) { alert('اكتبي اسم المركز أولاً'); return null; }
+  const year = document.getElementById('vrYear').value.trim();
+  const hijriDay = document.getElementById('vrHijriDay').value.trim();
+  const hijriMonth = document.getElementById('vrHijriMonth').value;
+  const hijriDate = (hijriDay ? toArabicDigits(hijriDay) : '  ') + ' / ' + (hijriMonth || '') +
+    (year ? ' / ' + toArabicDigits(year) + 'هـ' : '');
+  const notesLines = Array.from(document.querySelectorAll('#vrNotesContainer textarea')).map(function (inp) { return inp.value.trim(); }).filter(Boolean);
+  return {
+    center: center,
+    year: year,
+    term: document.getElementById('vrTerm').value || 'الأول',
+    morning: document.getElementById('vrPeriodMorning').checked,
+    evening: document.getElementById('vrPeriodEvening').checked,
+    day: document.getElementById('vrDayName').value || '',
+    hijriDate: hijriDate,
+    visitType: document.getElementById('vrVisitType').value || 'تقييم',
+    visitNumber: document.getElementById('vrVisitNumber').value || '',
+    notesLines: notesLines.length ? notesLines : [''],
+    recommendation: document.getElementById('vrRecommendation').value || '',
+    centerHeadName: document.getElementById('vrCenterHeadName').value || '',
+    headName: document.getElementById('vrHeadName').value || 'فاطمة مبارك الكثيري',
+    signatureDataUrl: vrSignatureDataUrl || '',
+    sigScale: (Number(document.getElementById('vrSigSize').value) || 100) / 100
+  };
+}
+
+function printVisitReport() {
+  const opts = collectVisitReportOpts_();
+  if (opts) printVisitReportWindow(opts);
+}
+
+function saveVisitReport() {
+  const opts = collectVisitReportOpts_();
+  if (!opts || !vrStatReady_()) return;
+  saveVisitReportPdf(opts);
+  vrRecordVisitStat_();
+}
+
+function shareVisitReport() {
+  const opts = collectVisitReportOpts_();
+  if (!opts || !vrStatReady_()) return;
+  shareVisitReportPdf(opts);
+  vrRecordVisitStat_();
+}
+
+/* -------- ربط تقرير الزيارة بإحصائية الزيارات -------- */
+function vrNum_(v) {
+  return parseInt(String(v || '').replace(/[٠-٩]/g, function (c) { return String(c.charCodeAt(0) - 0x0660); }).replace(/\D/g, ''), 10) || 0;
+}
+
+/* بيانات الزيارة من حقول التقرير بنفس صيغة «إحصائية الزيارات» */
+function vrStatData_() {
+  const center = document.getElementById('vrCenterName').value.replace(/\s+/g, ' ').trim();
+  const morning = document.getElementById('vrPeriodMorning').checked;
+  const evening = document.getElementById('vrPeriodEvening').checked;
+  const d = vrNum_(document.getElementById('vrHijriDay').value);
+  const m = vrNum_(document.getElementById('vrHijriMonth').value);
+  const y = vrNum_(document.getElementById('vrYear').value) || vsTodayHijri_().y;
+  return {
+    center: center,
+    period: morning ? 'صباحية' : (evening ? 'مسائية' : ''),
+    ok: !!(center && (morning || evening) && d >= 1 && d <= 30 && m >= 1 && m <= 12),
+    hijriDate: vsAr_(d) + ' ' + VS_MONTHS_[(m || 1) - 1] + ' ' + vsAr_(y) + 'هـ',
+    dateKey: y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0')
+  };
+}
+
+function vrStatReady_() {
+  const v = vrStatData_();
+  if (v.ok) return true;
+  if (!v.period) alert('اختاري الفترة (صباحي أو مسائي) لتُسجَّل الزيارة في الإحصائية.');
+  else alert('اكتبي يوم التاريخ الهجري لتُسجَّل الزيارة في الإحصائية.');
+  return false;
+}
+
+/* تسجّل الزيارة مرة واحدة فقط: إذا كانت مسجّلة بنفس المركز والفترة والتاريخ لا تتكرر */
+function vrRecordVisitStat_() {
+  const v = vrStatData_();
+  if (!v.ok) return Promise.resolve();
+  const msg = document.getElementById('vrStatMsg');
+  const show = function (t, err) {
+    msg.textContent = t;
+    msg.style.display = 'block';
+    msg.style.color = err ? '#b3261e' : '';
+  };
+  const same = function (a, b) { return vsNorm_(a) === vsNorm_(b); };
+  return callApi('getVisitStats').then(function (r) {
+    const list = (r && r.ok && r.visits) || [];
+    const mine = list.filter(function (x) { return same(x.center, v.center); });
+    if (mine.some(function (x) { return x.period === v.period && x.dateKey === v.dateKey; })) {
+      show('الزيارة مسجّلة سابقًا في الإحصائية — ' + v.center + ': ' + vsCountLabel_(mine.length));
+      return;
+    }
+    return callApi('recordVisitStat', { center: v.center, period: v.period, hijriDate: v.hijriDate, dateKey: v.dateKey }).then(function (res) {
+      if (!res || !res.ok) { show('تعذّر تسجيل الزيارة في الإحصائية' + (res && res.error ? ': ' + res.error : ''), true); return; }
+      show('✅ سُجّلت الزيارة في الإحصائية — ' + res.center + ': ' + vsCountLabel_(res.count));
+      return vrLoadStats_(true);
+    });
+  }).catch(function () { show('تعذّر تسجيل الزيارة في الإحصائية، تحقّقي من الاتصال.', true); });
+}
+
+/* -------- رقم الزيارة التلقائي من «إحصائية الزيارات» --------
+   رقم الزيارة = عدد زيارات هذا المركز في هذه الفترة + ١.
+   وإذا كانت الزيارة نفسها (بنفس التاريخ) مسجّلة سابقًا يظهر رقمها الأصلي. */
+let vrStats_ = null;
+let vrStatsLoading_ = null;
+
+function vrLoadStats_(force) {
+  if (vrStats_ && !force) return Promise.resolve(vrStats_);
+  if (vrStatsLoading_ && !force) return vrStatsLoading_;
+  vrStatsLoading_ = callApi('getVisitStats').then(function (r) {
+    vrStatsLoading_ = null;
+    if (r && r.ok) vrStats_ = r.visits || [];
+    vrUpdateVisitNumber_();
+    return vrStats_;
+  }).catch(function () { vrStatsLoading_ = null; return vrStats_; });
+  return vrStatsLoading_;
+}
+
+function vrUpdateVisitNumber_() {
+  const hint = document.getElementById('vrVisitNumberHint');
+  const input = document.getElementById('vrVisitNumber');
+  if (!hint || !input) return;
+  const v = vrStatData_();
+  if (!v.center || !v.period) { hint.textContent = ''; return; }
+  if (!vrStats_) { hint.textContent = 'جارٍ حساب رقم الزيارة...'; vrLoadStats_(); return; }
+  const list = vrStats_.filter(function (x) {
+    return x.period === v.period && vsNorm_(x.center) === vsNorm_(v.center);
+  }).sort(function (a, b) { return a.dateKey < b.dateKey ? -1 : (a.dateKey > b.dateKey ? 1 : 0); });
+  const idx = v.ok ? list.findIndex(function (x) { return x.dateKey === v.dateKey; }) : -1;
+  const n = idx >= 0 ? idx + 1 : list.length + 1;
+  input.value = n;
+  const per = v.period === 'صباحية' ? 'الصباحية' : 'المسائية';
+  hint.textContent = idx >= 0
+    ? 'هذه الزيارة مسجّلة سابقًا، ورقمها ' + vsAr_(n) + ' في الفترة ' + per + '.'
+    : (list.length
+      ? 'عدد الزيارات السابقة لهذا المركز في الفترة ' + per + ': ' + vsAr_(list.length) + '، فهذه الزيارة رقم ' + vsAr_(n) + '.'
+      : 'لا توجد زيارات سابقة لهذا المركز في الفترة ' + per + '، فهذه الزيارة الأولى.');
+}
+
+/* عند كتابة اسم المركز (أو تغيير الفترة) تُملأ المديرة وجوالها من ورقة «أرقام المديرات» */
+function vrAutoFillDirector_() {
+  const status = document.getElementById('vrDirectorStatus');
+  const center = document.getElementById('vrCenterName').value;
+  if (!vrDirectors_ || !center.trim()) { if (status) status.textContent = ''; return; }
+  const list = vrDirectors_.filter(function (d) { return vsNorm_(d.center) === vsNorm_(center); });
+  if (!list.length) { status.textContent = ''; return; }
+  const mBox = document.getElementById('vrPeriodMorning'), eBox = document.getElementById('vrPeriodEvening');
+  let evening = eBox.checked ? true : (mBox.checked ? false : null);
+  if (evening === null) {
+    const hasM = list.some(function (d) { return !d.evening; }), hasE = list.some(function (d) { return d.evening; });
+    if (hasM && hasE) {
+      status.textContent = 'لهذا المركز فترتان: اختاري الفترة لتظهر بيانات المديرة.';
+      return;
+    }
+    evening = hasE;
+    eBox.checked = evening;
+    mBox.checked = !evening;
+  }
+  const d = list.find(function (x) { return x.evening === evening; });
+  document.getElementById('vrSendPanel').classList.add('hidden');
+  if (!d) {
+    document.getElementById('vrCenterHeadName').value = '';
+    document.getElementById('vrDirectorPhone').value = '';
+    status.textContent = 'لا توجد مديرة مسجّلة لهذا المركز في الفترة ' + (evening ? 'المسائية' : 'الصباحية') + '.';
+    return;
+  }
+  document.getElementById('vrCenterName').value = d.center;
+  document.getElementById('vrCenterHeadName').value = d.name || '';
+  document.getElementById('vrDirectorPhone').value = '0' + d.phone.slice(3);
+  status.textContent = '✔️ المديرة: ' + (d.name || '—');
+}
+
+/* -------- إرسال تقرير الزيارة لمديرة المركز مباشرة (واتساب) -------- */
+let vrDirectors_ = null;
+let vrDirectorsLoading_ = null;
+
+function vrDirectorLabel_(d) {
+  return d.center + ' — ' + (d.period || '') + (d.name ? ' — ' + d.name : '');
+}
+
+function loadVrDirectors_(force) {
+  if (vrDirectors_ && !force) return Promise.resolve(vrDirectors_);
+  if (vrDirectorsLoading_) return vrDirectorsLoading_;
+  const status = document.getElementById('vrDirectorStatus');
+  let pw = '';
+  try { pw = sessionStorage.getItem('maqasif_admin_pw') || ''; } catch (e) {}
+  if (!pw) {
+    pw = prompt('لعرض أرقام المديرات، أدخلي كلمة مرور الإدارة مرة واحدة:') || '';
+    if (!pw) return Promise.resolve([]);
+  }
+  status.textContent = 'جارٍ تحميل قائمة المديرات...';
+  vrDirectorsLoading_ = callApi('getDirectors', { password: pw }).then(function (r) {
+    vrDirectorsLoading_ = null;
+    if (!r || !r.ok) {
+      if (r && r.auth) { try { sessionStorage.removeItem('maqasif_admin_pw'); } catch (e) {} }
+      status.textContent = (r && r.error) || 'تعذّر تحميل قائمة المديرات';
+      return [];
+    }
+    try { sessionStorage.setItem('maqasif_admin_pw', pw); } catch (e) {}
+    vrDirectors_ = r.directors || [];
+    const seen = {};
+    document.getElementById('vrCentersDl').innerHTML = vrDirectors_.filter(function (d) {
+      if (seen[d.center]) return false;
+      seen[d.center] = 1;
+      return true;
+    }).map(function (d) { return '<option value="' + vsEsc_(d.center) + '">'; }).join('');
+    status.textContent = vrDirectors_.length ? '' : 'قائمة المديرات فارغة — أضيفيها في ورقة «أرقام المديرات» داخل شيت النظام.';
+    vrAutoFillDirector_();
+    vrUpdateVisitNumber_();
+    return vrDirectors_;
+  }).catch(function () {
+    vrDirectorsLoading_ = null;
+    status.textContent = 'تعذّر الاتصال، حاولي مرة أخرى';
+    return [];
+  });
+  return vrDirectorsLoading_;
+}
+
+function pickVrDirector_(val) {
+  if (!vrDirectors_) return;
+  const d = vrDirectors_.find(function (x) { return vrDirectorLabel_(x) === val; });
+  if (!d) return;
+  document.getElementById('vrCenterName').value = d.center;
+  document.getElementById('vrCenterHeadName').value = d.name || '';
+  document.getElementById('vrDirectorPhone').value = '0' + d.phone.slice(3);
+  document.getElementById('vrPeriodEvening').checked = !!d.evening;
+  document.getElementById('vrPeriodMorning').checked = !d.evening;
+  document.getElementById('vrSendPanel').classList.add('hidden');
+  document.getElementById('vrDirectorStatus').textContent = '✔️ تم اختيار: ' + (d.name || d.center);
+}
+
+function vrWaPhone_(v) {
+  let d = String(v || '').replace(/[٠-٩]/g, function (c) { return String(c.charCodeAt(0) - 0x0660); }).replace(/\D/g, '');
   if (d.indexOf('00966') === 0) d = d.slice(5);
   else if (d.indexOf('966') === 0) d = d.slice(3);
   if (d.indexOf('0') === 0) d = d.slice(1);
   return /^5\d{8}$/.test(d) ? '966' + d : '';
 }
 
-function getDirectors_(p) {
-  const auth = loginAdmin_(p);
-  if (!auth.ok) return { ok: false, auth: true, error: auth.error };
-  let sh = sheet_(DIRECTORS_SHEET_);
-  if (!sh) {
-    sh = SpreadsheetApp.getActiveSpreadsheet().insertSheet(DIRECTORS_SHEET_);
-    sh.getRange(1, 1, 1, 4).setValues([['اسم المركز', 'الفترة', 'اسم المديرة', 'الجوال']]).setFontWeight('bold');
-    sh.setRightToLeft(true);
-    return { ok: true, directors: [] };
+async function sendVisitReportToDirector() {
+  const opts = collectVisitReportOpts_();
+  if (!opts || !vrStatReady_()) return;
+  const phone = vrWaPhone_(document.getElementById('vrDirectorPhone').value);
+  if (!phone) { alert('اكتبي جوال المديرة بصيغة صحيحة (مثل 05xxxxxxxx)، أو اكتبي اسم المركز لتظهر بياناتها تلقائيًا.'); return; }
+  vrRecordVisitStat_();
+  const btn = document.getElementById('vrSendDirectorBtn');
+  const panel = document.getElementById('vrSendPanel');
+  panel.classList.add('hidden');
+  const host = renderVisitReportToHost_(opts);
+  if (!host) return;
+  setBtnBusy(btn, true);
+  try {
+    if (typeof html2pdf === 'undefined') { try { await ensurePdfLibs_(); } catch (e) {} }
+    if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة أخرى'); return; }
+    const fileName = visitReportFileName_(opts);
+    await new Promise(function (resolve) { fitVisitReportToPage_(host.querySelector('.vr-doc'), resolve); });
+    const blob = await visitReportPdfBlob_(host, fileName);
+    vrDownloadBlob_(blob, fileName);
+    const head = opts.centerHeadName ? 'الأستاذة/ ' + opts.centerHeadName + ' — مديرة ' : 'مديرة ';
+    const msg = 'السلام عليكم ورحمة الله وبركاته\n' +
+      'سعادة ' + head + 'مركز ' + opts.center + ' المحترمة\n' +
+      'نرفق لكم تقرير الزيارة' + (opts.visitType ? ' (' + opts.visitType + ')' : '') + (document.getElementById('vrHijriDay').value.trim() ? ' بتاريخ ' + opts.hijriDate : '') + '.\n' +
+      'شاكرين لكم تعاونكم.\n' +
+      'وحدة المقاصف — جمعية فرقان';
+    document.getElementById('vrSendFileName').textContent = fileName;
+    document.getElementById('vrSendWaLink').href = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
+    panel.classList.remove('hidden');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (e) {
+    alert('حدث خطأ أثناء إنشاء ملف التقرير، حاولي مرة أخرى');
+  } finally {
+    setBtnBusy(btn, false);
   }
-  const values = sh.getDataRange().getValues();
-  if (values.length < 2) return { ok: true, directors: [] };
-  const head = values[0].map(function (h) { return String(h).trim(); });
-  const col = function (names) {
-    for (let i = 0; i < names.length; i++) { const k = head.indexOf(names[i]); if (k !== -1) return k; }
-    return -1;
+}
+
+/* ==================== محضر اجتماع ==================== */
+let mmHeadSignatureDataUrl = null;
+let mmAssistantSignatureDataUrl = null;
+let mmInited_ = false;
+
+function addMmPointRow(value) {
+  const container = document.getElementById('mmPointsContainer');
+  const row = document.createElement('div');
+  row.className = 'vr-note-row';
+  row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;';
+  const num = document.createElement('span');
+  num.className = 'mm-point-num';
+  num.style.cssText = 'font-weight:800;color:var(--maroon);min-width:22px;text-align:center;margin-top:8px;';
+  const input = document.createElement('textarea');
+  input.rows = 1;
+  input.placeholder = 'اكتبي النقطة...';
+  input.style.cssText = 'flex:1;resize:none;overflow:hidden;min-height:38px;';
+  input.value = value || '';
+  input.addEventListener('input', function () { autoResizeVrNote_(input); });
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.textContent = '✕';
+  removeBtn.style.cssText = 'width:auto;padding:4px 10px;background:transparent;border:1px solid var(--gold-light);border-radius:6px;color:#8a7d76;cursor:pointer;flex:none;margin-top:2px;';
+  removeBtn.onclick = function () { row.remove(); renumberMmPointRows_(); };
+  row.appendChild(num);
+  row.appendChild(input);
+  row.appendChild(removeBtn);
+  container.appendChild(row);
+  renumberMmPointRows_();
+  autoResizeVrNote_(input);
+}
+function renumberMmPointRows_() {
+  document.querySelectorAll('#mmPointsContainer .mm-point-num').forEach(function (el, i) {
+    el.textContent = toArabicDigits(i + 1) + '.';
+  });
+}
+
+function addMmParticipantRow(value) {
+  const container = document.getElementById('mmParticipantsContainer');
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;';
+  const num = document.createElement('span');
+  num.className = 'mm-participant-num';
+  num.style.cssText = 'font-weight:800;color:var(--maroon);min-width:22px;text-align:center;';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'اسم المشاركة...';
+  input.style.cssText = 'flex:1;margin:0;';
+  input.value = value || '';
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.textContent = '✕';
+  removeBtn.style.cssText = 'width:auto;padding:4px 10px;background:transparent;border:1px solid var(--gold-light);border-radius:6px;color:#8a7d76;cursor:pointer;flex:none;';
+  removeBtn.onclick = function () { row.remove(); renumberMmParticipantRows_(); };
+  row.appendChild(num);
+  row.appendChild(input);
+  row.appendChild(removeBtn);
+  container.appendChild(row);
+  renumberMmParticipantRows_();
+}
+function renumberMmParticipantRows_() {
+  document.querySelectorAll('#mmParticipantsContainer .mm-participant-num').forEach(function (el, i) {
+    el.textContent = toArabicDigits(i + 1) + '.';
+  });
+}
+
+function addMmLinkRow(type, url) {
+  const container = document.getElementById('mmLinksContainer');
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;';
+  const sel = document.createElement('select');
+  sel.className = 'mm-link-type';
+  sel.style.cssText = 'width:150px;flex:none;margin:0;';
+  ['فيديو', 'عرض تقديمي', 'ملف آخر', 'رابط عام'].forEach(function (t) {
+    const o = document.createElement('option');
+    o.value = t; o.textContent = t;
+    sel.appendChild(o);
+  });
+  sel.value = type || 'فيديو';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'mm-link-url';
+  input.placeholder = 'https://...';
+  input.style.cssText = 'flex:1;margin:0;';
+  input.value = url || '';
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.textContent = '✕';
+  removeBtn.style.cssText = 'width:auto;padding:4px 10px;background:transparent;border:1px solid var(--gold-light);border-radius:6px;color:#8a7d76;cursor:pointer;flex:none;';
+  removeBtn.onclick = function () { row.remove(); };
+  row.appendChild(sel);
+  row.appendChild(input);
+  row.appendChild(removeBtn);
+  container.appendChild(row);
+}
+
+function initMeetingMinutesTab_() {
+  if (mmInited_) return;
+  mmInited_ = true;
+  const hasDraft = loadMmDraft_();
+  if (!hasDraft) {
+    addMmPointRow('');
+    addMmParticipantRow('');
+  }
+}
+
+/* -------- حفظ/استرجاع مسودة محضر الاجتماع (بدون التوقيعين) -------- */
+const MM_DRAFT_KEY_ = 'mmMeetingDraft';
+
+function saveMmDraft() {
+  const points = Array.from(document.querySelectorAll('#mmPointsContainer textarea')).map(function (t) { return t.value; });
+  const participants = Array.from(document.querySelectorAll('#mmParticipantsContainer input[type="text"]')).map(function (t) { return t.value; });
+  const links = Array.from(document.querySelectorAll('#mmLinksContainer > div')).map(function (row) {
+    return { type: row.querySelector('.mm-link-type').value, url: row.querySelector('.mm-link-url').value };
+  });
+  const draft = {
+    number: document.getElementById('mmNumber').value,
+    method: document.getElementById('mmMethod').value,
+    day: document.getElementById('mmDayName').value,
+    hijriDay: document.getElementById('mmHijriDay').value,
+    hijriMonth: document.getElementById('mmHijriMonth').value,
+    hijriYear: document.getElementById('mmHijriYear').value,
+    points: points,
+    participants: participants,
+    links: links,
+    headName: document.getElementById('mmHeadName').value,
+    headSigScale: document.getElementById('mmHeadSigSize').value,
+    assistantName: document.getElementById('mmAssistantName').value,
+    assistantSigScale: document.getElementById('mmAssistantSigSize').value
   };
-  const cC = col(['اسم المركز', 'المركز']), cP = col(['الفترة']), cN = col(['اسم المديرة', 'المديرة']), cT = col(['الجوال', 'رقم الجوال']);
-  if (cC === -1 || cT === -1) return { ok: false, error: 'ورقة «' + DIRECTORS_SHEET_ + '» ينقصها عمود «اسم المركز» أو «الجوال».' };
-  const out = [];
-  let lastCenter = '';
-  for (let r = 1; r < values.length; r++) {
-    const row = values[r];
-    const center = String(row[cC] || '').trim();
-    if (center) lastCenter = center;
-    const phone = normalizeSaPhone_(row[cT]);
-    if (!lastCenter || !phone) continue;
-    const period = cP === -1 ? '' : String(row[cP] || '').trim();
-    out.push({
-      center: lastCenter,
-      period: period,
-      evening: /عصر|مساء|مسائ/.test(period),
-      name: cN === -1 ? '' : String(row[cN] || '').trim(),
-      phone: phone
-    });
+  try {
+    localStorage.setItem(MM_DRAFT_KEY_, JSON.stringify(draft));
+    alert('تم حفظ المسودة، وبتلقينها جاهزة لما ترجعين لهذا التبويب');
+  } catch (e) {
+    alert('تعذّر حفظ المسودة بهذا المتصفح');
   }
-  return { ok: true, directors: out };
 }
 
-/* ------------------- المبيعات اليومية ------------------- */
-
-function recordSale_(p) {
-  const sh = sheet_('المبيعات');
-  const id = Utilities.getUuid();
-  const now = nowParts_();
-  const date = p.date || now.date;
-  const time = p.time || now.time;
-  const day = dayNameForDateStr_(date);
-  appendRowByHeaders_(sh, {
-    'معرف': id, 'اسم المركز': p.center, 'اليوم': day, 'التاريخ': date, 'الوقت': time, 'المبلغ': Number(p.amount),
-    'ملاحظات': p.notes || '',
-    'وقت التسجيل الفعلي': entryStamp_()   // وقت التسجيل الحقيقي من السيرفر (يعتمد عليه التحليل الذكي لقياس «التسجيل أول بأول»)
-  });
-  invalidateCache_('المبيعات');
-  return { ok: true, id: id };
-}
-
-/* p.term: 'current' (افتراضي لو ما انمرّر شي) = بس الصفوف اللي عمود الأرشفة فيها فاضي
-   (يعني ما انترحّلت لفصل منتهي بعد). أي قيمة ثانية = اسم فصل محدد بالضبط.
-   'all' = كل الصفوف بدون فلترة (تُستخدم لعرض كل التاريخ).
-   colName: اسم عمود الأرشفة - افتراضياً "الفصل الدراسي"، وبشيت "الإشعارات" نستخدم
-   عمود منفصل اسمه "فصل الأرشفة" لأن "الفصل الدراسي" فيه مستخدم أصلاً لغرض ثاني
-   (تسجيل فصل رسوم حفل تحفيظ الصغار وقت إرسال الإشعار). */
-function filterByTerm_(rows, term, colName) {
-  const col = colName || 'الفصل الدراسي';
-  if (term === 'all') return rows;
-  if (term && term !== 'current') {
-    return rows.filter(function (r) { return String(r[col] || '').trim() === term; });
+/* يرجع true لو فيه مسودة محفوظة وتم تحميلها، false لو ما فيه */
+function loadMmDraft_() {
+  let draft;
+  try {
+    const raw = localStorage.getItem(MM_DRAFT_KEY_);
+    if (!raw) return false;
+    draft = JSON.parse(raw);
+  } catch (e) { return false; }
+  if (!draft) return false;
+  document.getElementById('mmNumber').value = draft.number || '';
+  document.getElementById('mmMethod').value = draft.method || 'عبر برنامج الزوم';
+  document.getElementById('mmDayName').value = draft.day || 'الأحد';
+  document.getElementById('mmHijriDay').value = draft.hijriDay || '';
+  document.getElementById('mmHijriMonth').value = draft.hijriMonth || '١';
+  document.getElementById('mmHijriYear').value = draft.hijriYear || '';
+  document.getElementById('mmHeadName').value = draft.headName || 'فاطمة مبارك الكثيري';
+  document.getElementById('mmAssistantName').value = draft.assistantName || 'مرام فوزي محسن النفاعي';
+  if (draft.headSigScale) {
+    document.getElementById('mmHeadSigSize').value = draft.headSigScale;
+    document.getElementById('mmHeadSigSizeLabel').textContent = draft.headSigScale + '%';
   }
-  return rows.filter(function (r) { return String(r[col] || '').trim() === ''; });
-}
-
-/* ترجع قائمة بأسماء الفصول الدراسية المنتهية (اللي سبق ترحيلها) الموجودة فعلياً
-   بأي من الشيتات الأربعة، بدون تكرار - تُستخدم لتعبئة قائمة اختيار الفصل بالواجهة. */
-function getTermsList_() {
-  const seen = {};
-  const terms = [];
-  function collect(name, colName) {
-    // بعد الأرشفة الحقيقية، الفصول المنتهية تُقرأ من شيت الأرشيف (الشيت الحيّ
-    // يحتوي الفصل الحالي بس، وما فيه أصلاً قيم فصل غير فاضية لنجمعها)
-    sheetToObjects_(ARCHIVE_PREFIX + name).forEach(function (r) {
-      const t = String(r[colName] || '').trim();
-      if (t && !seen[t]) { seen[t] = true; terms.push(t); }
-    });
+  if (draft.assistantSigScale) {
+    document.getElementById('mmAssistantSigSize').value = draft.assistantSigScale;
+    document.getElementById('mmAssistantSigSizeLabel').textContent = draft.assistantSigScale + '%';
   }
-  collect('المبيعات', 'الفصل الدراسي');
-  collect('المرتجعات', 'الفصل الدراسي');
-  collect('الفواتير', 'الفصل الدراسي');
-  collect('الإشعارات', 'فصل الأرشفة');
-  collect('قائمة الدخل', 'الفصل الدراسي');
-  return { ok: true, terms: terms };
-}
-
-function getSales_(p) {
-  let rows = getRowsForTerm_('المبيعات', p.term, 'الفصل الدراسي');
-  if (p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
-  const total = rows.reduce(function (sum, r) { return sum + (Number(r['المبلغ']) || 0); }, 0);
-  return { ok: true, sales: rows, total: total };
-}
-
-/* كاش بسيط لصف العناوين مدة تنفيذ الطلب الواحد بس (متغيّر عام يُعاد إنشاؤه
-   مع كل استدعاء جديد لـ Apps Script). الهدف: دوال مثل updateInvoice_ اللي تنادي
-   colIndex_ عدة مرات بنفس الشيت كانت تعيد قراءة صف العناوين من قوقل شيتس بكل
-   استدعاء (طلب شبكة منفصل لكل مرة) - الحين تُقرأ مرة وحدة وتُعاد استخدامها. */
-var _headerRowCache_ = {};
-
-function getHeaderRow_(sh) {
-  const key = sh.getSheetId();
-  if (_headerRowCache_[key]) return _headerRowCache_[key];
-  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
-  _headerRowCache_[key] = headers;
-  return headers;
-}
-
-/* ترجع رقم عمود بالاسم (1-indexed) بالبحث عن اسم العمود بصف العناوين.
-   تتجاهل أي مسافات زائدة بأول/آخر اسم العمود بالشيت عشان ما يفشل التطابق
-   لو انضاف العمود يدوياً وفيه مسافة خفية (وهذا سبب شائع لمشكلة "اليوم ما ينكتب"). */
-function colIndex_(sh, headerName) {
-  const headers = getHeaderRow_(sh);
-  const target = String(headerName).trim();
-  for (let i = 0; i < headers.length; i++) {
-    if (String(headers[i]).trim() === target) return i + 1;
-  }
-  return -1;
-}
-
-/* تضيف صف جديد حسب اسم العمود الفعلي بالشيت (مو حسب ترتيب ثابت بالكود).
-   هذا يحمينا لو صار ترتيب الأعمدة الفعلي بالشيت مختلف عن الترتيب المتوقع
-   (مثلاً لو انضاف عمود جديد بآخر الشيت بدل ما ينحط بمكانه الصحيح) - وهذا بالضبط
-   كان سبب مشكلة "المبلغ يتكتب تحت عمود اليوم" اللي صارت قبل هذا الإصلاح.
-   تتجاهل أيضاً أي مسافات زائدة بأسماء الأعمدة (نفس سبب مشكلة colIndex_ أعلاه).
-   valuesObj: كائن {اسم العمود: القيمة} - أي عمود موجود بالشيت وما انذكر بالكائن يُترك فاضي. */
-function appendRowByHeaders_(sh, valuesObj) {
-  const headers = getHeaderRow_(sh);
-  const keysTrimmed = {};
-  Object.keys(valuesObj).forEach(function (k) { keysTrimmed[k.trim()] = valuesObj[k]; });
-  const row = headers.map(function (h) {
-    const key = String(h).trim();
-    return keysTrimmed.hasOwnProperty(key) ? keysTrimmed[key] : '';
-  });
-  sh.appendRow(row);
-}
-
-function updateSale_(p) {
-  const sh = sheet_('المبيعات');
-  const row = Number(p.row);
-  sh.getRange(row, colIndex_(sh, 'المبلغ')).setValue(Number(p.amount));
-  if (p.date) {
-    sh.getRange(row, colIndex_(sh, 'التاريخ')).setValue(p.date);
-    const dayCol = colIndex_(sh, 'اليوم');
-    if (dayCol !== -1) sh.getRange(row, dayCol).setValue(dayNameForDateStr_(p.date));
-  }
-  if (p.notes !== undefined) {
-    const notesCol = colIndex_(sh, 'ملاحظات');
-    if (notesCol !== -1) sh.getRange(row, notesCol).setValue(p.notes);
-  }
-  invalidateCache_('المبيعات');
-  return { ok: true };
-}
-
-function deleteSale_(p) {
-  const sh = sheet_('المبيعات');
-  sh.deleteRow(Number(p.row));
-  invalidateCache_('المبيعات');
-  return { ok: true };
-}
-
-/* ------------------- البضائع المرتجعة ------------------- */
-
-function recordReturn_(p) {
-  const sh = sheet_('المرتجعات');
-  const id = Utilities.getUuid();
-  const date = p.date || nowParts_().date;
-  const day = dayNameForDateStr_(date);
-  appendRowByHeaders_(sh, {
-    'معرف': id, 'اسم المركز': p.center, 'اليوم': day, 'التاريخ': date,
-    'وصف الصنف': p.description || '', 'الكمية': Number(p.quantity) || 0, 'القيمة': Number(p.value) || 0,
-    'ملاحظات': p.notes || ''
-  });
-  invalidateCache_('المرتجعات');
-  return { ok: true, id: id };
-}
-
-function getReturns_(p) {
-  let rows = getRowsForTerm_('المرتجعات', p.term, 'الفصل الدراسي');
-  if (p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
-  const total = rows.reduce(function (sum, r) { return sum + (Number(r['القيمة']) || 0); }, 0);
-  return { ok: true, returns: rows, total: total };
-}
-
-function updateReturn_(p) {
-  const sh = sheet_('المرتجعات');
-  const row = Number(p.row);
-  if (p.description !== undefined) sh.getRange(row, colIndex_(sh, 'وصف الصنف')).setValue(p.description);
-  if (p.quantity !== undefined) sh.getRange(row, colIndex_(sh, 'الكمية')).setValue(Number(p.quantity));
-  if (p.value !== undefined) sh.getRange(row, colIndex_(sh, 'القيمة')).setValue(Number(p.value));
-  if (p.notes !== undefined) {
-    const notesCol = colIndex_(sh, 'ملاحظات');
-    if (notesCol !== -1) sh.getRange(row, notesCol).setValue(p.notes);
-  }
-  invalidateCache_('المرتجعات');
-  return { ok: true };
-}
-
-function deleteReturn_(p) {
-  const sh = sheet_('المرتجعات');
-  sh.deleteRow(Number(p.row));
-  invalidateCache_('المرتجعات');
-  return { ok: true };
-}
-
-/* ------------------- بطاقات التحفيز -------------------
-   سجل "تسليم": المركز/المسؤولة يسلّمون بطاقة لشخص (معلمة أو غيرها) يوقّع هو بنفسه على الإقرار.
-   سجل "استلام": المركز/المسؤولة نفسها تستلم من الإدارة وتوقّع بنفسها (الدور يوضّح مين وقّعت:
-   مديرة المركز أو مسؤولة المقصف). كل سطر بطاقة موقّعة (رسم أو صورة)، بدون أرشفة تلقائية.
-   متابعة الاستبدال: الكمية المسجّلة بسطر "تسليم" واحد ممكن تتوزّع على أكثر من مستفيدة (مثلاً
-   ٧ بطاقات وُزّعت على ٣ طالبات بأعداد مختلفة) - لذا نخزّنها بشيت منفصل "متابعة بطاقات التحفيز"
-   كأسطر متعددة لكل سطر تسليم أصلي، ونتحقق دايماً إن مجموع الأعداد الموزّعة ما يتجاوز الكمية
-   الأصلية (addIncentiveFollowupSplit_). */
-const INCENTIVE_CATEGORIES_ = ['مكافأة', 'هدية'];
-const INCENTIVE_PRICES_ = [3, 2];
-const INCENTIVE_KINDS_ = ['تسليم', 'استلام'];
-
-function recordIncentiveEntry_(p) {
-  const sh = sheet_('بطاقات التحفيز');
-  const id = Utilities.getUuid();
-  const now = nowParts_();
-  const category = p.category;
-  const price = Number(p.price) || 0;
-  const qty = Number(p.qty) || 0;
-  if (!p.center) return { ok: false, error: 'اسم المركز مطلوب' };
-  if (INCENTIVE_KINDS_.indexOf(p.kind) === -1) return { ok: false, error: 'نوع السجل غير صحيح' };
-  if (INCENTIVE_CATEGORIES_.indexOf(category) === -1) return { ok: false, error: 'نوع البطاقة غير صحيح' };
-  if (INCENTIVE_PRICES_.indexOf(price) === -1) return { ok: false, error: 'قيمة البطاقة غير صحيحة' };
-  if (!qty || qty < 1) return { ok: false, error: 'الكمية مطلوبة' };
-  if (!p.recipientName) return { ok: false, error: 'اسم المستلمة مطلوب' };
-  // التسجيل من لوحة الإدارة (نيابةً عن المديرة/المسؤولة اللي ما سجّلت) ما يشترط توقيع - وأي سجل غير موقّع
-  // يتعلّم صراحةً بعمود "سجّل بواسطة" = الإدارة عشان ما يختلط بالسجلات الموقّعة من أصحابها
-  const byAdmin = p.byAdmin === true || p.byAdmin === 'true';
-  if (!p.signature && !byAdmin) return { ok: false, error: 'لازم التوقيع' };
-  // البطاقة اللي اتحسمت (سواء بالاستبدال أو بالإرجاع) ترجع متاحة من جديد لمنسوبة ثانية -
-  // فالمتاح للتسليم = المستلَم - (المسلَّم كله - المحسوم منه عن طريق المتابعة)
-  // تسجيل الإدارة نيابةً عن المديرة/المسؤولة يتجاوز فحص الكمية المتاحة (لأن الاستلام ممكن ما يكون مسجّل أصلاً)
-  if (p.kind === 'تسليم' && !byAdmin) {
-    const allRows = sheetToObjects_('بطاقات التحفيز');
-    const centerRows = allRows.filter(function (r) {
-      return String(r['اسم المركز']).trim() === String(p.center).trim() && r['نوع البطاقة'] === category && Number(r['القيمة']) === price;
-    });
-    const received = centerRows.filter(function (r) { return r['نوع السجل'] === 'استلام'; }).reduce(function (s, r) { return s + (Number(r['الكمية']) || 0); }, 0);
-    const deliveredRows = centerRows.filter(function (r) { return r['نوع السجل'] === 'تسليم'; });
-    const deliveredTotal = deliveredRows.reduce(function (s, r) { return s + (Number(r['الكمية']) || 0); }, 0);
-    const deliveredIds = deliveredRows.map(function (r) { return r['معرف']; });
-    const resolved = sheetToObjects_('متابعة بطاقات التحفيز')
-      .filter(function (s) { return deliveredIds.indexOf(s['معرف السطر الأصلي']) !== -1; })
-      .reduce(function (s, r) { return s + (Number(r['العدد']) || 0); }, 0);
-    const outstanding = deliveredTotal - resolved;
-    const available = received - outstanding;
-    if (qty > available) {
-      return { ok: false, error: 'لا يمكن تسليم كمية أكبر من الكمية المتاحة من فئة ' + category + ' بقيمة (' + cardPriceLabelForServer_(price) + '). الكمية المتاحة حالياً للتسليم: ' + Math.max(0, available) + '.' };
-    }
-  }
-  appendRowByHeaders_(sh, {
-    'معرف': id, 'اسم المركز': p.center, 'الدور': p.role || '', 'نوع السجل': p.kind,
-    'نوع البطاقة': category, 'القيمة': price, 'الكمية': qty, 'اسم المستلمة': p.recipientName,
-    'التوقيع': p.signature || '', 'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time,
-    'ملاحظات': p.notes || '', 'سجّل بواسطة': byAdmin ? 'الإدارة' : ''
-  });
-  invalidateCache_('بطاقات التحفيز');
-  return { ok: true, id: id };
-}
-
-function cardPriceLabelForServer_(p) { return Number(p) === 3 ? '3 ريال' : 'ريالين'; }
-
-function getIncentiveEntries_(p) {
-  let rows = sheetToObjects_('بطاقات التحفيز');
-  if (p && p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
-  if (p && p.kind) rows = rows.filter(function (r) { return r['نوع السجل'] === p.kind; });
-  if (p && p.id) rows = rows.filter(function (r) { return r['معرف'] === p.id; });
-  rows.sort(function (a, b) { return String(b['التاريخ'] || '').localeCompare(String(a['التاريخ'] || '')); });
-  // وضع خفيف: نشيل صور التواقيع الكبيرة من القائمة (تنجلب عند الطلب بـ id) عشان الرد يصغر ويسرع
-  if (p && (p.light === true || p.light === 'true') && !p.id) {
-    rows = rows.map(function (r) {
-      const c = {};
-      Object.keys(r).forEach(function (k) { c[k] = r[k]; });
-      if (c['التوقيع']) c['التوقيع'] = 'HAS';
-      return c;
-    });
-  }
-  return { ok: true, list: rows };
-}
-
-/* تضيف جزء من الكمية الأصلية (سطر تسليم واحد) باسم مستفيدة معيّنة وحالتها - مع التحقق إن
-   المجموع (اللي سبق توزيعه + الجديد) ما يتجاوز الكمية الأصلية بالسطر */
-function addIncentiveFollowupSplit_(p) {
-  const parent = sheetToObjects_('بطاقات التحفيز').find(function (r) { return r['معرف'] === p.parentId; });
-  if (!parent) return { ok: false, error: 'السطر الأصلي غير موجود' };
-  const qty = Number(p.qty) || 0;
-  if (!qty || qty < 1) return { ok: false, error: 'العدد مطلوب' };
-  if (!p.status) return { ok: false, error: 'الحالة مطلوبة' };
-  const existing = sheetToObjects_('متابعة بطاقات التحفيز').filter(function (r) { return r['معرف السطر الأصلي'] === p.parentId; });
-  const allocated = existing.reduce(function (s, r) { return s + (Number(r['العدد']) || 0); }, 0);
-  const total = Number(parent['الكمية']) || 0;
-  if (allocated + qty > total) {
-    return { ok: false, error: 'المجموع الموزّع (' + (allocated + qty) + ') أكبر من الكمية الأصلية (' + total + ') - المتبقي غير الموزّع: ' + (total - allocated) };
-  }
-  const sh = sheet_('متابعة بطاقات التحفيز');
-  const id = Utilities.getUuid();
-  const now = nowParts_();
-  appendRowByHeaders_(sh, {
-    'معرف': id, 'معرف السطر الأصلي': p.parentId, 'اسم المركز': parent['اسم المركز'],
-    'اسم المستفيدة': p.beneficiaryName, 'العدد': qty, 'الحالة': p.status || 'تم استبدال القيمة',
-    'اليوم': now.day, 'التاريخ': now.date
-  });
-  invalidateCache_('متابعة بطاقات التحفيز');
-  return { ok: true, id: id };
-}
-
-/* إقرار المديرة/المسؤولة على سجلات سجّلتها الإدارة نيابةً عنها: تُكتب لها صورة التوقيع على السجلات
-   المعلّقة فقط (سجّل بواسطة = الإدارة وبدون توقيع) وبنفس المركز، وما يتغيّر أي شيء ثاني بالسجل */
-function acknowledgeIncentiveEntries_(p) {
-  const ids = Array.isArray(p.ids) ? p.ids : (p.ids ? [p.ids] : []);
-  if (!ids.length) return { ok: false, error: 'لا توجد سجلات للإقرار' };
-  if (!p.center) return { ok: false, error: 'اسم المركز مطلوب' };
-  if (!p.signature) return { ok: false, error: 'لازم التوقيع' };
-  const sh = sheet_('بطاقات التحفيز');
-  const sigCol = colIndex_(sh, 'التوقيع');
-  if (sigCol === -1) return { ok: false, error: 'عمود التوقيع غير موجود' };
-  const rows = sheetToObjects_('بطاقات التحفيز');
-  let done = 0;
-  ids.forEach(function (id) {
-    const r = rows.find(function (x) { return x['معرف'] === id; });
-    if (!r) return;
-    if (String(r['اسم المركز']).trim() !== String(p.center).trim()) return;
-    if (r['سجّل بواسطة'] !== 'الإدارة' || r['التوقيع']) return;
-    sh.getRange(r._row, sigCol).setValue(p.signature);
-    done++;
-  });
-  invalidateCache_('بطاقات التحفيز');
-  if (!done) return { ok: false, error: 'لا توجد سجلات معلّقة للإقرار (ربما تم الإقرار عليها من قبل)' };
-  return { ok: true, count: done };
-}
-
-function getIncentiveFollowupSplits_(p) {
-  let rows = sheetToObjects_('متابعة بطاقات التحفيز');
-  if (p && p.parentId) rows = rows.filter(function (r) { return r['معرف السطر الأصلي'] === p.parentId; });
-  if (p && p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
-  return { ok: true, list: rows };
-}
-
-function deleteIncentiveFollowupSplit_(p) {
-  const rows = sheetToObjects_('متابعة بطاقات التحفيز');
-  const target = rows.find(function (r) { return r['معرف'] === p.id; });
-  if (!target) return { ok: false, error: 'السطر غير موجود' };
-  const sh = sheet_('متابعة بطاقات التحفيز');
-  sh.deleteRow(target._row);
-  invalidateCache_('متابعة بطاقات التحفيز');
-  return { ok: true };
-}
-
-/* ------------------- بيان الفواتير ------------------- */
-
-/* نوع القيد: فاتورة (الافتراضي - والصفوف القديمة بدون قيمة تُعتبر فاتورة) / مشتريات / مصروفات */
-const ENTRY_TYPE_COL_ = 'نوع القيد';
-
-function cleanEntryType_(v) {
-  v = String(v === undefined || v === null ? '' : v).trim();
-  return (v === 'مشتريات' || v === 'مصروفات') ? v : 'فاتورة';
-}
-
-function entryTypeOf_(r) {
-  return cleanEntryType_(r && r[ENTRY_TYPE_COL_]);
-}
-
-/* لو الشيت قديم وما فيه عمود «نوع القيد» (ما شغّلتي setup بعد التحديث) نضيفه تلقائياً */
-function ensureInvoiceTypeCol_(sh) {
-  if (colIndex_(sh, ENTRY_TYPE_COL_) !== -1) return;
-  sh.getRange(1, sh.getLastColumn() + 1).setValue(ENTRY_TYPE_COL_).setFontWeight('bold');
-  delete _headerRowCache_[sh.getSheetId()];
-}
-
-/* رجيع داخل الفاتورة: نوع الرجيع + مقدار الخصم من رأس المال ومن الربح (يُخصم من الاثنين) */
-const RET_TYPE_COL_ = 'نوع الرجيع', RET_CAP_COL_ = 'رجيع رأس المال', RET_PROFIT_COL_ = 'رجيع الربح';
-const RET_QTY_COL_ = 'كمية الرجيع', RET_TEXT_COL_ = 'المرتجعات';
-const RET_JSON_COL_ = 'تفاصيل الرجيع';   // قائمة الأصناف المرتجعة (JSON) - يمكن أكثر من رجيع بالفاتورة   // المرتجعات = نص التوثيق الجاهز (وصف الصنف + الكمية + القيمة)
-const RET_PROOF_COL_ = 'رجيع للإثبات';   // قيمة رأس مال رجيع مسجّل للإثبات فقط (ما انكتب بالفاتورة، فما ينخصم)
-
-function ensureInvoiceReturnCols_(sh) {
-  [RET_TYPE_COL_, RET_CAP_COL_, RET_PROFIT_COL_, RET_PROOF_COL_, RET_QTY_COL_, RET_TEXT_COL_, RET_JSON_COL_].forEach(function (name) {
-    if (colIndex_(sh, name) !== -1) return;
-    sh.getRange(1, sh.getLastColumn() + 1).setValue(name).setFontWeight('bold');
-    delete _headerRowCache_[sh.getSheetId()];
-  });
-}
-
-function invoiceReturnOf_(r) {
-  return { cap: Number(r && r[RET_CAP_COL_]) || 0, profit: Number(r && r[RET_PROFIT_COL_]) || 0 };
-}
-
-/* المطلوب تسليمه = رأس المال + أرباح الفواتير + أرباح المشتريات − المصروفات − المرتجعات (الرجيع المخصوم) */
-function invoiceTotals_(rows) {
-  const s = { invoiceCapital: 0, invoiceProfit: 0, purchasesProfit: 0, purchasesCost: 0, expenses: 0, returns: 0, deliverable: 0 };
-  rows.forEach(function (r) {
-    const type = entryTypeOf_(r);
-    const amount = Number(r['المبلغ الإجمالي']) || 0;
-    const profit = Number(r['الربح']) || 0;
-    if (type === 'فاتورة') { const rt = invoiceReturnOf_(r); s.invoiceCapital += amount; s.invoiceProfit += profit; s.returns += rt.cap + rt.profit; }
-    else if (type === 'مشتريات') { s.purchasesCost += amount; s.purchasesProfit += profit; }
-    else { s.expenses += amount; }
-  });
-  s.deliverable = s.invoiceCapital + s.invoiceProfit + s.purchasesProfit - s.expenses - s.returns;
-  Object.keys(s).forEach(function (k) { s[k] = Math.round(s[k] * 100) / 100; });
-  return s;
-}
-
-
-/* مراكز مسموح لها بنوعي القيد «مشتريات» و«مصروفات» - تحددها الإدارة، والباقي «فاتورة» فقط */
-function getEntryCentersList_(key) {
-  const raw = getSettingValue_(key);
-  if (!raw) return [];
-  try { const a = JSON.parse(raw); return Array.isArray(a) ? a.map(function (x) { return String(x).trim(); }) : []; }
-  catch (e) { return []; }
-}
-
-function getPurchaseCentersList_() { return getEntryCentersList_('مراكز المشتريات'); }
-function getExpenseCentersList_() { return getEntryCentersList_('مراكز المصروفات'); }
-
-function centerCanPurchase_(center) {
-  const c = String(center || '').trim();
-  return !!c && getPurchaseCentersList_().indexOf(c) !== -1;
-}
-
-function centerCanExpense_(center) {
-  const c = String(center || '').trim();
-  return !!c && getExpenseCentersList_().indexOf(c) !== -1;
-}
-
-/* هل المركز مسموح له بهذا النوع؟ (فاتورة دائماً مسموحة) */
-function centerCanEntryType_(center, type) {
-  if (type === 'مشتريات') return centerCanPurchase_(center);
-  if (type === 'مصروفات') return centerCanExpense_(center);
+  document.getElementById('mmPointsContainer').innerHTML = '';
+  const points = (draft.points && draft.points.length) ? draft.points : [''];
+  points.forEach(function (p) { addMmPointRow(p); });
+  document.getElementById('mmParticipantsContainer').innerHTML = '';
+  const participants = (draft.participants && draft.participants.length) ? draft.participants : [''];
+  participants.forEach(function (p) { addMmParticipantRow(p); });
+  document.getElementById('mmLinksContainer').innerHTML = '';
+  (draft.links || []).forEach(function (l) { addMmLinkRow(l.type, l.url); });
   return true;
 }
 
-function getPurchaseCenters_() {
-  return { ok: true, centers: getPurchaseCentersList_() };
-}
-
-function setPurchaseCenters_(p) {
-  if (p.actor !== 'admin') return { ok: false, error: 'لا تملكين صلاحية تعديل مراكز المشتريات' };
-  const list = (p.centers || []).map(function (x) { return String(x).trim(); }).filter(Boolean);
-  setSettingValue_('مراكز المشتريات', JSON.stringify(list));
-  return { ok: true };
-}
-
-function getExpenseCenters_() {
-  return { ok: true, centers: getExpenseCentersList_() };
-}
-
-function setExpenseCenters_(p) {
-  if (p.actor !== 'admin') return { ok: false, error: 'لا تملكين صلاحية تعديل مراكز المصروفات' };
-  const list = (p.centers || []).map(function (x) { return String(x).trim(); }).filter(Boolean);
-  setSettingValue_('مراكز المصروفات', JSON.stringify(list));
-  return { ok: true };
-}
-
-/* يتحقق من الرجيع: للفواتير فقط، ولا يزيد عن رأس المال/الربح */
-function returnItemText_(it) {
-  const val = it.proof > 0 ? it.proof : it.cap + it.profit;
-  return it.desc + (it.qty ? ' — الكمية: ' + it.qty : '') + ' — القيمة: ' + val.toFixed(2) + ' ريال' +
-    (it.proof > 0 ? ' (إثبات فقط، غير مخصومة)' : ' (مخصومة: رأس المال ' + it.cap.toFixed(2) + ' / الربح ' + it.profit.toFixed(2) + ')');
-}
-
-/* يتحقق من الرجيع (يمكن أكثر من صنف): للفواتير فقط، ومجموع الخصم لا يزيد عن رأس المال/الربح */
-function cleanInvoiceReturn_(p, type, amount, profit) {
-  const none = { type: '', cap: 0, profit: 0, proof: 0, qty: '', text: '', json: '', count: 0 };
-  if (type !== 'فاتورة') return none;
-  let raw = Array.isArray(p.returns) ? p.returns : null;
-  if (!raw) {   // توافق مع الصيغة القديمة (رجيع واحد)
-    raw = [{ desc: p.returnType, qty: p.returnQty, cap: p.returnCapital, profit: p.returnProfit, proof: p.returnProof }];
-  }
-  const round2 = function (x) { return Math.round((Number(x) || 0) * 100) / 100; };
-  const items = [];
-  for (let i = 0; i < raw.length; i++) {
-    const r = raw[i] || {};
-    const it = {
-      desc: String(r.desc || '').trim(), qty: String(r.qty === undefined || r.qty === null ? '' : r.qty).trim(),
-      cap: round2(r.cap), profit: round2(r.profit), proof: round2(r.proof)
-    };
-    if (it.cap < 0 || it.profit < 0 || it.proof < 0) return { error: 'لا يجوز أن يكون مبلغ الرجيع سالبًا' };
-    if (!it.desc && it.cap <= 0 && it.profit <= 0 && it.proof <= 0) continue;   // صف فارغ
-    if (!it.desc) return { error: 'اكتبي وصف الصنف المرتجع' };
-    if (it.cap <= 0 && it.profit <= 0 && it.proof <= 0) return { error: 'اكتبي قيمة الرجيع للصنف: ' + it.desc };
-    if (it.proof > 0) { it.cap = 0; it.profit = 0; }
-    items.push(it);
-  }
-  if (!items.length) return none;
-  let cap = 0, prf = 0, proof = 0;
-  items.forEach(function (it) { cap += it.cap; prf += it.profit; proof += it.proof; });
-  cap = round2(cap); prf = round2(prf); proof = round2(proof);
-  if (cap > amount + 0.005) return { error: 'مجموع خصم الرجيع من رأس المال أكبر من رأس المال' };
-  if (prf > profit + 0.005) return { error: 'مجموع خصم الرجيع من الربح أكبر من الربح' };
-  const qtys = items.map(function (it) { return it.qty; }).filter(Boolean);
-  return {
-    type: items.map(function (it) { return it.desc; }).join(' ، '),
-    cap: cap, profit: prf, proof: proof,
-    qty: qtys.join(' ، '),
-    text: items.map(returnItemText_).join(' ؛ '),
-    json: JSON.stringify(items), count: items.length
-  };
-}
-
-function recordInvoice_(p) {
-  const sh = sheet_('الفواتير');
-  ensureInvoiceTypeCol_(sh);
-  const id = Utilities.getUuid();
-  const date = p.date || nowParts_().date;
-  const day = dayNameForDateStr_(date);
-  let type = cleanEntryType_(p.entryType);
-  if (!centerCanEntryType_(p.center, type)) return { ok: false, error: 'نوع «' + type + '» غير مفعّل لهذا المركز' };
-  ensureInvoiceReturnCols_(sh);
-  const amt = Number(p.totalAmount) || 0, prf = type === 'مصروفات' ? 0 : (Number(p.profit) || 0);
-  const ret = cleanInvoiceReturn_(p, type, amt, prf);
-  if (ret.error) return { ok: false, error: ret.error };
-  appendRowByHeaders_(sh, {
-    'معرف': id, 'اسم المركز': p.center, 'رقم الفاتورة': p.invoiceNumber || '', 'مصدر الفاتورة': p.invoiceSource || '', 'اليوم': day, 'التاريخ': date,
-    'المبلغ الإجمالي': amt, 'الربح': prf, 'ملاحظات': p.notes || '',
-    'نوع القيد': type,
-    'نوع الرجيع': ret.type, 'رجيع رأس المال': ret.cap, 'رجيع الربح': ret.profit, 'رجيع للإثبات': ret.proof, 'كمية الرجيع': ret.qty, 'المرتجعات': ret.text, 'تفاصيل الرجيع': ret.json
-  });
-  invalidateCache_('الفواتير');
-  return { ok: true, id: id, returnSaved: ret.count > 0 };
-}
-
-function getInvoices_(p) {
-  let rows = getRowsForTerm_('الفواتير', p.term, 'الفصل الدراسي');
-  if (p.center) rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
-  const sum = invoiceTotals_(rows);
-  // totalAmount/totalProfit محفوظين للتوافق مع الواجهات القديمة (مجموعهم = المطلوب تسليمه)
-  return { ok: true, invoices: rows, summary: sum, purchasesEnabled: p.center ? centerCanPurchase_(p.center) : undefined, expensesEnabled: p.center ? centerCanExpense_(p.center) : undefined,
-           totalAmount: sum.invoiceCapital - sum.expenses - sum.returns, totalProfit: sum.invoiceProfit + sum.purchasesProfit };
-}
-
-function updateInvoice_(p) {
-  const sh = sheet_('الفواتير');
-  const row = Number(p.row);
-  let returnSaved = false;
-  if (p.invoiceNumber !== undefined) sh.getRange(row, colIndex_(sh, 'رقم الفاتورة')).setValue(p.invoiceNumber);
-  if (p.invoiceSource !== undefined) {
-    const sourceCol = colIndex_(sh, 'مصدر الفاتورة');
-    if (sourceCol !== -1) sh.getRange(row, sourceCol).setValue(p.invoiceSource);
-  }
-  if (p.date !== undefined && p.date) {
-    sh.getRange(row, colIndex_(sh, 'التاريخ')).setValue(p.date);
-    const dayCol = colIndex_(sh, 'اليوم');
-    if (dayCol !== -1) sh.getRange(row, dayCol).setValue(dayNameForDateStr_(p.date));
-  }
-  if (p.totalAmount !== undefined) sh.getRange(row, colIndex_(sh, 'المبلغ الإجمالي')).setValue(Number(p.totalAmount));
-  if (p.profit !== undefined) sh.getRange(row, colIndex_(sh, 'الربح')).setValue(Number(p.profit));
-  if (p.returnType !== undefined || p.returnCapital !== undefined || p.returnProfit !== undefined || p.returnProof !== undefined || p.returnQty !== undefined || p.returns !== undefined) {
-    ensureInvoiceReturnCols_(sh);
-    const typeNow = p.entryType !== undefined ? cleanEntryType_(p.entryType) : cleanEntryType_(sh.getRange(row, colIndex_(sh, ENTRY_TYPE_COL_)).getValue());
-    const amtNow = p.totalAmount !== undefined ? Number(p.totalAmount) : Number(sh.getRange(row, colIndex_(sh, 'المبلغ الإجمالي')).getValue()) || 0;
-    const prfNow = typeNow === 'مصروفات' ? 0 : (p.profit !== undefined ? Number(p.profit) : Number(sh.getRange(row, colIndex_(sh, 'الربح')).getValue()) || 0);
-    const ret = cleanInvoiceReturn_(p, typeNow, amtNow, prfNow);
-    if (ret.error) return { ok: false, error: ret.error };
-    sh.getRange(row, colIndex_(sh, RET_TYPE_COL_)).setValue(ret.type);
-    sh.getRange(row, colIndex_(sh, RET_CAP_COL_)).setValue(ret.cap);
-    sh.getRange(row, colIndex_(sh, RET_PROFIT_COL_)).setValue(ret.profit);
-    sh.getRange(row, colIndex_(sh, RET_PROOF_COL_)).setValue(ret.proof);
-    sh.getRange(row, colIndex_(sh, RET_QTY_COL_)).setValue(ret.qty);
-    sh.getRange(row, colIndex_(sh, RET_TEXT_COL_)).setValue(ret.text);
-    sh.getRange(row, colIndex_(sh, RET_JSON_COL_)).setValue(ret.json);
-    returnSaved = ret.count > 0;
-  }
-  if (p.notes !== undefined) {
-    const notesCol = colIndex_(sh, 'ملاحظات');
-    if (notesCol !== -1) sh.getRange(row, notesCol).setValue(p.notes);
-  }
-  if (p.entryType !== undefined) {
-    ensureInvoiceTypeCol_(sh);
-    const t = cleanEntryType_(p.entryType);
-    if (t !== 'فاتورة') {
-      const curType = cleanEntryType_(sh.getRange(row, colIndex_(sh, ENTRY_TYPE_COL_)).getValue());
-      const rowCenter = sh.getRange(row, colIndex_(sh, 'اسم المركز')).getValue();
-      if (curType !== t && !centerCanEntryType_(rowCenter, t)) return { ok: false, error: 'نوع «' + t + '» غير مفعّل لهذا المركز' };
-    }
-    sh.getRange(row, colIndex_(sh, ENTRY_TYPE_COL_)).setValue(t);
-    if (t === 'مصروفات') sh.getRange(row, colIndex_(sh, 'الربح')).setValue(0);
-  }
-  invalidateCache_('الفواتير');
-  return { ok: true, returnSaved: returnSaved };
-}
-
-function deleteInvoice_(p) {
-  const sh = sheet_('الفواتير');
-  sh.deleteRow(Number(p.row));
-  invalidateCache_('الفواتير');
-  return { ok: true };
-}
-
-/* ------------------- حضور الاجتماعات (تسجّله الإدارة) ------------------- */
-
-// تسجيل حضور اسم واحد (أبقيناها للتوافق مع الاستخدامات القديمة)
-function recordAttendance_(p) {
-  const sh = sheet_('الحضور');
-  const now = nowParts_();
-  const date = p.date || now.date;
-  const time = p.time || now.time;
-  const day = dayNameForDateStr_(date);
-  appendRowByHeaders_(sh, { 'الاسم': p.name, 'اليوم': day, 'التاريخ': date, 'الوقت': time });
-  invalidateCache_('الحضور');
-  return { ok: true };
-}
-
-// تسجيل حضور عدة مسؤولات دفعة وحدة ليوم معيّن (تُستخدم من لوحة الإدارة)
-function recordAttendanceBulk_(p) {
-  const sh = sheet_('الحضور');
-  const now = nowParts_();
-  const date = p.date || now.date;
-  const time = now.time;
-  const day = dayNameForDateStr_(date);
-  let names = p.names;
-  if (typeof names === 'string') {
-    try { names = JSON.parse(names); } catch (e) { names = [names]; }
-  }
-  names = names || [];
-
-  // تفادي تكرار تسجيل نفس الاسم بنفس التاريخ
-  const existingNames = sheetToObjects_('الحضور').filter(function (r) {
-    return r['التاريخ'] === date;
-  }).map(function (r) { return r['الاسم']; });
-
-  let added = 0;
-  names.forEach(function (name) {
-    if (existingNames.indexOf(name) === -1) {
-      appendRowByHeaders_(sh, { 'الاسم': name, 'اليوم': day, 'التاريخ': date, 'الوقت': time });
-      added++;
-    }
-  });
-  invalidateCache_('الحضور');
-  return { ok: true, added: added };
-}
-
-function getAttendanceForDate_(p) {
-  const date = p.date;
-  const rows = sheetToObjects_('الحضور').filter(function (r) { return r['التاريخ'] === date; });
-  return { ok: true, names: rows.map(function (r) { return r['الاسم']; }) };
-}
-
-function getAttendance_(p) {
-  const rows = sheetToObjects_('الحضور').filter(function (r) {
-    return String(r['الاسم']).trim() === String(p.name).trim();
-  });
-  return { ok: true, records: rows };
-}
-
-/* ------------------- التعهد السنوي ------------------- */
-
-function signPledge_(p) {
-  const sh = sheet_('التعهد');
-  const now = nowParts_();
-  appendRowByHeaders_(sh, {
-    'الاسم': p.name, 'نص التعهد': p.pledgeText, 'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time, 'الحالة': 'تم التعهد'
-  });
-  invalidateCache_('التعهد');
-  return { ok: true };
-}
-
-function getPledge_(p) {
-  const rows = sheetToObjects_('التعهد').filter(function (r) {
-    return String(r['الاسم']).trim() === String(p.name).trim();
-  });
-  const latest = rows.length ? rows[rows.length - 1] : null;
-  return { ok: true, pledge: latest };
-}
-
-/* تُستخدم بلوحة الإدارة: ترجع لكل مسؤولة مسجّلة بشيت "المسؤولات" حالة تعهدها
-   (وقّعت أو لا، وتاريخ آخر توقيع لو وقّعت) - عشان الإدارة تشوف مين وقّعت ومين لسا. */
-function getPledgeStatusAll_() {
-  const masoulat = sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG);
-  const pledgeRows = sheetToObjects_('التعهد');
-  const latestByName = {};
-  pledgeRows.forEach(function (r) {
-    latestByName[String(r['الاسم']).trim()] = r;
-  });
-  const list = masoulat.map(function (m) {
-    const name = String(m['الاسم'] || '').trim();
-    const p = latestByName[name];
-    return {
-      name: name,
-      center: m['اسم المركز'] || '',
-      signed: !!p,
-      day: p ? (p['اليوم'] || '') : '',
-      date: p ? (p['التاريخ'] || '') : '',
-      time: p ? (p['الوقت'] || '') : ''
-    };
-  }).filter(function (r) { return r.name; });
-  return { ok: true, list: list };
-}
-
-/* ------------------- مهام مسؤولة المقصف ------------------- */
-
-/* الاطلاع على المهام يُحفظ ويُتحقق منه بالبريد الإلكتروني (وليس الاسم فقط)،
-   عشان لو صار فيه مسؤولتين بنفس الاسم بالضبط، ما يصير خلط بينهن ("فلانة اطلعت"
-   وهي أصلاً ما دخلت). الصفوف القديمة اللي ما فيها بريد إلكتروني (قبل هذا التعديل)
-   لسا تنطابق بالاسم كحل احتياطي. */
-function acknowledgeTasks_(p) {
-  const sh = sheet_('المهام');
-  const now = nowParts_();
-  appendRowByHeaders_(sh, {
-    'الاسم': p.name, 'البريد الإلكتروني': p.email || '', 'نص المهام': p.tasksText, 'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time, 'الحالة': 'تم الاطلاع'
-  });
-  invalidateCache_('المهام');
-  return { ok: true };
-}
-
-function getTasksAck_(p) {
-  const email = String(p.email || '').trim().toLowerCase();
-  const name = String(p.name || '').trim();
-  const rows = sheetToObjects_('المهام').filter(function (r) {
-    const rEmail = String(r['البريد الإلكتروني'] || '').trim().toLowerCase();
-    if (email && rEmail) return rEmail === email;
-    return String(r['الاسم']).trim() === name;
-  });
-  const latest = rows.length ? rows[rows.length - 1] : null;
-  return { ok: true, ack: latest };
-}
-
-/* تُستخدم بلوحة الإدارة: ترجع لكل مسؤولة مسجّلة بشيت "المسؤولات" حالة اطلاعها
-   على المهام (اطلعت أو لا، وتاريخ آخر اطلاع لو اطلعت) - المطابقة بالبريد الإلكتروني
-   أولاً (أدق)، وبالاسم كحل احتياطي للصفوف القديمة اللي ما فيها بريد. */
-function getTasksStatusAll_() {
-  const masoulat = sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG);
-  const taskRows = sheetToObjects_('المهام');
-  const latestByEmail = {};
-  const latestByName = {};
-  taskRows.forEach(function (r) {
-    const email = String(r['البريد الإلكتروني'] || '').trim().toLowerCase();
-    const name = String(r['الاسم'] || '').trim();
-    if (email) latestByEmail[email] = r;
-    if (name) latestByName[name] = r;
-  });
-  const list = masoulat.map(function (m) {
-    const name = String(m['الاسم'] || '').trim();
-    const email = String(m['البريد الإلكتروني'] || '').trim().toLowerCase();
-    const r = (email && latestByEmail[email]) || latestByName[name];
-    return {
-      name: name,
-      center: m['اسم المركز'] || '',
-      acknowledged: !!r,
-      day: r ? (r['اليوم'] || '') : '',
-      date: r ? (r['التاريخ'] || '') : '',
-      time: r ? (r['الوقت'] || '') : ''
-    };
-  }).filter(function (r) { return r.name; });
-  return { ok: true, list: list };
-}
-
-/* تجمع كل بيانات لوحة مسؤولة المقصف (الحضور + التعهد + اطلاع المهام + عدد الإشعارات المعلّقة)
-   بطلب واحد بدل 4 طلبات منفصلة كانت تُرسل عند فتح اللوحة - كل طلب لـ Apps Script فيه تأخير
-   بدء تشغيل، فتجميعها بطلب واحد يسرّع فتح لوحة المسؤولة بشكل ملحوظ. */
-function getMasoulaDashboard_(p) {
-  const name = String(p.name || '').trim();
-  const email = String(p.email || '').trim().toLowerCase();
-
-  const attendance = sheetToObjects_('الحضور').filter(function (r) {
-    return String(r['الاسم']).trim() === name;
-  });
-  const pledgeRows = sheetToObjects_('التعهد').filter(function (r) {
-    return String(r['الاسم']).trim() === name;
-  });
-  const tasksRows = sheetToObjects_('المهام').filter(function (r) {
-    const rEmail = String(r['البريد الإلكتروني'] || '').trim().toLowerCase();
-    if (email && rEmail) return rEmail === email;
-    return String(r['الاسم']).trim() === name;
-  });
-  let pendingCount = 0;
-  if (p.center) {
-    const notices = sheetToObjects_('الإشعارات').filter(function (r) {
-      return String(r['اسم المركز']).trim() === String(p.center).trim() && r['الحالة'] !== 'تم الاطلاع';
-    });
-    pendingCount = notices.length;
-  }
-  return {
-    ok: true,
-    attendance: attendance,
-    pledge: pledgeRows.length ? pledgeRows[pledgeRows.length - 1] : null,
-    tasksAck: tasksRows.length ? tasksRows[tasksRows.length - 1] : null,
-    pendingCount: pendingCount
-  };
-}
-
-/* ------------------- إشعارات الاستلام والتسليم ------------------- */
-
-function submitNotice_(p) {
-  const sh = sheet_('الإشعارات');
-  const id = Utilities.getUuid();
-  const now = nowParts_();
-
-  // نحفظ صورة الإشعار الكاملة بس (فيها التوقيع أصلاً) - توفير وقت بعدم رفع صورتين لكل إشعار
-  const noticeImageUrl = saveImage_(p.noticeImage,
-    noticeFileName_('إشعار', p.type, p.center, now.date, id),
-    ['الإشعارات', p.center]);
-
-  appendRowByHeaders_(sh, {
-    'معرف': id, 'النوع': p.type, 'اسم المركز': p.center,
-    'يوم الإرسال': now.day, 'تاريخ الإرسال': now.date, 'وقت الإرسال': now.time,
-    'اسم المسلّمة': p.senderName || '', 'المبلغ': p.amount,
-    'الشهر': p.month || '', 'الفصل الدراسي': p.term || '', 'العام': p.year || '',
-    'بيان مخصص': p.reason || '',
-    'رابط صورة الإشعار': noticeImageUrl, 'الحالة': 'بانتظار الاطلاع',
-    'بيانات توقيع المركز': p.signature || ''
-  });
-  invalidateCache_('الإشعارات');
-
-  notifyAdminNewNotice_(p.type, p.center, p.amount, now, noticeImageUrl, p.senderName);
-
-  return { ok: true, id: id };
-}
-
-function notifyAdminNewNotice_(type, center, amount, now, noticeImageUrl, senderName) {
-  center = centerDisplay_(center);
-  if (!ADMIN_NOTIFY_EMAIL || ADMIN_NOTIFY_EMAIL.indexOf('@example.com') !== -1) return;
-  try {
-    MailApp.sendEmail({
-      to: ADMIN_NOTIFY_EMAIL,
-      subject: 'إشعار ' + type + ' جديد من ' + center + ' - وحدة المقاصف',
-      body: 'السلام عليكم،\n\n' +
-        'وصل إشعار ' + type + ' جديد من مركز "' + center + '".\n' +
-        (senderName ? ('اسم المسلّمة: ' + senderName + '\n') : '') +
-        'المبلغ: ' + amount + ' ريال\n' +
-        'اليوم: ' + now.day + '\n' +
-        'التاريخ: ' + now.date + '\n' +
-        'الوقت: ' + now.time + '\n\n' +
-        'الرجاء الدخول للوحة إدارة وحدة المقاصف للاطلاع عليه وتوقيعه.\n' +
-        (noticeImageUrl ? ('رابط صورة الإشعار: ' + noticeImageUrl + '\n') : '') +
-        '\n— نظام وحدة المقاصف، جمعية فرقان لتحفيظ القرآن الكريم'
-    });
-  } catch (e) {
-    // تجاهل خطأ الإرسال حتى لا يفشل حفظ الإشعار بسببه
-  }
-}
-
-/* ------------------- الصعوبات والمقترحات ------------------- */
-
-function recordDifficulty_(p) {
-  const sh = sheet_('الصعوبات والمقترحات');
-  const id = Utilities.getUuid();
-  const now = nowParts_();
-  appendRowByHeaders_(sh, {
-    'معرف': id, 'اسم المركز': p.center || '', 'من': p.from || '', 'النوع': p.type || 'صعوبة',
-    'النص': p.text || '', 'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
-  });
-  invalidateCache_('الصعوبات والمقترحات');
-  notifyAdminNewDifficulty_(p.type, p.center, p.from, p.text, now);
-  return { ok: true, id: id };
-}
-
-function notifyAdminNewDifficulty_(type, center, from, text, now) {
-  center = centerDisplay_(center);
-  from = centerDisplay_(from);
-  if (!ADMIN_NOTIFY_EMAIL || ADMIN_NOTIFY_EMAIL.indexOf('@example.com') !== -1) return;
-  try {
-    MailApp.sendEmail({
-      to: ADMIN_NOTIFY_EMAIL,
-      subject: (type || 'صعوبة') + ' جديدة من ' + (center || '') + ' - وحدة المقاصف',
-      body: 'السلام عليكم،\n\n' +
-        'وصلت ' + (type || 'صعوبة') + ' جديدة من مركز "' + (center || '') + '".\n' +
-        (from ? ('من: ' + from + '\n') : '') +
-        '\nالنص:\n' + (text || '') + '\n\n' +
-        'اليوم: ' + now.day + '\n' +
-        'التاريخ: ' + now.date + '\n' +
-        'الوقت: ' + now.time + '\n\n' +
-        'الرجاء الدخول للوحة إدارة وحدة المقاصف للاطلاع.\n\n' +
-        '— نظام وحدة المقاصف، جمعية فرقان لتحفيظ القرآن الكريم'
-    });
-  } catch (e) {
-    // تجاهل خطأ الإرسال حتى لا يفشل الحفظ بسببه
-  }
-}
-
-/* p.center: لو انمرّرت، ترجع صعوبات/مقترحات هذا المركز بس (يشوفها المركز نفسه).
-   وإلا لو انمرّر p.from، ترجع اللي أرسلتها هذي الجهة بس (مسؤولة غير مربوطة بمركز).
-   لو ما انمرّر ولا واحد منهم، ترجع الكل (لصفحة الإدارة). */
-function getDifficulties_(p) {
-  const rows = sheetToObjects_('الصعوبات والمقترحات');
-  let filtered = rows;
-  if (p && p.center) {
-    filtered = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
-  } else if (p && p.from) {
-    filtered = rows.filter(function (r) { return String(r['من']).trim() === String(p.from).trim(); });
-  }
-  return { ok: true, items: filtered.reverse() };
-}
-
-function deleteDifficulty_(p) {
-  const sh = sheet_('الصعوبات والمقترحات');
-  sh.deleteRow(Number(p.row));
-  invalidateCache_('الصعوبات والمقترحات');
-  return { ok: true };
-}
-
-function getCenterNotices_(p) {
-  let rows = getRowsForTerm_('الإشعارات', p.term, 'فصل الأرشفة');
-  rows = rows.filter(function (r) { return String(r['اسم المركز']).trim() === String(p.center).trim(); });
-  return { ok: true, notices: rows.reverse() };
-}
-
-/* تعديل خفيف على إشعار موجود: المبلغ و/أو اسم المسلّمة فقط
-   (ما تُعدَّل الصورة/التوقيع/الحالة عشان تبقى السجلات الموقّعة موثوقة) */
-function updateNotice_(p) {
-  const sh = sheet_('الإشعارات');
-  const row = Number(p.row);
-  if (p.amount !== undefined && p.amount !== '') sh.getRange(row, colIndex_(sh, 'المبلغ')).setValue(Number(p.amount));
-  if (p.senderName !== undefined) sh.getRange(row, colIndex_(sh, 'اسم المسلّمة')).setValue(p.senderName);
-  invalidateCache_('الإشعارات');
-  return { ok: true };
-}
-
-function deleteNotice_(p) {
-  const sh = sheet_('الإشعارات');
-  sh.deleteRow(Number(p.row));
-  invalidateCache_('الإشعارات');
-  return { ok: true };
-}
-
-function getPendingNotices_() {
-  const rows = sheetToObjects_('الإشعارات').filter(function (r) {
-    return r['الحالة'] === 'بانتظار الاطلاع';
-  });
-  return { ok: true, notices: rows.reverse() };
-}
-
-/* نسخة خفيفة من getPendingNotices_ - ترجع رقم العدد بس (بدون كل بيانات الإشعارات)
-   تُستخدم لتحديث نقطة العداد على الشاشة الرئيسية بدون تحميل كل سجل الإشعارات كامل. */
-function getPendingNoticesCount_() {
-  const rows = sheetToObjects_('الإشعارات');
-  let count = 0;
-  for (let i = 0; i < rows.length; i++) {
-    if (rows[i]['الحالة'] === 'بانتظار الاطلاع') count++;
-  }
-  return { ok: true, count: count };
-}
-
-/* نفس فكرة getPendingNoticesCount_ بس لمركز معيّن - تُستخدم لعداد الشاشة الرئيسية
-   بمراكز/مسؤولات بدل ما نجيب كل تاريخ إشعارات المركز كامل بس عشان نعدّ منها. */
-function getCenterPendingCount_(p) {
-  const rows = sheetToObjects_('الإشعارات');
-  const center = String(p.center || '').trim();
-  let count = 0;
-  for (let i = 0; i < rows.length; i++) {
-    if (String(rows[i]['اسم المركز']).trim() === center && rows[i]['الحالة'] !== 'تم الاطلاع') count++;
-  }
-  return { ok: true, count: count };
-}
-
-// ترجع جميع إشعارات الاستلام والتسليم (بانتظار الاطلاع + تم الاطلاع) - تُستخدم بلوحة الإدارة
-// افتراضياً فصل حالي بس (زي بقية شاشات الفصل الدراسي)؛ p.term = "all" أو اسم فصل سابق يوسّع النطاق
-function getAllNotices_(p) {
-  const rows = getRowsForTerm_('الإشعارات', p && p.term, 'فصل الأرشفة').slice().reverse();
-  const pending = rows.filter(function (r) { return r['الحالة'] === 'بانتظار الاطلاع'; });
-  const done = rows.filter(function (r) { return r['الحالة'] !== 'بانتظار الاطلاع'; });
-  return { ok: true, pending: pending, done: done };
-}
-
-function adminSignNotice_(p) {
-  const sh = sheet_('الإشعارات');
-  const rows = sheetToObjects_('الإشعارات');
-  const target = rows.find(function (r) { return r['معرف'] === p.id; });
-  if (!target) return { ok: false, error: 'الإشعار غير موجود' };
-
-  const now = nowParts_();
-
-  // نحفظ الصورة النهائية الموقعة بس (فيها توقيع المركز + توقيع الإدارة سوا) - توفير وقت
-  const signedImageUrl = saveImage_(p.signedNoticeImage,
-    noticeFileName_('إشعار موقع', target['النوع'], target['اسم المركز'], target['تاريخ الإرسال'], p.id),
-    ['الإشعارات', target['اسم المركز']]);
-
-  const row = target._row;
-  sh.getRange(row, colIndex_(sh, 'رابط توقيع الإدارة')).setValue('');            // لم يعد يُحفظ لوحده
-  sh.getRange(row, colIndex_(sh, 'رابط صورة الإشعار الموقع')).setValue(signedImageUrl);
-  sh.getRange(row, colIndex_(sh, 'يوم اطلاع الإدارة')).setValue(now.day);
-  sh.getRange(row, colIndex_(sh, 'تاريخ اطلاع الإدارة')).setValue(now.date);
-  sh.getRange(row, colIndex_(sh, 'وقت اطلاع الإدارة')).setValue(now.time);
-  sh.getRange(row, colIndex_(sh, 'اسم المستلمة')).setValue(p.receiverName || '');
-  sh.getRange(row, colIndex_(sh, 'الحالة')).setValue('تم الاطلاع');
-  invalidateCache_('الإشعارات');
-
-  return { ok: true };
-}
-
-/* -------- تعديل إشعار بعد توقيعه (الإدارة) --------
-   يحدّث بيانات الإشعار بالشيت، ويحفظ صورة الإشعار الموقعة الجديدة (اللي تولّدها الصفحة من البيانات المعدّلة
-   + توقيع المركز + توقيع الإدارة) ويستبدل رابطها. لو أرسلت الصفحة p.adminSignature نحفظه بـ Drive
-   ونحط رابطه بعمود "رابط توقيع الإدارة" عشان التعديلات الجاية ما تحتاج تعيدين التوقيع. */
-function setNoticeCell_(sh, row, header, value) {
-  const c = colIndex_(sh, header);
-  if (c > 0) sh.getRange(row, c).setValue(value);
-}
-
-function updateSignedNotice_(p) {
-  const sh = sheet_('الإشعارات');
-  const rows = sheetToObjects_('الإشعارات');
-  const target = rows.find(function (r) { return r['معرف'] === p.id; });
-  if (!target) return { ok: false, error: 'الإشعار غير موجود' };
-  const amount = Number(p.amount);
-  if (!(amount > 0)) return { ok: false, error: 'المبلغ غير صحيح' };
-
-  // المركز الجديد لازم يكون موجود بشيت المراكز (نتحقق قبل ما نحفظ أي صورة)
-  let newCenter = '';
-  if (p.center) {
-    newCenter = String(p.center).trim();
-    const known = sheetToObjects_('المراكز', CACHE_SECONDS_LONG).map(function (r) { return String(r['اسم المركز']).trim(); });
-    if (known.indexOf(newCenter) === -1) return { ok: false, error: 'المركز غير موجود بقائمة المراكز: ' + newCenter };
-  }
-
-  const row = target._row;
-  const stamp = new Date().getTime();
-  const effCenter = newCenter || target['اسم المركز'];
-  const effType = p.type || target['النوع'];
-  const effDate = p.date ? String(p.date).trim() : target['تاريخ الإرسال'];
-  const signedImageUrl = p.signedNoticeImage
-    ? saveImage_(p.signedNoticeImage,
-        noticeFileName_('إشعار موقع', effType, effCenter, effDate, p.id) + ' (' + stamp + ')',
-        ['الإشعارات', effCenter])
-    : '';
-  const adminSigUrl = p.adminSignature
-    ? saveImage_(p.adminSignature, 'توقيع إدارة - ' + String(p.id).slice(0, 6) + ' (' + stamp + ')',
-        ['الإشعارات', 'توقيعات الإدارة'])
-    : '';
-
-  if (p.type) setNoticeCell_(sh, row, 'النوع', p.type);
-  if (newCenter) setNoticeCell_(sh, row, 'اسم المركز', newCenter);
-  if (p.date) {
-    setNoticeCell_(sh, row, 'تاريخ الإرسال', String(p.date).trim());
-    setNoticeCell_(sh, row, 'يوم الإرسال', p.day || dayNameForDateStr_(p.date));
-  } else if (p.day) {
-    setNoticeCell_(sh, row, 'يوم الإرسال', p.day);
-  }
-  setNoticeCell_(sh, row, 'المبلغ', amount);
-  if (p.senderName !== undefined) setNoticeCell_(sh, row, 'اسم المسلّمة', p.senderName);
-  if (p.receiverName !== undefined) setNoticeCell_(sh, row, 'اسم المستلمة', p.receiverName);
-  if (p.month !== undefined) setNoticeCell_(sh, row, 'الشهر', p.month);
-  if (p.term !== undefined) setNoticeCell_(sh, row, 'الفصل الدراسي', p.term);
-  if (p.year !== undefined) setNoticeCell_(sh, row, 'العام', p.year);
-  if (p.reason !== undefined) setNoticeCell_(sh, row, 'بيان مخصص', p.reason);
-  if (signedImageUrl) setNoticeCell_(sh, row, 'رابط صورة الإشعار الموقع', signedImageUrl);
-  if (adminSigUrl) setNoticeCell_(sh, row, 'رابط توقيع الإدارة', adminSigUrl);
-  invalidateCache_('الإشعارات');
-  return { ok: true, signedImageUrl: signedImageUrl, adminSigUrl: adminSigUrl };
-}
-
-/* ترجع توقيع الإدارة المحفوظ سابقًا (كصورة base64) عشان الصفحة تعيد رسم الإشعار بدون ما تطلب توقيع جديد.
-   القراءة من Drive بالسيرفر تتجنب مشكلة منع المتصفح لقراءة صور من موقع ثاني. */
-/* توقيع المركز (صورة base64) لإشعار واحد - يُجلب عند الحاجة فقط (توقيع الإدارة/تعديل إشعار موقّع)
-   لأن عمود «بيانات توقيع المركز» ما يدخل بالقراءة العادية للشيت (انظر SKIP_READ_COLS_) */
-function getNoticeCenterSignature_(p) {
-  const id = String(p && p.id || '').trim();
-  if (!id) return { ok: false, error: 'معرف الإشعار مطلوب' };
-  const names = ['الإشعارات', ARCHIVE_PREFIX + 'الإشعارات'];
-  for (let i = 0; i < names.length; i++) {
-    const rows = sheetToObjects_(names[i]);
-    const target = rows.find(function (r) { return r['معرف'] === id; });
-    if (!target) continue;
-    const sh = sheet_(names[i]);
-    const col = colIndex_(sh, 'بيانات توقيع المركز');
-    if (col === -1) return { ok: true, dataUrl: '' };
-    let row = target._row;
-    // تأكيد إن رقم الصف ما تغيّر (مثلاً بعد حذف صف يدوياً بالشيت) قبل ما نقرأ الخلية
-    const idCol = colIndex_(sh, 'معرف');
-    if (idCol !== -1 && String(sh.getRange(row, idCol).getValue()).trim() !== id) {
-      const ids = sh.getRange(1, idCol, sh.getLastRow(), 1).getValues();
-      row = -1;
-      for (let k = 1; k < ids.length; k++) { if (String(ids[k][0]).trim() === id) { row = k + 1; break; } }
-      if (row === -1) return { ok: false, error: 'الإشعار غير موجود' };
-    }
-    return { ok: true, dataUrl: String(sh.getRange(row, col).getValue() || '') };
-  }
-  return { ok: false, error: 'الإشعار غير موجود' };
-}
-
-function getNoticeAdminSignature_(p) {
-  const rows = sheetToObjects_('الإشعارات');
-  const target = rows.find(function (r) { return r['معرف'] === p.id; });
-  if (!target) return { ok: false, error: 'الإشعار غير موجود' };
-  const link = String(target['رابط توقيع الإدارة'] || '');
-  const m = link.match(/[-\w]{25,}/);
-  if (!m) return { ok: true, dataUrl: '' };
-  try {
-    const blob = DriveApp.getFileById(m[0]).getBlob();
-    return { ok: true, dataUrl: 'data:' + (blob.getContentType() || 'image/png') + ';base64,' + Utilities.base64Encode(blob.getBytes()) };
-  } catch (e) {
-    return { ok: true, dataUrl: '' };
-  }
-}
-
-/* تشغيل مرة وحدة يدوياً من المحرر: ترتّب صور الإشعارات القديمة (اللي انحفظت سابقاً مبعثرة بالمجلد الرئيسي)
-   داخل مجلد "الإشعارات" > اسم المركز، وتعيد تسميتها باسم واضح. آمنة لو انشغلت أكثر من مرة
-   (تتخطّى الملفات المرتّبة). لو وقفت بسبب الوقت، شغّليها مرة ثانية وتكمل. */
-function organizeExistingNoticeFiles_() {
-  const start = Date.now();
-  const rows = sheetToObjects_('الإشعارات');
-  const cols = [
-    { header: 'رابط صورة الإشعار', prefix: 'إشعار', sig: false },
-    { header: 'رابط صورة الإشعار الموقع', prefix: 'إشعار موقع', sig: false },
-    { header: 'رابط توقيع الإدارة', prefix: 'توقيع إدارة', sig: true }
-  ];
-  let moved = 0, skipped = 0, failed = 0, stoppedEarly = false;
-  for (let i = 0; i < rows.length && !stoppedEarly; i++) {
-    const r = rows[i];
-    for (let c = 0; c < cols.length; c++) {
-      if (Date.now() - start > 270000) { stoppedEarly = true; break; }
-      const link = String(r[cols[c].header] || '');
-      const m = link.match(/[-\w]{25,}/);
-      if (!m) continue;
+function handleMmSigUpload(evt, who) {
+  const file = evt.target.files && evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const img = new Image();
+    img.onload = function () {
+      let finalUrl = e.target.result;
       try {
-        const target = cols[c].sig
-          ? getOrCreateSubFolder_(['الإشعارات', 'توقيعات الإدارة'])
-          : getOrCreateSubFolder_(['الإشعارات', r['اسم المركز']]);
-        const file = DriveApp.getFileById(m[0]);
-        const parents = file.getParents();
-        if (parents.hasNext() && parents.next().getId() === target.getId()) { skipped++; continue; }
-        file.moveTo(target);
-        file.setName(cols[c].sig
-          ? 'توقيع إدارة - ' + String(r['معرف'] || '').slice(0, 6)
-          : noticeFileName_(cols[c].prefix, r['النوع'], r['اسم المركز'], r['تاريخ الإرسال'], r['معرف']) + '.png');
-        moved++;
-      } catch (e) {
-        failed++;
-        Logger.log('تعذر ترتيب ملف: ' + link + ' - ' + e);
-      }
-    }
-  }
-  Logger.log('تم نقل: ' + moved + ' | كانت مرتّبة: ' + skipped + ' | فشل: ' + failed +
-    (stoppedEarly ? ' | توقفت بسبب الوقت، شغّليها مرة ثانية' : ' | اكتمل الترتيب ✅'));
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        finalUrl = trimSignatureCanvas_(canvas);
+      } catch (err) { /* لو صار خطأ بالقص، نستخدم الصورة الأصلية بدون تعديل */ }
+      if (who === 'head') mmHeadSignatureDataUrl = finalUrl; else mmAssistantSignatureDataUrl = finalUrl;
+      const preview = document.getElementById(who === 'head' ? 'mmHeadSigPreview' : 'mmAssistantSigPreview');
+      preview.src = finalUrl;
+      preview.classList.remove('hidden');
+      document.getElementById(who === 'head' ? 'mmHeadSigClearBtn' : 'mmAssistantSigClearBtn').style.display = 'inline-block';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 
-/* ------------------- الإحصائيات (إيرادات المقاصف) ------------------- */
+function clearMmSigUpload(who) {
+  if (who === 'head') mmHeadSignatureDataUrl = null; else mmAssistantSignatureDataUrl = null;
+  document.getElementById(who === 'head' ? 'mmHeadSigUpload' : 'mmAssistantSigUpload').value = '';
+  const preview = document.getElementById(who === 'head' ? 'mmHeadSigPreview' : 'mmAssistantSigPreview');
+  preview.src = '';
+  preview.classList.add('hidden');
+  document.getElementById(who === 'head' ? 'mmHeadSigClearBtn' : 'mmAssistantSigClearBtn').style.display = 'none';
+}
 
-// دالة تشخيص: ترجع اسم/رابط ملف الإكسل اللي متصل فيه هذا الكود فعلياً، مع عدد صفوف كل شيت،
-// تساعد لو صار لخبطة إن الموقع متصل بملف إكسل غير اللي المستخدمة تشوف فيه بياناتها
-function debugInfo_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetNames = ['المسؤولات', 'الحضور', 'التعهد', 'المهام', 'المراكز', 'المبيعات', 'المرتجعات', 'الفواتير', 'الإشعارات'];
-  const sheetsInfo = sheetNames.map(function (name) {
-    const sh = ss.getSheetByName(name);
-    return { name: name, exists: !!sh, rows: sh ? Math.max(sh.getLastRow() - 1, 0) : 0 };
+function toggleMmTargets() {
+  const all = document.getElementById('mmAllCheck').checked;
+  document.getElementById('mmTargetsBox').classList.toggle('hidden', all);
+}
+function toggleMmGroupAll(type) {
+  const selector = type === 'center' ? '.mm-center-check' : '.mm-masoula-check';
+  const allCheckId = type === 'center' ? 'mmCentersAllCheck' : 'mmMasoulatAllCheck';
+  const checked = document.getElementById(allCheckId).checked;
+  document.querySelectorAll(selector).forEach(function (el) { el.checked = checked; });
+}
+function syncMmGroupAllCheck_(type) {
+  const selector = type === 'center' ? '.mm-center-check' : '.mm-masoula-check';
+  const allCheckId = type === 'center' ? 'mmCentersAllCheck' : 'mmMasoulatAllCheck';
+  const boxes = Array.from(document.querySelectorAll(selector));
+  const allChecked = boxes.length > 0 && boxes.every(function (el) { return el.checked; });
+  document.getElementById(allCheckId).checked = allChecked;
+}
+function renderMmTargetLists() {
+  const centersBox = document.getElementById('mmCentersList');
+  const masoulatBox = document.getElementById('mmMasoulatList');
+  function render() {
+    centersBox.innerHTML = centersListCache.length ? '' : 'لا يوجد مراكز';
+    centersListCache.forEach(function (c) {
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:6px;';
+      label.innerHTML = '<input type="checkbox" class="mm-center-check" value="' + c + '" onchange="syncMmGroupAllCheck_(\'center\')"> <span>' + c + '</span>';
+      centersBox.appendChild(label);
+    });
+    masoulatBox.innerHTML = masoulatListCache.length ? '' : 'لا يوجد مسؤولات';
+    masoulatListCache.forEach(function (m) {
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:6px;';
+      label.innerHTML = '<input type="checkbox" class="mm-masoula-check" value="' + m + '" onchange="syncMmGroupAllCheck_(\'masoula\')"> <span>' + m + '</span>';
+      masoulatBox.appendChild(label);
+    });
+    document.getElementById('mmCentersAllCheck').checked = false;
+    document.getElementById('mmMasoulatAllCheck').checked = false;
+  }
+  if (centersListCache.length || masoulatListCache.length) { render(); return; }
+  Promise.all([callApi('getCenters'), callApi('getMasoulat')]).then(function (results) {
+    centersListCache = results[0].centers || [];
+    masoulatListCache = results[1].masoulat || [];
+    render();
+  });
+}
+
+function collectMeetingMinutesOpts_() {
+  const number = document.getElementById('mmNumber').value.trim();
+  if (!number) { alert('اكتبي رقم الاجتماع أولاً'); return null; }
+  const hijriDay = document.getElementById('mmHijriDay').value.trim();
+  const hijriMonth = document.getElementById('mmHijriMonth').value;
+  const hijriYear = document.getElementById('mmHijriYear').value.trim();
+  const hijriDate = (hijriDay ? toArabicDigits(hijriDay) : '  ') + ' / ' + (hijriMonth || '') +
+    (hijriYear ? ' / ' + toArabicDigits(hijriYear) + 'هـ' : 'هـ');
+  const points = Array.from(document.querySelectorAll('#mmPointsContainer textarea')).map(function (t) { return t.value.trim(); }).filter(Boolean);
+  const participants = Array.from(document.querySelectorAll('#mmParticipantsContainer input[type="text"]')).map(function (t) { return t.value.trim(); }).filter(Boolean);
+  const links = [];
+  document.querySelectorAll('#mmLinksContainer > div').forEach(function (row) {
+    const type = row.querySelector('.mm-link-type').value;
+    const url = row.querySelector('.mm-link-url').value.trim();
+    if (url) links.push({ type: type, url: url });
   });
   return {
-    ok: true,
-    spreadsheetName: ss.getName(),
-    spreadsheetUrl: ss.getUrl(),
-    sheets: sheetsInfo
+    number: number,
+    day: document.getElementById('mmDayName').value || '',
+    hijriDate: hijriDate,
+    method: document.getElementById('mmMethod').value.trim(),
+    points: points,
+    participants: participants,
+    links: links,
+    headName: document.getElementById('mmHeadName').value || 'فاطمة مبارك الكثيري',
+    headSignature: mmHeadSignatureDataUrl || '',
+    headSigScale: (Number(document.getElementById('mmHeadSigSize').value) || 100) / 100,
+    assistantName: document.getElementById('mmAssistantName').value || '',
+    assistantSignature: mmAssistantSignatureDataUrl || '',
+    assistantSigScale: (Number(document.getElementById('mmAssistantSigSize').value) || 100) / 100
   };
 }
 
-/* ------------------- بدء فصل دراسي جديد (ترحيل/تسمية البيانات) ------------------- */
+function printMeetingMinutes() { const o = collectMeetingMinutesOpts_(); if (o) printMeetingMinutesWindow(o); }
+function saveMeetingMinutes() { const o = collectMeetingMinutesOpts_(); if (o) saveMeetingMinutesPdf(o); }
+function shareMeetingMinutes() { const o = collectMeetingMinutesOpts_(); if (o) shareMeetingMinutesPdf(o); }
 
-/* تحط اسم الفصل الدراسي (p.termLabel، مثال: "الفصل الدراسي الأول ١٤٤٨هـ") على كل
-   صف "حالي" (يعني عمود "الفصل الدراسي" فاضي فيه) بشيتات المبيعات/المرتجعات/الفواتير/الإشعارات.
-   بهذا الشكل: أي صف قديم انحط له اسم فصل قبل كذا يضل كما هو (ما يتكتب فوقه)،
-   وبس الصفوف "الحالية" (بدون تسمية) هي اللي تاخذ اسم الفصل المنتهي. بعدها أي بيانات
-   جديدة تنسجل بدون فصل (يعني تعتبر فصل "حالي") لين يجي وقت الترحيل التالي. */
-function archiveCurrentTerm_(p) {
-  const termLabel = String(p.termLabel || '').trim();
-  if (!termLabel) return { ok: false, error: 'اسم الفصل الدراسي مطلوب' };
-
-  // لكل شيت اسم عمود الأرشفة الخاص فيه - "الإشعارات" لها عمود منفصل "فصل الأرشفة"
-  // لأن عمود "الفصل الدراسي" فيها محجوز لغرض ثاني (فصل رسوم حفل تحفيظ الصغار)
-  const sheetsToArchive = [
-    { name: 'المبيعات', col: 'الفصل الدراسي' },
-    { name: 'المرتجعات', col: 'الفصل الدراسي' },
-    { name: 'الفواتير', col: 'الفصل الدراسي' },
-    { name: 'الإشعارات', col: 'فصل الأرشفة' },
-    { name: 'قائمة الدخل', col: 'الفصل الدراسي' }
-  ];
-  const counts = {};
-
-  sheetsToArchive.forEach(function (entry) {
-    const sh = sheet_(entry.name);
-    if (!sh || sh.getLastRow() < 2) { counts[entry.name] = 0; return; }
-    const col = colIndex_(sh, entry.col);
-    if (col === -1) { counts[entry.name] = 0; return; }
-
-    // ننقل الصفوف "الحالية" (عمود الأرشفة فاضي) فعلياً لشيت الأرشيف بعد ما نكتب
-    // عليها اسم الفصل - فيرجع الشيت الحيّ صغيراً (بيانات الفصل الجديد بس) بدل
-    // ما يتراكم فيه كل الفصول للأبد.
-    const archiveSh = getOrCreateArchiveSheet_(entry.name);
-    const n = archiveRowsMatching_(sh, archiveSh, col, function (v) { return String(v).trim() === ''; }, termLabel);
-    counts[entry.name] = n;
-    invalidateCache_(entry.name);
-    invalidateCache_(ARCHIVE_PREFIX + entry.name);
-  });
-
-  // اعتماد اكتمال التسجيل خاص بالفصل الحالي - يتفرّغ مع بداية الفصل الجديد
-  clearRegistrationVerified_();
-
-  return { ok: true, counts: counts };
-}
-
-
-/* ------------------- قائمة الدخل (الإيرادات والمصروفات - يدوي بالكامل) ------------------- */
-
-function recordIncomeItem_(p) {
-  const sh = sheet_('قائمة الدخل');
-  const id = Utilities.getUuid();
-  const now = nowParts_();
-  let attachmentUrl = '';
-  let attachmentName = '';
-  if (p.fileData) {
-    attachmentUrl = saveAttachmentFile_(p.fileData, p.fileName || ('مرفق-' + id), p.mimeType || '');
-    attachmentName = p.fileName || '';
+function publishMeetingMinutes() {
+  const opts = collectMeetingMinutesOpts_();
+  if (!opts) return;
+  const all = document.getElementById('mmAllCheck').checked;
+  const payload = Object.assign({}, opts, { all: all, from: 'الإدارة' });
+  if (!all) {
+    payload.centers = Array.from(document.querySelectorAll('.mm-center-check:checked')).map(function (el) { return el.value; });
+    payload.masoulat = Array.from(document.querySelectorAll('.mm-masoula-check:checked')).map(function (el) { return el.value; });
+    if (!payload.centers.length && !payload.masoulat.length) { alert('اختاري مركز أو مسؤولة واحدة على الأقل، أو فعّلي "يظهر لكل المراكز والمسؤولات"'); return; }
   }
-  appendRowByHeaders_(sh, {
-    'معرف': id, 'البند': p.category || '', 'البيان': p.description || '', 'المبلغ': Number(p.amount) || 0,
-    'المبلغ كتابة': p.amountWords || '',
-    'اليوم': now.day, 'التاريخ': now.date,
-    'رابط المرفق': attachmentUrl, 'اسم المرفق': attachmentName
-  });
-  invalidateCache_('قائمة الدخل');
-  return { ok: true, id: id };
-}
-
-/* تعديل بند موجود. لو انمرّر ملف مرفق جديد (p.fileData) يستبدل القديم (لو موجود)؛
-   لو ما انمرّر، يبقى المرفق القديم كما هو (ما يُحذف بمجرد التعديل على المبلغ مثلاً). */
-function updateIncomeItem_(p) {
-  const sh = sheet_('قائمة الدخل');
-  const row = Number(p.row);
-  if (p.category !== undefined) sh.getRange(row, colIndex_(sh, 'البند')).setValue(p.category);
-  if (p.description !== undefined) sh.getRange(row, colIndex_(sh, 'البيان')).setValue(p.description);
-  if (p.amount !== undefined) sh.getRange(row, colIndex_(sh, 'المبلغ')).setValue(Number(p.amount));
-  if (p.amountWords !== undefined) sh.getRange(row, colIndex_(sh, 'المبلغ كتابة')).setValue(p.amountWords);
-  if (p.fileData) {
-    const id = Utilities.getUuid();
-    const url = saveAttachmentFile_(p.fileData, p.fileName || ('مرفق-' + id), p.mimeType || '');
-    sh.getRange(row, colIndex_(sh, 'رابط المرفق')).setValue(url);
-    sh.getRange(row, colIndex_(sh, 'اسم المرفق')).setValue(p.fileName || '');
-  }
-  invalidateCache_('قائمة الدخل');
-  return { ok: true };
-}
-
-function getIncomeItems_(p) {
-  let rows = getRowsForTerm_('قائمة الدخل', p && p.term, 'الفصل الدراسي');
-  rows = rows.slice().reverse();
-  let totalIncome = 0, totalExpenses = 0;
-  rows.forEach(function (r) {
-    const amt = Number(r['المبلغ']) || 0;
-    if (r['البند'] === 'إيراد') totalIncome += amt;
-    else if (r['البند'] === 'مصروفات') totalExpenses += amt;
-  });
-  return { ok: true, items: rows, totalIncome: totalIncome, totalExpenses: totalExpenses, netProfit: totalIncome - totalExpenses };
-}
-
-function deleteIncomeItem_(p) {
-  const sh = sheet_('قائمة الدخل');
-  sh.deleteRow(Number(p.row));
-  invalidateCache_('قائمة الدخل');
-  return { ok: true };
-}
-
-function getStats_() {
-  const sales = sheetToObjects_('المبيعات');
-  const byCenter = {};
-  sales.forEach(function (r) {
-    const c = String(r['اسم المركز'] || '').trim();
-    if (!c) return;
-    byCenter[c] = (byCenter[c] || 0) + (Number(r['المبلغ']) || 0);
-  });
-  let centersArr = Object.keys(byCenter).map(function (c) { return { center: c, total: byCenter[c] }; });
-  centersArr.sort(function (a, b) { return b.total - a.total; });
-  const grandTotal = centersArr.reduce(function (s, c) { return s + c.total; }, 0);
-  return { ok: true, totalRevenue: grandTotal, centers: centersArr };
-}
-
-
-/* ------------------- أدوات تواريخ مشتركة ------------------- */
-
-const ENTRY_STAMP_COL_ = 'وقت التسجيل الفعلي';
-
-function entryStamp_() {
-  const n = nowParts_();
-  return n.date + ' ' + n.time;
-}
-
-function pad2_(n) { return (n < 10 ? '0' : '') + n; }
-
-/* ترجع yyyy-MM-dd من أي نص يبدأ بتاريخ بهالصيغة (أو فاضي) */
-function dateOnly_(v) {
-  const m = String(v === undefined || v === null ? '' : v).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? (m[1] + '-' + m[2] + '-' + m[3]) : '';
-}
-
-function ymdToUtc_(s) {
-  const a = s.split('-');
-  return Date.UTC(Number(a[0]), Number(a[1]) - 1, Number(a[2]));
-}
-
-function utcToYmd_(ms) {
-  const d = new Date(ms);
-  return d.getUTCFullYear() + '-' + pad2_(d.getUTCMonth() + 1) + '-' + pad2_(d.getUTCDate());
-}
-
-function daysBetween_(a, b) {
-  return Math.round((ymdToUtc_(b) - ymdToUtc_(a)) / 86400000);
-}
-
-/* «HH:mm» -> عدد الدقائق من منتصف الليل (أو null) */
-function timeToMin_(v) {
-  const m = String(v === undefined || v === null ? '' : v).match(/(\d{1,2}):(\d{2})/);
-  return m ? (Number(m[1]) * 60 + Number(m[2])) : null;
-}
-
-function minToTime_(min) {
-  if (min === null || min === undefined) return '';
-  return pad2_(Math.floor(min / 60)) + ':' + pad2_(min % 60);
-}
-
-function allRowsIncludingArchive_(name) {
-  return sheetToObjects_(name).concat(sheetToObjects_(ARCHIVE_PREFIX + name));
-}
-
-/* ------------------- إحصائيات التسجيل (لوحة الإدارة) -------------------
-   لكل مركز خلال الفترة المختارة:
-   - عدد الإشعارات مفصّلة: استلام / تسليم المكافأة / تسليم رسوم حفل تحفيظ الصغار (+ بانتظار الاطلاع)
-   - عدد بيان الفواتير (+ مجموع رأس المال والربح)
-   - أيام وعدد مرات تسجيل المبيعات (+ المجموع)
-   - النواقص: مبالغ بدون فواتير، فواتير بدون مبالغ، لا يوجد أي تسجيل
-   الفترة: period = 'term' (الفصل الحالي - الافتراضي) أو 'all' (كل الفصول) أو from/to (تواريخ). */
-/* ---- اعتماد اكتمال التسجيل (صح يدوي من الإدارة) ---- */
-const REG_VERIFY_SHEET_ = 'اعتماد التسجيل';
-const REG_VERIFY_HEADERS_ = ['اسم المركز', 'اليوم', 'التاريخ', 'الوقت'];
-
-function regVerifySheet_() {
-  let sh = sheet_(REG_VERIFY_SHEET_);
-  if (!sh) {
-    sh = SpreadsheetApp.getActiveSpreadsheet().insertSheet(REG_VERIFY_SHEET_);
-    sh.getRange(1, 1, 1, REG_VERIFY_HEADERS_.length).setValues([REG_VERIFY_HEADERS_]);
-    sh.getRange(2, 1, sh.getMaxRows() - 1, REG_VERIFY_HEADERS_.length).setNumberFormat('@');
-  }
-  return sh;
-}
-
-function getRegistrationVerifiedMap_() {
-  const map = {};
-  if (!sheet_(REG_VERIFY_SHEET_)) return map;
-  sheetToObjects_(REG_VERIFY_SHEET_).forEach(function (r) {
-    const c = String(r['اسم المركز'] || '').trim();
-    if (c) map[c] = true;
-  });
-  return map;
-}
-
-/* p.center + p.verified (true = إضافة صح، false = إزالته) */
-function setRegistrationVerified_(p) {
-  const center = String(p.center || '').trim();
-  if (!center) return { ok: false, error: 'اسم المركز مطلوب' };
-  const on = !(p.verified === false || p.verified === 'false');
-  const sh = regVerifySheet_();
-  const rows = sheetToObjects_(REG_VERIFY_SHEET_);
-  const existing = rows.filter(function (r) { return String(r['اسم المركز'] || '').trim() === center; })
-    .map(function (r) { return r._row; }).sort(function (a, b) { return b - a; });
-  if (on) {
-    if (!existing.length) {
-      const now = nowParts_();
-      appendRowByHeaders_(sh, { 'اسم المركز': center, 'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time });
+  const btn = document.getElementById('mmPublishBtn');
+  setBtnBusy(btn, true);
+  callApi('recordMeetingMinutes', payload).then(function (r) {
+    setBtnBusy(btn, false);
+    if (r.ok) {
+      const s = document.getElementById('mmPublishSuccess');
+      s.style.display = 'block';
+      setTimeout(function () { s.style.display = 'none'; }, 2500);
+      loadMeetingMinutesAdmin();
+    } else {
+      alert('صار خطأ أثناء نشر المحضر:\n' + (r.error || 'خطأ غير معروف'));
     }
-  } else {
-    existing.forEach(function (rowNum) { sh.deleteRow(rowNum); });
-  }
-  invalidateCache_(REG_VERIFY_SHEET_);
-  return { ok: true, center: center, verified: on };
+  }).catch(function () { setBtnBusy(btn, false); });
 }
 
-function clearRegistrationVerified_() {
-  const sh = sheet_(REG_VERIFY_SHEET_);
-  if (sh && sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).clearContent();
-  invalidateCache_(REG_VERIFY_SHEET_);
+function clearMmForm() {
+  if (!confirm('هل تبين تصفير كل حقول المحضر؟ (التوقيعان يضلّان كما هما)')) return;
+  document.getElementById('mmNumber').value = '';
+  document.getElementById('mmMethod').value = 'عبر برنامج الزوم';
+  document.getElementById('mmDayName').value = 'الأحد';
+  document.getElementById('mmHijriDay').value = '';
+  document.getElementById('mmHijriMonth').value = '١';
+  document.getElementById('mmHijriYear').value = '';
+  document.getElementById('mmPointsContainer').innerHTML = '';
+  document.getElementById('mmParticipantsContainer').innerHTML = '';
+  document.getElementById('mmLinksContainer').innerHTML = '';
+  addMmPointRow('');
+  addMmParticipantRow('');
+  document.getElementById('mmHeadName').value = 'فاطمة مبارك الكثيري';
+  document.getElementById('mmAssistantName').value = 'مرام فوزي محسن النفاعي';
+  document.getElementById('mmAllCheck').checked = true;
+  toggleMmTargets();
+  document.querySelectorAll('.mm-center-check, .mm-masoula-check').forEach(function (el) { el.checked = false; });
+  try { localStorage.removeItem(MM_DRAFT_KEY_); } catch (e) { /* تجاهل */ }
+  /* التوقيعان عن قصد ما يتصفّران */
 }
 
-function noticeKind_(r) {
-  const t = String(r['النوع'] || '').trim();
-  if (t === 'استلام') return 'receive';
-  if (t === 'تسليم') return String(r['بيان مخصص'] || '').trim() ? 'fee' : 'reward';
-  return 'other';
+function mmTargetLabel_(target) {
+  if (!target || target === 'الكل') return 'الكل';
+  return target.split('|').map(function (t) {
+    const parts = t.split(':');
+    return parts[1] || t;
+  }).join('، ');
 }
 
-function getRegistrationStats_(p) {
-  p = p || {};
-  const period = String(p.period || 'term');
-  const from = dateOnly_(p.from), to = dateOnly_(p.to);
-  const useDates = period === 'range' && from && to;
-
-  let sales, invoices, notices;
-  if (period === 'all' || useDates) {
-    sales = allRowsIncludingArchive_('المبيعات');
-    invoices = allRowsIncludingArchive_('الفواتير');
-    notices = allRowsIncludingArchive_('الإشعارات');
-  } else {
-    sales = getRowsForTerm_('المبيعات', 'current', 'الفصل الدراسي');
-    invoices = getRowsForTerm_('الفواتير', 'current', 'الفصل الدراسي');
-    notices = getRowsForTerm_('الإشعارات', 'current', 'فصل الأرشفة');
-  }
-  function inRange(v) {
-    if (!useDates) return true;
-    const d = dateOnly_(v);
-    return !!d && d >= from && d <= to;
-  }
-
-  // كل المراكز (تشمل مراكز العرض فقط + المراكز المربوطة بمسؤولة)
-  const centers = [];
-  function addCenter(n) { n = String(n || '').trim(); if (n && centers.indexOf(n) === -1) centers.push(n); }
-  sheetToObjects_('المراكز', CACHE_SECONDS_LONG).forEach(function (r) { addCenter(r['اسم المركز']); });
-  sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG).forEach(function (r) { addCenter(r['اسم المركز']); });
-
-  const st = {};
-  function S(c) {
-    c = String(c || '').trim();
-    if (!c) return null;
-    if (!st[c]) {
-      addCenter(c);
-      st[c] = { center: c, receive: 0, reward: 0, fee: 0, other: 0, pending: 0,
-        invoices: 0, capital: 0, profit: 0, salesEntries: 0, salesDays: {}, salesTotal: 0 };
-    }
-    return st[c];
-  }
-  centers.slice().forEach(S);
-
-  notices.forEach(function (r) {
-    if (!inRange(r['تاريخ الإرسال'])) return;
-    const m = S(r['اسم المركز']); if (!m) return;
-    m[noticeKind_(r)]++;
-    if (String(r['الحالة'] || '').trim() === 'بانتظار الاطلاع') m.pending++;
+function loadMeetingMinutesAdmin() {
+  const box = document.getElementById('mmAdminList');
+  box.innerHTML = 'جاري التحميل...';
+  callApi('getAllMeetingMinutes', {}).then(function (r) {
+    const list = r.minutes || [];
+    if (!r.ok || !list.length) { box.innerHTML = 'لا توجد محاضر بعد'; return; }
+    box.innerHTML = '';
+    list.forEach(function (m) {
+      const div = document.createElement('div');
+      div.className = 'notice-item';
+      div.innerHTML =
+        '<div>' +
+          '<div>محضر رقم ' + toArabicDigits(m['رقم الاجتماع'] || '') + '</div>' +
+          '<div class="meta">إلى: ' + mmTargetLabel_(m['استهداف']) + ' · ' + (m['اليوم'] || '') + ' ' + toHijriStr(m['التاريخ']) + '</div>' +
+          '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;">' +
+            '<a href="#" onclick="deleteMeetingMinutesRow(' + m._row + '); return false;">حذف</a>' +
+          '</div>' +
+        '</div>';
+      box.appendChild(div);
+    });
   });
-  invoices.forEach(function (r) {
-    if (!inRange(r['التاريخ'])) return;
-    const m = S(r['اسم المركز']); if (!m) return;
-    const et = entryTypeOf_(r);
-    if (et === 'فاتورة') {
-      m.invoices++;                                     // «عدد الفواتير» يعدّ الفواتير فقط (مو المشتريات/المصروفات)
-      m.capital += (Number(r['المبلغ الإجمالي']) || 0) - invoiceReturnOf_(r).cap;   // عمود «المبلغ الإجمالي» بالشيت = رأس المال (بعد خصم الرجيع)
-    }
-    if (et !== 'مصروفات') m.profit += (Number(r['الربح']) || 0) - (et === 'فاتورة' ? invoiceReturnOf_(r).profit : 0);  // الربح = أرباح الفواتير + أرباح المشتريات
-  });
-  sales.forEach(function (r) {
-    if (!inRange(r['التاريخ'])) return;
-    const m = S(r['اسم المركز']); if (!m) return;
-    m.salesEntries++;
-    const d = dateOnly_(r['التاريخ']);
-    if (d) m.salesDays[d] = 1;
-    m.salesTotal += Number(r['المبلغ']) || 0;
-  });
-
-  const verified = getRegistrationVerifiedMap_();
-  const list = centers.map(function (c) {
-    const m = st[c];
-    const days = Object.keys(m.salesDays).length;
-    const issues = [];
-    if (m.salesEntries > 0 && m.invoices === 0) issues.push('salesNoInvoices');
-    if (m.invoices > 0 && m.salesEntries === 0) issues.push('invoicesNoSales');
-    if (m.salesEntries === 0 && m.invoices === 0 && (m.receive + m.reward + m.fee + m.other) === 0) issues.push('nothing');
-    return {
-      center: c,
-      receive: m.receive, reward: m.reward, fee: m.fee, other: m.other,
-      noticesTotal: m.receive + m.reward + m.fee + m.other,
-      pending: m.pending,
-      invoices: m.invoices,
-      capital: Math.round(m.capital * 100) / 100,
-      profit: Math.round(m.profit * 100) / 100,
-      salesEntries: m.salesEntries,
-      salesDays: days,
-      salesTotal: Math.round(m.salesTotal * 100) / 100,
-      issues: issues,
-      verified: !!verified[c]
-    };
-  });
-
-  list.sort(function (a, b) {
-    if (b.issues.length !== a.issues.length) return b.issues.length - a.issues.length;
-    return a.center < b.center ? -1 : 1;
-  });
-
-  const totals = { receive: 0, reward: 0, fee: 0, other: 0, pending: 0, invoices: 0, salesEntries: 0, salesTotal: 0 };
-  list.forEach(function (m) {
-    Object.keys(totals).forEach(function (k) { totals[k] += m[k]; });
-  });
-  totals.salesTotal = Math.round(totals.salesTotal * 100) / 100;
-
-  return { ok: true, period: useDates ? 'range' : (period === 'all' ? 'all' : 'term'),
-    from: useDates ? from : '', to: useDates ? to : '', centers: list, totals: totals };
 }
 
+function deleteMeetingMinutesRow(row) {
+  if (!confirm('متأكدة تبين تحذفين هذا المحضر؟')) return;
+  callApi('deleteMeetingMinutes', { row: row }).then(function (r) {
+    if (r.ok) loadMeetingMinutesAdmin();
+  });
+}
 
-/* ------------------- طلبات المقاصف -------------------
-   النموذج (أيقونة «طلبات المقاصف» بصفحات المديرات والمسؤولات): الأصناف مع الوحدة (علبة/كرتون/كيس) والعدد،
-   مع إمكانية إضافة أصناف أخرى. عند الإرسال: يُحفظ الطلب بشيت «طلبات المقاصف» ويوصل إشعار بالبريد
-   لعنوان ORDERS_NOTIFY_EMAIL أعلى الملف. فشل البريد (مثلاً تجاوز حد الإرسال اليومي) ما يلغي حفظ الطلب. */
-const ORDER_UNITS_ = ['علبة', 'كرتون', 'كيس', 'حبة'];
-const ORDER_PERIODS_ = ['صباحي', 'مسائي'];
+/* ==================== إحصائية الزيارات ==================== */
+const VS_MONTHS_ = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة',
+  'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+let vsVisits_ = [];
 
-function htmlEsc_(v) {
-  return String(v === undefined || v === null ? '' : v).replace(/[&<>"']/g, function (c) {
+function vsAr_(n) {
+  return String(n).replace(/[0-9]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'[d]; });
+}
+
+function vsEsc_(s) {
+  return String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, function (c) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
   });
 }
 
-/* يرجّع شيت الطلبات، وينشئه بأعمدته لو ما كان موجود (حتى لو ما انشغّلت setup بعد) */
-function getOrdersSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sh = ss.getSheetByName(ORDERS_SHEET_NAME_);
-  if (!sh) {
-    sh = ss.insertSheet(ORDERS_SHEET_NAME_);
-    sh.appendRow(ORDERS_HEADERS_);
-    sh.getRange(1, 1, 1, ORDERS_HEADERS_.length).setFontWeight('bold');
-    sh.setRightToLeft(true);
-  }
-  if (sh.getLastRow() === 0) sh.appendRow(ORDERS_HEADERS_);
-  // أعمدة التاريخ/الوقت نص عادي حتى لا يحوّلها قوقل شيتس لتاريخ داخلي (نفس معالجة setup)
-  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (h) { return String(h).trim(); });
-  headers.forEach(function (h, idx) {
-    if (TEXT_COLUMNS_.indexOf(h) !== -1) {
-      sh.getRange(2, idx + 1, Math.max(sh.getMaxRows() - 1, 1), 1).setNumberFormat('@');
-    }
-  });
-  return sh;
+/* «٣ زيارات» بصياغة عربية سليمة */
+function vsCountLabel_(n) {
+  if (n === 1) return 'زيارة واحدة';
+  if (n === 2) return 'زيارتان';
+  if (n >= 3 && n <= 10) return vsAr_(n) + ' زيارات';
+  return vsAr_(n) + ' زيارة';
 }
 
-function submitCanteenOrder_(p) {
-  const center = String(p.center || '').trim();
-  if (!center) return { ok: false, error: 'اسم المركز مطلوب' };
-  const period = String(p.period || '').trim();
-  if (ORDER_PERIODS_.indexOf(period) === -1) return { ok: false, error: 'الفترة مطلوبة (صباحي أو مسائي)' };
-  const term = String(p.term || '').trim().slice(0, 30);
-  const year = String(p.year || '').trim().slice(0, 30);
-  if (!term || !year) return { ok: false, error: 'الفصل الدراسي والعام مطلوبان' };
-
-  const raw = Array.isArray(p.items) ? p.items : [];
-  if (raw.length > 300) return { ok: false, error: 'عدد الأصناف كبير جداً' };
-  const items = [];
-  raw.forEach(function (it) {
-    if (!it) return;
-    const name = String(it.name || '').replace(/\s+/g, ' ').trim().slice(0, 80);
-    const unit = String(it.unit || '').trim();
-    const qty = Math.floor(Number(it.qty));
-    if (!name || ORDER_UNITS_.indexOf(unit) === -1 || !(qty > 0) || qty > 9999) return;
-    items.push({ name: name, unit: unit, qty: qty, other: !!it.other });
-  });
-  if (!items.length) return { ok: false, error: 'لا توجد أصناف صالحة في الطلب (حدّدي الصنف والوحدة والعدد)' };
-
-  const role = String(p.role || '').trim().slice(0, 30);
-  const masoulaName = String(p.masoulaName || '').replace(/\s+/g, ' ').trim().slice(0, 80);
-  const managerName = String(p.managerName || '').replace(/\s+/g, ' ').trim().slice(0, 80);
-  const notes = String(p.notes || '').trim().slice(0, 500);
-
-  const lines = items.map(function (it) {
-    return (it.other ? '(صنف آخر) ' : '') + it.name + ' — ' + it.qty + ' ' + it.unit;
-  });
-  const details = lines.join('\n');
-
-  // حماية من التكرار: نفس الطلب بنفس التفاصيل خلال دقيقة يُحسب مرة وحدة (ضغطتين/إعادة اتصال)
-  let dupKey = '';
+function vsTodayHijri_() {
   try {
-    const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, [center, period, term, year, details].join('|'));
-    dupKey = 'ord_' + digest.map(function (b) { return ('0' + (b & 0xFF).toString(16)).slice(-2); }).join('');
-    if (getCache_().get(dupKey)) return { ok: true, duplicate: true, count: items.length, emailSent: true };
-  } catch (e) { dupKey = ''; }
-
-  const now = nowParts_();
-  const id = Utilities.getUuid();
-  appendRowByHeaders_(getOrdersSheet_(), {
-    'معرف': id, 'اسم المركز': center, 'الفترة': period, 'الفصل الدراسي': term, 'العام': year,
-    'مسؤولة المقصف': masoulaName, 'مديرة المركز': managerName,
-    'عدد الأصناف': items.length, 'تفاصيل الطلب': details, 'ملاحظات': notes, 'سجّل بواسطة': role,
-    'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
-  });
-  if (dupKey) { try { getCache_().put(dupKey, '1', 60); } catch (e) {} }
-
-  const emailSent = notifyCanteenOrder_({
-    center: center, period: period, term: term, year: year, masoulaName: masoulaName, managerName: managerName,
-    notes: notes, items: items, now: now, role: role
-  });
-  return { ok: true, id: id, count: items.length, emailSent: emailSent };
-}
-
-function notifyCanteenOrder_(o) {
-  if (!ORDERS_NOTIFY_EMAIL || ORDERS_NOTIFY_EMAIL.indexOf('@example.com') !== -1) return false;
-  try {
-    const center = centerDisplay_(o.center);
-    const subject = ('طلب مقصف جديد — ' + center + ' — الفترة ' + o.period + ' — الفصل ' + o.term + ' ' + o.year)
-      .replace(/[\r\n]+/g, ' ');
-
-    const listed = o.items.filter(function (i) { return !i.other; });
-    const others = o.items.filter(function (i) { return i.other; });
-    const row = function (it, n) {
-      return '<tr><td style="padding:7px 10px;border:1px solid #d9cdb4;text-align:center;">' + n + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #d9cdb4;">' + htmlEsc_(it.name) + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #d9cdb4;text-align:center;">' + htmlEsc_(it.unit) + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #d9cdb4;text-align:center;font-weight:bold;">' + it.qty + '</td></tr>';
-    };
-    const table = function (title, arr) {
-      if (!arr.length) return '';
-      return '<h3 style="color:#6e1523;margin:18px 0 6px;">' + title + '</h3>' +
-        '<table style="border-collapse:collapse;width:100%;font-size:14px;"><thead><tr style="background:#6e1523;color:#fff;">' +
-        '<th style="padding:8px 10px;border:1px solid #6e1523;width:40px;">#</th>' +
-        '<th style="padding:8px 10px;border:1px solid #6e1523;">الصنف</th>' +
-        '<th style="padding:8px 10px;border:1px solid #6e1523;width:90px;">الوحدة</th>' +
-        '<th style="padding:8px 10px;border:1px solid #6e1523;width:80px;">العدد</th></tr></thead><tbody>' +
-        arr.map(function (it, i) { return row(it, i + 1); }).join('') + '</tbody></table>';
-    };
-    const info = function (k, v) {
-      return v ? '<tr><td style="padding:4px 0;color:#6f6467;width:130px;">' + k + '</td><td style="padding:4px 0;font-weight:bold;">' + htmlEsc_(v) + '</td></tr>' : '';
-    };
-    const html = '<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;max-width:640px;margin:auto;color:#2b2325;">' +
-      '<div style="background:#6e1523;color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;font-size:18px;font-weight:bold;">طلب مقصف جديد</div>' +
-      '<div style="border:1px solid #e8dfe1;border-top:0;padding:16px 18px;border-radius:0 0 10px 10px;">' +
-      '<table style="font-size:14px;border-collapse:collapse;">' +
-      info('المركز', center) + info('الفترة', o.period) + info('الفصل الدراسي', o.term) + info('العام', o.year) +
-      info('مسؤولة المقصف', o.masoulaName) + info('مديرة المركز', o.managerName) +
-      info('تاريخ الطلب', o.now.day + ' ' + o.now.date + ' ' + o.now.time) +
-      '</table>' +
-      table('الأصناف المطلوبة', listed) + table('أصناف أخرى', others) +
-      (o.notes ? '<h3 style="color:#6e1523;margin:18px 0 6px;">ملاحظات</h3><div style="background:#faf8f8;border:1px solid #e8dfe1;border-radius:8px;padding:10px;white-space:pre-wrap;">' + htmlEsc_(o.notes) + '</div>' : '') +
-      '<p style="color:#6f6467;font-size:12px;margin-top:20px;">إجمالي الأصناف: ' + o.items.length + ' — الطلب محفوظ أيضاً بشيت «' + ORDERS_SHEET_NAME_ + '». — نظام وحدة المقاصف، جمعية فرقان لتحفيظ القرآن الكريم</p>' +
-      '</div></div>';
-
-    const text = 'طلب مقصف جديد\n' +
-      'المركز: ' + center + '\nالفترة: ' + o.period + '\nالفصل الدراسي: ' + o.term + ' ' + o.year + '\n' +
-      (o.masoulaName ? 'مسؤولة المقصف: ' + o.masoulaName + '\n' : '') +
-      (o.managerName ? 'مديرة المركز: ' + o.managerName + '\n' : '') +
-      'تاريخ الطلب: ' + o.now.day + ' ' + o.now.date + ' ' + o.now.time + '\n\nالأصناف:\n' +
-      o.items.map(function (it) { return '- ' + (it.other ? '(صنف آخر) ' : '') + it.name + ' — ' + it.qty + ' ' + it.unit; }).join('\n') +
-      (o.notes ? '\n\nملاحظات: ' + o.notes : '');
-
-    MailApp.sendEmail({ to: ORDERS_NOTIFY_EMAIL, subject: subject, body: text, htmlBody: html, name: 'نظام وحدة المقاصف' });
-    return true;
+    const parts = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', { day: 'numeric', month: 'numeric', year: 'numeric' }).formatToParts(new Date());
+    const get = function (t) { return parseInt(parts.find(function (p) { return p.type === t; }).value, 10); };
+    return { d: get('day'), m: get('month'), y: get('year') };
   } catch (e) {
-    Logger.log('تعذّر إرسال بريد طلب المقصف: ' + e);
-    return false;
+    return { d: 1, m: 1, y: currentHijriYear() };
   }
 }
 
-/* تقرير سرعة (تشغيل يدوي من قائمة الدوال ▶️ Run): يوضح حجم كل شيت وأثقل عمود فيه، عشان نعرف
-   وين البطء بالضبط. يقرأ كل الشيتات مرة وحدة فقط (قد ياخذ دقيقة أو أكثر لو البيانات كبيرة). */
-function speedReport() {
-  const t0 = Date.now();
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const report = [];
-  ss.getSheets().forEach(function (sh) {
-    if (Date.now() - t0 > 240000) return; // نتوقف قبل حد الوقت
-    const rows = Math.max(sh.getLastRow() - 1, 0);
-    const cols = sh.getLastColumn();
-    if (!rows || !cols) return;
-    try {
-      const headers = sh.getRange(1, 1, 1, cols).getValues()[0].map(function (h) { return String(h).trim(); });
-      const data = sh.getRange(2, 1, rows, cols).getValues();
-      const sizes = headers.map(function () { return 0; });
-      for (let r = 0; r < data.length; r++) {
-        for (let c = 0; c < cols; c++) { const v = data[r][c]; if (v !== '' && v !== null) sizes[c] += String(v).length; }
-      }
-      const skip = skipColsFor_(sh.getName()) || [];
-      let total = 0, light = 0, heavyIdx = 0;
-      sizes.forEach(function (n, c) {
-        total += n;
-        if (skip.indexOf(headers[c]) === -1) light += n;
-        if (n > sizes[heavyIdx]) heavyIdx = c;
-      });
-      report.push({
-        name: sh.getName(), rows: rows, totalKB: Math.round(total / 1024), lightKB: Math.round(light / 1024),
-        heaviest: headers[heavyIdx], heaviestKB: Math.round(sizes[heavyIdx] / 1024)
-      });
-    } catch (e) { report.push({ name: sh.getName(), rows: rows, totalKB: -1, lightKB: -1, heaviest: String(e), heaviestKB: 0 }); }
-  });
-  report.sort(function (a, b) { return b.totalKB - a.totalKB; });
-  const lines = report.map(function (x) {
-    return x.name + ': ' + x.rows + ' صف — الحجم ' + x.totalKB + ' ك.ب' +
-      (x.lightKB !== x.totalKB ? ' (الجزء الذي يُقرأ فعلياً ' + x.lightKB + ' ك.ب)' : '') +
-      ' — أثقل عمود: «' + x.heaviest + '» ' + x.heaviestKB + ' ك.ب';
-  });
-  Logger.log(lines.join('\n'));
-  notify_('تقرير حجم الشيتات (الأكبر أولاً):\n\n' + lines.slice(0, 12).join('\n') +
-    '\n\nحد الذاكرة المؤقتة لكل شيت تقريباً ' + Math.round(CACHE_CHUNK_CHARS_ * CACHE_MAX_CHUNKS_ / 1024) + ' ك.ب؛ أي شيت (مما يُقرأ فعلياً) فوق هذا الحد يُقرأ كاملاً من قوقل شيتس بكل طلب.');
+function initVisitStatsTab_() {
+  const daySel = document.getElementById('vsDay');
+  if (!daySel.dataset.ready) {
+    const t = vsTodayHijri_();
+    let h = '';
+    for (let d = 1; d <= 30; d++) h += '<option value="' + d + '"' + (d === t.d ? ' selected' : '') + '>' + vsAr_(d) + '</option>';
+    daySel.innerHTML = h;
+    document.getElementById('vsMonth').innerHTML = VS_MONTHS_.map(function (n, i) {
+      return '<option value="' + (i + 1) + '"' + (i + 1 === t.m ? ' selected' : '') + '>' + n + '</option>';
+    }).join('');
+    h = '';
+    for (let y = t.y - 1; y <= t.y + 1; y++) h += '<option value="' + y + '"' + (y === t.y ? ' selected' : '') + '>' + vsAr_(y) + '</option>';
+    document.getElementById('vsYear').innerHTML = h;
+    ['vsDay', 'vsMonth', 'vsYear'].forEach(function (id) { document.getElementById(id).addEventListener('change', vsUpdatePreview_); });
+    document.getElementById('vsPeriod').addEventListener('change', vsHideSearchResult_);
+    document.getElementById('vsCenter').addEventListener('input', vsHideSearchResult_);
+    daySel.dataset.ready = '1';
+  }
+  vsUpdatePreview_();
+  const dl = document.getElementById('vsCentersList');
+  dl.innerHTML = (centersListCache || []).map(function (c) { return '<option value="' + vsEsc_(c) + '">'; }).join('');
+  loadVisitStats();
+  vsLoadUnvisitedDeps_();
 }
+
+function vsSelectedDate_() {
+  const d = Number(document.getElementById('vsDay').value);
+  const m = Number(document.getElementById('vsMonth').value);
+  const y = Number(document.getElementById('vsYear').value);
+  return {
+    text: vsAr_(d) + ' ' + VS_MONTHS_[m - 1] + ' ' + vsAr_(y) + 'هـ',
+    key: y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0')
+  };
+}
+
+function vsUpdatePreview_() {
+  document.getElementById('vsDatePreview').textContent = vsSelectedDate_().text;
+}
+
+/* تطبيع عربي بسيط للمقارنة بين أسماء المراكز */
+function vsNorm_(s) {
+  return String(s || '').replace(/[\u064B-\u0652\u0640]/g, '')
+    .replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+    .replace(/\s+/g, ' ').trim();
+}
+
+function vsHideSearchResult_() {
+  const box = document.getElementById('vsSearchResult');
+  if (box) box.classList.add('hidden');
+}
+
+/* 🔍 بحث: زيارات مركز (بالاسم كله أو جزء منه) في الفترة المختارة، بغض النظر عن التاريخ */
+function vsSearchVisit() {
+  const centerRaw = document.getElementById('vsCenter').value.replace(/\s+/g, ' ').trim();
+  if (!centerRaw) { alert('اكتبي اسم المركز'); return; }
+  const btn = document.getElementById('vsSearchBtn');
+  const box = document.getElementById('vsSearchResult');
+  const period = document.getElementById('vsPeriod').value;
+  const q = vsNorm_(centerRaw);
+  btn.disabled = true;
+  box.className = 'vs-search-result';
+  box.textContent = 'جارِ البحث...';
+  callApi('getVisitStats').then(function (r) {
+    btn.disabled = false;
+    if (!r || !r.ok) { box.className = 'vs-search-result no'; box.textContent = 'تعذّر البحث' + (r && r.error ? ': ' + r.error : ''); return; }
+    vsVisits_ = r.visits || [];
+    renderVisitStats_();
+    const byDate = function (a, b) { return a.dateKey < b.dateKey ? 1 : (a.dateKey > b.dateKey ? -1 : 0); };
+    const mine = vsVisits_.filter(function (v) {
+      const n = vsNorm_(v.center);
+      return n === q || n.indexOf(q) !== -1 || q.indexOf(n) !== -1;
+    });
+    const hit = mine.filter(function (v) { return v.period === period; }).sort(byDate);
+    let h;
+    if (hit.length) {
+      // قد يطابق الاسم أكثر من مركز، فنجمعها حسب المركز
+      const groups = {};
+      hit.forEach(function (v) { (groups[v.center] = groups[v.center] || []).push(v); });
+      box.className = 'vs-search-result yes';
+      h = '';
+      Object.keys(groups).forEach(function (c) {
+        const list = groups[c];
+        h += '<div class="vs-search-group">✅ <b>' + vsEsc_(c) + '</b> — ' + vsCountLabel_(list.length) + ' في الفترة ' + vsEsc_(period) + ':' +
+          list.map(function (v) { return '<div class="vs-search-line">• ' + vsEsc_(v.hijriDate) + '</div>'; }).join('') + '</div>';
+      });
+    } else {
+      box.className = 'vs-search-result no';
+      h = '❌ <b>لا توجد زيارة مسجّلة</b> لـ «' + vsEsc_(centerRaw) + '» في الفترة ' + vsEsc_(period) + '.';
+      if (mine.length) {
+        const other = mine.slice().sort(byDate);
+        h += '<br><span class="vs-search-sub">لكن لهذا المركز ' + vsCountLabel_(mine.length) + ' في الفترة الأخرى — آخرها: ' + vsEsc_(other[0].hijriDate) + ' (' + vsEsc_(other[0].period) + ')</span>';
+      }
+    }
+    box.innerHTML = h;
+  }).catch(function () {
+    btn.disabled = false;
+    box.className = 'vs-search-result no';
+    box.textContent = 'تعذّر الاتصال بالخادم.';
+  });
+}
+
+function saveVisitStat() {
+  const center = document.getElementById('vsCenter').value.replace(/\s+/g, ' ').trim();
+  if (!center) { alert('اكتبي اسم المركز'); return; }
+  const date = vsSelectedDate_();
+  const btn = document.getElementById('vsSaveBtn');
+  const msg = document.getElementById('vsSuccess');
+  msg.style.display = 'none';
+  setBtnBusy(btn, true);
+  callApi('recordVisitStat', {
+    center: center,
+    period: document.getElementById('vsPeriod').value,
+    hijriDate: date.text,
+    dateKey: date.key
+  }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) { alert('تعذّر الحفظ' + (r && r.error ? ': ' + r.error : '')); return; }
+    msg.textContent = 'تم الحفظ ✅ — ' + r.center + ': ' + vsCountLabel_(r.count);
+    msg.style.display = 'block';
+    document.getElementById('vsCenter').value = '';
+    loadVisitStats();
+  }).catch(function () {
+    setBtnBusy(btn, false);
+    alert('تعذّر الاتصال بالخادم، حاولي مرة أخرى.');
+  });
+}
+
+function loadVisitStats() {
+  const box = document.getElementById('vsSummary');
+  callApi('getVisitStats').then(function (r) {
+    if (!r || !r.ok) { box.innerHTML = 'تعذّر التحميل' + (r && r.error ? ': ' + vsEsc_(r.error) : ''); return; }
+    vsVisits_ = r.visits || [];
+    renderVisitStats_();
+  }).catch(function () { box.innerHTML = 'تعذّر الاتصال بالخادم.'; });
+}
+
+function vsGroups_() {
+  const map = {};
+  vsVisits_.forEach(function (v) {
+    if (!map[v.center]) map[v.center] = { center: v.center, visits: [], morning: 0, evening: 0 };
+    const g = map[v.center];
+    g.visits.push(v);
+    if (v.period === 'صباحية') g.morning++;
+    else if (v.period === 'مسائية') g.evening++;
+  });
+  const list = Object.keys(map).map(function (k) {
+    const g = map[k];
+    g.visits.sort(function (a, b) { return a.dateKey < b.dateKey ? 1 : (a.dateKey > b.dateKey ? -1 : 0); });
+    return g;
+  });
+  list.sort(function (a, b) { return b.visits.length - a.visits.length || (a.center < b.center ? -1 : 1); });
+  return list;
+}
+
+function renderVisitStats_() {
+  renderUnvisited_();
+  const box = document.getElementById('vsSummary');
+  const groups = vsGroups_();
+  if (!groups.length) { box.innerHTML = '<div style="color:#8a7d76;">لا توجد زيارات مسجّلة بعد.</div>'; return; }
+  let rows = '';
+  groups.forEach(function (g, i) {
+    rows += '<tr class="vs-tr" onclick="toggleVsDetail_(' + i + ')">' +
+      '<td style="text-align:right;font-weight:700;">' + vsEsc_(g.center) + '</td>' +
+      '<td><span class="vs-count">' + vsCountLabel_(g.visits.length) + '</span></td>' +
+      '<td>' + vsAr_(g.morning) + '</td>' +
+      '<td>' + vsAr_(g.evening) + '</td>' +
+      '<td>' + vsEsc_(g.visits[0].hijriDate) + '</td>' +
+      '</tr>';
+    rows += '<tr id="vsDetail_' + i + '" class="vs-detail hidden"><td colspan="5">' +
+      g.visits.map(function (v, j) {
+        return '<div class="vs-visit"><span>' + vsAr_(g.visits.length - j) + '. ' + vsEsc_(v.hijriDate) + ' — ' + vsEsc_(v.period) + '</span>' +
+          '<button class="vs-del" onclick="event.stopPropagation();deleteVisitStat(\'' + vsEsc_(v.id) + '\')">حذف</button></div>';
+      }).join('') +
+      '</td></tr>';
+  });
+  box.innerHTML = '<div class="vs-total">إجمالي الزيارات: <b>' + vsAr_(vsVisits_.length) + '</b> · عدد المراكز: <b>' + vsAr_(groups.length) + '</b></div>' +
+    '<div class="rs-scroll"><table class="log-table vs-table"><thead><tr>' +
+    '<th>المركز</th><th>عدد الزيارات</th><th>صباحية</th><th>مسائية</th><th>آخر زيارة</th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;">اضغطي على أي مركز لعرض تواريخ زياراته.</p>';
+}
+
+function toggleVsDetail_(i) {
+  const el = document.getElementById('vsDetail_' + i);
+  if (el) el.classList.toggle('hidden');
+}
+
+function deleteVisitStat(id) {
+  if (!confirm('متأكدة تبين تحذفين هذي الزيارة؟')) return;
+  callApi('deleteVisitStat', { id: id }).then(function (r) {
+    if (!r || !r.ok) { alert('تعذّر الحذف' + (r && r.error ? ': ' + r.error : '')); return; }
+    loadVisitStats();
+  });
+}
+
+function exportVisitStats() {
+  const groups = vsGroups_();
+  if (!groups.length) { alert('لا توجد زيارات للتصدير'); return; }
+  const rows = [];
+  groups.forEach(function (g) {
+    g.visits.slice().reverse().forEach(function (v, j) {
+      rows.push({
+        'المركز': g.center,
+        'رقم الزيارة': j + 1,
+        'الفترة': v.period,
+        'تاريخ الزيارة': v.hijriDate,
+        'إجمالي زيارات المركز': g.visits.length
+      });
+    });
+  });
+  exportToExcel(rows, 'إحصائية-الزيارات', 'إحصائية الزيارات');
+}
+
+/* ==================== المراكز التي لم تتم زيارتها + حصر المقاصف ====================
+   المصدر: ورقة «أرقام المديرات» (كل مركز بفترته). «حصر المقاصف» يُحفظ في ورقة بالاسم نفسه. */
+let csSaved_ = null;        // آخر حصر محفوظ من الخادم
+let csItems_ = [];          // الحصر المعروض حاليًا (مع التعديلات)
+let csDirty_ = false;
+let vsUnvReady_ = false;
+
+/* اسم المركز بدون كلمة الفترة (الصباحية/المسائية) للمقارنة */
+function vsBase_(s) {
+  return vsNorm_(s).replace(/(^|\s)(ال)?(صباحيه|صباحي|مسائيه|مسائي)(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function csPeriodOf_(d) {
+  if (d.evening) return 'مسائية';
+  return d.period ? 'صباحية' : '';
+}
+
+function csKey_(center, period) {
+  return vsBase_(center) + '|' + (period || '');
+}
+
+function loadCsSaved_(force) {
+  if (csSaved_ && !force) return Promise.resolve(csSaved_);
+  return callApi('getCanteenSurvey').then(function (r) {
+    if (!r || !r.ok) throw new Error((r && r.error) || 'تعذّر تحميل حصر المقاصف');
+    csSaved_ = r.items || [];
+    return csSaved_;
+  });
+}
+
+/* يبني قائمة الحصر: كل مركز+فترة من أرقام المديرات، مع ما حُفظ سابقًا */
+function csBuildItems_(directors, saved) {
+  const savedMap = {};
+  (saved || []).forEach(function (it) { savedMap[csKey_(it.center, it.period)] = it; });
+  const out = [], seen = {};
+  (directors || []).forEach(function (d) {
+    const period = csPeriodOf_(d);
+    const k = csKey_(d.center, period);
+    if (seen[k]) return;
+    seen[k] = 1;
+    const sv = savedMap[k];
+    out.push({ center: d.center, period: period, has: sv ? sv.has : true, notes: sv ? (sv.notes || '') : '' });
+  });
+  // مراكز محفوظة سابقًا ولم تعد في ورقة المديرات: تبقى ظاهرة حتى لا يضيع ما سُجّل
+  (saved || []).forEach(function (it) {
+    const k = csKey_(it.center, it.period);
+    if (seen[k]) return;
+    seen[k] = 1;
+    out.push({ center: it.center, period: it.period || '', has: it.has, notes: it.notes || '' });
+  });
+  out.sort(function (a, b) { return a.center.localeCompare(b.center, 'ar') || a.period.localeCompare(b.period, 'ar'); });
+  return out;
+}
+
+/* ---------- المراكز التي لم تتم زيارتها ---------- */
+function vsLoadUnvisitedDeps_() {
+  const box = document.getElementById('vsUnvisited');
+  vsUnvReady_ = false;
+  box.innerHTML = 'جارِ التحميل...';
+  Promise.all([loadVrDirectors_(), loadCsSaved_(true).catch(function () { return []; })]).then(function (res) {
+    if (!vrDirectors_) { box.innerHTML = '<div style="color:#8a7d76;">تعذّر تحميل قائمة المديرات (تحتاج كلمة مرور الإدارة).</div>'; return; }
+    vsUnvReady_ = true;
+    renderUnvisited_();
+  });
+}
+
+function vsUnvisitedList_() {
+  const noCanteen = {};
+  (csSaved_ || []).forEach(function (it) { if (!it.has) noCanteen[csKey_(it.center, it.period)] = 1; });
+  const visited = {};
+  vsVisits_.forEach(function (v) {
+    const b = vsBase_(v.center);
+    visited[b + '|' + v.period] = 1;
+    visited[b + '|'] = 1;   // أي فترة (للمراكز التي لم تُحدَّد فترتها في ورقة المديرات)
+  });
+  return csBuildItems_(vrDirectors_, []).filter(function (it) {
+    if (noCanteen[csKey_(it.center, it.period)]) return false;
+    return !visited[csKey_(it.center, it.period)];
+  });
+}
+
+function renderUnvisited_() {
+  const box = document.getElementById('vsUnvisited');
+  if (!box || !vsUnvReady_) return;
+  const list = vsUnvisitedList_();
+  if (!vrDirectors_.length) { box.innerHTML = '<div style="color:#8a7d76;">ورقة «أرقام المديرات» فارغة.</div>'; return; }
+  if (!list.length) { box.innerHTML = '<div class="vs-unv-ok">✅ تمت زيارة جميع المراكز.</div>'; return; }
+  box.innerHTML = '<div class="vs-total">عدد المراكز التي لم تتم زيارتها: <b>' + vsAr_(list.length) + '</b></div>' +
+    list.map(function (it, i) {
+      return '<div class="vs-unv-row"><span>' + vsAr_(i + 1) + '. <b>' + vsEsc_(it.center) + '</b>' +
+        (it.period ? ' — ' + vsEsc_(it.period) : '') + '</span><span class="vs-unv-tag">لم تتم الزيارة</span></div>';
+    }).join('');
+}
+
+function exportUnvisited() {
+  if (!vsUnvReady_) { alert('القائمة لم تُحمَّل بعد'); return; }
+  const list = vsUnvisitedList_();
+  if (!list.length) { alert('لا توجد مراكز لم تتم زيارتها'); return; }
+  exportToExcel(list.map(function (it, i) {
+    return { 'م': i + 1, 'المركز': it.center, 'الفترة': it.period, 'الحالة': 'لم تتم الزيارة' };
+  }), 'المراكز-التي-لم-تتم-زيارتها', 'لم تتم زيارتها');
+}
+
+/* ---------- حصر المقاصف ---------- */
+function loadCanteenSurvey() {
+  const box = document.getElementById('csList');
+  if (csDirty_ && csItems_.length) { renderCanteenSurvey_(); return; }   // لا نمسح تعديلات لم تُحفظ
+  box.innerHTML = 'جارِ التحميل...';
+  document.getElementById('csSummary').textContent = '';
+  Promise.all([loadVrDirectors_(), loadCsSaved_(true)]).then(function (res) {
+    if (!vrDirectors_ && !(csSaved_ || []).length) {
+      box.innerHTML = '<div style="color:#8a7d76;">تعذّر تحميل قائمة المراكز (تحتاج كلمة مرور الإدارة).</div>';
+      return;
+    }
+    csItems_ = csBuildItems_(vrDirectors_ || [], csSaved_);
+    csSetDirty_(false);
+    renderCanteenSurvey_();
+  }).catch(function (e) {
+    box.innerHTML = '<div style="color:#8a7d76;">' + vsEsc_(e && e.message ? e.message : 'تعذّر الاتصال بالخادم.') + '</div>';
+  });
+}
+
+function csSetDirty_(v) {
+  csDirty_ = v;
+  document.getElementById('csDirty').classList.toggle('hidden', !v);
+}
+
+function renderCanteenSurvey_() {
+  const box = document.getElementById('csList');
+  const total = csItems_.length;
+  const none = csItems_.filter(function (it) { return !it.has; }).length;
+  document.getElementById('csSummary').innerHTML = total
+    ? 'إجمالي المراكز: <b>' + vsAr_(total) + '</b> · بها مقصف: <b>' + vsAr_(total - none) + '</b> · لا يوجد بها مقصف: <b>' + vsAr_(none) + '</b>'
+    : '';
+  if (!total) { box.innerHTML = '<div style="color:#8a7d76;">لا توجد مراكز في ورقة «أرقام المديرات».</div>'; return; }
+  const q = vsNorm_(document.getElementById('csSearch').value);
+  let h = '';
+  csItems_.forEach(function (it, i) {
+    if (q && vsNorm_(it.center).indexOf(q) === -1) return;
+    const showNote = !it.has || it._open || it.notes;
+    h += '<div class="cs-row' + (it.has ? '' : ' no') + '">' +
+      '<div class="cs-head">' +
+        '<button type="button" class="cs-tick" onclick="csToggle_(' + i + ')" title="' + (it.has ? 'يوجد مقصف — اضغطي للإزالة' : 'لا يوجد مقصف — اضغطي لإعادة العلامة') + '">✓</button>' +
+        '<span class="cs-name">' + vsEsc_(it.center) + (it.period ? '<small>(' + vsEsc_(it.period) + ')</small>' : '') + '</span>' +
+        '<button type="button" class="cs-note-btn' + (it.notes ? ' has' : '') + '" onclick="csToggleNote_(' + i + ')" title="ملاحظات">📝</button>' +
+      '</div>' +
+      (it.has ? '' : '<div class="cs-none">لا يوجد مقصف بها</div>') +
+      (showNote ? '<textarea id="csNote_' + i + '" placeholder="' + (it.has ? 'ملاحظات' : 'اكتبي السبب...') + '" oninput="csNote_(' + i + ', this.value)">' + vsEsc_(it.notes) + '</textarea>' : '') +
+    '</div>';
+  });
+  box.innerHTML = h || '<div style="color:#8a7d76;">لا يوجد مركز بهذا الاسم.</div>';
+}
+
+function csToggle_(i) {
+  const it = csItems_[i];
+  it.has = !it.has;
+  csSetDirty_(true);
+  renderCanteenSurvey_();
+  if (!it.has) { const t = document.getElementById('csNote_' + i); if (t && !t.value) t.focus(); }
+}
+
+function csToggleNote_(i) {
+  const it = csItems_[i];
+  it._open = !it._open;
+  renderCanteenSurvey_();
+  const t = document.getElementById('csNote_' + i);
+  if (t) t.focus();
+}
+
+function csNote_(i, v) {
+  csItems_[i].notes = v;
+  csSetDirty_(true);
+}
+
+function saveCanteenSurvey() {
+  if (!csItems_.length) { alert('لا توجد مراكز للحفظ'); return; }
+  const btn = document.getElementById('csSaveBtn');
+  const msg = document.getElementById('csSuccess');
+  msg.style.display = 'none';
+  setBtnBusy(btn, true);
+  callApi('saveCanteenSurvey', {
+    items: csItems_.map(function (it) { return { center: it.center, period: it.period, has: !!it.has, notes: String(it.notes || '').trim() }; })
+  }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) { alert('تعذّر الحفظ' + (r && r.error ? ': ' + r.error : '')); return; }
+    csSaved_ = csItems_.map(function (it) { return { center: it.center, period: it.period, has: !!it.has, notes: String(it.notes || '').trim() }; });
+    csSetDirty_(false);
+    msg.textContent = 'تم حفظ الحصر ✅';
+    msg.style.display = 'block';
+  }).catch(function () {
+    setBtnBusy(btn, false);
+    alert('تعذّر الاتصال بالخادم، حاولي مرة أخرى.');
+  });
+}
+
+function exportCanteenSurvey() {
+  if (!csItems_.length) { alert('لا توجد بيانات للتصدير'); return; }
+  exportToExcel(csItems_.map(function (it, i) {
+    return { 'م': i + 1, 'المركز': it.center, 'الفترة': it.period, 'يوجد مقصف': it.has ? 'نعم ✔' : 'لا يوجد مقصف بها', 'الملاحظات': it.notes || '' };
+  }), 'حصر-المقاصف', 'حصر المقاصف');
+}
+
+/* ==================== إحصائيات التسجيل ==================== */
+let rsData_ = null;
+
+const RS_ISSUES_ = {
+  salesNoInvoices: { label: 'مبالغ بدون فواتير', cls: 'warn' },
+  invoicesNoSales: { label: 'فواتير بدون مبالغ', cls: 'warn' },
+  nothing:         { label: 'لا يوجد أي تسجيل', cls: 'bad' }
+};
+
+function rsEsc_(s) {
+  return String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function rsAddDays_(ymd, n) {
+  const p = ymd.split('-');
+  const d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + n);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function onRsPeriodChange() {
+  const custom = document.getElementById('rsPeriod').value === 'custom';
+  document.getElementById('rsCustomRow').classList.toggle('hidden', !custom);
+  if (custom && !document.getElementById('rsTo').value) {
+    document.getElementById('rsTo').value = todayStr();
+    document.getElementById('rsFrom').value = rsAddDays_(todayStr(), -29);
+  }
+  if (!custom) loadRegStats();
+}
+
+function rsParams_() {
+  const v = document.getElementById('rsPeriod').value;
+  const today = todayStr();
+  if (v === 'term' || v === 'all') return { period: v };
+  if (v === 'month') return { period: 'range', from: today.slice(0, 8) + '01', to: today };
+  if (v === '30') return { period: 'range', from: rsAddDays_(today, -29), to: today };
+  const from = document.getElementById('rsFrom').value;
+  const to = document.getElementById('rsTo').value;
+  if (!from || !to) { alert('اختاري تاريخ البداية والنهاية'); return null; }
+  if (from > to) { alert('تاريخ البداية يجب أن يسبق تاريخ النهاية'); return null; }
+  return { period: 'range', from: from, to: to };
+}
+
+function rsPeriodLabel_() {
+  const sel = document.getElementById('rsPeriod');
+  let t = sel.options[sel.selectedIndex].text;
+  if (rsData_ && rsData_.from) t += ' (' + toHijriNumericStr(rsData_.from) + ' - ' + toHijriNumericStr(rsData_.to) + ')';
+  return t;
+}
+
+function loadRegStats(force) {
+  const params = rsParams_();
+  if (!params) return;
+  const btn = document.getElementById('rsRunBtn');
+  const out = document.getElementById('rsResult');
+  if (force && typeof _apiCache_ !== 'undefined') _apiCache_.clear();
+  setBtnBusy(btn, true, 'جارِ التحميل...');
+  if (!rsData_) out.innerHTML = '<div class="card">جارِ التحميل...</div>';
+  callApi('getRegistrationStats', params).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) {
+      out.innerHTML = '<div class="card">تعذّر تحميل الإحصائيات' + (r && r.error ? ': ' + rsEsc_(r.error) : '') +
+        '<br><span style="font-size:0.8rem;color:#8a7d76;">تأكدي أنك نشرتِ إصداراً جديداً من Apps Script بعد تحديث Code.gs.</span></div>';
+      return;
+    }
+    rsData_ = r;
+    renderRegStats_(r);
+  }).catch(function () {
+    setBtnBusy(btn, false);
+    out.innerHTML = '<div class="card">تعذّر الاتصال بالخادم، حاولي مرة أخرى.</div>';
+  });
+}
+
+function rsNum_(n) { return n ? String(n) : '<span class="rs-zero">0</span>'; }
+
+function renderRegStats_(r) {
+  const out = document.getElementById('rsResult');
+  if (!r.centers || !r.centers.length) { out.innerHTML = '<div class="card">لا توجد مراكز.</div>'; return; }
+  const t = r.totals;
+
+  // ---- الملخص ----
+  let html = '<div class="rs-kpis">' +
+    '<div class="rs-kpi"><div class="v">' + t.receive + '</div><div class="l">إشعار استلام</div></div>' +
+    '<div class="rs-kpi"><div class="v">' + t.reward + '</div><div class="l">إشعار تسليم المكافأة</div></div>' +
+    '<div class="rs-kpi"><div class="v">' + t.fee + '</div><div class="l">إشعار تسليم رسوم حفل تحفيظ الصغار</div></div>' +
+    '<div class="rs-kpi"><div class="v">' + t.invoices + '</div><div class="l">بيان الفواتير</div></div>' +
+    '</div>';
+  if (t.pending) html += '<div class="rs-note-line">⏳ إشعارات بانتظار الاطلاع: <b>' + t.pending + '</b></div>';
+
+  // ---- النواقص ----
+  const groups = { salesNoInvoices: [], invoicesNoSales: [], nothing: [] };
+  r.centers.forEach(function (m) { m.issues.forEach(function (k) { if (groups[k]) groups[k].push(m); }); });
+  const anyIssue = groups.salesNoInvoices.length || groups.invoicesNoSales.length || groups.nothing.length;
+  html += '<div class="card"><h3 style="margin-top:0;color:var(--maroon);font-size:1rem;">النواقص</h3>';
+  if (!anyIssue) {
+    html += '<div class="rs-ok">لا توجد نواقص في هذه الفترة 👏</div>';
+  } else {
+    Object.keys(groups).forEach(function (k) {
+      if (!groups[k].length) return;
+      html += '<div class="rs-group ' + RS_ISSUES_[k].cls + '"><div class="rs-group-title">' + RS_ISSUES_[k].label +
+        ' <span class="rs-count">' + groups[k].length + '</span></div><div class="rs-chips">' +
+        groups[k].map(function (m) {
+          let extra = '';
+          if (k === 'salesNoInvoices') extra = ' · ' + m.salesDays + ' يوم مبيعات';
+          if (k === 'invoicesNoSales') extra = ' · ' + m.invoices + ' فاتورة';
+          return '<span class="rs-chip">' + rsEsc_(m.center) + '<small>' + extra + '</small></span>';
+        }).join('') + '</div></div>';
+    });
+  }
+  html += '</div>';
+
+  // ---- الجدول ----
+  let rows = '';
+  r.centers.forEach(function (m, i) {
+    rows += '<tr id="rsRow_' + i + '">' +
+      '<td style="text-align:right;font-weight:700;">' + rsEsc_(m.center) + '</td>' +
+      '<td>' + rsNum_(m.receive) + '</td>' +
+      '<td>' + rsNum_(m.reward) + '</td>' +
+      '<td>' + rsNum_(m.fee) + '</td>' +
+      '<td>' + rsNum_(m.invoices) + '</td>' +
+      '<td>' + rsNum_(m.salesDays) + '</td>' +
+      '<td id="rsStatus_' + i + '">' + rsStatusHtml_(m) + '</td>' +
+      '<td><label class="rs-verify"><input type="checkbox"' + (m.verified ? ' checked' : '') +
+        ' onchange="toggleRegVerified(' + i + ', this)"><span></span></label></td>' +
+      '</tr>';
+  });
+  html += '<div class="card"><h3 style="margin-top:0;color:var(--maroon);font-size:1rem;">تفصيل المراكز</h3>' +
+    '<div class="rs-search-wrap"><input type="search" id="rsSearch" class="rs-search" placeholder="🔍 ابحثي باسم المركز أو الحالة..." value="' + rsEsc_(rsFilter_.q) + '" oninput="onRsSearch(this.value)"></div>' +
+    '<div class="rs-filters">' + RS_FILTERS_.map(function (f) {
+      return '<button type="button" class="rs-filter' + (rsFilter_.f === f.key ? ' active' : '') + '" data-f="' + f.key + '" onclick="setRsFilter(\'' + f.key + '\')">' +
+        f.label + ' <span class="rs-fcount" id="rsFc_' + f.key + '">0</span></button>';
+    }).join('') + '</div>' +
+    '<div class="rs-shown" id="rsShown"></div>' +
+    '<div class="rs-scroll"><table class="log-table rs-table"><thead><tr>' +
+      '<th>المركز</th><th>استلام</th><th>تسليم المكافأة</th><th>رسوم الحفل</th><th>الفواتير</th><th>أيام المبيعات</th><th>الحالة</th><th>اعتماد</th>' +
+    '</tr></thead><tbody>' + rows + '<tr id="rsNoMatch" class="hidden"><td colspan="8" style="color:#8a7d76;padding:18px;">لا توجد مراكز مطابقة للبحث</td></tr></tbody></table></div>' +
+    '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;line-height:1.8;">«أيام المبيعات» = عدد الأيام المسجّل فيها مبالغ بسجل البيع اليومي. «مبالغ بدون فواتير» = المركز سجّل مبيعات ولم يُدخل أي فاتورة في نفس الفترة، و«فواتير بدون مبالغ» العكس. «مكتمل جزئي» = ما فيه نقص ظاهر بالأرقام، ولا تصير «مكتمل» إلا بعد ما تحطين ✔ في خانة «اعتماد» (الاعتماد خاص بالفصل الحالي ويتفرّغ عند أرشفة الفصل).</p>' +
+    '<div class="export-row" style="margin-top:12px;">' +
+      '<button class="btn outline" onclick="exportRegStatsExcel()">⬇️ Excel</button>' +
+      '<button class="btn outline" onclick="printRegStats()">🖨️ طباعة</button>' +
+    '</div></div>';
+  out.innerHTML = html;
+  applyRsFilter_();
+}
+
+/* ---- البحث والتصفية في جدول المراكز ---- */
+let rsFilter_ = { q: '', f: 'all' };
+
+const RS_FILTERS_ = [
+  { key: 'all',        label: 'الكل',           test: function (m) { return true; } },
+  { key: 'missing',    label: 'فيه نقص',        test: function (m) { return !m.verified && m.issues.length > 0; } },
+  { key: 'nothing',    label: 'لم يسجّل شيئاً',  test: function (m) { return !m.verified && m.issues.indexOf('nothing') !== -1; } },
+  { key: 'partial',    label: 'مكتمل جزئي',     test: function (m) { return !m.verified && !m.issues.length; } },
+  { key: 'done',       label: 'مكتمل',          test: function (m) { return !!m.verified; } },
+  { key: 'unverified', label: 'غير معتمد',      test: function (m) { return !m.verified; } }
+];
+
+function rsNorm_(s) {
+  return String(s || '')
+    .replace(/[\u064B-\u0652\u0640]/g, '')
+    .replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي')
+    .replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function onRsSearch(v) {
+  rsFilter_.q = v;
+  applyRsFilter_();
+}
+
+function setRsFilter(key) {
+  rsFilter_.f = key;
+  document.querySelectorAll('#rsResult .rs-filter').forEach(function (b) {
+    b.classList.toggle('active', b.getAttribute('data-f') === key);
+  });
+  applyRsFilter_();
+}
+
+function applyRsFilter_() {
+  if (!rsData_ || !rsData_.centers) return;
+  const words = rsNorm_(rsFilter_.q).split(' ').filter(Boolean);
+  const active = RS_FILTERS_.filter(function (f) { return f.key === rsFilter_.f; })[0] || RS_FILTERS_[0];
+  const counts = {};
+  RS_FILTERS_.forEach(function (f) { counts[f.key] = 0; });
+  let shown = 0;
+  rsData_.centers.forEach(function (m, i) {
+    const hay = rsNorm_(m.center + ' ' + rsStatusText_(m) + (m.verified ? ' معتمد' : ' غير معتمد'));
+    const textOk = words.every(function (w) { return hay.indexOf(w) !== -1; });
+    if (textOk) RS_FILTERS_.forEach(function (f) { if (f.test(m)) counts[f.key]++; });
+    const show = textOk && active.test(m);
+    const tr = document.getElementById('rsRow_' + i);
+    if (tr) tr.style.display = show ? '' : 'none';
+    if (show) shown++;
+  });
+  RS_FILTERS_.forEach(function (f) {
+    const el = document.getElementById('rsFc_' + f.key);
+    if (el) el.textContent = counts[f.key];
+  });
+  const nm = document.getElementById('rsNoMatch');
+  if (nm) nm.classList.toggle('hidden', shown > 0);
+  const sh = document.getElementById('rsShown');
+  if (sh) sh.textContent = 'يظهر ' + shown + ' من ' + rsData_.centers.length + ' مركز';
+}
+
+/* الحالة: «مكتمل» فقط بعد اعتماد الإدارة (✔)، وبدون نقص ظاهر = «مكتمل جزئي» */
+function rsStatusText_(m) {
+  if (m.verified) return 'مكتمل';
+  if (m.issues.length) return m.issues.map(function (k) { return RS_ISSUES_[k].label; }).join(' ، ');
+  return 'مكتمل جزئي';
+}
+
+function rsStatusHtml_(m) {
+  if (m.verified) return '<span class="rs-pill ok">مكتمل</span>';
+  if (m.issues.length) return m.issues.map(function (k) { return '<span class="rs-pill ' + RS_ISSUES_[k].cls + '">' + RS_ISSUES_[k].label + '</span>'; }).join(' ');
+  return '<span class="rs-pill part">مكتمل جزئي</span>';
+}
+
+function toggleRegVerified(i, box) {
+  const m = rsData_ && rsData_.centers[i];
+  if (!m) return;
+  const want = box.checked;
+  box.disabled = true;
+  m.verified = want;
+  document.getElementById('rsStatus_' + i).innerHTML = rsStatusHtml_(m);
+  applyRsFilter_();
+  callApi('setRegistrationVerified', { center: m.center, verified: want }).then(function (r) {
+    box.disabled = false;
+    if (!r || !r.ok) throw new Error((r && r.error) || '');
+  }).catch(function (err) {
+    box.disabled = false;
+    m.verified = !want;
+    box.checked = !want;
+    document.getElementById('rsStatus_' + i).innerHTML = rsStatusHtml_(m);
+    applyRsFilter_();
+    alert('تعذّر حفظ الاعتماد' + (err && err.message ? ': ' + err.message : '') + '، حاولي مرة أخرى.');
+  });
+}
+
+function rsExportRows_() {
+  return rsData_.centers.map(function (m, i) {
+    return {
+      '#': i + 1,
+      'المركز': m.center,
+      'إشعار استلام': m.receive,
+      'إشعار تسليم المكافأة': m.reward,
+      'إشعار تسليم رسوم الحفل': m.fee,
+      'إجمالي الإشعارات': m.noticesTotal,
+      'بانتظار الاطلاع': m.pending,
+      'عدد الفواتير': m.invoices,
+      'رأس المال': m.capital,
+      'الربح': m.profit,
+      'أيام المبيعات': m.salesDays,
+      'إجمالي المبيعات': m.salesTotal,
+      'الحالة': rsStatusText_(m),
+      'اعتماد': m.verified ? '✔' : ''
+    };
+  });
+}
+
+function exportRegStatsExcel() {
+  if (!rsData_) return;
+  exportToExcel(rsExportRows_(), 'إحصائيات-التسجيل', 'إحصائيات التسجيل');
+}
+
+function printRegStats() {
+  if (!rsData_) return;
+  const rows = rsExportRows_();
+  const cols = ['المركز', 'إشعار استلام', 'إشعار تسليم المكافأة', 'إشعار تسليم رسوم الحفل', 'عدد الفواتير', 'أيام المبيعات', 'الحالة', 'اعتماد'];
+  const t = rsData_.totals;
+  const w = window.open('', '_blank');
+  if (!w) { alert('اسمحي بالنوافذ المنبثقة للطباعة'); return; }
+  w.document.write('<html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>إحصائيات التسجيل</title>' +
+    '<style>body{font-family:Tajawal,Arial,sans-serif;padding:20px;color:#222}h2{color:#6e1523;margin:0 0 4px}' +
+    '.sub{color:#777;font-size:13px;margin-bottom:12px}table{width:100%;border-collapse:collapse;font-size:12px}' +
+    'th,td{border:1px solid #c9b79c;padding:6px;text-align:center}th{background:#6e1523;color:#fff}td:first-child{text-align:right;font-weight:700}</style></head><body>' +
+    '<h2>إحصائيات التسجيل</h2><div class="sub">' + rsEsc_(rsPeriodLabel_()) +
+    ' — استلام: ' + t.receive + ' · تسليم المكافأة: ' + t.reward + ' · رسوم الحفل: ' + t.fee + ' · الفواتير: ' + t.invoices + '</div>' +
+    '<table><thead><tr>' + cols.map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    rows.map(function (r) { return '<tr>' + cols.map(function (c) { return '<td>' + rsEsc_(r[c]) + '</td>'; }).join('') + '</tr>'; }).join('') +
+    '</tbody></table><script>window.onload=function(){window.print();}<\/script></body></html>');
+  w.document.close();
+}
+
+</script>
+</body>
+</html>
