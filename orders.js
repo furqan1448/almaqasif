@@ -121,7 +121,7 @@
         '<p class="ord-sub">لكل صنف تحتاجينه: اضغطي على خانة الوحدة (علبة أو كيس أو كرتون) ثم اكتبي العدد. وإن لم تجدي الصنف في الجدول فأضيفيه من «أصناف أخرى».</p>' +
         '<div class="ord-meta"><span>المركز: <b id="ordCenter"></b></span><span>تاريخ الطلب: <b id="ordDate"></b></span></div>' +
         '<div class="ord-grid3">' +
-          '<div><label for="ordPeriod">الفترة <span class="ord-req">*</span></label><select id="ordPeriod" required></select></div>' +
+          '<div><label for="ordPeriod">الفترة <span class="ord-req">*</span></label><select id="ordPeriod" required autocomplete="off"></select></div>' +
           '<div><label for="ordTerm">الفصل الدراسي <span class="ord-req">*</span></label><select id="ordTerm" required></select></div>' +
           '<div><label for="ordYear">العام <span class="ord-req">*</span></label><select id="ordYear" required></select></div>' +
         '</div>' +
@@ -160,7 +160,8 @@
       '</div>';
 
     // قوائم الاختيار
-    fillSelect('ordPeriod', ['صباحي', 'مسائي'], 'اختاري الفترة');
+    fillSelect('ordPeriod', ['صباحي', 'مسائي'], 'اختاري');
+    $('ordPeriod').value = ''; // تبدأ دائماً بـ«اختاري» ولا تُعبّأ تلقائياً
     fillSelect('ordTerm', AR_TERMS, 'اختاري الفصل');
     fillYearSelect('ordYear');
 
