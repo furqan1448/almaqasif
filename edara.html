@@ -116,6 +116,11 @@
           <span class="label">الإشعارات</span>
           <div class="badge hidden" id="adminPendingBadge">0</div>
         </div>
+        <div class="icon-btn" onclick="showAdminTab('ordersAdminTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 4h2.2l2.1 10.5h10.4L20.5 7H7"/><circle cx="9.5" cy="19" r="1.3"/><circle cx="17" cy="19" r="1.3"/></svg></div>
+          <span class="label">طلبات المقاصف</span>
+          <div class="badge hidden" id="adminOrdersBadge">0</div>
+        </div>
         <div class="icon-btn" onclick="showAdminTab('returnsTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8 5 12l4 4"/><path d="M5 12h9a5 5 0 0 1 5 5v1"/></svg></div>
           <span class="label">المرتجعات</span>
@@ -355,6 +360,32 @@
           <button class="btn outline" onclick="printCurrentSales()">🖨️ PDF</button>
         </div>
       </div>
+    </div>
+
+    <!-- ===== تبويب: طلبات المقاصف ===== -->
+    <div id="ordersAdminTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">طلبات المقاصف</h3>
+        <div class="select-row">
+          <div>
+            <label for="ordersCenterSelect">المركز</label>
+            <select id="ordersCenterSelect" onchange="loadCanteenOrdersAdmin()"><option value="">جارٍ التحميل...</option></select>
+          </div>
+          <div>
+            <label for="ordersStatusFilter">الحالة</label>
+            <select id="ordersStatusFilter" onchange="loadCanteenOrdersAdmin()">
+              <option value="">كل الطلبات</option>
+              <option value="جديد">الجديدة فقط</option>
+              <option value="تم التنفيذ">المنفّذة</option>
+            </select>
+          </div>
+        </div>
+        <div class="export-row" style="margin-top:10px;">
+          <button class="btn outline" type="button" onclick="loadCanteenOrdersAdmin()">تحديث</button>
+          <button class="btn outline" type="button" onclick="exportCanteenOrdersAdmin()">⬇️ Excel</button>
+        </div>
+      </div>
+      <div id="ordersAdminList"></div>
     </div>
 
     <!-- ===== تبويب: المرتجعات ===== -->
@@ -1273,6 +1304,7 @@ function showDashboard() {
   document.getElementById('dashScreen').classList.remove('hidden');
   showAdminTab();
   loadPendingBadgeOnly();
+  loadOrdersBadge_();
   loadCentersDropdowns();
 }
 
@@ -1289,6 +1321,7 @@ function showAdminTab(tabId) {
   if (tabId === 'attendanceTab') loadAttendanceChecklist();
   if (tabId === 'salesTab') loadCenterSales();
   if (tabId === 'returnsTab') loadCenterReturns();
+  if (tabId === 'ordersAdminTab') loadCanteenOrdersAdmin();
   if (tabId === 'invoicesTab') { loadCenterInvoices(); loadPurchaseCentersAdmin(); loadExpenseCentersAdmin(); }
   if (tabId === 'attachmentsTab') loadAttachments();
   if (tabId === 'difficultiesTab') loadDifficultiesAdmin();
@@ -1599,6 +1632,7 @@ function loadCentersDropdowns() {
     centersListCache = r.centers || [];
     fillCenterSelect('salesCenterSelect');
     fillCenterSelect('returnsCenterSelect');
+    fillCenterSelect('ordersCenterSelect');
     fillCenterSelect('invoicesCenterSelect');
     fillCenterSelect('noticeCenterFilter');
   });
@@ -1628,6 +1662,157 @@ function fillCenterSelect(id) {
     opt.value = c; opt.textContent = c;
     sel.appendChild(opt);
   });
+}
+
+
+/* -------- طلبات المقاصف (تصل من أيقونة «طلبات المقاصف» بصفحات المراكز والمسؤولات) -------- */
+let canteenOrdersAdmin_ = [];
+
+function ordEsc_(t) {
+  return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+}
+
+function setOrdersBadge_(n) {
+  const b = document.getElementById('adminOrdersBadge');
+  if (!b) return;
+  if (n > 0) { b.textContent = n; b.classList.remove('hidden'); } else { b.classList.add('hidden'); }
+}
+
+function loadOrdersBadge_() {
+  callApi('getCanteenOrders', { countOnly: true }).then(function (r) { if (r && r.ok) setOrdersBadge_(r.newCount || 0); }).catch(function () {});
+}
+
+function orderDateStr_(o) {
+  return (o['اليوم'] || '') + ' ' + (o['التاريخ'] ? toHijriStr(o['التاريخ']) : '') + (o['الوقت'] ? ' — ' + o['الوقت'] : '');
+}
+
+function orderText_(o) {
+  const L = [];
+  L.push('طلبات بضاعة المقصف لمركز / ' + (o['اسم المركز'] || ''));
+  L.push('الفترة: ' + (o['الفترة'] || ''));
+  L.push('الفصل الدراسي: ' + (o['الفصل الدراسي'] || '') + ' — ' + (o['العام'] || ''));
+  L.push('تاريخ الطلب: ' + (o['اليوم'] || '') + ' ' + (o['التاريخ'] ? toHijriStr(o['التاريخ']) : ''));
+  if (o['مسؤولة المقصف']) L.push('مسؤولة المقصف: ' + o['مسؤولة المقصف']);
+  if (o['مديرة المركز']) L.push('مديرة المركز: ' + o['مديرة المركز']);
+  L.push('');
+  L.push('الأصناف (' + o.items.length + '):');
+  o.items.forEach(function (it, i) {
+    L.push((i + 1) + ') ' + it.name + (it.qty !== '' ? ' — ' + it.qty + ' ' + it.unit : '') + (it.other ? ' (صنف إضافي)' : ''));
+  });
+  if (o['ملاحظات']) { L.push(''); L.push('ملاحظات: ' + o['ملاحظات']); }
+  return L.join('\n');
+}
+
+function orderItemsTable_(o) {
+  return '<div class="ord-tbl-wrap" style="margin-top:10px;"><table class="ord-tbl">' +
+    '<colgroup><col style="width:34px"><col><col class="ord-c-u" style="width:70px"><col class="ord-c-u" style="width:60px"><col class="ord-c-q"></colgroup>' +
+    '<thead><tr><th>م</th><th>الصنف</th><th>علبة / كيس</th><th>كرتون</th><th>العدد</th></tr></thead><tbody>' +
+    o.items.map(function (it, i) {
+      const carton = it.unit === 'كرتون';
+      const tick = '<span class="ord-tick">✔</span>';
+      return '<tr><td style="text-align:center;color:#8a7d76;">' + (i + 1) + '</td>' +
+        '<td class="ord-name">' + ordEsc_(it.name) + (it.other ? ' <span style="color:#8a7d76;font-weight:400;font-size:0.78rem;">(صنف إضافي)</span>' : '') + '</td>' +
+        '<td style="text-align:center;">' + (!carton && it.unit ? tick + '<div style="font-size:0.72rem;color:#8a7d76;">' + ordEsc_(it.unit) + '</div>' : '') + '</td>' +
+        '<td style="text-align:center;">' + (carton ? tick : '') + '</td>' +
+        '<td style="text-align:center;font-weight:800;font-size:1.05rem;color:var(--maroon);">' + ordEsc_(it.qty) + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+function renderCanteenOrdersAdmin_() {
+  const box = document.getElementById('ordersAdminList');
+  if (!canteenOrdersAdmin_.length) { box.innerHTML = '<div class="card" style="text-align:center;color:#8a7d76;">لا توجد طلبات.</div>'; return; }
+  box.innerHTML = canteenOrdersAdmin_.map(function (o, idx) {
+    const isNew = o['الحالة'] !== 'تم التنفيذ';
+    const people = [o['مسؤولة المقصف'] ? 'مسؤولة المقصف: <b>' + ordEsc_(o['مسؤولة المقصف']) + '</b>' : '', o['مديرة المركز'] ? 'مديرة المركز: <b>' + ordEsc_(o['مديرة المركز']) + '</b>' : ''].filter(Boolean).join(' · ');
+    return '<details class="card ord-admin' + (isNew ? ' is-new' : '') + '"' + (idx === 0 && isNew ? ' open' : '') + '>' +
+      '<summary>' +
+        '<div class="ord-admin-head">' +
+          '<b class="ord-admin-center">' + ordEsc_(o['اسم المركز']) + '</b>' +
+          '<span class="ord-pill ' + (isNew ? 'new' : 'done') + '">' + (isNew ? 'جديد' : 'تم التنفيذ') + '</span>' +
+        '</div>' +
+        '<div class="ord-admin-meta">' + ordEsc_(o['الفترة']) + ' · ' + ordEsc_(o['الفصل الدراسي']) + ' ' + ordEsc_(o['العام']) + ' · ' + ordEsc_(orderDateStr_(o)) + ' · <b>' + o.items.length + '</b> صنف</div>' +
+      '</summary>' +
+      (people ? '<div class="ord-admin-meta" style="margin-top:8px;">' + people + '</div>' : '') +
+      orderItemsTable_(o) +
+      (o['ملاحظات'] ? '<div class="ord-admin-notes"><b>ملاحظات: </b>' + ordEsc_(o['ملاحظات']) + '</div>' : '') +
+      '<div class="export-row" style="margin-top:12px;">' +
+        '<button type="button" class="btn outline" onclick="copyCanteenOrder_(' + idx + ', this)">نسخ نص الطلب</button>' +
+        '<button type="button" class="btn outline" onclick="printCanteenOrder_(' + idx + ')">🖨️ طباعة</button>' +
+        '<button type="button" class="btn' + (isNew ? '' : ' outline') + '" onclick="toggleCanteenOrderStatus_(' + idx + ', this)">' + (isNew ? '✔ تم التنفيذ' : 'إرجاعه إلى جديد') + '</button>' +
+      '</div>' +
+    '</details>';
+  }).join('');
+}
+
+function loadCanteenOrdersAdmin() {
+  // الطلبات لازم تظهر محدّثة دائماً: نمسح نسخها المحفوظة مؤقتاً بالمتصفح قبل الجلب
+  try { _apiCache_.forEach(function (v, k) { if (String(k).indexOf('getCanteenOrders') !== -1) _apiCache_.delete(k); }); } catch (e) {}
+  const box = document.getElementById('ordersAdminList');
+  box.innerHTML = '<div class="card" style="text-align:center;color:#8a7d76;">جارٍ التحميل...</div>';
+  callApi('getCanteenOrders', {
+    center: document.getElementById('ordersCenterSelect').value,
+    status: document.getElementById('ordersStatusFilter').value
+  }).then(function (r) {
+    if (!r || !r.ok) { box.innerHTML = '<div class="card" style="color:#b3261e;">' + ordEsc_((r && r.error) || 'تعذّر تحميل الطلبات') + '</div>'; return; }
+    canteenOrdersAdmin_ = r.orders || [];
+    setOrdersBadge_(r.newCount || 0);
+    renderCanteenOrdersAdmin_();
+  }).catch(function () { box.innerHTML = '<div class="card" style="color:#b3261e;">تعذّر الاتصال بالخادم، حاولي مرة أخرى.</div>'; });
+}
+
+function copyCanteenOrder_(idx, btn) {
+  const text = orderText_(canteenOrdersAdmin_[idx]);
+  const done = function () { const t = btn.textContent; btn.textContent = 'تم النسخ ✔'; setTimeout(function () { btn.textContent = t; }, 1800); };
+  const fallback = function () {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) { alert('تعذّر النسخ'); }
+    ta.remove();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+  else fallback();
+}
+
+function toggleCanteenOrderStatus_(idx, btn) {
+  const o = canteenOrdersAdmin_[idx];
+  const next = o['الحالة'] === 'تم التنفيذ' ? 'جديد' : 'تم التنفيذ';
+  setBtnBusy(btn, true, '...');
+  callApi('setCanteenOrderStatus', { id: o['معرف'], status: next }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) { alert((r && r.error) || 'تعذّر الحفظ'); return; }
+    loadCanteenOrdersAdmin();
+  }).catch(function () { setBtnBusy(btn, false); alert('تعذّر الاتصال بالخادم'); });
+}
+
+function printCanteenOrder_(idx) {
+  const o = canteenOrdersAdmin_[idx];
+  const rows = o.items.map(function (it, i) {
+    return { n: i + 1, name: it.name + (it.other ? ' (صنف إضافي)' : ''), box: it.unit && it.unit !== 'كرتون' ? '✔ ' + it.unit : '', carton: it.unit === 'كرتون' ? '✔' : '', qty: it.qty };
+  });
+  const sub = (o['اسم المركز'] || '') + ' — ' + (o['الفترة'] || '') + ' — الفصل ' + (o['الفصل الدراسي'] || '') + ' ' + (o['العام'] || '') +
+    ' — ' + orderDateStr_(o) +
+    (o['مسؤولة المقصف'] ? ' — مسؤولة المقصف: ' + o['مسؤولة المقصف'] : '') + (o['مديرة المركز'] ? ' — مديرة المركز: ' + o['مديرة المركز'] : '') +
+    (o['ملاحظات'] ? ' — ملاحظات: ' + o['ملاحظات'] : '');
+  printReport('طلبات بضاعة المقصف', sub, [
+    { key: 'n', label: 'م' }, { key: 'name', label: 'الصنف' }, { key: 'box', label: 'علبة / كيس' }, { key: 'carton', label: 'كرتون' }, { key: 'qty', label: 'العدد' }
+  ], rows);
+}
+
+function exportCanteenOrdersAdmin() {
+  if (!canteenOrdersAdmin_.length) { alert('لا توجد طلبات لتصديرها'); return; }
+  const rows = [];
+  canteenOrdersAdmin_.forEach(function (o) {
+    o.items.forEach(function (it) {
+      rows.push({
+        'المركز': o['اسم المركز'] || '', 'الفترة': o['الفترة'] || '', 'الفصل': (o['الفصل الدراسي'] || '') + ' ' + (o['العام'] || ''),
+        'اليوم': o['اليوم'] || '', 'التاريخ': o['التاريخ'] ? toHijriStr(o['التاريخ']) : '', 'الصنف': it.name + (it.other ? ' (صنف إضافي)' : ''),
+        'الوحدة': it.unit, 'العدد': it.qty, 'الحالة': o['الحالة'] || '', 'ملاحظات': o['ملاحظات'] || ''
+      });
+    });
+  });
+  const center = document.getElementById('ordersCenterSelect').value;
+  exportToExcel(rows, 'طلبات-المقاصف-' + (center || 'كل-المراكز'), 'الطلبات');
 }
 
 /* -------- الإشعارات (تعرض جميع إشعارات الاستلام والتسليم) -------- */

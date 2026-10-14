@@ -21,7 +21,7 @@ const ADMIN_NOTIFY_EMAIL = 'fainal.almqasif@gmail.com';
 const ORDERS_NOTIFY_EMAIL = 'almuqasif1212@gmail.com';
 const ORDERS_SHEET_NAME_ = 'طلبات المقاصف';
 const ORDERS_HEADERS_ = ['معرف', 'اسم المركز', 'الفترة', 'الفصل الدراسي', 'العام', 'مسؤولة المقصف', 'مديرة المركز',
-  'عدد الأصناف', 'تفاصيل الطلب', 'ملاحظات', 'سجّل بواسطة', 'اليوم', 'التاريخ', 'الوقت'];
+  'عدد الأصناف', 'تفاصيل الطلب', 'ملاحظات', 'سجّل بواسطة', 'اليوم', 'التاريخ', 'الوقت', 'الحالة'];
 
 // الأعمدة اللي المفروض دايماً تُحفظ وتُقرأ كنص خام (وليست تاريخ/وقت تلقائي من قوقل شيتس)
 // عشان نتفادى مشكلة "الأصفار الزايدة" (مثل 1899-12-30 أو 00:00:00.000Z) اللي تصير
@@ -1363,6 +1363,8 @@ function handleRequest_(p) {
       case 'getNoticeAdminSignature': return json_(getNoticeAdminSignature_(p));
       case 'getNoticeCenterSignature': return json_(getNoticeCenterSignature_(p));
       case 'submitCanteenOrder': return json_(submitCanteenOrder_(p));
+      case 'getCanteenOrders': return json_(getCanteenOrders_(p));
+      case 'setCanteenOrderStatus': return json_(setCanteenOrderStatus_(p));
       case 'updateNotice': return json_(updateNotice_(p));
       case 'deleteNotice': return json_(deleteNotice_(p));
       case 'exportNoticesToSheet': return json_(exportNoticesToSheet_(p));
@@ -1406,7 +1408,7 @@ function handleRequest_(p) {
       case 'getPriceListManager': return json_(getPriceListManager_());
       case 'setPriceListManager': return json_(setPriceListManager_(p));
 
-      case 'ping': return json_({ ok: true, serverMs: Date.now() - T0_, version: '2026-10-14-orders-table', invoiceReturns: typeof cleanInvoiceReturn_ === 'function', canteenOrders: typeof submitCanteenOrder_ === 'function', lightNotices: typeof getNoticeCenterSignature_ === 'function' });
+      case 'ping': return json_({ ok: true, serverMs: Date.now() - T0_, version: '2026-10-14-orders-pdf', invoiceReturns: typeof cleanInvoiceReturn_ === 'function', canteenOrders: typeof submitCanteenOrder_ === 'function', lightNotices: typeof getNoticeCenterSignature_ === 'function' });
       case 'getPurchaseCenters': return json_(getPurchaseCenters_());
       case 'setPurchaseCenters': return json_(setPurchaseCenters_(p));
       case 'getExpenseCenters': return json_(getExpenseCenters_());
@@ -3528,6 +3530,73 @@ function submitCanteenOrder_(p) {
   return { ok: true, id: id, count: items.length, emailSent: emailSent };
 }
 
+/* ---- عرض الطلبات في موقع الإدارة ----
+   تُقرأ مباشرة من الشيت (بدون كاش) لأنه صغير ولازم يظهر الطلب الجديد فوراً.
+   «الحالة» فارغة = جديد. عمود «الحالة» يُضاف تلقائياً للشيتات القديمة عند أول تغيير. */
+const ORDER_STATUSES_ = ['جديد', 'تم التنفيذ'];
+
+function parseOrderDetails_(details) {
+  return String(details || '').split(/\n+/).map(function (line) {
+    line = line.trim();
+    if (!line) return null;
+    let other = false;
+    if (line.indexOf('(صنف آخر)') === 0) { other = true; line = line.replace('(صنف آخر)', '').trim(); }
+    const m = line.match(/^(.*?)\s+—\s+(\d+)\s+(\S+)$/);
+    if (!m) return { name: line, qty: '', unit: '', other: other };
+    return { name: m[1], qty: Number(m[2]), unit: m[3], other: other };
+  }).filter(Boolean);
+}
+
+function getCanteenOrders_(p) {
+  const sh = sheet_(ORDERS_SHEET_NAME_);
+  if (!sh || sh.getLastRow() < 2) return { ok: true, orders: [], newCount: 0 };
+  const vals = sh.getDataRange().getDisplayValues();
+  const h = vals[0].map(function (x) { return String(x).trim(); });
+  const center = String(p.center || '').trim();
+  const status = String(p.status || '').trim();
+  let newCount = 0;
+  let orders = [];
+  for (let i = 1; i < vals.length; i++) {
+    const o = {};
+    h.forEach(function (k, j) { if (k) o[k] = vals[i][j]; });
+    if (!o['معرف'] && !o['اسم المركز']) continue;
+    const st = String(o['الحالة'] || '').trim() || 'جديد';
+    o['الحالة'] = st;
+    if (st === 'جديد') newCount++;
+    if (center && String(o['اسم المركز']).trim() !== center) continue;
+    if (status && st !== status) continue;
+    o.items = parseOrderDetails_(o['تفاصيل الطلب']);
+    orders.push(o);
+  }
+  orders.reverse(); // الأحدث أولاً
+  if (p.countOnly) return { ok: true, newCount: newCount };
+  return { ok: true, orders: orders.slice(0, 400), total: orders.length, newCount: newCount };
+}
+
+function setCanteenOrderStatus_(p) {
+  const id = String(p.id || '').trim();
+  const status = String(p.status || '').trim();
+  if (!id) return { ok: false, error: 'معرف الطلب مطلوب' };
+  if (ORDER_STATUSES_.indexOf(status) === -1) return { ok: false, error: 'حالة غير صحيحة' };
+  const sh = sheet_(ORDERS_SHEET_NAME_);
+  if (!sh) return { ok: false, error: 'شيت الطلبات غير موجود' };
+  let col = colIndex_(sh, 'الحالة');
+  if (col === -1) {
+    col = sh.getLastColumn() + 1;
+    sh.getRange(1, col).setValue('الحالة').setFontWeight('bold');
+    _headerRowCache_ = {};
+  }
+  const idCol = colIndex_(sh, 'معرف');
+  const ids = sh.getRange(2, idCol, Math.max(sh.getLastRow() - 1, 1), 1).getValues();
+  for (let i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]).trim() === id) {
+      sh.getRange(i + 2, col).setValue(status === 'جديد' ? '' : status);
+      return { ok: true };
+    }
+  }
+  return { ok: false, error: 'لم يُعثر على الطلب' };
+}
+
 /* بريد الطلب: جدول مرتّب بنفس ترتيب النموذج الورقي (للعرض والتصوير) + «نص الطلب» عادي جاهز للنسخ
    واللصق (واتساب أو غيره). الرسالة كلها نص حقيقي وليست صورة، فيمكن تحديد أي جزء منها ونسخه. */
 function canteenOrderText_(o, center) {
@@ -3545,6 +3614,43 @@ function canteenOrderText_(o, center) {
   });
   if (o.notes) { L.push(''); L.push('ملاحظات: ' + o.notes); }
   return L.join('\n');
+}
+
+/* ملف PDF للطلب (يُرفق بالبريد): يُبنى من HTML بسيط ويحوّله Apps Script إلى PDF بدون أي صلاحيات إضافية.
+   تنسيق بسيط بالجداول فقط لأن محوّل قوقل يدعم جزءاً محدوداً من CSS. */
+function canteenOrderPdf_(o, center) {
+  const e = htmlEsc_;
+  const B = 'border:1px solid #9a9a9a;';
+  const rows = o.items.map(function (it, i) {
+    const carton = it.unit === 'كرتون';
+    return '<tr>' +
+      '<td style="' + B + 'text-align:center;padding:5px;">' + (i + 1) + '</td>' +
+      '<td style="' + B + 'padding:5px 8px;font-weight:bold;">' + e(it.name) + (it.other ? ' <span style="font-weight:normal;color:#666;font-size:10pt;">(صنف إضافي)</span>' : '') + '</td>' +
+      '<td style="' + B + 'text-align:center;padding:5px;">' + (carton ? '' : '✔ ' + e(it.unit)) + '</td>' +
+      '<td style="' + B + 'text-align:center;padding:5px;">' + (carton ? '✔' : '') + '</td>' +
+      '<td style="' + B + 'text-align:center;padding:5px;font-weight:bold;font-size:13pt;">' + it.qty + '</td></tr>';
+  }).join('');
+  const info = function (k, v) {
+    return '<td style="padding:3px 0;color:#555;width:16%;">' + k + '</td><td style="padding:3px 0;font-weight:bold;width:34%;">' + e(v || '—') + '</td>';
+  };
+  const th = function (t, w) { return '<th style="' + B + 'background:#6e1523;color:#ffffff;padding:6px;' + (w ? 'width:' + w + ';' : '') + '">' + t + '</th>'; };
+  const html = '<html dir="rtl"><head><meta charset="UTF-8"></head>' +
+    '<body dir="rtl" style="font-family:Arial,Tahoma,sans-serif;font-size:12pt;color:#222;direction:rtl;text-align:right;">' +
+    '<div style="background:#6e1523;color:#ffffff;padding:10px 14px;text-align:center;">' +
+      '<div style="font-size:11pt;">جمعية فرقان لتحفيظ القرآن الكريم بمحافظة الطائف — القسم النسائي — وحدة المقاصف</div>' +
+      '<div style="font-size:16pt;font-weight:bold;margin-top:4px;">طلبات بضاعة المقصف لمركز / ' + e(center) + '</div></div>' +
+    '<table dir="rtl" style="width:100%;margin:12px 0;font-size:11.5pt;border-collapse:collapse;">' +
+      '<tr>' + info('الفترة', o.period) + info('الفصل الدراسي', o.term + ' — ' + o.year) + '</tr>' +
+      '<tr>' + info('تاريخ الطلب', o.now.day + ' ' + o.now.date + ' — ' + o.now.time) + info('عدد الأصناف', String(o.items.length)) + '</tr>' +
+      '<tr>' + info('مسؤولة المقصف', o.masoulaName) + info('مديرة المركز', o.managerName) + '</tr>' +
+    '</table>' +
+    '<table dir="rtl" style="width:100%;border-collapse:collapse;font-size:11.5pt;">' +
+      '<tr>' + th('م', '6%') + th('الصنف') + th('علبة / كيس', '15%') + th('كرتون', '11%') + th('العدد', '11%') + '</tr>' +
+      rows + '</table>' +
+    (o.notes ? '<p style="margin-top:12px;"><b style="color:#6e1523;">ملاحظات: </b>' + e(o.notes) + '</p>' : '') +
+    '</body></html>';
+  const name = ('طلب مقصف - ' + center + ' - ' + o.now.date + '.pdf').replace(/[\\/:*?"<>|]+/g, '-');
+  return Utilities.newBlob(html, MimeType.HTML, 'order.html').getAs(MimeType.PDF).setName(name);
 }
 
 function notifyCanteenOrder_(o) {
@@ -3592,6 +3698,7 @@ function notifyCanteenOrder_(o) {
       '</table>' +
       table +
       (o.notes ? '<div style="margin-top:12px;background:#ffffff;border:1px solid #e2e2e2;border-radius:8px;padding:10px;white-space:pre-wrap;"><b style="color:#6e1523;">ملاحظات: </b>' + htmlEsc_(o.notes) + '</div>' : '') +
+      '<div style="margin-top:14px;font-size:13px;color:#6f6467;">📎 الطلب مرفق أيضًا بملف PDF أسفل الرسالة.</div>' +
       '<div style="margin-top:22px;color:#6e1523;font-weight:bold;font-size:15px;">نص الطلب (للنسخ)</div>' +
       '<div style="font-size:12px;color:#6f6467;margin:2px 0 6px;">اضغطي مطوّلًا على النص التالي ثم «تحديد الكل» و«نسخ»، والصقيه حيث تريدين.</div>' +
       '<div style="background:#ffffff;border:1px dashed #d6d6d6;border-radius:8px;padding:12px;font-size:14px;line-height:1.9;">' +
@@ -3599,7 +3706,10 @@ function notifyCanteenOrder_(o) {
       '<p style="color:#6f6467;font-size:12px;margin-top:18px;">الطلب محفوظ أيضًا في شيت «' + ORDERS_SHEET_NAME_ + '». — نظام وحدة المقاصف</p>' +
       '</div></div>';
 
-    MailApp.sendEmail({ to: ORDERS_NOTIFY_EMAIL, subject: subject, body: text, htmlBody: html, name: 'نظام وحدة المقاصف' });
+    const mail = { to: ORDERS_NOTIFY_EMAIL, subject: subject, body: text, htmlBody: html, name: 'نظام وحدة المقاصف' };
+    // ملف PDF مرفق؛ لو تعذّر إنشاؤه لأي سبب يُرسل البريد بدونه (ما نخسر الإشعار)
+    try { mail.attachments = [canteenOrderPdf_(o, center)]; } catch (pdfErr) { Logger.log('تعذّر إنشاء PDF الطلب: ' + pdfErr); }
+    MailApp.sendEmail(mail);
     return true;
   } catch (e) {
     Logger.log('تعذّر إرسال بريد طلب المقصف: ' + e);

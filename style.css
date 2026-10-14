@@ -701,3 +701,21 @@ button.btn.ord-send { width: auto; margin: 0; padding: 12px 22px; display: inlin
 /* شاشة الطلبات: حقول بيضاء بدل اللون الكريمي */
 #ordersView select, #ordersView input[type=text], #ordersView textarea { background-color: #ffffff; border-color: #d6d6d6; }
 #ordersView .ord-card { background: #ffffff; }
+
+/* -------- طلبات المقاصف في موقع الإدارة -------- */
+.ord-admin { padding: 14px 16px; background: #ffffff; border-right: 5px solid #d6d6d6; }
+.ord-admin.is-new { border-right-color: var(--maroon); }
+.ord-admin > summary { cursor: pointer; list-style: none; }
+.ord-admin > summary::-webkit-details-marker { display: none; }
+.ord-admin-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ord-admin-center { color: var(--maroon); font-size: 1.05rem; }
+.ord-admin-meta { color: #6f6467; font-size: 0.85rem; margin-top: 4px; line-height: 1.8; }
+.ord-pill { flex: none; font-size: 0.75rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; }
+.ord-pill.new { background: var(--maroon); color: #fff; }
+.ord-pill.done { background: #eef6ee; color: #2e7d32; border: 1px solid #cfe5cf; }
+.ord-tick { color: var(--maroon); font-weight: 800; }
+.ord-admin-notes { margin-top: 10px; border: 1px solid #e2e2e2; border-radius: 8px; padding: 8px 10px; background: #fff; white-space: pre-wrap; }
+.ord-admin-notes b { color: var(--maroon); }
+.ord-admin .ord-tbl td { height: auto; padding: 7px 6px; }
+#ordersAdminTab select, #ordersAdminTab .card { background-color: #ffffff; }
+#ordersAdminTab select { border-color: #d6d6d6; }
