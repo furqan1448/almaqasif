@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbxknLvVIGXjuCOJlAZ7d0s-X5_6jMGDtkaMCj5OHdcl93E9W2-EmR52KUeo4H41cRQ0/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxz8t2Rc-tKuF15486bUVcyH-P_51C32I7HMxkuTzo1-uXAMI1nLsHSm-uJk-Gkt4i-/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -988,6 +988,126 @@ async function shareVisitReportPdf(opts) {
   } catch (e) {
     if (e && e.name === 'AbortError') return; // ألغت المستخدمة نافذة المشاركة، ما فيه خطأ فعلي
     alert('صار خطأ أثناء تجهيز التقرير للمشاركة، حاولي مرة أخرى');
+  }
+}
+
+/* -------- طلبات المقاصف: ملف PDF بالكليشة الحمراء (حفظ / مشاركة / طباعة) --------
+   نفس طريقة تقارير الزيارة: الصفحة تُرسم بمحرك المتصفح ثم تتحوّل PDF، فيطلع العربي والكليشة صحيحين بالجوال.
+   o: طلب كما يرجع من getCanteenOrders (حقول عربية + items) */
+const CO_DOC_CSS_ =
+  '.co-doc{width:794px;background:#fff;color:#2b2321;font-family:"Tajawal",sans-serif;direction:rtl;}' +
+  '.co-doc *{letter-spacing:normal !important;box-sizing:border-box;}' +
+  '.co-lh{width:100%;height:auto;display:block;margin:0;border:0;}' +
+  '.co-body{padding:14px 30px 26px;}' +
+  '.co-title{font-family:"Amiri",serif;color:#8C1A2C;text-align:center;font-size:24px;margin:4px 0 12px;}' +
+  '.co-info{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:12px;}' +
+  '.co-info td{padding:4px 2px;vertical-align:top;}' +
+  '.co-info .k{color:#6f6467;width:15%;white-space:nowrap;}' +
+  '.co-info .v{font-weight:800;width:35%;}' +
+  '.co-tbl{width:100%;border-collapse:collapse;font-size:14px;}' +
+  '.co-tbl th{background:#8C1A2C;color:#fff;font-weight:800;padding:7px 6px;border:1px solid #8C1A2C;}' +
+  '.co-tbl td{border:1px solid #9a9a9a;padding:6px;text-align:center;}' +
+  '.co-tbl td.n{text-align:right;font-weight:800;padding-right:10px;}' +
+  '.co-tbl td.q{font-weight:800;font-size:16px;color:#8C1A2C;}' +
+  '.co-tbl small{color:#6f6467;font-weight:400;}' +
+  '.co-notes{margin-top:12px;font-size:14px;}' +
+  '.co-notes b{color:#8C1A2C;}';
+
+function coEsc_(t) {
+  return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+}
+
+function canteenOrderDocHtml_(o) {
+  const lh = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
+  const date = (o['اليوم'] || '') + ' ' + (o['التاريخ'] ? toHijriStr(o['التاريخ']) : '');
+  const kv = function (k, v) { return '<td class="k">' + k + '</td><td class="v">' + coEsc_(v || '—') + '</td>'; };
+  let h = '<div class="co-doc">';
+  if (lh) h += '<img class="co-lh" src="' + lh + '" width="1600" height="281" alt="كليشة جمعية فرقان">';
+  h += '<div class="co-body"><h1 class="co-title">طلبات بضاعة المقصف لمركز / ' + coEsc_(o['اسم المركز']) + '</h1>';
+  h += '<table class="co-info"><tr>' + kv('الفترة', o['الفترة']) + kv('الفصل الدراسي', (o['الفصل الدراسي'] || '') + ' — ' + (o['العام'] || '')) + '</tr>' +
+    '<tr>' + kv('تاريخ الطلب', date) + kv('عدد الأصناف', toArabicDigits(o.items.length)) + '</tr>' +
+    '<tr>' + kv('مسؤولة المقصف', o['مسؤولة المقصف']) + kv('مديرة المركز', o['مديرة المركز']) + '</tr></table>';
+  h += '<table class="co-tbl"><thead><tr><th style="width:7%">م</th><th>الصنف</th><th style="width:16%">علبة / كيس</th><th style="width:12%">كرتون</th><th style="width:12%">العدد</th></tr></thead><tbody>';
+  o.items.forEach(function (it, i) {
+    const carton = it.unit === 'كرتون';
+    h += '<tr><td>' + toArabicDigits(i + 1) + '</td><td class="n">' + coEsc_(it.name) + (it.other ? ' <small>(صنف إضافي)</small>' : '') + '</td>' +
+      '<td>' + (!carton && it.unit ? '✔ ' + coEsc_(it.unit) : '') + '</td><td>' + (carton ? '✔' : '') + '</td>' +
+      '<td class="q">' + (it.qty === '' ? '' : toArabicDigits(it.qty)) + '</td></tr>';
+  });
+  h += '</tbody></table>';
+  if (o['ملاحظات']) h += '<div class="co-notes"><b>ملاحظات: </b>' + coEsc_(o['ملاحظات']) + '</div>';
+  h += '</div></div>';
+  return h;
+}
+
+function canteenOrderFileName_(o) {
+  return ('طلب مقصف - ' + (o['اسم المركز'] || '') + ' - ' + (o['التاريخ'] || '') + '.pdf').replace(/[\\/:*?"<>|]+/g, '-');
+}
+
+async function canteenOrderPdfBlob_(o) {
+  window.PDF_LIBS_ENABLED = true;
+  if (typeof html2pdf === 'undefined') { try { await ensurePdfLibs_(); } catch (e) {} }
+  if (typeof html2pdf === 'undefined') throw new Error('nolib');
+  const fileName = canteenOrderFileName_(o);
+  const pdfOpts = {
+    margin: 0, filename: fileName, image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 794 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'] }
+  };
+  const tmp = document.createElement('div');
+  tmp.style.cssText = 'position:fixed;left:-20000px;top:0;width:794px;background:#fff;pointer-events:none;direction:rtl;';
+  tmp.innerHTML = '<style>' + CO_DOC_CSS_ + '</style>' + canteenOrderDocHtml_(o);
+  document.body.appendChild(tmp);
+  try {
+    const el = tmp.querySelector('.co-doc');
+    await Promise.all(Array.from(tmp.querySelectorAll('img')).map(function (im) {
+      return im.complete ? Promise.resolve() : new Promise(function (res) { im.onload = im.onerror = res; });
+    }));
+    if (typeof htmlToImage !== 'undefined') {
+      try {
+        const imgOpts = { pixelRatio: 2, backgroundColor: '#ffffff', width: 794, style: { width: '794px', margin: '0' },
+          imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' };
+        const fontCss = await vrFontEmbedCss_();
+        if (fontCss) imgOpts.fontEmbedCSS = fontCss;
+        const canvas = await htmlToImage.toCanvas(el, imgOpts);
+        return await html2pdf().set(pdfOpts).from(canvas, 'canvas').outputPdf('blob');
+      } catch (e) { console.warn('html-to-image failed, falling back to html2canvas', e); }
+    }
+    return await html2pdf().set(pdfOpts).from(el).outputPdf('blob');
+  } finally {
+    tmp.remove();
+  }
+}
+
+/* mode: 'save' حفظ بالجهاز، 'share' مشاركة (واتساب وغيره)، 'print' فتح للطباعة */
+async function canteenOrderPdf(o, mode, btn) {
+  let win = null;
+  if (mode === 'print') {
+    win = window.open('', '_blank');
+    if (!win) { alert('يرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع لكي تتمكّني من الطباعة'); return; }
+    try { win.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>جارٍ التجهيز</title></head><body style="font-family:sans-serif;text-align:center;padding-top:80px;">جارٍ تجهيز الطلب للطباعة...</body></html>'); } catch (e) {}
+  }
+  if (btn && typeof setBtnBusy === 'function') setBtnBusy(btn, true, 'جارٍ التجهيز...');
+  try {
+    const blob = await canteenOrderPdfBlob_(o);
+    const fileName = canteenOrderFileName_(o);
+    if (mode === 'print') { win.location.href = URL.createObjectURL(blob); return; }
+    if (mode === 'share') {
+      const file = new File([blob], fileName, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: 'طلب مقصف', text: 'طلب مقصف - ' + (o['اسم المركز'] || '') }); }
+        catch (e) { if (!e || e.name !== 'AbortError') throw e; }
+        return;
+      }
+      alert('جهازك لا يدعم المشاركة المباشرة من المتصفح، سيُحفظ الملف بدلًا من ذلك ثم أرفقيه يدويًا.');
+    }
+    vrDownloadBlob_(blob, fileName);
+  } catch (e) {
+    if (win) { try { win.close(); } catch (e2) {} }
+    alert(e && e.message === 'nolib' ? 'تعذّر تحميل أداة إنشاء PDF، تأكدي من الاتصال بالإنترنت وحاولي مرة أخرى.' : 'حدث خطأ أثناء إنشاء ملف PDF، حاولي مرة أخرى.');
+  } finally {
+    if (btn && typeof setBtnBusy === 'function') setBtnBusy(btn, false);
   }
 }
 

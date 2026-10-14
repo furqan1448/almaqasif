@@ -425,9 +425,16 @@
         (who ? '<div class="ord-hist-meta" style="margin:6px 0 8px;">' + who + '</div>' : '') +
         histItemsTable(o) +
         (o['ملاحظات'] ? '<div class="ord-hist-notes"><b>ملاحظات: </b>' + esc(o['ملاحظات']) + '</div>' : '') +
-        '<button type="button" class="btn outline ord-copy" data-i="' + i + '">نسخ نص الطلب</button>' +
+        '<div class="ord-hist-btns">' +
+          '<button type="button" class="btn outline ord-pdf" data-i="' + i + '" data-m="save">📄 حفظ PDF</button>' +
+          '<button type="button" class="btn outline ord-pdf" data-i="' + i + '" data-m="share">مشاركة</button>' +
+          '<button type="button" class="btn outline ord-copy" data-i="' + i + '">نسخ نص الطلب</button>' +
+        '</div>' +
       '</details>';
     }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('.ord-pdf'), function (b) {
+      b.addEventListener('click', function () { canteenOrderPdf(HIST[+b.getAttribute('data-i')], b.getAttribute('data-m'), b); });
+    });
     Array.prototype.forEach.call(box.querySelectorAll('.ord-copy'), function (b) {
       b.addEventListener('click', function () { copyText(orderText(HIST[+b.getAttribute('data-i')]), b); });
     });

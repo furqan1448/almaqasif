@@ -1737,7 +1737,9 @@ function renderCanteenOrdersAdmin_() {
       (o['ملاحظات'] ? '<div class="ord-admin-notes"><b>ملاحظات: </b>' + ordEsc_(o['ملاحظات']) + '</div>' : '') +
       '<div class="export-row" style="margin-top:12px;">' +
         '<button type="button" class="btn outline" onclick="copyCanteenOrder_(' + idx + ', this)">نسخ نص الطلب</button>' +
-        '<button type="button" class="btn outline" onclick="printCanteenOrder_(' + idx + ')">🖨️ طباعة</button>' +
+        '<button type="button" class="btn outline" onclick="canteenOrderPdf(canteenOrdersAdmin_[' + idx + '], \'save\', this)">📄 حفظ PDF</button>' +
+        '<button type="button" class="btn outline" onclick="canteenOrderPdf(canteenOrdersAdmin_[' + idx + '], \'share\', this)">مشاركة</button>' +
+        '<button type="button" class="btn outline" onclick="canteenOrderPdf(canteenOrdersAdmin_[' + idx + '], \'print\', this)">🖨️ طباعة</button>' +
         '<button type="button" class="btn' + (isNew ? '' : ' outline') + '" onclick="toggleCanteenOrderStatus_(' + idx + ', this)">' + (isNew ? '✔ تم التنفيذ' : 'إرجاعه إلى جديد') + '</button>' +
       '</div>' +
     '</details>';

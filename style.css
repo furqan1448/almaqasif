@@ -744,4 +744,5 @@ button.btn.ord-send { width: auto; margin: 0; padding: 12px 22px; display: inlin
 .ord-tbl-hist td.q { font-weight: 800; color: var(--maroon); }
 .ord-tbl-hist .u { font-size: 0.72rem; color: #8a7d76; }
 .ord-tbl-hist small { color: #8a7d76; font-weight: 400; }
-button.btn.ord-copy { margin-top: 10px; width: auto; padding: 9px 16px; }
+.ord-hist-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.ord-hist-btns button.btn { margin: 0; width: auto; padding: 9px 14px; }
