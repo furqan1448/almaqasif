@@ -522,6 +522,11 @@ tr.vs-detail td { background: #fbf8f2; text-align: right; }
 .vs-visit { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--gold-light); font-size: 0.85rem; }
 .vs-visit:last-child { border-bottom: none; }
 .vs-del { background: none; border: 1px solid #e3b9b5; color: #b3261e; border-radius: 8px; padding: 3px 10px; font-size: 0.75rem; cursor: pointer; }
+.vs-actions { display: inline-flex; gap: 6px; flex-shrink: 0; }
+.vs-edit { background: none; border: 1px solid var(--gold-light, #e6d3a3); color: var(--maroon, #6e1523); border-radius: 8px; padding: 3px 10px; font-size: 0.75rem; cursor: pointer; font-family: inherit; }
+.vs-edit:hover { background: #fbf5e8; }
+.vs-edit-note { margin: 10px 0 0; padding: 8px 12px; border-radius: 8px; background: #fbf5e8; color: var(--maroon, #6e1523); font-size: 0.82rem; }
+#vsCancelEditBtn { margin-top: 8px; }
 
 /* -------- الأسئلة الشائعة (masoulat.html) -------- */
 .faq-sub { margin: 0 0 14px; color: #8a7d76; font-size: 0.9rem; }

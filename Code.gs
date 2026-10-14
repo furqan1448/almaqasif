@@ -634,6 +634,30 @@ function deleteVisitStat_(p) {
   return { ok: true };
 }
 
+/* تعديل زيارة مسجّلة: اسم المركز + الفترة + التاريخ الهجري (حسب المعرف) */
+function updateVisitStat_(p) {
+  const center = visitCenterKey_(p.center);
+  if (!center) return { ok: false, error: 'اسم المركز مطلوب' };
+  if (!p.hijriDate) return { ok: false, error: 'تاريخ الزيارة مطلوب' };
+  const sh = sheet_(VISIT_STATS_SHEET_);
+  if (!sh) return { ok: false, error: 'الشيت غير موجود' };
+  const target = sheetToObjects_(VISIT_STATS_SHEET_).find(function (r) { return String(r['معرف']) === String(p.id); });
+  if (!target) return { ok: false, error: 'السجل غير موجود' };
+  const vals = {
+    'اسم المركز': center, 'الفترة': p.period || '',
+    'التاريخ الهجري': p.hijriDate, 'مفتاح التاريخ': p.dateKey || ''
+  };
+  Object.keys(vals).forEach(function (h) {
+    const c = colIndex_(sh, h);
+    if (c > 0) sh.getRange(target._row, c).setNumberFormat('@').setValue(vals[h]);
+  });
+  invalidateCache_(VISIT_STATS_SHEET_);
+  const count = sheetToObjects_(VISIT_STATS_SHEET_).filter(function (r) {
+    return visitCenterKey_(r['اسم المركز']) === center;
+  }).length;
+  return { ok: true, id: p.id, center: center, count: count };
+}
+
 /* ------------------- حصر المقاصف (لوحة الإدارة) -------------------
    صف لكل مركز+فترة: هل به مقصف أم لا، مع ملاحظة (السبب). تُنشأ الورقة تلقائيًا عند أول حفظ،
    وكل حفظ يستبدل محتوى الورقة كاملًا بالحصر المعروض في لوحة الإدارة. */
@@ -1383,6 +1407,7 @@ function handleRequest_(p) {
       case 'recordVisitStat': return json_(recordVisitStat_(p));
       case 'getVisitStats': return json_(getVisitStats_());
       case 'deleteVisitStat': return json_(deleteVisitStat_(p));
+      case 'updateVisitStat': return json_(updateVisitStat_(p));
       case 'getCanteenSurvey': return json_(getCanteenSurvey_());
       case 'saveCanteenSurvey': return json_(saveCanteenSurvey_(p));
       case 'setPriceListFile': return json_(setPriceListFile_(p));

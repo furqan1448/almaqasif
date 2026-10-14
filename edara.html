@@ -715,7 +715,9 @@
           <select id="vsYear"></select>
         </div>
         <div class="vs-date-preview" id="vsDatePreview"></div>
+        <div class="vs-edit-note hidden" id="vsEditNote">✏️ وضع التعديل: عدّلي البيانات ثم اضغطي «حفظ التعديل».</div>
         <button class="btn" id="vsSaveBtn" onclick="saveVisitStat()">حفظ الزيارة</button>
+        <button class="btn outline hidden" id="vsCancelEditBtn" onclick="vsCancelEdit()">إلغاء التعديل</button>
         <div class="success-msg" id="vsSuccess"></div>
       </div>
 
@@ -4085,6 +4087,42 @@ function vsSearchVisit() {
   });
 }
 
+let vsEditId_ = null;
+
+/* ✏️ تعديل زيارة: تعبئة النموذج ببياناتها ثم الحفظ يعدّل السجل نفسه */
+function editVisitStat(id) {
+  const v = vsVisits_.find(function (x) { return String(x.id) === String(id); });
+  if (!v) { alert('تعذّر العثور على الزيارة'); return; }
+  vsEditId_ = v.id;
+  document.getElementById('vsCenter').value = v.center;
+  document.getElementById('vsPeriod').value = v.period === 'مسائية' ? 'مسائية' : 'صباحية';
+  const k = String(v.dateKey || '').split('-').map(Number);
+  if (k.length === 3 && k[0]) {
+    const ySel = document.getElementById('vsYear');
+    if (!Array.prototype.some.call(ySel.options, function (o) { return Number(o.value) === k[0]; })) {
+      ySel.insertAdjacentHTML('beforeend', '<option value="' + k[0] + '">' + vsAr_(k[0]) + '</option>');
+    }
+    ySel.value = k[0];
+    document.getElementById('vsMonth').value = k[1];
+    document.getElementById('vsDay').value = k[2];
+  }
+  vsUpdatePreview_();
+  vsHideSearchResult_();
+  document.getElementById('vsSuccess').style.display = 'none';
+  document.getElementById('vsSaveBtn').textContent = 'حفظ التعديل';
+  document.getElementById('vsCancelEditBtn').classList.remove('hidden');
+  document.getElementById('vsEditNote').classList.remove('hidden');
+  document.getElementById('vsCenter').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function vsCancelEdit() {
+  vsEditId_ = null;
+  document.getElementById('vsCenter').value = '';
+  document.getElementById('vsSaveBtn').textContent = 'حفظ الزيارة';
+  document.getElementById('vsCancelEditBtn').classList.add('hidden');
+  document.getElementById('vsEditNote').classList.add('hidden');
+}
+
 function saveVisitStat() {
   const center = document.getElementById('vsCenter').value.replace(/\s+/g, ' ').trim();
   if (!center) { alert('اكتبي اسم المركز'); return; }
@@ -4093,17 +4131,20 @@ function saveVisitStat() {
   const msg = document.getElementById('vsSuccess');
   msg.style.display = 'none';
   setBtnBusy(btn, true);
-  callApi('recordVisitStat', {
+  const editing = !!vsEditId_;
+  const payload = {
     center: center,
     period: document.getElementById('vsPeriod').value,
     hijriDate: date.text,
     dateKey: date.key
-  }).then(function (r) {
+  };
+  if (editing) payload.id = vsEditId_;
+  callApi(editing ? 'updateVisitStat' : 'recordVisitStat', payload).then(function (r) {
     setBtnBusy(btn, false);
     if (!r || !r.ok) { alert('تعذّر الحفظ' + (r && r.error ? ': ' + r.error : '')); return; }
-    msg.textContent = 'تم الحفظ ✅ — ' + r.center + ': ' + vsCountLabel_(r.count);
+    msg.textContent = (editing ? 'تم حفظ التعديل ✅ — ' : 'تم الحفظ ✅ — ') + r.center + ': ' + vsCountLabel_(r.count);
     msg.style.display = 'block';
-    document.getElementById('vsCenter').value = '';
+    vsCancelEdit();
     loadVisitStats();
   }).catch(function () {
     setBtnBusy(btn, false);
@@ -4155,7 +4196,8 @@ function renderVisitStats_() {
     rows += '<tr id="vsDetail_' + i + '" class="vs-detail hidden"><td colspan="5">' +
       g.visits.map(function (v, j) {
         return '<div class="vs-visit"><span>' + vsAr_(g.visits.length - j) + '. ' + vsEsc_(v.hijriDate) + ' — ' + vsEsc_(v.period) + '</span>' +
-          '<button class="vs-del" onclick="event.stopPropagation();deleteVisitStat(\'' + vsEsc_(v.id) + '\')">حذف</button></div>';
+          '<span class="vs-actions"><button class="vs-edit" onclick="event.stopPropagation();editVisitStat(\'' + vsEsc_(v.id) + '\')">تعديل</button>' +
+          '<button class="vs-del" onclick="event.stopPropagation();deleteVisitStat(\'' + vsEsc_(v.id) + '\')">حذف</button></span></div>';
       }).join('') +
       '</td></tr>';
   });
@@ -4172,7 +4214,8 @@ function toggleVsDetail_(i) {
 }
 
 function deleteVisitStat(id) {
-  if (!confirm('متأكدة تبين تحذفين هذي الزيارة؟')) return;
+  if (!confirm('هل أنتِ متأكدة من حذف هذه الزيارة؟')) return;
+  if (String(vsEditId_) === String(id)) vsCancelEdit();
   callApi('deleteVisitStat', { id: id }).then(function (r) {
     if (!r || !r.ok) { alert('تعذّر الحذف' + (r && r.error ? ': ' + r.error : '')); return; }
     loadVisitStats();
