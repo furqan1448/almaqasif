@@ -3826,12 +3826,10 @@ async function saveVisitReportToSystem() {
     const phone = vrWaPhone_(document.getElementById('vrDirectorPhone').value);
     const wa = document.getElementById('vrSystemWaLink');
     if (phone) {
-      const head = opts.centerHeadName ? 'الأستاذة/ ' + opts.centerHeadName + ' — مديرة ' : 'مديرة ';
       const msg = 'السلام عليكم ورحمة الله وبركاته\n' +
-        'سعادة ' + head + 'مركز ' + opts.center + ' المحترمة\n' +
-        'يوجد تقرير زيارة' + (opts.visitType ? ' (' + opts.visitType + ')' : '') + ' بانتظار توقيعكم في موقع وحدة المقاصف، من أيقونة «تقارير الزيارة».\n' +
-        'شاكرين لكم تعاونكم.\n' +
-        'وحدة المقاصف — جمعية فرقان';
+        'أسعد الله يومك بكل خير\n\n' +
+        'أستاذتي، نأمل الاطلاع على تقرير الزيارة والتوقيع عليه، وذلك من خلال الدخول إلى أيقونة «تقارير الزيارة»\n\n' +
+        'شاكرين لك تعاونك، وبارك الله في جهودك';
       wa.href = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
       wa.classList.remove('hidden');
     } else {
