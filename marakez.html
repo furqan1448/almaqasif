@@ -116,6 +116,50 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v2M16 3v2"/><rect x="4" y="4.5" width="16" height="16" rx="1.5"/><path d="M4 9.5h16"/><path d="M8.5 13.5l2 2 4-4.5"/><path d="M8.5 17.5h4"/></svg></div>
           <span class="label">محاضر الاجتماعات</span>
         </div>
+        <div class="icon-btn" onclick="showView('visitReportsView')" style="position:relative;">
+          <span class="badge hidden" id="vrPendingBadge"></span>
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M8.5 13h7M8.5 16.5h4"/><path d="M14.5 18.5c.8-1.3 1.6-1.3 2 0s1.2 1.3 2 0"/></svg></div>
+          <span class="label">تقارير الزيارة</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- تقارير الزيارة (توقيع المديرة) -->
+    <div id="visitReportsView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <div class="card" id="vrdListCard">
+        <h3 style="margin-top:0;color:var(--maroon);">تقارير الزيارة</h3>
+        <p style="font-size:0.85rem;color:#8a7d76;margin-top:0;">تقارير زيارات وحدة المقاصف لمركزكم. افتحي التقرير الذي بانتظار توقيعك، واطّلعي عليه، ثم وقّعي.</p>
+        <table class="log-table">
+          <thead><tr><th>التاريخ</th><th>رقم الزيارة</th><th>الحالة</th><th></th></tr></thead>
+          <tbody id="vrdTbody"><tr><td colspan="4">جارٍ التحميل...</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="card hidden" id="vrdDetailCard">
+        <a class="back-link" onclick="closeVrdDetail_()">⟵ قائمة التقارير</a>
+        <h3 style="margin-top:6px;color:var(--maroon);">تقرير الزيارة اليومي</h3>
+        <div id="vrdSummary" style="line-height:1.9;"></div>
+        <button class="btn outline" id="vrdViewBtn" onclick="viewVrdReport_()" style="margin-top:10px;">📄 عرض التقرير كاملاً</button>
+
+        <div id="vrdSignBox" class="hidden" style="margin-top:16px;border-top:1px solid var(--gold-light);padding-top:12px;">
+          <label>اسم مديرة المركز</label>
+          <input type="text" id="vrdSignerName" placeholder="اكتبي اسمك">
+          <label>التوقيع</label>
+          <div class="sig-mode-toggle">
+            <button type="button" class="sig-mode-btn active" data-sigtoggle="vrdSig" data-mode="draw" onclick="setSigMode('vrdSig','draw')">رسم التوقيع</button>
+            <button type="button" class="sig-mode-btn" data-sigtoggle="vrdSig" data-mode="upload" onclick="setSigMode('vrdSig','upload')">رفع صورة توقيع</button>
+          </div>
+          <div class="sig-wrap" id="vrdSig_drawWrap"><canvas id="vrdSig" class="sig-pad"></canvas></div>
+          <div class="sig-upload-wrap hidden" id="vrdSig_uploadWrap">
+            <input type="file" accept="image/*" id="vrdSig_file">
+            <img id="vrdSig_preview" class="sig-upload-preview hidden">
+          </div>
+          <div class="sig-actions"><button type="button" onclick="clearSignatureWidget('vrdSig')">مسح التوقيع</button></div>
+          <div class="checkline"><input type="checkbox" id="vrdAgree"><label for="vrdAgree" style="margin:0;font-weight:500;">اطّلعتُ على التقرير وما ورد فيه من ملاحظات وتوصيات</label></div>
+          <button class="btn" id="vrdSignBtn" onclick="signVrdReport_()" style="margin-top:12px;">اعتماد وتوقيع التقرير</button>
+        </div>
+        <div id="vrdSignedBox" class="hidden" style="margin-top:14px;padding:10px 14px;border:1px solid #bfe3cd;background:#f1faf4;border-radius:10px;"></div>
       </div>
     </div>
 
@@ -553,6 +597,11 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
   </div>
 </div>
 
+<!-- عنصر مخفي لتحويل تقرير الزيارة إلى PDF -->
+<div style="position:fixed;top:0;left:0;width:0;height:0;overflow:hidden;z-index:-1;">
+  <div id="vrPdfHost" style="width:1123px;background:#fff;"></div>
+</div>
+
 <!-- قالب مخفي لتركيب صورة الإشعار -->
 <canvas id="noticeCanvas" width="900" height="710" style="display:none;"></canvas>
 
@@ -687,7 +736,7 @@ function applyReadOnlyRestrictions() {
 }
 
 function showView(id) {
-  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'announcementsView', 'priceListView', 'cardsDeliverView', 'cardsReceiveView', 'cardsFollowupView', 'meetingMinutesView', 'ordersView'].forEach(function (v) {
+  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'announcementsView', 'priceListView', 'cardsDeliverView', 'cardsReceiveView', 'cardsFollowupView', 'meetingMinutesView', 'ordersView', 'visitReportsView'].forEach(function (v) {
     document.getElementById(v).classList.toggle('hidden', v !== id);
   });
   if (id === 'salesView') loadSales();
@@ -702,6 +751,7 @@ function showView(id) {
   if (id === 'cardsReceiveView') initCardsReceiveView_();
   if (id === 'cardsFollowupView') loadCardsFollowup_();
   if (id === 'meetingMinutesView') loadMeetingMinutesList();
+  if (id === 'visitReportsView') loadVrdReports_();
   if (id === 'homeView') refreshPendingBadge();
   if (id === 'ordersView') initOrdersView_(CARD_ROLE_LABEL_);
 }
@@ -1815,7 +1865,156 @@ function loadDifficulties() {
   });
 }
 
+function refreshVrBadge_() {
+  callApi('getVisitReportPendingCount', { center: currentCenter }).then(function (r) {
+    const badge = document.getElementById('vrPendingBadge');
+    if (!badge || !r || !r.ok) return;
+    if (r.count > 0) { badge.textContent = r.count; badge.classList.remove('hidden'); }
+    else { badge.classList.add('hidden'); }
+  }).catch(function () {});
+}
+
+/* -------- تقارير الزيارة: اطّلاع وتوقيع المديرة -------- */
+let vrdList_ = [];
+let vrdCurrent_ = null;
+let vrdSigReady_ = false;
+
+function loadVrdReports_() {
+  closeVrdDetail_();
+  const tbody = document.getElementById('vrdTbody');
+  tbody.innerHTML = '<tr><td colspan="4">جارٍ التحميل...</td></tr>';
+  callApi('getVisitReportsForCenter', { center: currentCenter }).then(function (r) {
+    vrdList_ = (r && r.reports) || [];
+    if (!vrdList_.length) { tbody.innerHTML = '<tr><td colspan="4">لا توجد تقارير زيارة</td></tr>'; return; }
+    tbody.innerHTML = '';
+    vrdList_.forEach(function (rep) {
+      const f = rep.data || {};
+      const date = f.hijriDay ? toArabicDigits(f.hijriDay) + ' / ' + (f.hijriMonth || '') + (f.year ? ' / ' + toArabicDigits(f.year) + 'هـ' : '') : '—';
+      const signed = rep.status === 'تم التوقيع';
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + date + '</td><td>' + toArabicDigits(f.visitNumber || '') + '</td>' +
+        '<td>' + (signed ? '<span style="color:#1f8f4e;font-weight:700;">✅ تم التوقيع</span>' : '<span style="color:var(--maroon);font-weight:700;">⏳ بانتظار توقيعك</span>') + '</td>' +
+        '<td><a href="#" onclick="openVrdReport_(\'' + rep.id + '\'); return false;">' + (signed ? 'عرض' : 'فتح وتوقيع') + '</a></td>';
+      tbody.appendChild(tr);
+    });
+  }).catch(function () { tbody.innerHTML = '<tr><td colspan="4">تعذّر التحميل، حاولي مرة أخرى</td></tr>'; });
+}
+
+function vrdOpts_(rep) {
+  const f = rep.data || {};
+  const hijriDate = (f.hijriDay ? toArabicDigits(f.hijriDay) : '  ') + ' / ' + (f.hijriMonth || '') + (f.year ? ' / ' + toArabicDigits(f.year) + 'هـ' : '');
+  const notes = (f.notesLines || []).map(function (l) { return String(l || '').trim(); }).filter(Boolean);
+  return {
+    center: String(f.center || '').trim(), year: f.year || '', term: f.term || 'الأول',
+    morning: !!f.morning, evening: !!f.evening, day: f.day || '', hijriDate: hijriDate,
+    visitType: f.visitType || 'تقييم', visitNumber: f.visitNumber || '',
+    notesLines: notes.length ? notes : [''], recommendation: f.recommendation || '',
+    centerHeadName: rep.signerName || f.centerHeadName || '', headName: f.headName || 'فاطمة مبارك الكثيري',
+    signatureDataUrl: rep.headSignature || '', sigScale: (Number(f.sigScale) || 100) / 100,
+    directorSignatureDataUrl: rep.directorSignature || ''
+  };
+}
+
+function vrdEsc_(t) {
+  return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+}
+
+function openVrdReport_(id) {
+  const rep = vrdList_.find(function (x) { return x.id === id; });
+  if (!rep) return;
+  vrdCurrent_ = rep;
+  const o = vrdOpts_(rep);
+  let html = '<div><b>المركز:</b> ' + vrdEsc_(o.center) + ' — ' + (o.morning ? 'صباحي' : (o.evening ? 'مسائي' : '')) + '</div>' +
+    '<div><b>اليوم والتاريخ:</b> ' + vrdEsc_(o.day) + ' ' + vrdEsc_(o.hijriDate) + '</div>' +
+    '<div><b>رقم الزيارة:</b> ' + toArabicDigits(o.visitNumber || '') + ' &nbsp; <b>نوع الزيارة:</b> ' + vrdEsc_(o.visitType) + '</div>' +
+    '<div style="margin-top:8px;"><b>الملاحظات:</b></div><ol style="margin:4px 0 8px;padding-right:22px;">' +
+    o.notesLines.filter(Boolean).map(function (n) { return '<li>' + vrdEsc_(n) + '</li>'; }).join('') + '</ol>' +
+    '<div><b>التوصية:</b> ' + vrdEsc_(o.recommendation) + '</div>';
+  document.getElementById('vrdSummary').innerHTML = html;
+  document.getElementById('vrdListCard').classList.add('hidden');
+  document.getElementById('vrdDetailCard').classList.remove('hidden');
+  const signed = rep.status === 'تم التوقيع';
+  document.getElementById('vrdSignBox').classList.toggle('hidden', signed);
+  const signedBox = document.getElementById('vrdSignedBox');
+  signedBox.classList.toggle('hidden', !signed);
+  document.getElementById('vrdViewBtn').textContent = signed ? '📄 عرض التقرير الموقَّع (PDF)' : '📄 عرض التقرير كاملاً';
+  if (signed) {
+    signedBox.innerHTML = '✅ تم توقيع التقرير' + (rep.signerName ? ' من: <b>' + vrdEsc_(rep.signerName) + '</b>' : '') +
+      (rep.signedDate ? ' — ' + (rep.signedDay || '') + ' ' + toHijriStr(rep.signedDate) : '');
+  } else {
+    document.getElementById('vrdSignerName').value = (rep.data && rep.data.centerHeadName) || '';
+    document.getElementById('vrdAgree').checked = false;
+    setTimeout(function () {
+      if (!vrdSigReady_) { setupSignatureWidget('vrdSig'); vrdSigReady_ = true; }
+      else clearSignatureWidget('vrdSig');
+    }, 50);
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeVrdDetail_() {
+  vrdCurrent_ = null;
+  document.getElementById('vrdDetailCard').classList.add('hidden');
+  document.getElementById('vrdListCard').classList.remove('hidden');
+}
+
+function viewVrdReport_() {
+  if (vrdCurrent_) printVisitReportWindow(vrdOpts_(vrdCurrent_));
+}
+
+/* تصغير التوقيع قبل الحفظ (حد خلية الشيت 50 ألف حرف) */
+function vrdShrinkSig_(dataUrl) {
+  return new Promise(function (resolve) {
+    const img = new Image();
+    img.onload = function () {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if (w > 420) { h = Math.round(h * 420 / w); w = 420; }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      let out = c.toDataURL('image/png');
+      if (out.length > 40000) {
+        const ctx = c.getContext('2d');
+        ctx.globalCompositeOperation = 'destination-over';
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        out = c.toDataURL('image/jpeg', 0.8);
+      }
+      resolve(out.length > 44000 ? '' : out);
+    };
+    img.onerror = function () { resolve(dataUrl.length > 44000 ? '' : dataUrl); };
+    img.src = dataUrl;
+  });
+}
+
+function signVrdReport_() {
+  if (!vrdCurrent_) return;
+  const name = document.getElementById('vrdSignerName').value.trim();
+  if (!name) { alert('يُرجى كتابة اسم مديرة المركز'); return; }
+  if (!document.getElementById('vrdAgree').checked) { alert('يُرجى تأكيد الاطّلاع على التقرير'); return; }
+  const w = _sigWidgets['vrdSig'];
+  const isBlank = !w || (w.mode === 'upload' ? !(w.uploadTrimmed || w.uploadDataUrl) : !trimToCanvas_(document.getElementById('vrdSig')));
+  if (isBlank) { alert('يُرجى التوقيع أولاً'); return; }
+  const rawSig = getSignatureDataUrl('vrdSig');
+  if (!rawSig) { alert('يُرجى التوقيع أولاً'); return; }
+  const btn = document.getElementById('vrdSignBtn');
+  setBtnBusy(btn, true);
+  vrdShrinkSig_(rawSig).then(function (sig) {
+    if (!sig) throw new Error('صورة التوقيع كبيرة جداً، يُرجى رسم التوقيع بدلاً من رفع صورة');
+    return callApi('signVisitReport', { id: vrdCurrent_.id, center: currentCenter, signature: sig, signerName: name });
+  }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) { alert('تعذّر حفظ التوقيع: ' + ((r && r.error) || 'خطأ غير معروف')); return; }
+    alert('تم توقيع التقرير بنجاح ✅');
+    refreshVrBadge_();
+    loadVrdReports_();
+  }).catch(function (e) {
+    setBtnBusy(btn, false);
+    alert('تعذّر حفظ التوقيع: ' + (e && e.message ? e.message : e));
+  });
+}
+
 function refreshPendingBadge() {
+  refreshVrBadge_();
   callApi('getCenterPendingCount', { center: currentCenter }).then(function (r) {
     if (!r.ok) return;
     const badge = document.getElementById('pendingBadge');

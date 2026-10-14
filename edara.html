@@ -809,12 +809,18 @@
     <div id="visitReportTab" class="admin-tab-panel hidden">
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">تقرير الزيارة اليومي</h3>
+        <div id="vrEditBanner" class="hidden" style="padding:10px 14px;border:1px solid var(--gold-light);background:var(--cream);border-radius:10px;margin-bottom:10px;line-height:1.8;">
+          ✏️ أنتِ تعدّلين تقريراً محفوظاً. عند الحفظ <b>يُلغى توقيع المديرة</b> ويُعاد إرسال التقرير لها للتوقيع من جديد.
+          <button type="button" class="btn outline" onclick="cancelVrEdit()" style="width:auto;padding:4px 12px;margin-right:8px;">إلغاء التعديل</button>
+        </div>
         <div class="select-row">
           <div>
             <label>المركز</label>
-            <input type="text" id="vrCenterName" list="vrCentersDl" placeholder="اكتبي اسم المركز" autocomplete="off" oninput="vrAutoFillDirector_();vrUpdateVisitNumber_()" onchange="vrAutoFillDirector_();vrUpdateVisitNumber_()">
+            <input type="text" id="vrCenterName" list="vrCentersDl" placeholder="اكتبي اسم المركز" autocomplete="off" oninput="vrAutoFillDirector_();vrUpdateVisitNumber_();vrAutoPickTarget_()" onchange="vrAutoFillDirector_();vrUpdateVisitNumber_();vrAutoPickTarget_()">
             <datalist id="vrCentersDl"></datalist>
             <div id="vrDirectorStatus" style="font-size:0.8rem;color:#8a7d76;margin:4px 0 0;"></div>
+            <label>المركز الذي يظهر له التقرير للتوقيع</label>
+            <select id="vrTargetCenter" onchange="this.dataset.manual='1'"><option value="">— اختاري المركز —</option></select>
           </div>
           <div>
             <label>لعام (هـ)</label>
@@ -834,10 +840,10 @@
             <label>الفترة</label>
             <div style="display:flex;gap:18px;margin-top:8px;">
               <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:0;">
-                <input type="checkbox" id="vrPeriodMorning" style="width:auto;" onchange="if(this.checked)document.getElementById('vrPeriodEvening').checked=false;vrAutoFillDirector_();vrUpdateVisitNumber_();"> صباحي
+                <input type="checkbox" id="vrPeriodMorning" style="width:auto;" onchange="if(this.checked)document.getElementById('vrPeriodEvening').checked=false;vrAutoFillDirector_();vrUpdateVisitNumber_();vrAutoPickTarget_();"> صباحي
               </label>
               <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:0;">
-                <input type="checkbox" id="vrPeriodEvening" style="width:auto;" onchange="if(this.checked)document.getElementById('vrPeriodMorning').checked=false;vrAutoFillDirector_();vrUpdateVisitNumber_();"> مسائي
+                <input type="checkbox" id="vrPeriodEvening" style="width:auto;" onchange="if(this.checked)document.getElementById('vrPeriodMorning').checked=false;vrAutoFillDirector_();vrUpdateVisitNumber_();vrAutoPickTarget_();"> مسائي
               </label>
             </div>
           </div>
@@ -924,6 +930,11 @@
           <button class="btn" onclick="shareVisitReport()">📤 إرسال واتساب</button>
           <button class="btn" id="vrSendDirectorBtn" onclick="sendVisitReportToDirector()" style="background:#1f8f4e;border-color:#1f8f4e;">📲 إرسال للمديرة مباشرة</button>
         </div>
+        <button class="btn" id="vrSaveSystemBtn" onclick="saveVisitReportToSystem()" style="margin-top:10px;">✍️ حفظ وإرسال للمديرة للتوقيع في الموقع</button>
+        <div id="vrSystemPanel" class="hidden" style="margin-top:12px;padding:12px 14px;border:1px solid #bfe3cd;background:#f1faf4;border-radius:10px;line-height:1.9;">
+          <div id="vrSystemMsg"></div>
+          <a id="vrSystemWaLink" class="btn hidden" target="_blank" rel="noopener" style="display:inline-block;width:auto;margin-top:6px;background:#1f8f4e;border-color:#1f8f4e;color:#fff;text-decoration:none;padding:8px 18px;">💬 تنبيه المديرة عبر واتساب</a>
+        </div>
         <p style="font-size:0.78rem;color:#8a7d76;margin:8px 0 0;">عند «حفظ PDF» أو الإرسال تُسجَّل الزيارة تلقائيًا في «إحصائية الزيارات» (مرة واحدة فقط لنفس المركز والفترة والتاريخ).</p>
         <div class="success-msg" id="vrStatMsg"></div>
         <div id="vrSendPanel" class="hidden" style="margin-top:12px;padding:12px 14px;border:1px solid #bfe3cd;background:#f1faf4;border-radius:10px;line-height:1.9;">
@@ -935,6 +946,20 @@
           <button class="btn outline" onclick="saveVrDraft()">💾 حفظ مسودة</button>
           <button class="btn outline" onclick="clearVrReport()">🗑️ مسح التقرير</button>
         </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">تقارير الزيارة المحفوظة</h3>
+        <label>الحالة</label>
+        <select id="vrSavedFilter" onchange="renderVrSaved_()">
+          <option value="">الكل</option>
+          <option value="بانتظار توقيع المديرة">بانتظار توقيع المديرة</option>
+          <option value="تم التوقيع">تم التوقيع</option>
+        </select>
+        <table class="log-table">
+          <thead><tr><th>المركز</th><th>التاريخ</th><th>رقم الزيارة</th><th>الحالة</th><th></th></tr></thead>
+          <tbody id="vrSavedTbody"><tr><td colspan="5">جارٍ التحميل...</td></tr></tbody>
+        </table>
       </div>
     </div>
 
@@ -3272,6 +3297,12 @@ function loadVrDraft_() {
     draft = JSON.parse(raw);
   } catch (e) { return false; }
   if (!draft) return false;
+  applyVrForm_(draft);
+  return true;
+}
+
+/* تعبئة حقول النموذج من كائن (مسودة أو تقرير محفوظ) */
+function applyVrForm_(draft) {
   document.getElementById('vrCenterName').value = draft.center || '';
   document.getElementById('vrYear').value = draft.year || '';
   document.getElementById('vrTerm').value = draft.term || 'الأول';
@@ -3294,13 +3325,14 @@ function loadVrDraft_() {
   container.innerHTML = '';
   const lines = (draft.notesLines && draft.notesLines.length) ? draft.notesLines : ['', ''];
   lines.forEach(function (l) { addVrNoteRow(l); });
-  return true;
 }
 
 /* تُستدعى مرة وحدة بس أول ما يُفتح التبويب: تحمّل المسودة لو موجودة، وإلا تبدأ بصفين فاضيين */
 function initVisitReportTab_() {
   loadVrDirectors_();
   vrLoadStats_();
+  vrLoadTargetCenters_();
+  loadVrSaved_();
   if (vrDraftInited_) return;
   vrDraftInited_ = true;
   const hasDraft = loadVrDraft_();
@@ -3333,6 +3365,8 @@ function clearVrReport() {
   addVrNoteRow('');
   addVrNoteRow('');
   try { localStorage.removeItem(VR_DRAFT_KEY_); } catch (e) { /* تجاهل */ }
+  cancelVrEdit(true);
+  document.getElementById('vrTargetCenter').value = '';
   /* التوقيع (vrSignatureDataUrl، المعاينة، وحجم التوقيع) عن قصد ما يتصفّر */
 }
 
@@ -3681,6 +3715,238 @@ async function sendVisitReportToDirector() {
   } finally {
     setBtnBusy(btn, false);
   }
+}
+
+/* ==================== تقارير الزيارة المحفوظة + توقيع المديرة ==================== */
+let vrEditingId_ = null;
+let vrSavedList_ = [];
+let vrTargetCentersLoaded_ = false;
+
+function vrLoadTargetCenters_() {
+  if (vrTargetCentersLoaded_) return;
+  callApi('getCenters').then(function (r) {
+    const sel = document.getElementById('vrTargetCenter');
+    const keep = sel.value;
+    (r.centers || []).forEach(function (c) {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = c;
+      sel.appendChild(o);
+    });
+    if (keep) sel.value = keep;
+    vrTargetCentersLoaded_ = true;
+    vrAutoPickTarget_();
+  });
+}
+
+/* اختيار مركز النظام تلقائياً من الاسم المكتوب (إن وُجد تطابق واحد واضح) - ويمكن تغييره يدوياً */
+function vrAutoPickTarget_() {
+  const sel = document.getElementById('vrTargetCenter');
+  const typed = vsNorm_(document.getElementById('vrCenterName').value);
+  if (!typed || sel.dataset.manual === '1') return;
+  const opts = Array.from(sel.options).filter(function (o) { return o.value; });
+  const exact = opts.filter(function (o) { return vsNorm_(o.value) === typed; });
+  let pick = exact.length === 1 ? exact : opts.filter(function (o) { return vsNorm_(o.value).indexOf(typed) !== -1; });
+  if (pick.length > 1) {
+    const morning = document.getElementById('vrPeriodMorning').checked;
+    const evening = document.getElementById('vrPeriodEvening').checked;
+    const word = morning ? 'صباح' : (evening ? 'مسائ' : '');
+    if (word) pick = pick.filter(function (o) { return vsNorm_(o.value).indexOf(vsNorm_(word)) !== -1; });
+  }
+  if (pick.length === 1) sel.value = pick[0].value;
+}
+
+/* حقول النموذج كما هي (لإعادة التعبئة عند التعديل) */
+function vrReadForm_() {
+  return {
+    center: document.getElementById('vrCenterName').value,
+    year: document.getElementById('vrYear').value,
+    term: document.getElementById('vrTerm').value,
+    morning: document.getElementById('vrPeriodMorning').checked,
+    evening: document.getElementById('vrPeriodEvening').checked,
+    day: document.getElementById('vrDayName').value,
+    hijriDay: document.getElementById('vrHijriDay').value,
+    hijriMonth: document.getElementById('vrHijriMonth').value,
+    visitType: document.getElementById('vrVisitType').value,
+    visitNumber: document.getElementById('vrVisitNumber').value,
+    notesLines: Array.from(document.querySelectorAll('#vrNotesContainer textarea')).map(function (t) { return t.value; }),
+    recommendation: document.getElementById('vrRecommendation').value,
+    centerHeadName: document.getElementById('vrCenterHeadName').value,
+    directorPhone: document.getElementById('vrDirectorPhone').value,
+    headName: document.getElementById('vrHeadName').value,
+    sigScale: document.getElementById('vrSigSize').value
+  };
+}
+
+/* تصغير صورة التوقيع قبل الحفظ (حد خلية الشيت 50 ألف حرف) */
+function vrShrinkSignature_(dataUrl) {
+  return new Promise(function (resolve) {
+    if (!dataUrl) { resolve(''); return; }
+    const img = new Image();
+    img.onload = function () {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const maxW = 420;
+      if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      let out = c.toDataURL('image/png');
+      if (out.length > 40000) {
+        const ctx = c.getContext('2d');
+        ctx.globalCompositeOperation = 'destination-over';
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        out = c.toDataURL('image/jpeg', 0.8);
+      }
+      resolve(out.length > 44000 ? '' : out);
+    };
+    img.onerror = function () { resolve(''); };
+    img.src = dataUrl;
+  });
+}
+
+async function saveVisitReportToSystem() {
+  const opts = collectVisitReportOpts_();
+  if (!opts || !vrStatReady_()) return;
+  const target = document.getElementById('vrTargetCenter').value;
+  if (!target) { alert('اختاري «المركز الذي يظهر له التقرير للتوقيع»'); document.getElementById('vrTargetCenter').focus(); return; }
+  if (vrEditingId_ && !confirm('سيُلغى توقيع المديرة (إن وُجد) ويُعاد إرسال التقرير لها للتوقيع. هل تريدين المتابعة؟')) return;
+  const btn = document.getElementById('vrSaveSystemBtn');
+  setBtnBusy(btn, true);
+  try {
+    const headSig = await vrShrinkSignature_(vrSignatureDataUrl);
+    if (vrSignatureDataUrl && !headSig) { alert('تعذّر حفظ صورة توقيع الرئيسة لكبر حجمها؛ سيُستخدم التوقيع الافتراضي إن وُجد.'); }
+    const payload = { center: target, data: JSON.stringify(vrReadForm_()), headSignature: headSig };
+    if (vrEditingId_) payload.id = vrEditingId_;
+    const r = await callApi('saveVisitReport', payload);
+    if (!r || !r.ok) { alert('تعذّر الحفظ: ' + ((r && r.error) || 'خطأ غير معروف')); return; }
+    const wasEdit = !!vrEditingId_;
+    vrRecordVisitStat_();
+    const panel = document.getElementById('vrSystemPanel');
+    document.getElementById('vrSystemMsg').innerHTML = (wasEdit ? '✅ حُفظ التعديل وأُعيد التقرير' : '✅ حُفظ التقرير وأُرسل') +
+      ' إلى <b>' + target + '</b>، وهو الآن بانتظار توقيع المديرة من صفحة المراكز.';
+    const phone = vrWaPhone_(document.getElementById('vrDirectorPhone').value);
+    const wa = document.getElementById('vrSystemWaLink');
+    if (phone) {
+      const head = opts.centerHeadName ? 'الأستاذة/ ' + opts.centerHeadName + ' — مديرة ' : 'مديرة ';
+      const msg = 'السلام عليكم ورحمة الله وبركاته\n' +
+        'سعادة ' + head + 'مركز ' + opts.center + ' المحترمة\n' +
+        'يوجد تقرير زيارة' + (opts.visitType ? ' (' + opts.visitType + ')' : '') + ' بانتظار توقيعكم في موقع وحدة المقاصف، من أيقونة «تقارير الزيارة».\n' +
+        'شاكرين لكم تعاونكم.\n' +
+        'وحدة المقاصف — جمعية فرقان';
+      wa.href = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
+      wa.classList.remove('hidden');
+    } else {
+      wa.classList.add('hidden');
+    }
+    panel.classList.remove('hidden');
+    cancelVrEdit(true);
+    loadVrSaved_();
+  } catch (e) {
+    alert('تعذّر الاتصال بالسيرفر: ' + (e && e.message ? e.message : e));
+  } finally {
+    setBtnBusy(btn, false);
+  }
+}
+
+function loadVrSaved_() {
+  const tbody = document.getElementById('vrSavedTbody');
+  if (!tbody) return;
+  callApi('getVisitReportsAdmin').then(function (r) {
+    vrSavedList_ = (r && r.reports) || [];
+    renderVrSaved_();
+  }).catch(function () { tbody.innerHTML = '<tr><td colspan="5">تعذّر التحميل</td></tr>'; });
+}
+
+function vrHijriLabel_(f) {
+  f = f || {};
+  if (!f.hijriDay) return '—';
+  return toArabicDigits(f.hijriDay) + ' / ' + (f.hijriMonth || '') + (f.year ? ' / ' + toArabicDigits(f.year) + 'هـ' : '');
+}
+
+function vrStatusHtml_(rep) {
+  if (rep.status === 'تم التوقيع') {
+    return '<span style="color:#1f8f4e;font-weight:700;">✅ تم التوقيع</span>' +
+      (rep.signerName ? '<div style="font-size:0.75rem;color:#8a7d76;">' + rep.signerName + '</div>' : '') +
+      (rep.signedDate ? '<div style="font-size:0.75rem;color:#8a7d76;">' + toHijriStr(rep.signedDate) + '</div>' : '');
+  }
+  return '<span style="color:var(--maroon);font-weight:700;">⏳ بانتظار توقيع المديرة</span>';
+}
+
+function renderVrSaved_() {
+  const tbody = document.getElementById('vrSavedTbody');
+  const f = document.getElementById('vrSavedFilter').value;
+  const list = vrSavedList_.filter(function (x) { return !f || x.status === f; });
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="5">لا توجد تقارير</td></tr>'; return; }
+  tbody.innerHTML = '';
+  list.forEach(function (rep) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + (rep.centerDisplay || rep.center || '') + '</td>' +
+      '<td>' + vrHijriLabel_(rep.data) + '</td>' +
+      '<td>' + toArabicDigits(rep.data.visitNumber || '') + '</td>' +
+      '<td>' + vrStatusHtml_(rep) + '</td>' +
+      '<td><div class="row-actions">' +
+        '<a href="#" onclick="printSavedVisitReport(\'' + rep.id + '\'); return false;">عرض/طباعة</a>' +
+        '<a href="#" onclick="editSavedVisitReport(\'' + rep.id + '\'); return false;">تعديل</a>' +
+        '<a href="#" onclick="deleteSavedVisitReport(\'' + rep.id + '\'); return false;">حذف</a>' +
+      '</div></td>';
+    tbody.appendChild(tr);
+  });
+}
+
+/* يبني خيارات الطباعة من تقرير محفوظ (مع توقيع المديرة إن وُجد) */
+function vrOptsFromSaved_(rep) {
+  const f = rep.data || {};
+  const hijriDate = (f.hijriDay ? toArabicDigits(f.hijriDay) : '  ') + ' / ' + (f.hijriMonth || '') +
+    (f.year ? ' / ' + toArabicDigits(f.year) + 'هـ' : '');
+  const notes = (f.notesLines || []).map(function (l) { return String(l || '').trim(); }).filter(Boolean);
+  return {
+    center: String(f.center || '').trim(), year: f.year || '', term: f.term || 'الأول',
+    morning: !!f.morning, evening: !!f.evening, day: f.day || '', hijriDate: hijriDate,
+    visitType: f.visitType || 'تقييم', visitNumber: f.visitNumber || '',
+    notesLines: notes.length ? notes : [''], recommendation: f.recommendation || '',
+    centerHeadName: f.centerHeadName || rep.signerName || '', headName: f.headName || 'فاطمة مبارك الكثيري',
+    signatureDataUrl: rep.headSignature || '', sigScale: (Number(f.sigScale) || 100) / 100,
+    directorSignatureDataUrl: rep.directorSignature || ''
+  };
+}
+
+function printSavedVisitReport(id) {
+  const rep = vrSavedList_.find(function (x) { return x.id === id; });
+  if (rep) printVisitReportWindow(vrOptsFromSaved_(rep));
+}
+
+function editSavedVisitReport(id) {
+  const rep = vrSavedList_.find(function (x) { return x.id === id; });
+  if (!rep) return;
+  if (rep.status === 'تم التوقيع' && !confirm('هذا التقرير موقَّع من المديرة، وتعديله سيلغي توقيعها. هل تريدين المتابعة؟')) return;
+  vrEditingId_ = id;
+  applyVrForm_(rep.data || {});
+  const sel = document.getElementById('vrTargetCenter');
+  sel.value = rep.center; sel.dataset.manual = '1';
+  if (rep.headSignature) {
+    vrSignatureDataUrl = rep.headSignature;
+    const preview = document.getElementById('vrSigPreview');
+    preview.src = rep.headSignature; preview.classList.remove('hidden');
+    document.getElementById('vrSigClearBtn').style.display = 'inline-block';
+  }
+  document.getElementById('vrEditBanner').classList.remove('hidden');
+  document.getElementById('vrSaveSystemBtn').textContent = '✍️ حفظ التعديل وإعادة الإرسال للمديرة';
+  document.getElementById('vrSystemPanel').classList.add('hidden');
+  document.getElementById('vrEditBanner').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function cancelVrEdit(silent) {
+  vrEditingId_ = null;
+  document.getElementById('vrEditBanner').classList.add('hidden');
+  document.getElementById('vrSaveSystemBtn').textContent = '✍️ حفظ وإرسال للمديرة للتوقيع في الموقع';
+  delete document.getElementById('vrTargetCenter').dataset.manual;
+}
+
+function deleteSavedVisitReport(id) {
+  if (!confirm('هل تريدين حذف هذا التقرير نهائياً؟ (لن يظهر للمركز بعد ذلك)')) return;
+  callApi('deleteVisitReport', { id: id }).then(function (r) {
+    if (r && r.ok) { if (vrEditingId_ === id) cancelVrEdit(true); loadVrSaved_(); }
+    else alert('تعذّر الحذف: ' + ((r && r.error) || ''));
+  });
 }
 
 /* ==================== محضر اجتماع ==================== */

@@ -78,7 +78,9 @@ function setup() {
     // إحصائية الزيارات: كل سطر زيارة وحدة (المركز + الفترة + التاريخ الهجري)
     'إحصائية الزيارات': VISIT_STATS_HEADERS_,
     // طلبات المقاصف: كل سطر طلب واحد (بنوده مكتوبة نصاً بعمود «تفاصيل الطلب»)
-    'طلبات المقاصف': ORDERS_HEADERS_
+    'طلبات المقاصف': ORDERS_HEADERS_,
+    // تقارير الزيارة المحفوظة: تكتبها الإدارة وتوقّعها مديرة المركز من صفحة المراكز
+    'تقارير الزيارة': VISIT_REPORT_HEADERS_
   };
 
   Object.keys(sheets).forEach(function (name) {
@@ -1371,6 +1373,13 @@ function handleRequest_(p) {
 
       case 'archiveCurrentTerm': return json_(archiveCurrentTerm_(p));
       case 'getTermsList': return json_(getTermsList_());
+
+      case 'saveVisitReport': return json_(saveVisitReport_(p));
+      case 'getVisitReportsAdmin': return json_(getVisitReportsAdmin_(p));
+      case 'getVisitReportsForCenter': return json_(getVisitReportsForCenter_(p));
+      case 'getVisitReportPendingCount': return json_(getVisitReportPendingCount_(p));
+      case 'signVisitReport': return json_(signVisitReport_(p));
+      case 'deleteVisitReport': return json_(deleteVisitReport_(p));
 
       case 'recordIncomeItem': return json_(recordIncomeItem_(p));
       case 'getIncomeItems': return json_(getIncomeItems_(p));
@@ -2968,6 +2977,129 @@ function archiveCurrentTerm_(p) {
 
 
 /* ------------------- قائمة الدخل (الإيرادات والمصروفات - يدوي بالكامل) ------------------- */
+
+/* ------------------- تقارير الزيارة (حفظ + توقيع مديرة المركز) -------------------
+   الإدارة تكتب التقرير وتختار المركز ← يُحفظ «بانتظار توقيع المديرة» ← المديرة توقّع من صفحة المراكز.
+   التعديل من الإدارة فقط، وأي تعديل يلغي توقيع المديرة ويعيد التقرير لحالة الانتظار. */
+const VISIT_REPORT_SHEET_ = 'تقارير الزيارة';
+const VISIT_REPORT_HEADERS_ = ['معرف', 'اسم المركز', 'بيانات التقرير', 'توقيع الرئيسة', 'الحالة',
+  'يوم الإرسال', 'تاريخ الإرسال', 'وقت الإرسال',
+  'توقيع المديرة', 'اسم الموقّعة', 'يوم التوقيع', 'تاريخ التوقيع', 'وقت التوقيع'];
+const VR_PENDING_ = 'بانتظار توقيع المديرة';
+const VR_SIGNED_ = 'تم التوقيع';
+
+function visitReportSheet_() {
+  let sh = sheet_(VISIT_REPORT_SHEET_);
+  if (!sh) {
+    sh = SpreadsheetApp.getActiveSpreadsheet().insertSheet(VISIT_REPORT_SHEET_);
+    sh.getRange(1, 1, 1, VISIT_REPORT_HEADERS_.length).setValues([VISIT_REPORT_HEADERS_]).setFontWeight('bold');
+    sh.setRightToLeft(true);
+    sh.getRange(2, 1, sh.getMaxRows() - 1, VISIT_REPORT_HEADERS_.length).setNumberFormat('@');
+  }
+  return sh;
+}
+
+function visitReportRows_() {
+  if (!sheet_(VISIT_REPORT_SHEET_)) return [];
+  return sheetToObjects_(VISIT_REPORT_SHEET_);
+}
+
+function visitReportOut_(r) {
+  let data = {};
+  try { data = JSON.parse(r['بيانات التقرير'] || '{}'); } catch (e) { data = {}; }
+  return {
+    id: r['معرف'], center: r['اسم المركز'], centerDisplay: centerDisplay_(r['اسم المركز']), data: data,
+    headSignature: r['توقيع الرئيسة'] || '', status: r['الحالة'] || VR_PENDING_,
+    sentDay: r['يوم الإرسال'] || '', sentDate: r['تاريخ الإرسال'] || '', sentTime: r['وقت الإرسال'] || '',
+    directorSignature: r['توقيع المديرة'] || '', signerName: r['اسم الموقّعة'] || '',
+    signedDay: r['يوم التوقيع'] || '', signedDate: r['تاريخ التوقيع'] || '', signedTime: r['وقت التوقيع'] || ''
+  };
+}
+
+function findVisitReport_(id) {
+  const target = String(id || '').trim();
+  if (!target) return null;
+  return visitReportRows_().find(function (r) { return String(r['معرف']).trim() === target; }) || null;
+}
+
+/* إنشاء (بدون p.id) أو تعديل (مع p.id). التعديل يلغي توقيع المديرة. */
+function saveVisitReport_(p) {
+  const center = String(p.center || '').trim();
+  if (!center) return { ok: false, error: 'اختاري المركز الذي يظهر له التقرير' };
+  const data = typeof p.data === 'string' ? p.data : JSON.stringify(p.data || {});
+  const headSig = String(p.headSignature || '');
+  if (data.length > 45000 || headSig.length > 45000) return { ok: false, error: 'حجم التقرير أو صورة التوقيع كبير جداً' };
+  const sh = visitReportSheet_();
+  const now = nowParts_();
+  if (p.id) {
+    const row = findVisitReport_(p.id);
+    if (!row) return { ok: false, error: 'التقرير غير موجود (ربما حُذف)' };
+    const set = function (col, v) { sh.getRange(row._row, colIndex_(sh, col)).setValue(v); };
+    set('اسم المركز', center);
+    set('بيانات التقرير', data);
+    set('توقيع الرئيسة', headSig);
+    set('الحالة', VR_PENDING_);
+    set('توقيع المديرة', ''); set('اسم الموقّعة', '');
+    set('يوم التوقيع', ''); set('تاريخ التوقيع', ''); set('وقت التوقيع', '');
+    invalidateCache_(VISIT_REPORT_SHEET_);
+    return { ok: true, id: p.id, updated: true };
+  }
+  const id = Utilities.getUuid();
+  appendRowByHeaders_(sh, {
+    'معرف': id, 'اسم المركز': center, 'بيانات التقرير': data, 'توقيع الرئيسة': headSig, 'الحالة': VR_PENDING_,
+    'يوم الإرسال': now.day, 'تاريخ الإرسال': now.date, 'وقت الإرسال': now.time
+  });
+  invalidateCache_(VISIT_REPORT_SHEET_);
+  return { ok: true, id: id };
+}
+
+function getVisitReportsAdmin_(p) {
+  return { ok: true, reports: visitReportRows_().slice().reverse().map(visitReportOut_) };
+}
+
+function getVisitReportsForCenter_(p) {
+  const center = String((p && p.center) || '').trim();
+  if (!center) return { ok: false, error: 'اسم المركز مطلوب' };
+  const list = visitReportRows_().filter(function (r) { return String(r['اسم المركز']).trim() === center; })
+    .slice().reverse().map(visitReportOut_);
+  return { ok: true, reports: list };
+}
+
+function getVisitReportPendingCount_(p) {
+  const center = String((p && p.center) || '').trim();
+  const count = visitReportRows_().filter(function (r) {
+    return String(r['اسم المركز']).trim() === center && (r['الحالة'] || VR_PENDING_) === VR_PENDING_;
+  }).length;
+  return { ok: true, count: count };
+}
+
+/* توقيع المديرة: مرة واحدة فقط، ومن نفس المركز الموجّه له التقرير */
+function signVisitReport_(p) {
+  const row = findVisitReport_(p.id);
+  if (!row) return { ok: false, error: 'التقرير غير موجود' };
+  if (String(row['اسم المركز']).trim() !== String(p.center || '').trim()) return { ok: false, error: 'هذا التقرير غير موجّه لهذا المركز' };
+  if (row['الحالة'] === VR_SIGNED_) return { ok: false, error: 'تم توقيع هذا التقرير مسبقاً' };
+  const sig = String(p.signature || '');
+  if (!sig) return { ok: false, error: 'التوقيع مطلوب' };
+  if (sig.length > 45000) return { ok: false, error: 'صورة التوقيع كبيرة جداً' };
+  const sh = visitReportSheet_();
+  const now = nowParts_();
+  const set = function (col, v) { sh.getRange(row._row, colIndex_(sh, col)).setValue(v); };
+  set('توقيع المديرة', sig);
+  set('اسم الموقّعة', String(p.signerName || '').trim());
+  set('يوم التوقيع', now.day); set('تاريخ التوقيع', now.date); set('وقت التوقيع', now.time);
+  set('الحالة', VR_SIGNED_);
+  invalidateCache_(VISIT_REPORT_SHEET_);
+  return { ok: true };
+}
+
+function deleteVisitReport_(p) {
+  const row = findVisitReport_(p.id);
+  if (!row) return { ok: false, error: 'التقرير غير موجود' };
+  visitReportSheet_().deleteRow(row._row);
+  invalidateCache_(VISIT_REPORT_SHEET_);
+  return { ok: true };
+}
 
 const COMPANY_PAYMENT_CATEGORY_ = 'تسديد شركة أعمال الإخلاص';
 const HELPER_REWARD_CATEGORY_ = 'مكافأة المتعاونة';

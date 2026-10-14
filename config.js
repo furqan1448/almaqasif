@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbzTXlQEyICDIL2SAzDqJzbbklrX74r2EKT-vvT6J0W2u5b746nD4N-bsown04sPOVXI/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxTzM48M4RNqLNDNK2QejYNKQH1vSKYLCHAcZVBH0wDCo3wgBked-oBLli0DzIbFMVs/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -694,7 +694,9 @@ function buildVisitReportHTML(opts) {
   html += '<span class="vr-footer-col"><span>رئيسة وحدة المقاصف</span><span>' + (opts.headName || 'فاطمة مبارك الكثيري') + '</span>';
   if (sigUrl) html += '<img class="vr-sig" style="max-width:calc(' + sigW + 'px * var(--z, 1));max-height:calc(' + sigH + 'px * var(--z, 1));" src="' + sigUrl + '" alt="توقيع" onerror="this.style.display=\'none\';">';
   html += '</span>';
-  html += '<span class="vr-footer-col"><span>مديرة المركز</span><span>' + (opts.centerHeadName || '') + '</span></span>';
+  html += '<span class="vr-footer-col"><span>مديرة المركز</span><span>' + (opts.centerHeadName || '') + '</span>';
+  if (opts.directorSignatureDataUrl) html += '<img class="vr-sig" style="max-width:calc(140px * var(--z, 1));max-height:calc(80px * var(--z, 1));" src="' + opts.directorSignatureDataUrl + '" alt="توقيع المديرة">';
+  html += '</span>';
   html += '</div>';
   html += '</div></div>';
   return html;
