@@ -528,6 +528,17 @@ tr.vs-detail td { background: #fbf8f2; text-align: right; }
 .vs-edit-note { margin: 10px 0 0; padding: 8px 12px; border-radius: 8px; background: #fbf5e8; color: var(--maroon, #6e1523); font-size: 0.82rem; }
 #vsCancelEditBtn { margin-top: 8px; }
 
+/* القوائم المصغّرة: المراكز التي تمت زيارتها / لم تتم زيارتها */
+.vs-fold-card { padding-top: 0; padding-bottom: 0; }
+.vs-fold > summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 16px 0; cursor: pointer; user-select: none; }
+.vs-fold > summary::-webkit-details-marker { display: none; }
+.vs-fold-title { flex: 1; font-weight: 800; color: var(--maroon); font-size: 1rem; }
+.vs-fold-count { background: #eaf6ee; color: #1f6b3a; border-radius: 999px; padding: 3px 12px; font-weight: 800; font-size: 0.8rem; white-space: nowrap; }
+.vs-fold-count.no { background: #fbeef0; color: #8a1f2b; }
+.vs-fold-arrow { color: var(--maroon); font-size: 1rem; transition: transform .2s; }
+.vs-fold[open] .vs-fold-arrow { transform: rotate(180deg); }
+.vs-fold-body { padding-bottom: 16px; border-top: 1px dashed var(--gold-light); padding-top: 12px; }
+
 /* -------- الأسئلة الشائعة (masoulat.html) -------- */
 .faq-sub { margin: 0 0 14px; color: #8a7d76; font-size: 0.9rem; }
 .faq-cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 18px; }

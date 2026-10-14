@@ -721,21 +721,37 @@
         <div class="success-msg" id="vsSuccess"></div>
       </div>
 
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">عدد الزيارات لكل مركز</h3>
-        <div id="vsSummary">جارِ التحميل...</div>
-        <div class="export-row" style="margin-top:12px;">
-          <button class="btn outline" onclick="exportVisitStats()">⬇️ Excel</button>
-        </div>
+      <div class="card vs-fold-card">
+        <details class="vs-fold">
+          <summary>
+            <span class="vs-fold-title">✅ المراكز التي تمت زيارتها</span>
+            <span class="vs-fold-count" id="vsVisitedCount">…</span>
+            <span class="vs-fold-arrow" aria-hidden="true">▾</span>
+          </summary>
+          <div class="vs-fold-body">
+            <div id="vsSummary">جارِ التحميل...</div>
+            <div class="export-row" style="margin-top:12px;">
+              <button class="btn outline" onclick="exportVisitStats()">⬇️ Excel</button>
+            </div>
+          </div>
+        </details>
       </div>
 
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">المراكز التي لم تتم زيارتها</h3>
-        <p style="font-size:0.78rem;color:#8a7d76;margin:0 0 10px;">القائمة مأخوذة من ورقة «أرقام المديرات» (كل مركز بفترته)، ولا تشمل المراكز المسجّل في «حصر المقاصف» أنه لا يوجد بها مقصف.</p>
-        <div id="vsUnvisited">جارِ التحميل...</div>
-        <div class="export-row" style="margin-top:12px;">
-          <button class="btn outline" onclick="exportUnvisited()">⬇️ Excel</button>
-        </div>
+      <div class="card vs-fold-card">
+        <details class="vs-fold">
+          <summary>
+            <span class="vs-fold-title">❌ المراكز التي لم تتم زيارتها</span>
+            <span class="vs-fold-count no" id="vsUnvisitedCount">…</span>
+            <span class="vs-fold-arrow" aria-hidden="true">▾</span>
+          </summary>
+          <div class="vs-fold-body">
+            <p style="font-size:0.78rem;color:#8a7d76;margin:0 0 10px;">القائمة مأخوذة من ورقة «أرقام المديرات» (كل مركز بفترته)، ولا تشمل المراكز المسجّل في «حصر المقاصف» أنه لا يوجد بها مقصف.</p>
+            <div id="vsUnvisited">جارِ التحميل...</div>
+            <div class="export-row" style="margin-top:12px;">
+              <button class="btn outline" onclick="exportUnvisited()">⬇️ Excel</button>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
 
@@ -4183,6 +4199,7 @@ function renderVisitStats_() {
   renderUnvisited_();
   const box = document.getElementById('vsSummary');
   const groups = vsGroups_();
+  vsSetFoldCount_('vsVisitedCount', groups.length);
   if (!groups.length) { box.innerHTML = '<div style="color:#8a7d76;">لا توجد زيارات مسجّلة بعد.</div>'; return; }
   let rows = '';
   groups.forEach(function (g, i) {
@@ -4321,10 +4338,19 @@ function vsUnvisitedList_() {
   });
 }
 
+/* عدد المراكز بجانب عنوان القائمة المصغّرة */
+function vsSetFoldCount_(id, n) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = n === 0 ? 'لا يوجد' : n === 1 ? 'مركز واحد' : n === 2 ? 'مركزان'
+    : vsAr_(n) + (n <= 10 ? ' مراكز' : ' مركزًا');
+}
+
 function renderUnvisited_() {
   const box = document.getElementById('vsUnvisited');
   if (!box || !vsUnvReady_) return;
   const list = vsUnvisitedList_();
+  vsSetFoldCount_('vsUnvisitedCount', vrDirectors_.length ? list.length : 0);
   if (!vrDirectors_.length) { box.innerHTML = '<div style="color:#8a7d76;">ورقة «أرقام المديرات» فارغة.</div>'; return; }
   if (!list.length) { box.innerHTML = '<div class="vs-unv-ok">✅ تمت زيارة جميع المراكز.</div>'; return; }
   box.innerHTML = '<div class="vs-total">عدد المراكز التي لم تتم زيارتها: <b>' + vsAr_(list.length) + '</b></div>' +
