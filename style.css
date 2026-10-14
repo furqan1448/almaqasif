@@ -626,23 +626,49 @@ tr.vs-detail td { background: #fbf8f2; text-align: right; }
 }
 .ord-chip[aria-pressed="true"] { background: var(--maroon); border-color: var(--maroon); color: #fff; }
 
-.ord-list { margin-top: 10px; }
-.ord-item {
-  display: grid; grid-template-columns: 1fr auto; grid-template-areas: "name name" "units qty";
-  gap: 8px 10px; align-items: center;
-  padding: 11px 10px; border-bottom: 1px solid var(--gold-light); border-right: 4px solid transparent;
+.ord-list {
+  margin-top: 12px; display: grid; gap: 12px; align-items: start;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
 }
-.ord-item:last-child { border-bottom: none; }
-.ord-item.on { background: #fbf3ec; border-right-color: var(--maroon); }
-.ord-name { grid-area: name; font-weight: 700; color: var(--ink); line-height: 1.6; }
-.ord-units { grid-area: units; display: inline-flex; justify-self: start; border: 1.5px solid var(--gold-light); border-radius: 10px; overflow: hidden; background: #fff; }
-.ord-units button {
-  border: 0; background: #fff; color: var(--maroon-dark); min-width: 66px; padding: 9px 14px;
-  font-family: 'Tajawal', sans-serif; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+.ord-tbl-wrap { border: 1.5px solid #d6d6d6; border-radius: 12px; overflow: hidden; background: #fff; }
+.ord-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 0.9rem; }
+.ord-tbl col.ord-c-u { width: 50px; }
+.ord-tbl col.ord-c-q { width: 64px; }
+.ord-tbl th {
+  background: var(--maroon); color: #fff; font-weight: 700; font-size: 0.82rem;
+  padding: 6px 4px; border: 1px solid rgba(255, 255, 255, .28); text-align: center;
 }
-.ord-units button + button { border-right: 1.5px solid var(--gold-light); }
-.ord-units button[aria-pressed="true"] { background: var(--maroon); color: #fff; }
-.ord-item.need-unit .ord-units { border-color: #b3261e; box-shadow: 0 0 0 3px rgba(179, 38, 30, .15); }
+.ord-tbl thead tr + tr th { background: var(--maroon-dark); font-size: 0.78rem; padding: 4px 2px; }
+.ord-tbl td { border: 1px solid #e2e2e2; padding: 0; height: 44px; vertical-align: middle; }
+.ord-tbl td.ord-name { padding: 6px 8px; font-weight: 700; color: var(--ink); line-height: 1.5; word-break: break-word; }
+.ord-tbl tr.on td { background: #ffffff !important; }
+.ord-tbl tr.on td.ord-name { color: var(--maroon); box-shadow: inset -4px 0 0 var(--maroon); }
+
+.ord-u button {
+  display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; min-height: 44px;
+  border: 0; margin: 0; padding: 0; background: transparent; cursor: pointer;
+}
+.ord-u button::before {
+  content: ''; width: 20px; height: 20px; border: 2px solid #a8a8a8; border-radius: 6px; background: #fff;
+  box-sizing: border-box; transition: background .12s, border-color .12s;
+}
+.ord-u button[aria-pressed="true"]::before {
+  background: var(--maroon) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 14px no-repeat;
+  border-color: var(--maroon);
+}
+.ord-u button:focus-visible { outline: 2px solid var(--maroon); outline-offset: -3px; }
+.ord-tbl tr.need-unit td.ord-u { background: #fdecea !important; }
+.ord-tbl tr.need-unit .ord-u button::before { border-color: #b3261e; }
+
+.ord-q input.ord-n {
+  display: block; width: 100%; height: 100%; min-height: 44px; margin: 0; padding: 0 2px; border: 0; border-radius: 0;
+  background: transparent; text-align: center; box-shadow: none;
+  font-family: 'Tajawal', sans-serif; font-weight: 800; font-size: 1.05rem; color: var(--maroon-dark);
+  -moz-appearance: textfield; appearance: textfield;
+}
+.ord-q input.ord-n::-webkit-outer-spin-button, .ord-q input.ord-n::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.ord-q input.ord-n:focus { outline: 2px solid var(--maroon); outline-offset: -3px; background: #fff; }
+.ord-tbl tr.need-qty td.ord-q { background: #fdecea !important; }
 
 .ord-qty { grid-area: qty; display: inline-flex; direction: ltr; justify-self: end; align-items: center; border: 1.5px solid var(--gold-light); border-radius: 10px; overflow: hidden; background: #fff; }
 .ord-qty button { width: 40px; height: 40px; border: 0; background: var(--gold-light); color: var(--maroon-dark); font-size: 1.25rem; font-weight: 800; line-height: 1; cursor: pointer; }
@@ -652,10 +678,6 @@ tr.vs-detail td { background: #fbf8f2; text-align: right; }
   font-family: 'Tajawal', sans-serif; font-weight: 800; font-size: 1.05rem; -moz-appearance: textfield; appearance: textfield;
 }
 .ord-qty input[type=number]::-webkit-outer-spin-button, .ord-qty input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-@media (min-width: 600px) {
-  .ord-item { grid-template-columns: 1fr 160px 150px; grid-template-areas: "name units qty"; }
-  .ord-units { justify-self: end; }
-}
 
 .ord-empty { padding: 18px 6px; text-align: center; color: #8a7d76; }
 .ord-other-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px dashed var(--gold-light); }
@@ -675,4 +697,7 @@ button.btn.ord-add { margin-top: 12px; }
 .ord-count { font-size: 0.9rem; color: var(--maroon-dark); }
 .ord-count b { font-size: 1.05rem; color: var(--maroon); }
 button.btn.ord-send { width: auto; margin: 0; padding: 12px 22px; display: inline-flex; align-items: center; gap: 8px; }
-@media (prefers-reduced-motion: reduce) { .ord-units, .ord-qty { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .ord-u button::before { transition: none; } }
+/* شاشة الطلبات: حقول بيضاء بدل اللون الكريمي */
+#ordersView select, #ordersView input[type=text], #ordersView textarea { background-color: #ffffff; border-color: #d6d6d6; }
+#ordersView .ord-card { background: #ffffff; }

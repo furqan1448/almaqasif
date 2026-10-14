@@ -1406,7 +1406,7 @@ function handleRequest_(p) {
       case 'getPriceListManager': return json_(getPriceListManager_());
       case 'setPriceListManager': return json_(setPriceListManager_(p));
 
-      case 'ping': return json_({ ok: true, serverMs: Date.now() - T0_, version: '2026-10-07-orders', invoiceReturns: typeof cleanInvoiceReturn_ === 'function', canteenOrders: typeof submitCanteenOrder_ === 'function', lightNotices: typeof getNoticeCenterSignature_ === 'function' });
+      case 'ping': return json_({ ok: true, serverMs: Date.now() - T0_, version: '2026-10-14-orders-table', invoiceReturns: typeof cleanInvoiceReturn_ === 'function', canteenOrders: typeof submitCanteenOrder_ === 'function', lightNotices: typeof getNoticeCenterSignature_ === 'function' });
       case 'getPurchaseCenters': return json_(getPurchaseCenters_());
       case 'setPurchaseCenters': return json_(setPurchaseCenters_(p));
       case 'getExpenseCenters': return json_(getExpenseCenters_());
@@ -3528,54 +3528,76 @@ function submitCanteenOrder_(p) {
   return { ok: true, id: id, count: items.length, emailSent: emailSent };
 }
 
+/* بريد الطلب: جدول مرتّب بنفس ترتيب النموذج الورقي (للعرض والتصوير) + «نص الطلب» عادي جاهز للنسخ
+   واللصق (واتساب أو غيره). الرسالة كلها نص حقيقي وليست صورة، فيمكن تحديد أي جزء منها ونسخه. */
+function canteenOrderText_(o, center) {
+  const L = [];
+  L.push('طلبات بضاعة المقصف لمركز / ' + center);
+  L.push('الفترة: ' + o.period);
+  L.push('الفصل الدراسي: ' + o.term + ' — ' + o.year);
+  L.push('تاريخ الطلب: ' + o.now.day + ' ' + o.now.date);
+  if (o.masoulaName) L.push('مسؤولة المقصف: ' + o.masoulaName);
+  if (o.managerName) L.push('مديرة المركز: ' + o.managerName);
+  L.push('');
+  L.push('الأصناف (' + o.items.length + '):');
+  o.items.forEach(function (it, i) {
+    L.push((i + 1) + ') ' + it.name + ' — ' + it.qty + ' ' + it.unit + (it.other ? ' (صنف إضافي)' : ''));
+  });
+  if (o.notes) { L.push(''); L.push('ملاحظات: ' + o.notes); }
+  return L.join('\n');
+}
+
 function notifyCanteenOrder_(o) {
   if (!ORDERS_NOTIFY_EMAIL || ORDERS_NOTIFY_EMAIL.indexOf('@example.com') !== -1) return false;
   try {
     const center = centerDisplay_(o.center);
-    const subject = ('طلب مقصف جديد — ' + center + ' — الفترة ' + o.period + ' — الفصل ' + o.term + ' ' + o.year)
+    const subject = ('طلب مقصف — ' + center + ' — ' + o.period + ' — ' + o.now.date)
       .replace(/[\r\n]+/g, ' ');
 
-    const listed = o.items.filter(function (i) { return !i.other; });
-    const others = o.items.filter(function (i) { return i.other; });
-    const row = function (it, n) {
-      return '<tr><td style="padding:7px 10px;border:1px solid #d9cdb4;text-align:center;">' + n + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #d9cdb4;">' + htmlEsc_(it.name) + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #d9cdb4;text-align:center;">' + htmlEsc_(it.unit) + '</td>' +
-        '<td style="padding:7px 10px;border:1px solid #d9cdb4;text-align:center;font-weight:bold;">' + it.qty + '</td></tr>';
+    const B = 'border:1px solid #d6d6d6;';
+    const th = function (t, w) {
+      return '<th style="' + B + 'background:#6e1523;color:#ffffff;padding:8px 6px;font-size:14px;text-align:center;' + (w ? 'width:' + w + ';' : '') + '">' + t + '</th>';
     };
-    const table = function (title, arr) {
-      if (!arr.length) return '';
-      return '<h3 style="color:#6e1523;margin:18px 0 6px;">' + title + '</h3>' +
-        '<table style="border-collapse:collapse;width:100%;font-size:14px;"><thead><tr style="background:#6e1523;color:#fff;">' +
-        '<th style="padding:8px 10px;border:1px solid #6e1523;width:40px;">#</th>' +
-        '<th style="padding:8px 10px;border:1px solid #6e1523;">الصنف</th>' +
-        '<th style="padding:8px 10px;border:1px solid #6e1523;width:90px;">الوحدة</th>' +
-        '<th style="padding:8px 10px;border:1px solid #6e1523;width:80px;">العدد</th></tr></thead><tbody>' +
-        arr.map(function (it, i) { return row(it, i + 1); }).join('') + '</tbody></table>';
-    };
-    const info = function (k, v) {
-      return v ? '<tr><td style="padding:4px 0;color:#6f6467;width:130px;">' + k + '</td><td style="padding:4px 0;font-weight:bold;">' + htmlEsc_(v) + '</td></tr>' : '';
-    };
-    const html = '<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;max-width:640px;margin:auto;color:#2b2325;">' +
-      '<div style="background:#6e1523;color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;font-size:18px;font-weight:bold;">طلب مقصف جديد</div>' +
-      '<div style="border:1px solid #e8dfe1;border-top:0;padding:16px 18px;border-radius:0 0 10px 10px;">' +
-      '<table style="font-size:14px;border-collapse:collapse;">' +
-      info('المركز', center) + info('الفترة', o.period) + info('الفصل الدراسي', o.term) + info('العام', o.year) +
-      info('مسؤولة المقصف', o.masoulaName) + info('مديرة المركز', o.managerName) +
-      info('تاريخ الطلب', o.now.day + ' ' + o.now.date + ' ' + o.now.time) +
-      '</table>' +
-      table('الأصناف المطلوبة', listed) + table('أصناف أخرى', others) +
-      (o.notes ? '<h3 style="color:#6e1523;margin:18px 0 6px;">ملاحظات</h3><div style="background:#faf8f8;border:1px solid #e8dfe1;border-radius:8px;padding:10px;white-space:pre-wrap;">' + htmlEsc_(o.notes) + '</div>' : '') +
-      '<p style="color:#6f6467;font-size:12px;margin-top:20px;">إجمالي الأصناف: ' + o.items.length + ' — الطلب محفوظ أيضاً بشيت «' + ORDERS_SHEET_NAME_ + '». — نظام وحدة المقاصف، جمعية فرقان لتحفيظ القرآن الكريم</p>' +
-      '</div></div>';
+    const rows = o.items.map(function (it, i) {
+      const bg = '#ffffff';
+      const tick = '<span style="color:#6e1523;font-weight:bold;">✔</span>';
+      const isCarton = it.unit === 'كرتون';
+      return '<tr style="background:' + bg + ';">' +
+        '<td style="' + B + 'padding:7px 6px;text-align:center;color:#6f6467;">' + (i + 1) + '</td>' +
+        '<td style="' + B + 'padding:7px 10px;font-weight:bold;">' + htmlEsc_(it.name) +
+          (it.other ? ' <span style="color:#8a7d76;font-weight:normal;font-size:12px;">(صنف إضافي)</span>' : '') + '</td>' +
+        '<td style="' + B + 'padding:7px 6px;text-align:center;">' + (isCarton ? '' : tick + '<div style="font-size:11px;color:#6f6467;">' + htmlEsc_(it.unit) + '</div>') + '</td>' +
+        '<td style="' + B + 'padding:7px 6px;text-align:center;">' + (isCarton ? tick : '') + '</td>' +
+        '<td style="' + B + 'padding:7px 6px;text-align:center;font-weight:bold;font-size:16px;color:#6e1523;">' + it.qty + '</td></tr>';
+    }).join('');
+    const table =
+      '<table dir="rtl" cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;font-size:14px;">' +
+      '<thead><tr>' + th('م', '34px') + th('الصنف') + th('علبة / كيس', '74px') + th('كرتون', '60px') + th('العدد', '60px') + '</tr></thead>' +
+      '<tbody>' + rows + '</tbody></table>';
 
-    const text = 'طلب مقصف جديد\n' +
-      'المركز: ' + center + '\nالفترة: ' + o.period + '\nالفصل الدراسي: ' + o.term + ' ' + o.year + '\n' +
-      (o.masoulaName ? 'مسؤولة المقصف: ' + o.masoulaName + '\n' : '') +
-      (o.managerName ? 'مديرة المركز: ' + o.managerName + '\n' : '') +
-      'تاريخ الطلب: ' + o.now.day + ' ' + o.now.date + ' ' + o.now.time + '\n\nالأصناف:\n' +
-      o.items.map(function (it) { return '- ' + (it.other ? '(صنف آخر) ' : '') + it.name + ' — ' + it.qty + ' ' + it.unit; }).join('\n') +
-      (o.notes ? '\n\nملاحظات: ' + o.notes : '');
+    const info = function (k, v) {
+      return v ? '<tr><td style="padding:3px 0;color:#6f6467;width:120px;">' + k + '</td><td style="padding:3px 0;font-weight:bold;">' + htmlEsc_(v) + '</td></tr>' : '';
+    };
+    const text = canteenOrderText_(o, center);
+
+    const html = '<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;max-width:640px;margin:auto;color:#2b2325;text-align:right;">' +
+      '<div style="background:#6e1523;color:#ffffff;padding:12px 16px;border-radius:10px 10px 0 0;">' +
+        '<div style="font-size:12px;opacity:.85;">جمعية فرقان لتحفيظ القرآن الكريم — وحدة المقاصف</div>' +
+        '<div style="font-size:18px;font-weight:bold;margin-top:2px;">طلبات بضاعة المقصف لمركز / ' + htmlEsc_(center) + '</div></div>' +
+      '<div style="border:1px solid #e2e2e2;border-top:0;padding:14px 16px;border-radius:0 0 10px 10px;">' +
+      '<table style="font-size:14px;border-collapse:collapse;margin-bottom:12px;">' +
+        info('الفترة', o.period) + info('الفصل الدراسي', o.term + ' — ' + o.year) +
+        info('تاريخ الطلب', o.now.day + ' ' + o.now.date + ' — ' + o.now.time) +
+        info('مسؤولة المقصف', o.masoulaName) + info('مديرة المركز', o.managerName) +
+      '</table>' +
+      table +
+      (o.notes ? '<div style="margin-top:12px;background:#ffffff;border:1px solid #e2e2e2;border-radius:8px;padding:10px;white-space:pre-wrap;"><b style="color:#6e1523;">ملاحظات: </b>' + htmlEsc_(o.notes) + '</div>' : '') +
+      '<div style="margin-top:22px;color:#6e1523;font-weight:bold;font-size:15px;">نص الطلب (للنسخ)</div>' +
+      '<div style="font-size:12px;color:#6f6467;margin:2px 0 6px;">اضغطي مطوّلًا على النص التالي ثم «تحديد الكل» و«نسخ»، والصقيه حيث تريدين.</div>' +
+      '<div style="background:#ffffff;border:1px dashed #d6d6d6;border-radius:8px;padding:12px;font-size:14px;line-height:1.9;">' +
+        htmlEsc_(text).replace(/\n/g, '<br>') + '</div>' +
+      '<p style="color:#6f6467;font-size:12px;margin-top:18px;">الطلب محفوظ أيضًا في شيت «' + ORDERS_SHEET_NAME_ + '». — نظام وحدة المقاصف</p>' +
+      '</div></div>';
 
     MailApp.sendEmail({ to: ORDERS_NOTIFY_EMAIL, subject: subject, body: text, htmlBody: html, name: 'نظام وحدة المقاصف' });
     return true;
