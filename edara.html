@@ -651,9 +651,9 @@
         <h3 style="margin-top:0;color:var(--maroon);" id="incomeFormTitle">إضافة بند لقائمة الدخل</h3>
         <label>البند</label>
         <select id="incomeCategory" onchange="onIncomeCategoryChange()">
-          <option value="إيراد">إيراد</option>
+          <option value="إيراد">إيراد (مبلغ مستلم)</option>
+          <option value="ربح">أرباح أخرى</option>
           <option value="مصروفات">مصروفات</option>
-          <option value="ربح">ربح</option>
           <option value="تسديد شركة أعمال الإخلاص">تسديد شركة أعمال الإخلاص</option>
         </select>
         <p id="incomeCompanyHint" class="hidden" style="color:var(--maroon);font-size:0.85rem;margin:6px 0 0;">يُرجى إرفاق سند التسديد (ملف من الجهاز أو رابط).</p>
@@ -684,11 +684,15 @@
           <tbody id="incomeTbody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
         </table>
         <div class="card" style="background:var(--cream);box-shadow:none;margin-top:14px;">
-          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>إجمالي الإيرادات</span><strong id="incomeTotalRevenue">0</strong></div>
-          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>إجمالي المصروفات</span><strong id="incomeTotalExpenses">0</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>إجمالي الإيرادات (المبالغ المستلمة)</span><strong id="incomeTotalRevenue">0</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:0 14px 2px 0;font-size:0.85rem;color:#8a7d76;"><span>منها إشعارات الاستلام</span><span id="incomeTotalReceipts">0</span></div>
+          <div style="display:flex;justify-content:space-between;padding:0 14px 4px 0;font-size:0.85rem;color:#8a7d76;"><span>منها مبالغ مستلمة أخرى</span><span id="incomeManualRevenue">0</span></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>(+) أرباح أخرى</span><strong id="incomeTotalOtherProfit">0</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>(−) المصروفات</span><strong id="incomeTotalExpenses">0</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>(−) مكافأة المتعاونة (إشعارات التسليم)</span><strong id="incomeTotalHelperReward">0</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>(−) رسوم حفل تحفيظ الصغار</span><strong id="incomeTotalFee">0</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>(−) إجمالي المسدَّد لشركة أعمال الإخلاص</span><strong id="incomeTotalCompanyPaid">0</strong></div>
           <div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid var(--gold-light);margin-top:4px;"><span>الربح</span><strong id="incomeNetProfit" style="color:var(--maroon);">0</strong></div>
-          <div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid var(--gold-light);margin-top:4px;"><span>إجمالي مبالغ إشعارات الاستلام</span><strong id="incomeTotalReceipts">0</strong></div>
-          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>إجمالي المسدَّد لشركة أعمال الإخلاص</span><strong id="incomeTotalCompanyPaid" style="color:var(--maroon);">0</strong></div>
         </div>
         <div class="export-row">
           <button class="btn outline" onclick="exportIncomeItems()">⬇️ Excel</button>
@@ -696,15 +700,22 @@
       </div>
 
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">إشعارات الاستلام ومبالغها</h3>
-        <p style="color:#8a7d76;font-size:0.85rem;margin:0 0 8px;">تُعرض تلقائياً من إشعارات الاستلام المرسلة من المراكز، وفق الفصل المختار أعلاه.</p>
+        <h3 style="margin-top:0;color:var(--maroon);">الإشعارات ومبالغها</h3>
+        <p style="color:#8a7d76;font-size:0.85rem;margin:0 0 8px;">تُعرض تلقائياً من إشعارات الاستلام والتسليم المرسلة من المراكز، وفق الفصل المختار أعلاه.</p>
+        <label>نوع الإشعار</label>
+        <select id="incomeNoticeKindFilter" onchange="renderIncomeReceipts_()">
+          <option value="">الكل</option>
+          <option value="receive">استلام</option>
+          <option value="reward">تسليم المكافأة</option>
+          <option value="fee">رسوم حفل تحفيظ الصغار</option>
+        </select>
         <table class="log-table" id="incomeReceiptsTable">
-          <thead><tr><th>المركز</th><th>المسلِّمة</th><th>المبلغ</th><th>اليوم</th><th>التاريخ</th><th>الإشعار</th></tr></thead>
-          <tbody id="incomeReceiptsTbody"><tr><td colspan="6">جارٍ التحميل...</td></tr></tbody>
+          <thead><tr><th>النوع</th><th>المركز</th><th>المسلِّمة</th><th>المبلغ</th><th>اليوم</th><th>التاريخ</th><th>الإشعار</th></tr></thead>
+          <tbody id="incomeReceiptsTbody"><tr><td colspan="7">جارٍ التحميل...</td></tr></tbody>
         </table>
         <div class="card" style="background:var(--cream);box-shadow:none;margin-top:14px;">
-          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>عدد الإشعارات</span><strong id="incomeReceiptsCount">0</strong></div>
-          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>الإجمالي</span><strong id="incomeReceiptsTotal2" style="color:var(--maroon);">0</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>عدد الإشعارات المعروضة</span><strong id="incomeReceiptsCount">0</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>إجمالي المعروض</span><strong id="incomeReceiptsTotal2" style="color:var(--maroon);">0</strong></div>
         </div>
         <div class="export-row">
           <button class="btn outline" onclick="exportIncomeReceipts()">⬇️ Excel</button>
@@ -3107,8 +3118,13 @@ function loadIncomeItems() {
     document.getElementById('incomeTotalExpenses').textContent = (r.totalExpenses || 0).toFixed(2);
     document.getElementById('incomeNetProfit').textContent = (r.netProfit || 0).toFixed(2);
     document.getElementById('incomeTotalReceipts').textContent = (r.totalReceipts || 0).toFixed(2);
+    document.getElementById('incomeManualRevenue').textContent = (r.manualIncome || 0).toFixed(2);
+    document.getElementById('incomeTotalOtherProfit').textContent = (r.totalOtherProfit || 0).toFixed(2);
+    document.getElementById('incomeTotalHelperReward').textContent = (r.totalHelperReward || 0).toFixed(2);
+    document.getElementById('incomeTotalFee').textContent = (r.totalFeeNotices || 0).toFixed(2);
     document.getElementById('incomeTotalCompanyPaid').textContent = (r.totalCompanyPaid || 0).toFixed(2);
-    renderIncomeReceipts_(r.receipts || [], r.totalReceipts || 0);
+    currentIncomeReceipts = r.receipts || [];
+    renderIncomeReceipts_();
     if (!currentIncomeItems.length) { tbody.innerHTML = '<tr><td colspan="7">لا توجد بنود بعد</td></tr>'; return; }
     tbody.innerHTML = '';
     currentIncomeItems.forEach(function (item) {
@@ -3121,27 +3137,34 @@ function loadIncomeItems() {
   });
 }
 
-function renderIncomeReceipts_(list, total) {
-  currentIncomeReceipts = list;
+function filteredIncomeReceipts_() {
+  const k = document.getElementById('incomeNoticeKindFilter').value;
+  return currentIncomeReceipts.filter(function (n) { return !k || n.kind === k; });
+}
+
+function renderIncomeReceipts_() {
+  const list = filteredIncomeReceipts_();
+  const total = list.reduce(function (s, n) { return s + (Number(n.amount) || 0); }, 0);
   const tbody = document.getElementById('incomeReceiptsTbody');
   document.getElementById('incomeReceiptsCount').textContent = list.length;
-  document.getElementById('incomeReceiptsTotal2').textContent = Number(total).toFixed(2);
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="6">لا توجد إشعارات استلام</td></tr>'; return; }
+  document.getElementById('incomeReceiptsTotal2').textContent = total.toFixed(2);
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7">لا توجد إشعارات</td></tr>'; return; }
   tbody.innerHTML = '';
   list.forEach(function (n) {
     const tr = document.createElement('tr');
     const img = n.image ? '<a href="' + n.image + '" target="_blank">عرض</a>' : '—';
-    tr.innerHTML = '<td>' + (n.center || '') + '</td><td>' + (n.senderName || '') + '</td><td>' + Number(n.amount).toFixed(2) + '</td><td>' + (n.day || '') + '</td><td>' + toHijriStr(n.date) + '</td><td>' + img + '</td>';
+    tr.innerHTML = '<td>' + (n.kindLabel || '') + '</td><td>' + (n.center || '') + '</td><td>' + (n.senderName || '') + '</td><td>' + Number(n.amount).toFixed(2) + '</td><td>' + (n.day || '') + '</td><td>' + toHijriStr(n.date) + '</td><td>' + img + '</td>';
     tbody.appendChild(tr);
   });
 }
 
 function exportIncomeReceipts() {
-  if (!currentIncomeReceipts.length) { alert('لا توجد بيانات لتصديرها'); return; }
-  const rows = currentIncomeReceipts.map(function (n) {
-    return { 'المركز': n.center || '', 'المسلّمة': n.senderName || '', 'المبلغ': Number(n.amount), 'اليوم': n.day || '', 'التاريخ': toHijriStr(n.date), 'الحالة': n.status || '' };
+  const list = filteredIncomeReceipts_();
+  if (!list.length) { alert('لا توجد بيانات لتصديرها'); return; }
+  const rows = list.map(function (n) {
+    return { 'النوع': n.kindLabel || '', 'المركز': n.center || '', 'المسلّمة': n.senderName || '', 'المبلغ': Number(n.amount), 'اليوم': n.day || '', 'التاريخ': toHijriStr(n.date), 'الحالة': n.status || '' };
   });
-  exportToExcel(rows, 'إشعارات-الاستلام', 'إشعارات الاستلام');
+  exportToExcel(rows, 'الإشعارات-ومبالغها', 'الإشعارات');
 }
 
 function deleteIncomeRow(row) {
