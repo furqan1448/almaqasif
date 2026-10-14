@@ -2970,6 +2970,7 @@ function archiveCurrentTerm_(p) {
 /* ------------------- قائمة الدخل (الإيرادات والمصروفات - يدوي بالكامل) ------------------- */
 
 const COMPANY_PAYMENT_CATEGORY_ = 'تسديد شركة أعمال الإخلاص';
+const HELPER_REWARD_CATEGORY_ = 'مكافأة المتعاونة';
 
 function recordIncomeItem_(p) {
   const sh = sheet_('قائمة الدخل');
@@ -3020,31 +3021,48 @@ function updateIncomeItem_(p) {
 function getIncomeItems_(p) {
   let rows = getRowsForTerm_('قائمة الدخل', p && p.term, 'الفصل الدراسي');
   rows = rows.slice().reverse();
-  let totalIncome = 0, totalExpenses = 0, totalCompanyPaid = 0;
+  let totalIncome = 0, totalExpenses = 0, totalCompanyPaid = 0, totalOtherProfit = 0, totalHelperReward = 0;
   rows.forEach(function (r) {
     const amt = Number(r['المبلغ']) || 0;
-    if (r['البند'] === 'إيراد') totalIncome += amt;
-    else if (r['البند'] === 'مصروفات') totalExpenses += amt;
-    else if (r['البند'] === COMPANY_PAYMENT_CATEGORY_) totalCompanyPaid += amt;
+    const cat = String(r['البند'] || '').trim();
+    if (cat === 'إيراد') totalIncome += amt;
+    else if (cat === 'ربح') totalOtherProfit += amt;
+    else if (cat === 'مصروفات') totalExpenses += amt;
+    else if (cat === HELPER_REWARD_CATEGORY_) totalHelperReward += amt;
+    else if (cat === COMPANY_PAYMENT_CATEGORY_) totalCompanyPaid += amt;
   });
 
-  // إشعارات الاستلام (من المراكز) بمبالغها - لنفس الفصل المختار
+  // الإشعارات (استلام / تسليم المكافأة / رسوم حفل تحفيظ الصغار) بمبالغها - لنفس الفصل المختار
+  const NOTICE_KIND_LABELS_ = { receive: 'استلام', reward: 'تسليم المكافأة', fee: 'رسوم حفل تحفيظ الصغار' };
   const receipts = getRowsForTerm_('الإشعارات', p && p.term, 'فصل الأرشفة')
-    .filter(function (r) { return String(r['النوع'] || '').trim() === 'استلام'; })
+    .filter(function (r) { return NOTICE_KIND_LABELS_[noticeKind_(r)]; })
     .slice().reverse()
     .map(function (r) {
+      const kind = noticeKind_(r);
       return {
+        kind: kind, kindLabel: NOTICE_KIND_LABELS_[kind],
         center: centerDisplay_(r['اسم المركز']), senderName: r['اسم المسلّمة'] || '',
         amount: Number(r['المبلغ']) || 0, day: r['يوم الإرسال'] || '', date: r['تاريخ الإرسال'] || '',
         month: r['الشهر'] || '', status: r['الحالة'] || '',
         image: r['رابط صورة الإشعار الموقع'] || r['رابط صورة الإشعار'] || ''
       };
     });
-  const totalReceipts = receipts.reduce(function (s, r) { return s + r.amount; }, 0);
+  function sumKind_(k) { return receipts.filter(function (r) { return r.kind === k; }).reduce(function (s, r) { return s + r.amount; }, 0); }
+  const totalReceipts = sumKind_('receive');
+  const totalRewardNotices = sumKind_('reward');   // مكافأة المتعاونة = إشعارات تسليم المكافأة
+  const totalFeeNotices = sumKind_('fee');         // رسوم حفل تحفيظ الصغار (إشعار تسليم)
+  totalHelperReward += totalRewardNotices;
 
+  // إجمالي الإيرادات (المبالغ المستلمة) = مبالغ إشعارات الاستلام + بنود «إيراد» اليدوية
+  // الربح = الإيرادات + أرباح أخرى − المصروفات − مكافأة المتعاونة − رسوم حفل تحفيظ الصغار − تسديدات شركة أعمال الإخلاص
+  const manualIncome = totalIncome;
+  totalIncome = manualIncome + totalReceipts;
   return {
-    ok: true, items: rows, totalIncome: totalIncome, totalExpenses: totalExpenses, netProfit: totalIncome - totalExpenses,
-    totalCompanyPaid: totalCompanyPaid, receipts: receipts, totalReceipts: totalReceipts
+    ok: true, items: rows, totalIncome: totalIncome, manualIncome: manualIncome,
+    totalOtherProfit: totalOtherProfit, totalExpenses: totalExpenses, totalHelperReward: totalHelperReward,
+    totalCompanyPaid: totalCompanyPaid, totalFeeNotices: totalFeeNotices,
+    netProfit: totalIncome + totalOtherProfit - totalExpenses - totalHelperReward - totalFeeNotices - totalCompanyPaid,
+    receipts: receipts, totalReceipts: totalReceipts
   };
 }
 
