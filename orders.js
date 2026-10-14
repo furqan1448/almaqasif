@@ -103,15 +103,27 @@
 
     root.innerHTML =
       '<a class="back-link" onclick="showView(\'homeView\')">⟵ رجوع</a>' +
+      '<div class="ord-tabs" role="tablist">' +
+        '<button type="button" role="tab" id="ordTabNew" aria-selected="true">طلب جديد</button>' +
+        '<button type="button" role="tab" id="ordTabHist" aria-selected="false">الطلبات السابقة <span class="ord-tab-n" id="ordHistN"></span></button>' +
+      '</div>' +
+      '<div id="ordHistPane" class="hidden">' +
+        '<div class="card ord-card">' +
+          '<h3 class="ord-title">الطلبات السابقة</h3>' +
+          '<p class="ord-sub">الطلبات التي أُرسلت من مركزكم، الأحدث أولًا. اضغطي على الطلب لعرض أصنافه.</p>' +
+          '<div id="ordHistList"><div class="ord-empty">جارٍ التحميل...</div></div>' +
+        '</div>' +
+      '</div>' +
+      '<div id="ordNewPane">' +
       '<div class="success-msg" id="ordSuccess"></div>' +
       '<div class="card ord-card">' +
         '<h3 class="ord-title">طلبات المقاصف</h3>' +
         '<p class="ord-sub">لكل صنف تحتاجينه: اضغطي على خانة الوحدة (علبة أو كيس أو كرتون) ثم اكتبي العدد. وإن لم تجدي الصنف في الجدول فأضيفيه من «أصناف أخرى».</p>' +
         '<div class="ord-meta"><span>المركز: <b id="ordCenter"></b></span><span>تاريخ الطلب: <b id="ordDate"></b></span></div>' +
         '<div class="ord-grid3">' +
-          '<div><label for="ordPeriod">الفترة</label><select id="ordPeriod"></select></div>' +
-          '<div><label for="ordTerm">الفصل الدراسي</label><select id="ordTerm"></select></div>' +
-          '<div><label for="ordYear">العام</label><select id="ordYear"></select></div>' +
+          '<div><label for="ordPeriod">الفترة <span class="ord-req">*</span></label><select id="ordPeriod" required></select></div>' +
+          '<div><label for="ordTerm">الفصل الدراسي <span class="ord-req">*</span></label><select id="ordTerm" required></select></div>' +
+          '<div><label for="ordYear">العام <span class="ord-req">*</span></label><select id="ordYear" required></select></div>' +
         '</div>' +
         '<div class="ord-grid2">' +
           '<div><label for="ordMasoula">مسؤولة المقصف</label><input type="text" id="ordMasoula" maxlength="80" placeholder="الاسم" autocomplete="off"></div>' +
@@ -144,6 +156,7 @@
           '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>' +
           '<span>إرسال الطلب</span>' +
         '</button>' +
+      '</div>' +
       '</div>';
 
     // قوائم الاختيار
@@ -198,6 +211,11 @@
     });
 
     $('ordAddOther').addEventListener('click', function () { addOther(true); });
+    $('ordTabNew').addEventListener('click', function () { showPane(false); });
+    $('ordTabHist').addEventListener('click', function () { showPane(true); });
+    ['ordPeriod', 'ordTerm', 'ordYear'].forEach(function (id) {
+      $(id).addEventListener('change', function () { $(id).classList.toggle('ord-bad', !$(id).value); });
+    });
     $('ordSend').addEventListener('click', send);
     ST.built = true;
     updateBar();
@@ -280,7 +298,10 @@
     var period = $('ordPeriod').value, term = $('ordTerm').value, year = $('ordYear').value;
     var masoulaName = $('ordMasoula').value.replace(/\s+/g, ' ').trim();
     var managerName = $('ordManager').value.replace(/\s+/g, ' ').trim();
-    if (!period) { showError('اختاري الفترة (صباحي أو مسائي).', $('ordPeriod')); return; }
+    $('ordPeriod').classList.toggle('ord-bad', !period);
+    $('ordTerm').classList.toggle('ord-bad', !term);
+    $('ordYear').classList.toggle('ord-bad', !year);
+    if (!period) { showError('اختيار الفترة إلزامي: اختاري (صباحي) أو (مسائي).', $('ordPeriod')); $('ordPeriod').focus(); return; }
     if (!term) { showError('اختاري الفصل الدراسي.', $('ordTerm')); return; }
     if (!year) { showError('اختاري العام.', $('ordYear')); return; }
     if (ST.role === ROLE_MASOULA && !masoulaName) { showError('اكتبي اسم مسؤولة المقصف.', $('ordMasoula')); return; }
@@ -321,10 +342,10 @@
       ST.sendBusy = false;
       setBtnBusy(btn, false);
       if (!r || !r.ok) { showError((r && r.error) || 'تعذّر إرسال الطلب، حاولي مرة أخرى.'); return; }
-      ls('maqasif_ord_period', period);
       ls('maqasif_ord_manager', managerName);
       if (ST.role !== ROLE_MASOULA) ls('maqasif_ord_masoula', masoulaName);
       reset();
+      loadHistory();
       var ok = $('ordSuccess');
       ok.textContent = r.emailSent === false
         ? 'تم حفظ الطلب ✅ لكن تعذّر إرسال إشعار البريد، يُرجى إبلاغ وحدة المقاصف.'
@@ -348,11 +369,89 @@
     ST.others = [];
     $('ordOthers').innerHTML = '';
     $('ordNotes').value = '';
+    $('ordPeriod').value = '';
     $('ordSearch').value = '';
     ST.q = ''; ST.onlySel = false;
     $('ordOnlySel').setAttribute('aria-pressed', 'false');
     applyFilter();
     updateBar();
+  }
+
+  /* ---- الطلبات السابقة ---- */
+  var HIST = [];
+  function showPane(hist) {
+    $('ordHistPane').classList.toggle('hidden', !hist);
+    $('ordNewPane').classList.toggle('hidden', hist);
+    $('ordTabNew').setAttribute('aria-selected', hist ? 'false' : 'true');
+    $('ordTabHist').setAttribute('aria-selected', hist ? 'true' : 'false');
+  }
+  function hijri(d) { return (d && typeof toHijriStr === 'function') ? toHijriStr(d) : (d || ''); }
+  function orderText(o) {
+    var L = ['طلبات بضاعة المقصف لمركز / ' + (o['اسم المركز'] || ''), 'الفترة: ' + (o['الفترة'] || ''),
+      'الفصل الدراسي: ' + (o['الفصل الدراسي'] || '') + ' — ' + (o['العام'] || ''),
+      'تاريخ الطلب: ' + (o['اليوم'] || '') + ' ' + hijri(o['التاريخ'])];
+    if (o['مسؤولة المقصف']) L.push('مسؤولة المقصف: ' + o['مسؤولة المقصف']);
+    if (o['مديرة المركز']) L.push('مديرة المركز: ' + o['مديرة المركز']);
+    L.push('', 'الأصناف (' + o.items.length + '):');
+    o.items.forEach(function (it, i) { L.push((i + 1) + ') ' + it.name + (it.qty !== '' ? ' — ' + it.qty + ' ' + it.unit : '') + (it.other ? ' (صنف إضافي)' : '')); });
+    if (o['ملاحظات']) L.push('', 'ملاحظات: ' + o['ملاحظات']);
+    return L.join('\n');
+  }
+  function histItemsTable(o) {
+    return '<div class="ord-tbl-wrap"><table class="ord-tbl ord-tbl-hist">' +
+      '<colgroup><col style="width:28px"><col><col style="width:56px"><col style="width:48px"><col style="width:46px"></colgroup>' +
+      '<thead><tr><th>م</th><th>الصنف</th><th>علبة / كيس</th><th>كرتون</th><th>العدد</th></tr></thead><tbody>' +
+      o.items.map(function (it, i) {
+        var carton = it.unit === 'كرتون';
+        return '<tr><td class="c">' + ar(i + 1) + '</td><td class="ord-name">' + esc(it.name) + (it.other ? ' <small>(صنف إضافي)</small>' : '') + '</td>' +
+          '<td class="c">' + (!carton && it.unit ? '<span class="ord-tick">✔</span><div class="u">' + esc(it.unit) + '</div>' : '') + '</td>' +
+          '<td class="c">' + (carton ? '<span class="ord-tick">✔</span>' : '') + '</td>' +
+          '<td class="c q">' + esc(it.qty === '' ? '' : ar(it.qty)) + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+  function renderHistory() {
+    var box = $('ordHistList');
+    $('ordHistN').textContent = HIST.length ? '(' + ar(HIST.length) + ')' : '';
+    if (!HIST.length) { box.innerHTML = '<div class="ord-empty">لم يُرسَل أي طلب من مركزكم بعد.</div>'; return; }
+    box.innerHTML = HIST.map(function (o, i) {
+      var done = o['الحالة'] === 'تم التنفيذ';
+      var who = [o['مسؤولة المقصف'] ? 'مسؤولة المقصف: ' + esc(o['مسؤولة المقصف']) : '', o['مديرة المركز'] ? 'مديرة المركز: ' + esc(o['مديرة المركز']) : ''].filter(Boolean).join(' · ');
+      return '<details class="ord-hist">' +
+        '<summary><div class="ord-hist-top"><b>' + esc(o['اليوم'] || '') + ' ' + esc(hijri(o['التاريخ'])) + '</b>' +
+          '<span class="ord-pill ' + (done ? 'done' : 'wait') + '">' + (done ? 'تم التنفيذ' : 'بانتظار التنفيذ') + '</span></div>' +
+          '<div class="ord-hist-meta">' + esc(o['الفترة'] || '') + ' · الفصل ' + esc(o['الفصل الدراسي'] || '') + ' ' + esc(o['العام'] || '') +
+          ' · ' + ar(o.items.length) + ' ' + (o.items.length === 1 ? 'صنف' : 'أصناف') + '</div></summary>' +
+        (who ? '<div class="ord-hist-meta" style="margin:6px 0 8px;">' + who + '</div>' : '') +
+        histItemsTable(o) +
+        (o['ملاحظات'] ? '<div class="ord-hist-notes"><b>ملاحظات: </b>' + esc(o['ملاحظات']) + '</div>' : '') +
+        '<button type="button" class="btn outline ord-copy" data-i="' + i + '">نسخ نص الطلب</button>' +
+      '</details>';
+    }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('.ord-copy'), function (b) {
+      b.addEventListener('click', function () { copyText(orderText(HIST[+b.getAttribute('data-i')]), b); });
+    });
+  }
+  function copyText(text, btn) {
+    var done = function () { var t = btn.textContent; btn.textContent = 'تم النسخ ✔'; setTimeout(function () { btn.textContent = t; }, 1800); };
+    var fallback = function () {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { alert('تعذّر النسخ'); }
+      ta.remove();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+  }
+  function loadHistory() {
+    var center = (typeof currentCenter !== 'undefined') ? currentCenter : '';
+    if (!center) return;
+    try { _apiCache_.forEach(function (v, k) { if (String(k).indexOf('getCanteenOrders') !== -1) _apiCache_.delete(k); }); } catch (e) {}
+    if (!HIST.length) $('ordHistList').innerHTML = '<div class="ord-empty">جارٍ التحميل...</div>';
+    callApi('getCanteenOrders', { center: center }).then(function (r) {
+      if (!r || !r.ok) { $('ordHistList').innerHTML = '<div class="ord-empty">تعذّر تحميل الطلبات السابقة.</div>'; return; }
+      HIST = r.orders || [];
+      renderHistory();
+    }).catch(function () { $('ordHistList').innerHTML = '<div class="ord-empty">تعذّر الاتصال، حاولي مرة أخرى.</div>'; });
   }
 
   /* ---- فتح الشاشة ---- */
@@ -370,11 +469,9 @@
     var sessionName = (typeof currentName === 'string') ? currentName : '';
     if (!$('ordMasoula').value) $('ordMasoula').value = (isMasoula && sessionName) ? sessionName : ls('maqasif_ord_masoula');
     if (!$('ordManager').value) $('ordManager').value = ls('maqasif_ord_manager');
-    if (!$('ordPeriod').value) {
-      var p = ls('maqasif_ord_period');
-      if (p === 'صباحي' || p === 'مسائي') $('ordPeriod').value = p;
-    }
     $('ordError').style.display = 'none';
+    showPane(false);
+    loadHistory();
     window.scrollTo({ top: 0 });
   };
 })();

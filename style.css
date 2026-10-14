@@ -719,3 +719,29 @@ button.btn.ord-send { width: auto; margin: 0; padding: 12px 22px; display: inlin
 .ord-admin .ord-tbl td { height: auto; padding: 7px 6px; }
 #ordersAdminTab select, #ordersAdminTab .card { background-color: #ffffff; }
 #ordersAdminTab select { border-color: #d6d6d6; }
+
+/* -------- طلبات المقاصف: التبويبات والطلبات السابقة -------- */
+.ord-tabs { display: flex; gap: 6px; background: #ffffff; border: 1.5px solid #e2e2e2; border-radius: 14px; padding: 5px; margin: 6px 0 14px; }
+.ord-tabs button {
+  flex: 1; border: 0; background: transparent; color: var(--maroon-dark); border-radius: 10px; padding: 11px 8px;
+  font-family: 'Tajawal', sans-serif; font-weight: 800; font-size: 0.92rem; cursor: pointer;
+}
+.ord-tabs button[aria-selected="true"] { background: var(--maroon); color: #fff; }
+.ord-tab-n { font-weight: 700; }
+.ord-req { color: #b3261e; }
+#ordersView select.ord-bad { border-color: #b3261e; box-shadow: 0 0 0 3px rgba(179, 38, 30, .15); }
+.ord-hist { border: 1.5px solid #e2e2e2; border-right: 5px solid #d6d6d6; border-radius: 12px; padding: 12px 14px; margin-top: 10px; background: #fff; }
+.ord-hist[open] { border-right-color: var(--maroon); }
+.ord-hist > summary { cursor: pointer; list-style: none; }
+.ord-hist > summary::-webkit-details-marker { display: none; }
+.ord-hist-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--maroon); }
+.ord-hist-meta { color: #6f6467; font-size: 0.84rem; margin-top: 3px; line-height: 1.8; }
+.ord-hist-notes { margin-top: 8px; border: 1px solid #e2e2e2; border-radius: 8px; padding: 8px 10px; white-space: pre-wrap; }
+.ord-hist-notes b { color: var(--maroon); }
+.ord-pill.wait { background: #fff4e5; color: #9a5b00; border: 1px solid #f1d8b0; }
+.ord-tbl-hist td { height: auto; padding: 7px 6px; }
+.ord-tbl-hist td.c { text-align: center; }
+.ord-tbl-hist td.q { font-weight: 800; color: var(--maroon); }
+.ord-tbl-hist .u { font-size: 0.72rem; color: #8a7d76; }
+.ord-tbl-hist small { color: #8a7d76; font-weight: 400; }
+button.btn.ord-copy { margin-top: 10px; width: auto; padding: 9px 16px; }
