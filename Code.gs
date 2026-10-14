@@ -2969,6 +2969,8 @@ function archiveCurrentTerm_(p) {
 
 /* ------------------- قائمة الدخل (الإيرادات والمصروفات - يدوي بالكامل) ------------------- */
 
+const COMPANY_PAYMENT_CATEGORY_ = 'تسديد شركة أعمال الإخلاص';
+
 function recordIncomeItem_(p) {
   const sh = sheet_('قائمة الدخل');
   const id = Utilities.getUuid();
@@ -2978,6 +2980,10 @@ function recordIncomeItem_(p) {
   if (p.fileData) {
     attachmentUrl = saveAttachmentFile_(p.fileData, p.fileName || ('مرفق-' + id), p.mimeType || '');
     attachmentName = p.fileName || '';
+  } else if (p.linkUrl) {
+    // رابط السند (بدل رفع ملف) - يُحفظ بنفس عمود المرفق
+    attachmentUrl = String(p.linkUrl).trim();
+    attachmentName = 'رابط السند';
   }
   appendRowByHeaders_(sh, {
     'معرف': id, 'البند': p.category || '', 'البيان': p.description || '', 'المبلغ': Number(p.amount) || 0,
@@ -3003,6 +3009,9 @@ function updateIncomeItem_(p) {
     const url = saveAttachmentFile_(p.fileData, p.fileName || ('مرفق-' + id), p.mimeType || '');
     sh.getRange(row, colIndex_(sh, 'رابط المرفق')).setValue(url);
     sh.getRange(row, colIndex_(sh, 'اسم المرفق')).setValue(p.fileName || '');
+  } else if (p.linkUrl) {
+    sh.getRange(row, colIndex_(sh, 'رابط المرفق')).setValue(String(p.linkUrl).trim());
+    sh.getRange(row, colIndex_(sh, 'اسم المرفق')).setValue('رابط السند');
   }
   invalidateCache_('قائمة الدخل');
   return { ok: true };
@@ -3011,13 +3020,32 @@ function updateIncomeItem_(p) {
 function getIncomeItems_(p) {
   let rows = getRowsForTerm_('قائمة الدخل', p && p.term, 'الفصل الدراسي');
   rows = rows.slice().reverse();
-  let totalIncome = 0, totalExpenses = 0;
+  let totalIncome = 0, totalExpenses = 0, totalCompanyPaid = 0;
   rows.forEach(function (r) {
     const amt = Number(r['المبلغ']) || 0;
     if (r['البند'] === 'إيراد') totalIncome += amt;
     else if (r['البند'] === 'مصروفات') totalExpenses += amt;
+    else if (r['البند'] === COMPANY_PAYMENT_CATEGORY_) totalCompanyPaid += amt;
   });
-  return { ok: true, items: rows, totalIncome: totalIncome, totalExpenses: totalExpenses, netProfit: totalIncome - totalExpenses };
+
+  // إشعارات الاستلام (من المراكز) بمبالغها - لنفس الفصل المختار
+  const receipts = getRowsForTerm_('الإشعارات', p && p.term, 'فصل الأرشفة')
+    .filter(function (r) { return String(r['النوع'] || '').trim() === 'استلام'; })
+    .slice().reverse()
+    .map(function (r) {
+      return {
+        center: centerDisplay_(r['اسم المركز']), senderName: r['اسم المسلّمة'] || '',
+        amount: Number(r['المبلغ']) || 0, day: r['يوم الإرسال'] || '', date: r['تاريخ الإرسال'] || '',
+        month: r['الشهر'] || '', status: r['الحالة'] || '',
+        image: r['رابط صورة الإشعار الموقع'] || r['رابط صورة الإشعار'] || ''
+      };
+    });
+  const totalReceipts = receipts.reduce(function (s, r) { return s + r.amount; }, 0);
+
+  return {
+    ok: true, items: rows, totalIncome: totalIncome, totalExpenses: totalExpenses, netProfit: totalIncome - totalExpenses,
+    totalCompanyPaid: totalCompanyPaid, receipts: receipts, totalReceipts: totalReceipts
+  };
 }
 
 function deleteIncomeItem_(p) {
