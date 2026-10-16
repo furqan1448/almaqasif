@@ -777,5 +777,5 @@ input.as-select::placeholder { color: var(--ink); opacity: 1; }
 }
 .as-list.hidden { display: none; }
 .as-opt { padding: 5px 14px; color: var(--ink); font-size: 0.95rem; font-weight: 400; line-height: 1.6; cursor: default; -webkit-tap-highlight-color: transparent; }
-.as-opt.on { background: #4a4a4a; color: #fff; }
+.as-opt.on { background: #6b6b6b; color: #fff; }
 .as-empty { padding: 5px 14px; color: #777; font-size: 0.95rem; }
