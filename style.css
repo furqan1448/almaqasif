@@ -761,27 +761,3 @@ button.btn.ord-send { width: auto; margin: 0; padding: 12px 22px; display: inlin
   font-size: 0.9rem; font-weight: 700; color: var(--ink);
 }
 .ord-tbl td.ord-name input.ord-det:focus { outline: 2px solid var(--maroon); outline-offset: 0; }
-
-/* البحث في أسماء المراكز عند الدخول (marakez.html) */
-.cs-wrap { position: relative; }
-.cs-wrap input#centerSearch { width: 100%; box-sizing: border-box; }
-.cs-list {
-  position: absolute; top: calc(100% + 4px); right: 0; left: 0; z-index: 50;
-  max-height: 260px; overflow-y: auto; background: var(--cream);
-  border: 1.5px solid var(--gold-light, #e8d9b0); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12);
-}
-.cs-list.hidden { display: none; }
-.cs-item {
-  display: block; width: 100%; margin: 0; padding: 12px 14px; border: 0; border-bottom: 1px solid var(--gold-light);
-  background: var(--cream); color: var(--ink); font: inherit; font-size: 0.95rem; font-weight: 400; text-align: right; cursor: pointer;
-}
-.cs-item:last-child { border-bottom: 0; }
-/* تظليل خفيف جداً عند الضغط أو المرور، بدون بيج غامق ولا أحمر */
-.cs-item { -webkit-tap-highlight-color: transparent; }
-.cs-item:hover, .cs-item:focus, .cs-item:active { background: #f5f1ea; color: var(--ink); outline: none; }
-.cs-empty { padding: 12px 14px; color: #888; font-size: .95rem; }
-/* أيقونة العدسة وإطار واضح لخانة البحث حتى يتضح أنها للكتابة */
-.cs-wrap .cs-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: #555; pointer-events: none; }
-.cs-wrap input#centerSearch { padding-left: 38px; caret-color: var(--maroon, #7a1e2c); cursor: pointer; }
-.cs-wrap input#centerSearch::placeholder { color: inherit; opacity: 1; }
-.cs-wrap input#centerSearch:focus { border-color: var(--gold-light); }   /* يبقى بيج مثل القائمة السابقة */
