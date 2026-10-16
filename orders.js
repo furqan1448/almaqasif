@@ -46,7 +46,7 @@
   function addCol(names, units) {
     var g = { units: units, items: [], el: null };
     names.forEach(function (n) {
-      var it = { n: n, nn: norm(n), units: units, unit: '', qty: 0, el: null, g: g };
+      var it = { n: n, nn: norm(n), units: units, unit: '', qty: 0, det: '', el: null, g: g };
       ITEMS.push(it); g.items.push(it);
     });
     GROUPS.push(g);
@@ -118,7 +118,7 @@
       '<div class="success-msg" id="ordSuccess"></div>' +
       '<div class="card ord-card">' +
         '<h3 class="ord-title">طلبات المقاصف</h3>' +
-        '<p class="ord-sub">لكل صنف تحتاجينه: اضغطي على خانة الوحدة (علبة أو كيس أو كرتون) ثم اكتبي العدد. وإن لم تجدي الصنف في الجدول فأضيفيه من «أصناف أخرى».</p>' +
+        '<p class="ord-sub">لكل صنف تحتاجينه: اضغطي على خانة الوحدة (علبة أو كيس أو كرتون) ثم اكتبي العدد. ولتحديد النوع أو النكهة (مثل: حار، كاتشب) اضغطي «＋ النوع» الذي يظهر تحت اسم الصنف بعد اختياره. وإن لم تجدي الصنف في الجدول فأضيفيه من «أصناف أخرى».</p>' +
         '<div class="ord-meta"><span>المركز: <b id="ordCenter"></b></span><span>تاريخ الطلب: <b id="ordDate"></b></span></div>' +
         '<div class="ord-grid3">' +
           '<div><label for="ordPeriod">الفترة <span class="ord-req">*</span></label><select id="ordPeriod" required autocomplete="off"></select></div>' +
@@ -174,7 +174,10 @@
         '<tr>' + g.units.map(function (u) { return '<th scope="col">' + u + '</th>'; }).join('') + '</tr></thead><tbody>' +
         g.items.map(function (it) {
           var i = idx++;
-          return '<tr data-i="' + i + '"><td class="ord-name">' + esc(it.n) + '</td>' +
+          return '<tr data-i="' + i + '"><td class="ord-name">' + esc(it.n) +
+              '<button type="button" class="ord-det-btn">＋ النوع</button>' +
+              '<input type="text" class="ord-det hidden" maxlength="40" placeholder="النوع أو النكهة، مثل: حار" aria-label="نوع الصنف: ' + esc(it.n) + '" autocomplete="off">' +
+              '</td>' +
             it.units.map(function (u) {
               return '<td class="ord-u"><button type="button" data-u="' + u + '" aria-pressed="false" aria-label="' + esc(it.n) + ' — ' + u + '"></button></td>';
             }).join('') +
@@ -186,6 +189,14 @@
       var it = ITEMS[+row.getAttribute('data-i')];
       it.el = row;
       var inp = row.querySelector('.ord-n');
+      var detBtn = row.querySelector('.ord-det-btn'), detInp = row.querySelector('.ord-det');
+      detBtn.addEventListener('click', function () {
+        detBtn.classList.add('hidden'); detInp.classList.remove('hidden'); detInp.focus();
+      });
+      detInp.addEventListener('input', function () { it.det = detInp.value; });
+      detInp.addEventListener('blur', function () {
+        if (!detInp.value.trim()) { detInp.value = ''; it.det = ''; detInp.classList.add('hidden'); detBtn.classList.remove('hidden'); }
+      });
       inp.addEventListener('input', function () {
         var v = parseInt(inp.value, 10);
         if (isNaN(v) || v < 0) v = 0;
@@ -316,7 +327,8 @@
         continue;
       }
       if (!it.unit) { it.el.classList.remove('hidden'); it.g.el.classList.remove('hidden'); showError('حدّدي الوحدة (' + it.units.join(' أو ') + ') للصنف: ' + it.n, it.el); return; }
-      items.push({ name: it.n, unit: it.unit, qty: it.qty, other: false });
+      var det = (it.det || '').replace(/\s+/g, ' ').replace(/[()]/g, '').trim();
+      items.push({ name: it.n + (det ? ' (' + det + ')' : ''), unit: it.unit, qty: it.qty, other: false });
     }
     for (var k = 0; k < ST.others.length; k++) {
       var o = ST.others[k];
@@ -363,8 +375,11 @@
 
   function reset() {
     ITEMS.forEach(function (it) {
-      it.unit = ''; it.qty = 0;
+      it.unit = ''; it.qty = 0; it.det = '';
       it.el.querySelector('.ord-n').value = '';
+      it.el.querySelector('.ord-det').value = '';
+      it.el.querySelector('.ord-det').classList.add('hidden');
+      it.el.querySelector('.ord-det-btn').classList.remove('hidden');
       paintRow(it);
     });
     ST.others = [];
