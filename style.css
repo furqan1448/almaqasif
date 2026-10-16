@@ -778,3 +778,8 @@ button.btn.ord-send { width: auto; margin: 0; padding: 12px 22px; display: inlin
 .cs-item:last-child { border-bottom: 0; }
 .cs-item:hover, .cs-item:focus { background: #fbf6ea; color: var(--maroon, #7a1e2c); outline: none; }
 .cs-empty { padding: 12px 14px; color: #888; font-size: .95rem; }
+/* أيقونة العدسة وإطار واضح لخانة البحث حتى يتضح أنها للكتابة */
+.cs-wrap .cs-icon { position: absolute; right: 13px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; color: var(--maroon, #7a1e2c); pointer-events: none; }
+.cs-wrap input#centerSearch { padding-right: 42px; background: #fff; caret-color: var(--maroon, #7a1e2c); }
+.cs-wrap input#centerSearch:focus { border-color: var(--maroon, #7a1e2c); }
+.cs-wrap input#centerSearch::placeholder { color: #8a7f74; }
