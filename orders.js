@@ -16,14 +16,14 @@
 
   /* ---- الأصناف بنفس ترتيب النموذج الورقي (من اليمين إلى اليسار) ---- */
   var COL_BOX = [ // علبة / كرتون
-    'مياه العين', 'عصير أورجينال صغير', 'عصير نكتار أورجينال كبير', 'حليب مراعي', 'حليب نادك', 'حلاوة قلب',
+    'مياه العين', 'عصير أورجينال صغير', 'عصير نكتار أورجينال كبير', 'عصير دي دي صغير', 'حليب مراعي', 'حليب نادك', 'حلاوة قلب',
     'مصاص ديما', 'فروتي ديما', 'ملعقة سينو', 'بهلول', 'كرواسون سفن دايز', 'كيك يمامة', 'كيك نحول', 'كيك مفن',
     'كيك سراي', 'نسكافة', 'شاي', 'قهوة سوداء', 'حليب', 'قهوة عربي'
   ];
   var COL_BAG = [ // كيس / كرتون
     'فخذ دجاج', 'فانتزي', 'ليز', 'تسالي صغير', 'البطل دبي', 'مرامي صغير', 'البطل فشار صغير', 'فرفشة عيدان',
     'لولز', 'زورو', 'زيكو', 'راجا', 'عيدان ستيكس علب', 'ستيكس أكياس', 'دوريتوس', 'بطاطس عمان',
-    'عيدان الذرة المليونير', 'زمزم طماطم', 'عصير دي دي صغير'
+    'عيدان الذرة المليونير', 'زمزم طماطم'
   ];
   var COL_BOX2 = [ // علبة / كرتون
     'فليك', 'لواكر', 'توكس أصبعين', 'توكس اصبع', 'سنيكرس كبير', 'سنيكرس صغير', 'جالكسي سادة كبير',
@@ -476,6 +476,49 @@
       renderHistory();
     }).catch(function () { $('ordHistList').innerHTML = '<div class="ord-empty">تعذّر الاتصال، حاولي مرة أخرى.</div>'; });
   }
+
+  /* ---- الحفظ التلقائي (autosave.js): الأصناف المختارة والأصناف الأخرى ---- */
+  window.ordersAutosave_ = {
+    collect: function () {
+      if (!ST.built) return null;
+      return {
+        it: ITEMS.filter(function (it) { return it.unit || it.qty || it.det; })
+          .map(function (it) { return [it.n, it.unit, it.qty, it.det || '']; }),
+        o: ST.others.map(function (o) { return [o.name, o.unit, o.qty]; })
+          .filter(function (r) { return r[0] || r[1] || r[2]; })
+      };
+    },
+    meaningful: function (d) {
+      return !!d && ((d.it || []).some(function (r) { return r[1] || r[2] || r[3]; }) ||
+        (d.o || []).some(function (r) { return String(r[0] || '').trim() || r[2]; }));
+    },
+    apply: function (d) {
+      if (!ST.built || !d) return;
+      (d.it || []).forEach(function (r) {
+        var it = ITEMS.filter(function (x) { return x.n === r[0]; })[0];
+        if (!it) return;
+        it.unit = it.units.indexOf(r[1]) !== -1 ? r[1] : '';
+        it.qty = Math.max(0, Math.min(9999, r[2] | 0));
+        it.det = String(r[3] || '');
+        it.el.querySelector('.ord-n').value = it.qty ? String(it.qty) : '';
+        var detInp = it.el.querySelector('.ord-det'), detBtn = it.el.querySelector('.ord-det-btn');
+        detInp.value = it.det;
+        detInp.classList.toggle('hidden', !it.det);
+        detBtn.classList.toggle('hidden', !!it.det);
+        paintRow(it);
+      });
+      ST.others = []; $('ordOthers').innerHTML = '';
+      (d.o || []).forEach(function (r) {
+        var o = addOther(false);
+        o.name = String(r[0] || ''); o.unit = UNITS_OTHER.indexOf(r[1]) !== -1 ? r[1] : ''; o.qty = Math.max(0, r[2] | 0);
+        o.el.querySelector('.ord-o-name').value = o.name;
+        o.el.querySelector('.ord-o-unit').value = o.unit;
+        o.el.querySelector('.ord-qty input').value = o.qty ? String(o.qty) : '';
+      });
+      applyFilter(); updateBar();
+    },
+    reset: function () { if (ST.built) reset(); }
+  };
 
   /* ---- فتح الشاشة ---- */
   window.initOrdersView_ = function (role) {

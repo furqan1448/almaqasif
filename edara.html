@@ -1245,6 +1245,7 @@
 <script>window.PDF_LIBS_ENABLED = true; /* مكتبات الـPDF تتحمّل بالخلفية - انظر config.js */</script>
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
+<script src="autosave.js"></script>
 <script>
 let isLoggedIn = sessionStorage.getItem('maqasif_admin') === 'yes';
 let allPending = [];
@@ -3446,7 +3447,7 @@ function initVrNotesDefault_() {
 const VR_DRAFT_KEY_ = 'vrReportDraft';
 let vrDraftInited_ = false;
 
-function saveVrDraft() {
+function saveVrDraft(silent) {
   const notesLines = Array.from(document.querySelectorAll('#vrNotesContainer textarea')).map(function (t) { return t.value; });
   const draft = {
     center: document.getElementById('vrCenterName').value,
@@ -3468,9 +3469,9 @@ function saveVrDraft() {
   };
   try {
     localStorage.setItem(VR_DRAFT_KEY_, JSON.stringify(draft));
-    alert('تم حفظ المسودة، وبتلقينها جاهزة لما ترجعين لهذا التبويب');
+    if (!silent) alert('تم حفظ المسودة، وستجدينها جاهزة عند عودتك إلى هذا التبويب');
   } catch (e) {
-    alert('تعذّر حفظ المسودة بهذا المتصفح');
+    if (!silent) alert('تعذّر حفظ المسودة في هذا المتصفح');
   }
 }
 
@@ -4242,7 +4243,7 @@ function initMeetingMinutesTab_() {
 /* -------- حفظ/استرجاع مسودة محضر الاجتماع (بدون التوقيعين) -------- */
 const MM_DRAFT_KEY_ = 'mmMeetingDraft';
 
-function saveMmDraft() {
+function saveMmDraft(silent) {
   const points = Array.from(document.querySelectorAll('#mmPointsContainer textarea')).map(function (t) { return t.value; });
   const participants = Array.from(document.querySelectorAll('#mmParticipantsContainer input[type="text"]')).map(function (t) { return t.value; });
   const links = Array.from(document.querySelectorAll('#mmLinksContainer > div')).map(function (row) {
@@ -4265,9 +4266,9 @@ function saveMmDraft() {
   };
   try {
     localStorage.setItem(MM_DRAFT_KEY_, JSON.stringify(draft));
-    alert('تم حفظ المسودة، وبتلقينها جاهزة لما ترجعين لهذا التبويب');
+    if (!silent) alert('تم حفظ المسودة، وستجدينها جاهزة عند عودتك إلى هذا التبويب');
   } catch (e) {
-    alert('تعذّر حفظ المسودة بهذا المتصفح');
+    if (!silent) alert('تعذّر حفظ المسودة في هذا المتصفح');
   }
 }
 
