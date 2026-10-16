@@ -23,8 +23,13 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
     <h1>دخول المراكز</h1>
     <p class="sub">وحدة المقاصف - جمعية فرقان</p>
 
-    <label>اسم المركز</label>
-    <select id="centerSelect">
+    <label for="centerSearch">اسم المركز</label>
+    <!-- خانة بحث فوق القائمة المنسدلة: اكتبي جزءاً من الاسم فتظهر المراكز المطابقة مباشرة، والقائمة المنسدلة باقية كما هي -->
+    <div class="cs-wrap">
+      <input type="text" id="centerSearch" placeholder="ابحثي بكتابة جزء من الاسم، مثل: خديجة" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="centerSuggest">
+      <div id="centerSuggest" class="cs-list hidden" role="listbox"></div>
+    </div>
+    <select id="centerSelect" aria-label="اسم المركز" style="margin-top:8px">
       <option value="">اختاري اسم المركز</option>
     </select>
 
@@ -658,6 +663,68 @@ if (currentCenter) { showDashboard(); }
   });
 })();
 
+/* -------- البحث في أسماء المراكز أثناء الكتابة -------- */
+(function () {
+  const inp = document.getElementById('centerSearch');
+  const list = document.getElementById('centerSuggest');
+  const select = document.getElementById('centerSelect');
+  const norm = function (t) {
+    return String(t || '').replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي')
+      .replace(/ة/g, 'ه').replace(/\s+/g, ' ').trim();
+  };
+  const names = function () {
+    return Array.prototype.slice.call(select.options, 1).map(function (o) { return o.value; });
+  };
+  const matches = function () {
+    const q = norm(inp.value);
+    return names().filter(function (n) { return !q || norm(n).indexOf(q) !== -1; });
+  };
+  function choose(name) {
+    select.value = name;
+    inp.value = name;
+    close();
+    const pw = document.getElementById('centerPassword');
+    if (pw && !pw.value) pw.focus();
+  }
+  function close() { list.classList.add('hidden'); inp.setAttribute('aria-expanded', 'false'); }
+  function open() {
+    const m = matches();
+    if (!names().length) { list.innerHTML = '<div class="cs-empty">جارِ تحميل المراكز...</div>'; }
+    else if (!m.length) { list.innerHTML = '<div class="cs-empty">لا يوجد مركز بهذا الاسم</div>'; }
+    else {
+      list.innerHTML = '';
+      m.forEach(function (n) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'cs-item'; b.setAttribute('role', 'option'); b.textContent = n;
+        b.addEventListener('mousedown', function (e) { e.preventDefault(); });   // حتى لا يُغلق قبل الاختيار
+        b.addEventListener('click', function () { choose(n); });
+        list.appendChild(b);
+      });
+    }
+    list.classList.remove('hidden'); inp.setAttribute('aria-expanded', 'true');
+  }
+  inp.addEventListener('input', function () {
+    // إن طابق المكتوب اسماً كاملاً نختاره، وإلا نلغي الاختيار السابق
+    const exact = names().filter(function (n) { return norm(n) === norm(inp.value); })[0];
+    select.value = exact || '';
+    open();
+  });
+  // القائمة المقترحة تظهر عند الكتابة فقط؛ والاختيار من القائمة المنسدلة يبقى كما هو
+  inp.addEventListener('focus', function () { if (inp.value.trim()) open(); });
+  select.addEventListener('change', function () { inp.value = select.value; close(); });
+  inp.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); const m = matches(); if (m.length) choose(m[0]); }
+    if (e.key === 'Escape') close();
+  });
+  inp.addEventListener('blur', function () {
+    setTimeout(function () {
+      close();
+      if (!select.value) { const m = matches(); if (inp.value.trim() && m.length === 1) choose(m[0]); }
+    }, 150);
+  });
+  document.addEventListener('click', function (e) { if (!e.target.closest('.cs-wrap')) close(); });
+})();
+
 /* -------- الدخول بضغطة Enter من حقل كلمة المرور -------- */
 document.getElementById('centerPassword').addEventListener('keydown', function (e) {
   if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
@@ -670,7 +737,14 @@ function doLogin() {
   const errBox = document.getElementById('loginError');
   errBox.style.display = 'none';
 
-  if (!center || !password) {
+  if (!center) {
+    errBox.textContent = document.getElementById('centerSearch').value.trim()
+      ? 'اختاري اسم المركز من القائمة التي تظهر أثناء الكتابة'
+      : 'أكملي اسم المركز وكلمة المرور';
+    errBox.style.display = 'block';
+    return;
+  }
+  if (!password) {
     errBox.textContent = 'أكملي اسم المركز وكلمة المرور';
     errBox.style.display = 'block';
     return;
