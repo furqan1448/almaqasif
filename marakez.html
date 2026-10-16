@@ -23,8 +23,12 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
     <h1>دخول المراكز</h1>
     <p class="sub">وحدة المقاصف - جمعية فرقان</p>
 
-    <label>اسم المركز</label>
-    <select id="centerSelect">
+    <label for="centerSearch">اسم المركز</label>
+    <!-- خانة بنفس شكل القائمة المنسدلة وألوانها، ويمكن الكتابة فيها: عند الضغط تظهر المراكز كلها،
+         وعند كتابة حرف أو أكثر تختصر القائمة. القائمة الأصلية مخفية وتحمل المركز المختار. -->
+    <input type="text" id="centerSearch" class="as-select" list="centerOptions" placeholder="اختاري اسم المركز" autocomplete="off">
+    <datalist id="centerOptions"></datalist>
+    <select id="centerSelect" class="hidden" aria-hidden="true" tabindex="-1">
       <option value="">اختاري اسم المركز</option>
     </select>
 
@@ -658,27 +662,40 @@ if (currentCenter) { showDashboard(); }
   });
 })();
 
-/* -------- الكتابة على القائمة المنسدلة (في الكمبيوتر) --------
-   القائمة نفسها بشكلها وألوانها كما هي. عند الضغط عليها ثم كتابة أول حرف أو أكثر من اسم المركز
-   (بدون كلمة «مركز») يُختار أول مركز يبدأ بها، مثل: «خ» ← مركز خديجة... */
+/* -------- اختيار المركز بالكتابة أو من القائمة -------- */
 (function () {
+  const inp = document.getElementById('centerSearch');
+  const dl = document.getElementById('centerOptions');
   const select = document.getElementById('centerSelect');
   const norm = function (t) {
     return String(t || '').replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي')
-      .replace(/ة/g, 'ه').replace(/^\s*مركز\s+/, '').replace(/\s+/g, ' ').trim();
+      .replace(/ة/g, 'ه').replace(/\s+/g, ' ').trim();
   };
-  let typed = '', timer = 0;
-  select.addEventListener('keydown', function (e) {
-    if (e.ctrlKey || e.metaKey || e.altKey || !e.key || e.key.length !== 1) return;
-    e.preventDefault();
-    clearTimeout(timer);
-    typed += e.key;
-    timer = setTimeout(function () { typed = ''; }, 1200);
-    const q = norm(typed);
-    const opts = Array.prototype.slice.call(select.options, 1);
-    const hit = opts.filter(function (o) { return norm(o.value).indexOf(q) === 0; })[0]
-      || opts.filter(function (o) { return norm(o.value).split(' ').some(function (w) { return w.indexOf(q) === 0; }); })[0];
-    if (hit) select.value = hit.value;
+  const names = function () { return Array.prototype.slice.call(select.options, 1).map(function (o) { return o.value; }); };
+  function syncList() {   // نسخ أسماء المراكز إلى القائمة كلما تحدّثت
+    dl.innerHTML = '';
+    names().forEach(function (n) { const o = document.createElement('option'); o.value = n; dl.appendChild(o); });
+  }
+  syncList();
+  new MutationObserver(syncList).observe(select, { childList: true });
+  function exactOf(v) { v = norm(v); return names().filter(function (n) { return norm(n) === v; })[0] || ''; }
+  function onlyMatch(v) {
+    v = norm(v); if (!v) return '';
+    const m = names().filter(function (n) { return norm(n).indexOf(v) !== -1; });
+    return m.length === 1 ? m[0] : '';
+  }
+  inp.addEventListener('input', function () { select.value = exactOf(inp.value); });
+  inp.addEventListener('change', function () {
+    const n = exactOf(inp.value);
+    select.value = n;
+    if (n) { inp.value = n; const pw = document.getElementById('centerPassword'); if (pw && !pw.value) pw.focus(); }
+  });
+  inp.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !select.value) { const m = onlyMatch(inp.value); if (m) { e.preventDefault(); inp.value = m; select.value = m; document.getElementById('centerPassword').focus(); } }
+  });
+  inp.addEventListener('blur', function () {
+    if (select.value || !inp.value.trim()) return;
+    const m = onlyMatch(inp.value); if (m) { inp.value = m; select.value = m; }
   });
 })();
 
@@ -694,6 +711,11 @@ function doLogin() {
   const errBox = document.getElementById('loginError');
   errBox.style.display = 'none';
 
+  if (!center && document.getElementById('centerSearch').value.trim()) {
+    errBox.textContent = 'اختاري اسم المركز من القائمة التي تظهر أثناء الكتابة';
+    errBox.style.display = 'block';
+    return;
+  }
   if (!center || !password) {
     errBox.textContent = 'أكملي اسم المركز وكلمة المرور';
     errBox.style.display = 'block';
@@ -729,6 +751,8 @@ function logout() {
   isReadOnlyCenter = false;
   document.getElementById('dashScreen').classList.add('hidden');
   document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('centerSearch').value = '';
+  document.getElementById('centerSelect').value = '';
 }
 
 function showDashboard() {

@@ -761,3 +761,13 @@ button.btn.ord-send { width: auto; margin: 0; padding: 12px 22px; display: inlin
   font-size: 0.9rem; font-weight: 700; color: var(--ink);
 }
 .ord-tbl td.ord-name input.ord-det:focus { outline: 2px solid var(--maroon); outline-offset: 0; }
+
+/* خانة اسم المركز في دخول المراكز: بنفس شكل القائمة المنسدلة وألوانها تماماً، مع إمكانية الكتابة */
+input.as-select {
+  padding-left: 34px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232b2321' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: left 12px center; background-size: 14px;
+}
+input.as-select::placeholder { color: var(--ink); opacity: 1; }
+input.as-select:focus { border-color: var(--gold-light); }
+input.as-select::-webkit-calendar-picker-indicator { opacity: 0; }
