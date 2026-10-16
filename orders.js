@@ -118,7 +118,7 @@
       '<div class="success-msg" id="ordSuccess"></div>' +
       '<div class="card ord-card">' +
         '<h3 class="ord-title">طلبات المقاصف</h3>' +
-        '<p class="ord-sub">لكل صنف تحتاجينه: اضغطي على خانة الوحدة (علبة أو كيس أو كرتون) ثم اكتبي العدد. ولتحديد النوع أو النكهة (مثل: حار، كاتشب) اضغطي «＋ النوع» الذي يظهر تحت اسم الصنف بعد اختياره. وإن لم تجدي الصنف في الجدول فأضيفيه من «أصناف أخرى».</p>' +
+        '<p class="ord-sub">لكل صنف تحتاجينه: اضغطي على خانة الوحدة (علبة أو كيس أو كرتون) ثم اكتبي العدد. وإن لم تجدي الصنف في الجدول فأضيفيه من «أصناف أخرى».</p>' +
         '<div class="ord-meta"><span>المركز: <b id="ordCenter"></b></span><span>تاريخ الطلب: <b id="ordDate"></b></span></div>' +
         '<div class="ord-grid3">' +
           '<div><label for="ordPeriod">الفترة <span class="ord-req">*</span></label><select id="ordPeriod" required autocomplete="off"></select></div>' +
@@ -176,7 +176,7 @@
           var i = idx++;
           return '<tr data-i="' + i + '"><td class="ord-name">' + esc(it.n) +
               '<button type="button" class="ord-det-btn">＋ النوع</button>' +
-              '<input type="text" class="ord-det hidden" maxlength="40" placeholder="النوع أو النكهة، مثل: حار" aria-label="نوع الصنف: ' + esc(it.n) + '" autocomplete="off">' +
+              '<input type="text" class="ord-det hidden" maxlength="40" placeholder="النوع أو النكهة" aria-label="نوع الصنف: ' + esc(it.n) + '" autocomplete="off">' +
               '</td>' +
             it.units.map(function (u) {
               return '<td class="ord-u"><button type="button" data-u="' + u + '" aria-pressed="false" aria-label="' + esc(it.n) + ' — ' + u + '"></button></td>';
