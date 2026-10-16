@@ -24,10 +24,12 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
     <p class="sub">وحدة المقاصف - جمعية فرقان</p>
 
     <label for="centerSearch">اسم المركز</label>
-    <!-- خانة بنفس شكل القائمة المنسدلة وألوانها، ويمكن الكتابة فيها: عند الضغط تظهر المراكز كلها،
+    <!-- خانة بنفس شكل القائمة المنسدلة وألوانها تماماً، ويمكن الكتابة فيها: عند الضغط تظهر المراكز كلها،
          وعند كتابة حرف أو أكثر تختصر القائمة. القائمة الأصلية مخفية وتحمل المركز المختار. -->
-    <input type="text" id="centerSearch" class="as-select" list="centerOptions" placeholder="اختاري اسم المركز" autocomplete="off">
-    <datalist id="centerOptions"></datalist>
+    <div class="as-wrap">
+      <input type="text" id="centerSearch" class="as-select" placeholder="اختاري اسم المركز" autocomplete="off">
+      <div id="centerSuggest" class="as-list hidden" role="listbox"></div>
+    </div>
     <select id="centerSelect" class="hidden" aria-hidden="true" tabindex="-1">
       <option value="">اختاري اسم المركز</option>
     </select>
@@ -665,38 +667,62 @@ if (currentCenter) { showDashboard(); }
 /* -------- اختيار المركز بالكتابة أو من القائمة -------- */
 (function () {
   const inp = document.getElementById('centerSearch');
-  const dl = document.getElementById('centerOptions');
+  const list = document.getElementById('centerSuggest');
   const select = document.getElementById('centerSelect');
   const norm = function (t) {
     return String(t || '').replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي')
       .replace(/ة/g, 'ه').replace(/\s+/g, ' ').trim();
   };
   const names = function () { return Array.prototype.slice.call(select.options, 1).map(function (o) { return o.value; }); };
-  function syncList() {   // نسخ أسماء المراكز إلى القائمة كلما تحدّثت
-    dl.innerHTML = '';
-    names().forEach(function (n) { const o = document.createElement('option'); o.value = n; dl.appendChild(o); });
+  // يطابق بداية أي كلمة في الاسم (مثل «خ» ← مركز خديجة، مركز خولة)، وإلا أي جزء منه
+  function matches() {
+    const q = norm(inp.value);
+    if (!q || norm(q) === norm(select.value)) return names();
+    const w = names().filter(function (n) {
+      const t = norm(n);
+      return t.indexOf(q) === 0 || t.split(' ').some(function (x, i, a) { return a.slice(i).join(' ').indexOf(q) === 0; });
+    });
+    return w.length ? w : names().filter(function (n) { return norm(n).indexOf(q) !== -1; });
   }
-  syncList();
-  new MutationObserver(syncList).observe(select, { childList: true });
-  function exactOf(v) { v = norm(v); return names().filter(function (n) { return norm(n) === v; })[0] || ''; }
-  function onlyMatch(v) {
-    v = norm(v); if (!v) return '';
-    const m = names().filter(function (n) { return norm(n).indexOf(v) !== -1; });
-    return m.length === 1 ? m[0] : '';
+  function close() { list.classList.add('hidden'); }
+  function choose(n) {
+    select.value = n; inp.value = n; close();
+    if (n) { const pw = document.getElementById('centerPassword'); if (pw && !pw.value) pw.focus(); }
   }
-  inp.addEventListener('input', function () { select.value = exactOf(inp.value); });
-  inp.addEventListener('change', function () {
-    const n = exactOf(inp.value);
-    select.value = n;
-    if (n) { inp.value = n; const pw = document.getElementById('centerPassword'); if (pw && !pw.value) pw.focus(); }
+  function open() {
+    const m = matches();
+    list.innerHTML = '';
+    if (!m.length) {
+      const e = document.createElement('div'); e.className = 'as-empty';
+      e.textContent = names().length ? 'لا يوجد مركز بهذا الاسم' : 'جارِ تحميل المراكز...';
+      list.appendChild(e);
+    }
+    m.forEach(function (n) {
+      const d = document.createElement('div');
+      d.className = 'as-opt' + (n === select.value ? ' on' : ''); d.setAttribute('role', 'option'); d.textContent = n;
+      d.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      d.addEventListener('click', function () { choose(n); });
+      list.appendChild(d);
+    });
+    list.classList.remove('hidden');
+  }
+  inp.addEventListener('click', function () { list.classList.contains('hidden') ? open() : close(); });
+  inp.addEventListener('input', function () {
+    const v = norm(inp.value);
+    select.value = names().filter(function (n) { return norm(n) === v; })[0] || '';
+    open();
   });
   inp.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && !select.value) { const m = onlyMatch(inp.value); if (m) { e.preventDefault(); inp.value = m; select.value = m; document.getElementById('centerPassword').focus(); } }
+    if (e.key === 'Enter') { e.preventDefault(); const m = matches(); if (m.length) choose(m[0]); }
+    if (e.key === 'Escape') close();
   });
   inp.addEventListener('blur', function () {
-    if (select.value || !inp.value.trim()) return;
-    const m = onlyMatch(inp.value); if (m) { inp.value = m; select.value = m; }
+    setTimeout(function () {
+      close();
+      if (!select.value && inp.value.trim()) { const m = matches(); if (m.length === 1) choose(m[0]); }
+    }, 150);
   });
+  document.addEventListener('click', function (e) { if (!e.target.closest('.as-wrap')) close(); });
 })();
 
 /* -------- الدخول بضغطة Enter من حقل كلمة المرور -------- */
