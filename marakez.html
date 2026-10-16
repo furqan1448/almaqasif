@@ -24,10 +24,10 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
     <p class="sub">وحدة المقاصف - جمعية فرقان</p>
 
     <label for="centerSearch">اسم المركز</label>
-    <!-- خانة واحدة مثل بحث Google: تكتبين جزءاً من الاسم فتظهر المراكز المطابقة تحتها مباشرة، وعند الضغط عليها وهي فارغة تظهر المراكز كلها -->
+    <!-- قائمة منسدلة يمكن الكتابة فيها: عند الضغط تظهر المراكز كلها، وعند كتابة أول حرف أو أكثر تختصر القائمة إلى المراكز التي تبدأ بها -->
     <div class="cs-wrap">
-      <svg class="cs-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input type="text" id="centerSearch" autofocus placeholder="اكتبي اسم المركز" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="centerSuggest">
+      <svg class="cs-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      <input type="text" id="centerSearch" autofocus placeholder="اختاري اسم المركز" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="centerSuggest">
       <div id="centerSuggest" class="cs-list hidden" role="listbox"></div>
     </div>
     <select id="centerSelect" class="hidden" aria-hidden="true" tabindex="-1">
@@ -676,9 +676,15 @@ if (currentCenter) { showDashboard(); }
   const names = function () {
     return Array.prototype.slice.call(select.options, 1).map(function (o) { return o.value; });
   };
+  // يطابق بداية أي كلمة في اسم المركز (مثل: «خ» ← مركز خديجة...)، فإن لم يوجد يطابق أي جزء من الاسم
   const matches = function () {
     const q = norm(inp.value);
-    return names().filter(function (n) { return !q || norm(n).indexOf(q) !== -1; });
+    if (!q) return names();
+    const starts = names().filter(function (n) {
+      const t = norm(n);
+      return t.indexOf(q) === 0 || t.split(' ').some(function (w, i, a) { return a.slice(i).join(' ').indexOf(q) === 0; });
+    });
+    return starts.length ? starts : names().filter(function (n) { return norm(n).indexOf(q) !== -1; });
   };
   function choose(name) {
     select.value = name;
