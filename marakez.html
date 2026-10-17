@@ -1518,11 +1518,11 @@ function initRewardCalc_(active) {
     if (center !== currentCenter) return;
     const sales = (r && r.ok && r.sales) || [];
     const total = sales.reduce(function (sum, x) { return sum + (Number(x['المبلغ']) || 0); }, 0);
-    const reward = Math.round(total * REWARD_RATE_ * 100) / 100;
+    const reward = Math.round(total * REWARD_RATE_)   /* تقريب لأقرب ريال: 11.3 ← 11، و11.6 ← 12 */;
     body.innerHTML = 'مجموع مبيعات الفصل الحالي في سجل البيع اليومي: <b>' + total.toFixed(2) + ' ريال</b>' +
       (sales.length ? ' (' + toArabicDigits(sales.length) + ' ' + (sales.length === 1 ? 'يوم' : 'أيام') + ')' : ' (لا توجد مبيعات مسجّلة بعد)') +
-      '<br>المبلغ المفترض تسليمه لمتعاونة المقصف (١٠٪): <b style="color:var(--maroon);font-size:1.05rem;">' + reward.toFixed(2) + ' ريال</b>';
-    if (!rewardAmountManual_) document.getElementById('noticeAmount').value = reward ? reward.toFixed(2) : '';
+      '<br>المبلغ المفترض تسليمه لمتعاونة المقصف (١٠٪ مقرّبة لأقرب ريال): <b style="color:var(--maroon);font-size:1.05rem;">' + reward + ' ريال</b>';
+    if (!rewardAmountManual_) document.getElementById('noticeAmount').value = reward ? String(reward) : '';
   }).catch(function () {
     body.textContent = 'تعذّر تحميل سجل البيع لحساب المبلغ، اكتبي المبلغ يدوياً.';
   });
