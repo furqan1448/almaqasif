@@ -340,10 +340,15 @@
     <!-- ===== تبويب: المبيعات ===== -->
     <div id="salesTab" class="admin-tab-panel hidden">
       <!-- مكافآت متعاونات المقاصف: ١٠٪ من مبيعات كل مركز في الفصل المختار، مع حالة إشعار تسليم المكافأة -->
-      <div class="card" style="padding:0;overflow:hidden;">
-        <h3 style="margin:0;padding:12px 18px;background:var(--gold-light);color:var(--maroon);">مكافآت متعاونات المقاصف (١٠٪ من المبيعات)</h3>
-        <div style="padding:12px 18px 16px;">
-          <p style="margin:0 0 8px;font-size:0.85rem;color:#8a7d76;">تُحسب من سجل البيع اليومي حسب الفصل المختار في «عرض بيانات» أدناه، وتُقارن بإشعارات تسليم المكافأة المرسلة من المراكز.</p>
+      <div class="card vs-fold-card">
+        <details class="vs-fold">
+          <summary>
+            <span class="vs-fold-title">مكافآت متعاونات المقاصف (١٠٪ من المبيعات)</span>
+            <span class="vs-fold-count no" id="rewardSumCount">…</span>
+            <span class="vs-fold-arrow" aria-hidden="true">▾</span>
+          </summary>
+          <div class="vs-fold-body">
+          <p style="margin:0 0 8px;font-size:0.85rem;color:#8a7d76;">تُحسب من سجل البيع اليومي حسب الفصل المختار في «عرض بيانات» أدناه، وتُقارن بإشعارات تسليم المكافأة المرسلة من المراكز. ولا تشمل المراكز التي فيها مسؤولة مقصف.</p>
           <table class="log-table">
             <thead><tr><th>المركز</th><th>مجموع المبيعات</th><th>المكافأة المفترضة (مقرّبة)</th><th>المبلغ في الإشعار</th><th>الحالة</th></tr></thead>
             <tbody id="rewardSumTbody"><tr><td colspan="5">جاري التحميل...</td></tr></tbody>
@@ -353,7 +358,8 @@
             <button class="btn outline" onclick="exportRewardSummary_()">⬇️ Excel</button>
             <button class="btn outline" onclick="printRewardSummary_()">🖨️ PDF</button>
           </div>
-        </div>
+          </div>
+        </details>
       </div>
 
       <div class="card">
@@ -1652,6 +1658,7 @@ function loadCardsAdminOverview() {
 function loadCentersDropdowns() {
   callApi('getCenters').then(function (r) {
     centersListCache = r.centers || [];
+    readOnlyCentersCache_ = (r.readOnly || []).map(function (c) { return String(c).trim(); });
     fillCenterSelect('salesCenterSelect');
     fillCenterSelect('returnsCenterSelect');
     fillCenterSelect('ordersCenterSelect');
@@ -1999,7 +2006,8 @@ function openDetail(notice) {
 
 /* -------- مكافآت متعاونات المقاصف (١٠٪ من مبيعات سجل البيع اليومي) -------- */
 const REWARD_RATE_ = 0.10;
-let rewardSummaryRows_ = [], rewardSummaryTerm_ = '';
+let rewardSummaryRows_ = [], rewardSummaryTerm_ = '', readOnlyCentersCache_ = [];
+function hasMasoula_(c) { return readOnlyCentersCache_.indexOf(String(c || '').trim()) !== -1; }
 function isRewardNotice_(n) { return String(n['النوع'] || '').trim() === 'تسليم' && !String(n['بيان مخصص'] || '').trim(); }
 function rewardTermLabel_(t) { return t === 'all' ? 'كل الفصول' : (t === 'current' || !t) ? 'الفصل الحالي' : 'الفصل ' + t; }
 function rewardEsc_(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -2029,7 +2037,7 @@ function loadRewardSummary_() {
       r.reward = Math.round(r.sales * REWARD_RATE_)   /* تقريب لأقرب ريال */;
       r.status = !r.count ? 'لم تُسلَّم بعد' : (Math.abs(r.paid - r.reward) > 0.01 ? 'سُلِّمت — المبلغ مختلف' : 'سُلِّمت') + (r.pending ? ' (بانتظار الاطلاع)' : '');
       return r;
-    }).filter(function (r) { return r.center && (r.sales > 0 || r.count); })
+    }).filter(function (r) { return r.center && !hasMasoula_(r.center) && (r.sales > 0 || r.count); })
       .sort(function (a, b) { return b.sales - a.sales; });
     if (!rewardSummaryRows_.length) {
       tbody.innerHTML = '<tr><td colspan="5">لا توجد مبيعات مسجّلة في ' + rewardTermLabel_(term) + '</td></tr>';
@@ -2044,6 +2052,10 @@ function loadRewardSummary_() {
     document.getElementById('rewardSumSales').textContent = sum('sales');
     document.getElementById('rewardSumReward').textContent = sum('reward');
     document.getElementById('rewardSumPaid').textContent = sum('paid');
+    const notYet = rewardSummaryRows_.filter(function (r) { return !r.count; }).length;
+    const cnt = document.getElementById('rewardSumCount');
+    cnt.textContent = notYet ? 'لم تُسلَّم: ' + toArabicDigits(notYet) : 'سُلِّمت كلها';
+    cnt.classList.toggle('no', notYet > 0);
   }).catch(function () { tbody.innerHTML = '<tr><td colspan="5">تعذّر تحميل الملخص، حاولي مرة أخرى.</td></tr>'; });
 }
 
@@ -2068,7 +2080,7 @@ function printRewardSummary_() {
 function checkRewardNotice_(n) {
   const box = document.getElementById('rewardCheckBox'), body = document.getElementById('rewardCheckBody');
   if (!box) return;
-  if (!n || !isRewardNotice_(n)) { box.classList.add('hidden'); return; }
+  if (!n || !isRewardNotice_(n) || hasMasoula_(n['اسم المركز'])) { box.classList.add('hidden'); return; }
   box.classList.remove('hidden');
   body.textContent = 'جارِ حساب المبلغ المفترض من سجل البيع اليومي...';
   const id = n['معرف'];

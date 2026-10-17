@@ -1532,7 +1532,9 @@ function exportNoticesToSheet_(p) {
 
 function getCenters_() {
   const rows = sheetToObjects_('المراكز', CACHE_SECONDS_LONG);
-  return { ok: true, centers: rows.map(function (r) { return r['اسم المركز']; }) };
+  // readOnly: المراكز التي فيها مسؤولة مقصف («وضع العرض فقط» = نعم) - لا تُحسب لها مكافأة متعاونة المقصف
+  return { ok: true, centers: rows.map(function (r) { return r['اسم المركز']; }),
+           readOnly: rows.filter(function (r) { return String(r['وضع العرض فقط'] || '').trim() === 'نعم'; }).map(function (r) { return r['اسم المركز']; }) };
 }
 
 function loginCenter_(p) {
