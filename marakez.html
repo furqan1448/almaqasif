@@ -467,6 +467,12 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         <label>اسم المسلّمة</label>
         <input type="text" id="senderName" placeholder="اكتبي اسمك">
 
+        <!-- إشعار تسليم المكافأة: المبلغ المفترض تسليمه لمتعاونة المقصف = ١٠٪ من مبيعات الأشهر المختارة (يُحسب تلقائياً من سجل البيع اليومي) -->
+        <div id="rewardCalcBox" class="hidden" style="margin-top:12px;border:1px solid var(--gold-light);border-radius:12px;overflow:hidden;background:#fff;">
+          <div style="padding:9px 14px;background:var(--gold-light);color:var(--maroon);font-weight:700;">المبلغ المفترض تسليمه</div>
+          <div id="rewardCalcBody" style="padding:10px 14px;line-height:1.9;font-size:0.95rem;"></div>
+        </div>
+
         <label>المبلغ (ريال)</label>
         <input type="number" id="noticeAmount" placeholder="0.00" step="0.01">
 
@@ -1487,6 +1493,67 @@ function openNoticeForm(type, reason) {
   loadFormNotices_();
   setSigMode('sigPad', 'draw');
   setTimeout(function () { setupSignatureWidget('sigPad'); }, 50);
+  initRewardCalc_(type === 'تسليم' && !reason);
+}
+
+/* -------- مكافأة متعاونة المقصف: ١٠٪ من مبيعات الأشهر المختارة --------
+   تظهر في «إشعار تسليم المكافأة» فقط: تُجمع مبيعات المركز من سجل البيع اليومي للأشهر الهجرية المختارة
+   والعام المختار، ثم يُحسب ١٠٪ منها ويُكتب في خانة المبلغ تلقائياً (ويمكن تعديله يدوياً). */
+const REWARD_RATE_ = 0.10;
+let rewardSales_ = null, rewardActive_ = false, rewardAmountManual_ = false, rewardWired_ = false;
+
+function hijriMonthYearOf_(dateStr) {
+  const parts = String(dateStr || '').split(' ')[0].split('-');
+  const d = parts.length === 3 ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])) : new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  try {
+    const p = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { month: 'numeric', year: 'numeric' }).formatToParts(d);
+    const m = Number((p.find(function (x) { return x.type === 'month'; }) || {}).value);
+    const y = Number(String((p.find(function (x) { return x.type === 'year'; }) || {}).value).replace(/\D/g, ''));
+    return (m && y) ? { month: AR_MONTHS[m - 1], year: toArabicDigits(y) + ' هـ' } : null;
+  } catch (e) { return null; }
+}
+
+function initRewardCalc_(active) {
+  rewardActive_ = active;
+  rewardAmountManual_ = false;
+  document.getElementById('rewardCalcBox').classList.toggle('hidden', !active);
+  if (!active) return;
+  if (!rewardWired_) {
+    rewardWired_ = true;
+    document.getElementById('noticeMonthChips').addEventListener('click', function () { setTimeout(updateRewardCalc_, 0); });
+    document.getElementById('noticeYear').addEventListener('change', updateRewardCalc_);
+    document.getElementById('noticeAmount').addEventListener('input', function (e) { if (e.isTrusted) rewardAmountManual_ = true; });
+  }
+  rewardSales_ = null;
+  updateRewardCalc_();
+  const center = currentCenter;
+  callApi('getSales', { center: center, term: 'all' }).then(function (r) {
+    if (center !== currentCenter) return;
+    rewardSales_ = (r && r.ok && r.sales) || [];
+    updateRewardCalc_();
+  }).catch(function () {
+    document.getElementById('rewardCalcBody').textContent = 'تعذّر تحميل سجل البيع لحساب المبلغ، اكتبي المبلغ يدوياً.';
+  });
+}
+
+function updateRewardCalc_() {
+  if (!rewardActive_) return;
+  const body = document.getElementById('rewardCalcBody');
+  const months = getSelectedMonths('noticeMonthChips');
+  const year = document.getElementById('noticeYear').value;
+  if (!months.length) { body.textContent = 'اختاري أشهر مبيعات المقصف والعام أدناه، ليُحسب المبلغ المفترض تسليمه تلقائياً (١٠٪ من المبيعات).'; return; }
+  if (rewardSales_ === null) { body.textContent = 'جارِ حساب المبلغ من سجل البيع اليومي...'; return; }
+  let total = 0, days = 0;
+  rewardSales_.forEach(function (s) {
+    const h = hijriMonthYearOf_(s['التاريخ']);
+    if (h && h.year === year && months.indexOf(h.month) !== -1) { total += Number(s['المبلغ']) || 0; days++; }
+  });
+  const reward = Math.round(total * REWARD_RATE_ * 100) / 100;
+  body.innerHTML = 'مجموع مبيعات ' + (months.length === 1 ? 'شهر ' : 'أشهر ') + months.join('، ') + ' ' + year + ': <b>' + total.toFixed(2) + ' ريال</b>' +
+    (days ? '' : ' (لا توجد مبيعات مسجّلة لهذه الأشهر في سجل البيع اليومي)') +
+    '<br>المبلغ المفترض تسليمه لمتعاونة المقصف (١٠٪): <b style="color:var(--maroon);font-size:1.05rem;">' + reward.toFixed(2) + ' ريال</b>';
+  if (!rewardAmountManual_) document.getElementById('noticeAmount').value = reward ? reward.toFixed(2) : '';
 }
 
 function previewNotice() {
