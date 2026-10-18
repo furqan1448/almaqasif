@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbzL4sU47bdO9sRYM4mAj_if3rQ1bEnA4FI5waGZ_kGvA6ZtppYh_q2pI0D2DpTfBLE/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxJbh9mR0YTSW5kTSHLoek-vYvV9AQArZfWTseT_z4OHEj4YdKN142yAy9dgF1Wikac/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
