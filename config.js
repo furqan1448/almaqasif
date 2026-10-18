@@ -2147,3 +2147,277 @@ function prefetchForCenter_(center) {
     });
   }, 400);
 }
+
+/* ======================= تقييم مسؤولة المقصف =======================
+   البنود والدرجات المستحقة (نفس الاستمارة الورقية)، وتُستخدم بصفحة المراكز ولوحة الإدارة وملف الـPDF.
+   ملاحظة: هذه الاستمارة لا تظهر في صفحة المسؤولات إطلاقاً. */
+const EVAL_DIR_ITEMS = [
+  ['الالتزام بالحجاب الشرعي واللباس المحتشم', 2],
+  ['ملاءمة الشخصية للعمل', 7],
+  ['حسن التعامل مع الآخرين', 6],
+  ['المحافظة على المواعيد وقلة الغياب', 10],
+  ['تفعيل السجلات والبيانات الخاصة بالمقصف إلكترونياً', 5],
+  ['متابعة صلاحية البضائع المباعة', 5],
+  ['المحافظة على نظافة المقصف وما به من عهد', 5],
+  ['تنفيذ ما يُسند إليها من مهام ضمن الاختصاص', 5],
+  ['القيام بأعمال البيع وما يتعلق به بكفاءة وفاعلية', 5]
+];
+const EVAL_HEAD_ITEMS = [
+  ['المحافظة على نظافة المقصف', 5],
+  ['حضور الاجتماعات والدورات التدريبية', 10],
+  ['سرعة جرد الفواتير بدقة', 10],
+  ['السعي لتطوير أداء المقصف وابتكار حلول للتحديات', 2],
+  ['حسن التعامل مع الآخرين', 5],
+  ['تفعيل السجلات والبيانات الخاصة بالمقصف إلكترونياً', 13],
+  ['المحافظة على الواردات المالية وتسليمها دورياً', 5]
+];
+const EVAL_QURAN_QUALS = ['مجازة', 'خاتمة', 'حافظة', 'دورات حفظ', 'خريجة دبلوم عالي إعداد المعلمات',
+  'خريجة دبلوم متوسط لتأهيل المعلمات', 'خريجة تأهيل معلمات', 'خريجة دورة تأهيل منتهي بالتوظيف'];
+
+function evalSum_(arr) {
+  return Math.round((arr || []).reduce(function (s, v) { return s + (Number(v) || 0); }, 0) * 100) / 100;
+}
+
+function evalNum_(v) {
+  return (v === '' || v === null || v === undefined) ? '' : toArabicDigits(v);
+}
+
+const EV_DOC_CSS_ =
+  '.ev-doc{width:794px;background:#fff;color:#1f1a19;font-family:"Tajawal",sans-serif;direction:rtl;}' +
+  '.ev-doc *{letter-spacing:normal !important;box-sizing:border-box;}' +
+  '.ev-lh{width:100%;height:auto;display:block;margin:0;border:0;}' +
+  '.ev-body{--z:1;padding:calc(6px * var(--z)) 28px calc(16px * var(--z));font-size:calc(14px * var(--z));}' +
+  '.ev-title{font-family:"Amiri",serif;color:#8C1A2C;text-align:center;font-size:calc(25px * var(--z));margin:calc(2px * var(--z)) 0 calc(8px * var(--z));}' +
+  '.ev-tbl{width:100%;border-collapse:collapse;margin-bottom:calc(8px * var(--z));}' +
+  '.ev-tbl td,.ev-tbl th{border:1px solid #3a3230;padding:calc(5px * var(--z)) 7px;vertical-align:middle;}' +
+  '.ev-tbl th{background:#8C1A2C;color:#fff;font-weight:800;text-align:center;}' +
+  '.ev-k{background:#f4efe9;font-weight:800;white-space:nowrap;}' +
+  '.ev-v{font-weight:700;color:#8C1A2C;}' +
+  '.ev-side{background:#f4efe9;font-weight:800;text-align:center;width:13%;}' +
+  '.ev-c{text-align:center;font-weight:800;}' +
+  '.ev-got{text-align:center;font-weight:800;color:#8C1A2C;font-size:1.08em;}' +
+  '.ev-sum td{background:#efe6dc;font-weight:800;}' +
+  '.ev-grand td{background:#8C1A2C;color:#fff;font-weight:800;font-size:1.06em;}' +
+  '.ev-txt{min-height:calc(46px * var(--z));white-space:pre-wrap;font-weight:600;line-height:1.7;}' +
+  '.ev-sigs{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:calc(10px * var(--z));font-weight:800;break-inside:avoid;}' +
+  '.ev-sigcol{display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;}' +
+  '.ev-sigcol img{max-width:150px;max-height:calc(70px * var(--z));object-fit:contain;}' +
+  '.ev-sigcol .ev-nm{color:#8C1A2C;}';
+
+function evalEsc_(t) {
+  return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+}
+
+/* ev: كما يرجع من الخادم (center, masoula, period, term, year, data, directorName, headName, status)
+   sigs: { directorSig, headSig } */
+function buildMasoulaEvalHTML(ev, sigs) {
+  const d = ev.data || {};
+  const s = sigs || {};
+  const lh = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
+  const dir = d.dirScores || [];
+  const head = d.headScores || [];
+  const hasHead = head.length === EVAL_HEAD_ITEMS.length;
+  const dirMax = evalSum_(EVAL_DIR_ITEMS.map(function (x) { return x[1]; }));
+  const headMax = evalSum_(EVAL_HEAD_ITEMS.map(function (x) { return x[1]; }));
+  const kv = function (k, v, span) { return '<td class="ev-k">' + k + '</td><td class="ev-v"' + (span ? ' colspan="' + span + '"' : '') + '>' + evalEsc_(v || '') + '</td>'; };
+
+  let h = '<div class="ev-doc">';
+  if (lh) h += '<img class="ev-lh" src="' + lh + '" width="1600" height="281" alt="كليشة جمعية فرقان">';
+  h += '<div class="ev-body"><h1 class="ev-title">استمارة تقييم مسؤولة المقصف</h1>';
+
+  h += '<table class="ev-tbl"><tr>' + kv('اسم المركز', ev.center || d.center) + kv('الفترة', d.period) + '</tr>' +
+    '<tr>' + kv('الفصل الدراسي', d.term) + kv('العام', d.year ? toArabicDigits(d.year) : '') + '</tr></table>';
+
+  h += '<table class="ev-tbl"><tr><th colspan="6">المعلومات الشخصية</th></tr>' +
+    '<tr>' + kv('الاسم', d.name) + kv('رقم الجوال', toArabicDigits(d.phone || '')) + kv('الأجزاء المحفوظة', toArabicDigits(d.juz || '')) + '</tr>' +
+    '<tr>' + kv('الحالة الاجتماعية', d.marital) + kv('محل الميلاد', d.birthplace) + kv('سنوات الخبرة كمسؤولة مقصف', toArabicDigits(d.experience || '')) + '</tr>' +
+    '<tr>' + kv('المؤهل في القرآن', d.quranQual) + kv('المؤهل العلمي', d.eduQual) + kv('تاريخ التقييم', toArabicDigits(d.evalDate || '')) + '</tr></table>';
+
+  h += '<table class="ev-tbl"><tr><th colspan="2">البيان</th><th style="width:14%">الدرجة المستحقة</th><th style="width:14%">الدرجة المكتسبة</th></tr>';
+  EVAL_DIR_ITEMS.forEach(function (it, i) {
+    h += '<tr>' + (i === 0 ? '<td class="ev-side" rowspan="' + EVAL_DIR_ITEMS.length + '">بنود خاصة بمديرة المركز</td>' : '') +
+      '<td>' + it[0] + '</td><td class="ev-c">' + toArabicDigits(it[1]) + '</td><td class="ev-got">' + evalNum_(dir[i]) + '</td></tr>';
+  });
+  h += '<tr class="ev-sum"><td colspan="2">المجموع</td><td class="ev-c">' + toArabicDigits(dirMax) + '</td><td class="ev-got">' + (dir.length ? toArabicDigits(evalSum_(dir)) : '') + '</td></tr>';
+  EVAL_HEAD_ITEMS.forEach(function (it, i) {
+    h += '<tr>' + (i === 0 ? '<td class="ev-side" rowspan="' + EVAL_HEAD_ITEMS.length + '">بنود خاصة برئيسة وحدة المقاصف</td>' : '') +
+      '<td>' + it[0] + '</td><td class="ev-c">' + toArabicDigits(it[1]) + '</td><td class="ev-got">' + (hasHead ? evalNum_(head[i]) : '') + '</td></tr>';
+  });
+  h += '<tr class="ev-sum"><td colspan="2">المجموع</td><td class="ev-c">' + toArabicDigits(headMax) + '</td><td class="ev-got">' + (hasHead ? toArabicDigits(evalSum_(head)) : '') + '</td></tr>';
+  h += '<tr class="ev-grand"><td colspan="2">المجموع الكلي</td><td class="ev-c">' + toArabicDigits(dirMax + headMax) + '</td><td class="ev-c">' +
+    (hasHead && dir.length ? toArabicDigits(evalSum_(dir) + evalSum_(head)) : '') + '</td></tr></table>';
+
+  h += '<table class="ev-tbl"><tr><td class="ev-k" style="width:18%">الإيجابيات</td><td><div class="ev-txt">' + evalEsc_(d.positives || '') + '</div></td></tr>' +
+    '<tr><td class="ev-k">نقاط تحتاج إلى تحسين</td><td><div class="ev-txt">' + evalEsc_(d.improvements || '') + '</div></td></tr></table>';
+
+  h += '<div class="ev-sigs">' +
+    '<div class="ev-sigcol"><span>رئيسة وحدة المقاصف</span><span class="ev-nm">' + evalEsc_(ev.headName || '') + '</span>' +
+      '<span>التوقيع:</span>' + (s.headSig ? '<img src="' + s.headSig + '" alt="توقيع الرئيسة">' : '') + '</div>' +
+    '<div class="ev-sigcol"><span>مديرة المركز</span><span class="ev-nm">' + evalEsc_(ev.directorName || '') + '</span>' +
+      '<span>التوقيع:</span>' + (s.directorSig ? '<img src="' + s.directorSig + '" alt="توقيع المديرة">' : '') + '</div>' +
+    '</div>';
+  h += '</div></div>';
+  return h;
+}
+
+/* تصغير المحتوى (بدون الكليشة) ليكفي صفحة A4 طولية واحدة */
+function fitMasoulaEvalToPage_(root) {
+  const body = root.querySelector('.ev-body');
+  const img = root.querySelector('.ev-lh');
+  if (!body) return;
+  const pageH = 1123 - 6;
+  const lhH = img ? img.offsetHeight : 0;
+  let z = 1;
+  body.style.setProperty('--z', '1');
+  for (let i = 0; i < 40 && z > 0.6 && (lhH + body.offsetHeight) > pageH; i++) {
+    z = Math.max(0.6, z - 0.02);
+    body.style.setProperty('--z', String(z));
+  }
+}
+
+function masoulaEvalFileName_(ev) {
+  return ('تقييم مسؤولة المقصف - ' + ((ev.data && ev.data.name) || ev.masoula || '') + ' - ' + (ev.center || '') + '.pdf').replace(/[\\/:*?"<>|]+/g, '-');
+}
+
+async function masoulaEvalPdfBlob_(ev, sigs) {
+  window.PDF_LIBS_ENABLED = true;
+  if (typeof html2pdf === 'undefined') { try { await ensurePdfLibs_(); } catch (e) {} }
+  if (typeof html2pdf === 'undefined') throw new Error('nolib');
+  const fileName = masoulaEvalFileName_(ev);
+  const pdfOpts = {
+    margin: 0, filename: fileName, image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 794 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'] }
+  };
+  const tmp = document.createElement('div');
+  tmp.style.cssText = 'position:fixed;left:-20000px;top:0;width:794px;background:#fff;pointer-events:none;direction:rtl;';
+  tmp.innerHTML = '<style>' + EV_DOC_CSS_ + '</style>' + buildMasoulaEvalHTML(ev, sigs);
+  document.body.appendChild(tmp);
+  try {
+    const el = tmp.querySelector('.ev-doc');
+    await Promise.all(Array.from(tmp.querySelectorAll('img')).map(function (im) {
+      return im.complete ? Promise.resolve() : new Promise(function (res) { im.onload = im.onerror = res; });
+    }));
+    fitMasoulaEvalToPage_(el);
+    if (typeof htmlToImage !== 'undefined') {
+      try {
+        const imgOpts = { pixelRatio: 2, backgroundColor: '#ffffff', width: 794, style: { width: '794px', margin: '0' },
+          imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' };
+        const fontCss = await vrFontEmbedCss_();
+        if (fontCss) imgOpts.fontEmbedCSS = fontCss;
+        const canvas = await htmlToImage.toCanvas(el, imgOpts);
+        return await html2pdf().set(pdfOpts).from(canvas, 'canvas').outputPdf('blob');
+      } catch (e) { console.warn('html-to-image failed, falling back to html2canvas', e); }
+    }
+    return await html2pdf().set(pdfOpts).from(el).outputPdf('blob');
+  } finally {
+    tmp.remove();
+  }
+}
+
+/* mode: 'print' فتح للعرض والطباعة، 'save' حفظ بالجهاز، 'share' مشاركة (واتساب وغيره) */
+async function masoulaEvalPdf(ev, sigs, mode, btn) {
+  let win = null;
+  if (mode === 'print') {
+    win = window.open('', '_blank');
+    if (!win) { alert('يُرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع لكي تتمكّني من عرض الاستمارة'); return; }
+    try { win.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>جارٍ التجهيز</title></head><body style="font-family:sans-serif;text-align:center;padding-top:80px;">جارٍ تجهيز الاستمارة...</body></html>'); } catch (e) {}
+  }
+  if (btn) setBtnBusy(btn, true, 'جارٍ التجهيز...');
+  try {
+    const blob = await masoulaEvalPdfBlob_(ev, sigs);
+    const fileName = masoulaEvalFileName_(ev);
+    if (mode === 'print') { win.location.href = URL.createObjectURL(blob); return; }
+    if (mode === 'share') {
+      const file = new File([blob], fileName, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: 'تقييم مسؤولة المقصف', text: 'استمارة تقييم مسؤولة المقصف - ' + (ev.center || '') }); }
+        catch (e) { if (!e || e.name !== 'AbortError') throw e; }
+        return;
+      }
+      alert('جهازك لا يدعم المشاركة المباشرة من المتصفح، سيُحفظ الملف بدلاً من ذلك ثم أرفقيه يدوياً.');
+    }
+    vrDownloadBlob_(blob, fileName);
+  } catch (e) {
+    if (win) { try { win.close(); } catch (e2) {} }
+    alert(e && e.message === 'nolib' ? 'تعذّر تحميل أداة إنشاء PDF، تأكدي من الاتصال بالإنترنت وحاولي مرة أخرى.' : 'حدث خطأ أثناء إنشاء ملف PDF، حاولي مرة أخرى.');
+  } finally {
+    if (btn) setBtnBusy(btn, false);
+  }
+}
+
+/* تصغير صورة التوقيع قبل الحفظ (حد خلية الشيت ٥٠ ألف حرف) */
+function evalShrinkSig_(dataUrl) {
+  return new Promise(function (resolve) {
+    const img = new Image();
+    img.onload = function () {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if (w > 420) { h = Math.round(h * 420 / w); w = 420; }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      let out = c.toDataURL('image/png');
+      if (out.length > 40000) {
+        const ctx = c.getContext('2d');
+        ctx.globalCompositeOperation = 'destination-over';
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        out = c.toDataURL('image/jpeg', 0.8);
+      }
+      resolve(out.length > 44000 ? '' : out);
+    };
+    img.onerror = function () { resolve(dataUrl.length > 44000 ? '' : dataUrl); };
+    img.src = dataUrl;
+  });
+}
+
+/* هل في توقيع فعلي داخل أداة التوقيع؟ */
+function evalSigFilled_(id) {
+  const w = _sigWidgets[id];
+  if (!w) return false;
+  if (w.mode === 'upload') return !!(w.uploadTrimmed || w.uploadDataUrl);
+  const c = document.getElementById(id);
+  return !!(c && trimToCanvas_(c));
+}
+
+/* جدول إدخال درجات (يُستخدم بصفحة المراكز لبنود المديرة، وبالإدارة لبنود الرئيسة) */
+function evalScoresTableHtml_(items, prefix, values, readOnly) {
+  let h = '<table class="log-table ev-input-tbl"><thead><tr><th>البند</th><th>المستحقة</th><th>المكتسبة</th></tr></thead><tbody>';
+  items.forEach(function (it, i) {
+    const v = values && values[i] !== undefined ? values[i] : '';
+    h += '<tr><td style="text-align:right;">' + it[0] + '</td><td>' + toArabicDigits(it[1]) + '</td><td>' +
+      (readOnly ? '<b style="color:var(--maroon);">' + evalNum_(v) + '</b>'
+        : '<input type="text" inputmode="decimal" class="ev-score" id="' + prefix + i + '" data-max="' + it[1] + '" value="' + evalEsc_(v) + '" style="width:70px;text-align:center;margin:0;">') +
+      '</td></tr>';
+  });
+  h += '</tbody></table>';
+  return h;
+}
+
+/* قراءة الدرجات من الحقول مع التحقق. يرجّع {ok, scores, error} */
+function evalReadScores_(items, prefix) {
+  const scores = [];
+  for (let i = 0; i < items.length; i++) {
+    const el = document.getElementById(prefix + i);
+    const raw = String(el ? el.value : '').replace(/[٠-٩]/g, function (c) { return String(c.charCodeAt(0) - 0x0660); }).replace('٫', '.').trim();
+    if (raw === '') return { ok: false, error: 'أكملي درجة البند: ' + items[i][0], el: el };
+    const n = Number(raw);
+    if (isNaN(n) || n < 0 || n > items[i][1]) return { ok: false, error: 'درجة «' + items[i][0] + '» يجب أن تكون بين ٠ و' + toArabicDigits(items[i][1]), el: el };
+    scores.push(n);
+  }
+  return { ok: true, scores: scores };
+}
+
+/* تحديث المجموع أثناء الكتابة */
+function evalLiveTotal_(items, prefix, outId) {
+  let t = 0;
+  for (let i = 0; i < items.length; i++) {
+    const el = document.getElementById(prefix + i);
+    const n = Number(String(el ? el.value : '').replace(/[٠-٩]/g, function (c) { return String(c.charCodeAt(0) - 0x0660); }).replace('٫', '.'));
+    const bad = el && el.value.trim() !== '' && (isNaN(n) || n < 0 || n > items[i][1]);
+    if (el) el.style.borderColor = bad ? '#c0392b' : '';
+    if (!isNaN(n) && !bad) t += n;
+  }
+  const out = document.getElementById(outId);
+  if (out) out.textContent = toArabicDigits(Math.round(t * 100) / 100) + ' / ' + toArabicDigits(evalSum_(items.map(function (x) { return x[1]; })));
+}

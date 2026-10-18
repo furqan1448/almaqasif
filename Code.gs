@@ -80,7 +80,9 @@ function setup() {
     // طلبات المقاصف: كل سطر طلب واحد (بنوده مكتوبة نصاً بعمود «تفاصيل الطلب»)
     'طلبات المقاصف': ORDERS_HEADERS_,
     // تقارير الزيارة المحفوظة: تكتبها الإدارة وتوقّعها مديرة المركز من صفحة المراكز
-    'تقارير الزيارة': VISIT_REPORT_HEADERS_
+    'تقارير الزيارة': VISIT_REPORT_HEADERS_,
+    // تقييم مسؤولة المقصف: ترسله مديرة المركز موقّعاً، وتعتمده الإدارة بدرجاتها وتوقيعها (لا تراه المسؤولة)
+    'تقييم مسؤولات المقاصف': EVAL_HEADERS_
   };
 
   Object.keys(sheets).forEach(function (name) {
@@ -1382,6 +1384,15 @@ function handleRequest_(p) {
       case 'getVisitReportPendingCount': return json_(getVisitReportPendingCount_(p));
       case 'signVisitReport': return json_(signVisitReport_(p));
       case 'deleteVisitReport': return json_(deleteVisitReport_(p));
+
+      case 'getMasoulaEvalCtx': return json_(getMasoulaEvalCtx_(p));
+      case 'getMasoulaEvalsForCenter': return json_(getMasoulaEvalsForCenter_(p));
+      case 'submitMasoulaEval': return json_(submitMasoulaEval_(p));
+      case 'getMasoulaEvalSigs': return json_(getMasoulaEvalSigs_(p));
+      case 'deleteMasoulaEval': return json_(deleteMasoulaEval_(p));
+      case 'getMasoulaEvalsAdmin': return json_(getMasoulaEvalsAdmin_(p));
+      case 'getMasoulaEvalPendingCount': return json_(getMasoulaEvalPendingCount_(p));
+      case 'adminSignMasoulaEval': return json_(adminSignMasoulaEval_(p));
 
       case 'recordIncomeItem': return json_(recordIncomeItem_(p));
       case 'getIncomeItems': return json_(getIncomeItems_(p));
@@ -3761,4 +3772,285 @@ function speedReport() {
   Logger.log(lines.join('\n'));
   notify_('تقرير حجم الشيتات (الأكبر أولاً):\n\n' + lines.slice(0, 12).join('\n') +
     '\n\nحد الذاكرة المؤقتة لكل شيت تقريباً ' + Math.round(CACHE_CHUNK_CHARS_ * CACHE_MAX_CHUNKS_ / 1024) + ' ك.ب؛ أي شيت (مما يُقرأ فعلياً) فوق هذا الحد يُقرأ كاملاً من قوقل شيتس بكل طلب.');
+}
+
+/* ======================= تقييم مسؤولة المقصف =======================
+   نفس فكرة الإشعار: مديرة المركز تعبّئ الاستمارة (البيانات الشخصية + بنود المديرة من ٥٠) وتوقّع وترسلها،
+   ثم الإدارة (رئيسة وحدة المقاصف) تضيف درجات بنودها (من ٥٠) وتوقّع وتعتمد.
+   - يظهر فقط للمراكز التي فيها مسؤولة مقصف (المركز «وضع العرض فقط» = نعم، أو مربوطة به مسؤولة بشيت «المسؤولات»).
+   - مسؤولة المقصف لا تراه أبداً: لا يوجد في صفحة المسؤولات، وكل طلبات المركز تحتاج كلمة مرور المركز،
+     وطلبات الإدارة تحتاج كلمة مرور الإدارة.
+   - التواقيع محفوظة داخل الشيت ولا تُقرأ مع القائمة (تُجلب عند فتح التقييم فقط) حتى تبقى سريعة. */
+const EVAL_SHEET_ = 'تقييم مسؤولات المقاصف';
+const EVAL_HEADERS_ = ['معرف', 'اسم المركز', 'اسم المسؤولة', 'الفترة', 'الفصل الدراسي', 'العام', 'بيانات التقييم',
+  'درجة المديرة', 'درجة الوحدة', 'المجموع الكلي', 'الحالة',
+  'اسم المديرة', 'توقيع المديرة', 'يوم الإرسال', 'تاريخ الإرسال', 'وقت الإرسال',
+  'اسم الرئيسة', 'توقيع الرئيسة', 'يوم الاعتماد', 'تاريخ الاعتماد', 'وقت الاعتماد'];
+const EVAL_DIR_MAX_ = [2, 7, 6, 10, 5, 5, 5, 5, 5];     // بنود خاصة بمديرة المركز (المجموع ٥٠)
+const EVAL_HEAD_MAX_ = [5, 10, 10, 2, 5, 13, 5];        // بنود خاصة برئيسة وحدة المقاصف (المجموع ٥٠)
+const EVAL_PENDING_ = 'بانتظار اعتماد الوحدة';
+const EVAL_DONE_ = 'تم الاعتماد';
+SKIP_READ_COLS_[EVAL_SHEET_] = ['توقيع المديرة', 'توقيع الرئيسة'];
+
+function evalSheet_() {
+  let sh = sheet_(EVAL_SHEET_);
+  if (!sh) {
+    sh = SpreadsheetApp.getActiveSpreadsheet().insertSheet(EVAL_SHEET_);
+    sh.getRange(1, 1, 1, EVAL_HEADERS_.length).setValues([EVAL_HEADERS_]).setFontWeight('bold');
+    sh.setRightToLeft(true);
+    sh.getRange(2, 1, sh.getMaxRows() - 1, EVAL_HEADERS_.length).setNumberFormat('@');
+  }
+  return sh;
+}
+
+function evalRows_() {
+  if (!sheet_(EVAL_SHEET_)) return [];
+  return sheetToObjects_(EVAL_SHEET_);
+}
+
+/* التحقق من كلمة مرور المركز (نفس بيانات الدخول) */
+function evalCenterAuth_(p) {
+  const center = String(p.center || '').trim();
+  const password = String(p.password || '').trim();
+  if (!center || !password) return { ok: false, auth: true, error: 'يُرجى إدخال كلمة مرور المركز' };
+  const rows = sheetToObjects_('المراكز', CACHE_SECONDS_LONG);
+  const found = rows.find(function (r) {
+    return String(r['اسم المركز']).trim() === center && String(r['كلمة المرور']).trim() === password;
+  });
+  if (!found) return { ok: false, auth: true, error: 'كلمة مرور المركز غير صحيحة' };
+  return { ok: true, row: found };
+}
+
+function evalMasoulatOf_(center) {
+  const c = String(center || '').trim();
+  return sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG)
+    .filter(function (r) { return String(r['اسم المركز'] || '').trim() === c && String(r['الاسم'] || '').trim(); })
+    .map(function (r) { return String(r['الاسم']).trim(); });
+}
+
+function evalEligible_(centerRow) {
+  if (String(centerRow['وضع العرض فقط'] || '').trim() === 'نعم') return true;
+  return evalMasoulatOf_(centerRow['اسم المركز']).length > 0;
+}
+
+function evalParseData_(r) {
+  try { return JSON.parse(r['بيانات التقييم'] || '{}'); } catch (e) { return {}; }
+}
+
+function evalOut_(r) {
+  return {
+    id: r['معرف'], center: r['اسم المركز'], masoula: r['اسم المسؤولة'] || '',
+    period: r['الفترة'] || '', term: r['الفصل الدراسي'] || '', year: r['العام'] || '',
+    data: evalParseData_(r),
+    dirTotal: r['درجة المديرة'], headTotal: r['درجة الوحدة'], total: r['المجموع الكلي'],
+    status: r['الحالة'] || EVAL_PENDING_,
+    directorName: r['اسم المديرة'] || '', sentDay: r['يوم الإرسال'] || '', sentDate: r['تاريخ الإرسال'] || '', sentTime: r['وقت الإرسال'] || '',
+    headName: r['اسم الرئيسة'] || '', signedDay: r['يوم الاعتماد'] || '', signedDate: r['تاريخ الاعتماد'] || '', signedTime: r['وقت الاعتماد'] || ''
+  };
+}
+
+function findEval_(id) {
+  const t = String(id || '').trim();
+  if (!t) return null;
+  return evalRows_().find(function (r) { return String(r['معرف']).trim() === t; }) || null;
+}
+
+/* يتحقق من الدرجات: كل درجة رقم بين ٠ والدرجة المستحقة. يرجّع {ok, scores, total} */
+function evalCheckScores_(arr, maxes, label) {
+  if (!Array.isArray(arr) || arr.length !== maxes.length) return { ok: false, error: 'أكملي درجات ' + label };
+  const scores = [];
+  let total = 0;
+  for (let i = 0; i < maxes.length; i++) {
+    const raw = String(arr[i] === undefined || arr[i] === null ? '' : arr[i])
+      .replace(/[٠-٩]/g, function (c) { return String(c.charCodeAt(0) - 0x0660); }).replace('٫', '.').trim();
+    if (raw === '') return { ok: false, error: 'أكملي درجات ' + label + ' (البند ' + (i + 1) + ')' };
+    const n = Number(raw);
+    if (isNaN(n) || n < 0 || n > maxes[i]) return { ok: false, error: 'درجة البند ' + (i + 1) + ' من ' + label + ' يجب أن تكون بين ٠ و' + maxes[i] };
+    scores.push(n);
+    total += n;
+  }
+  return { ok: true, scores: scores, total: Math.round(total * 100) / 100 };
+}
+
+function evalSetRow_(sh, row, obj) {
+  Object.keys(obj).forEach(function (k) {
+    const c = colIndex_(sh, k);
+    if (c > 0) sh.getRange(row, c).setValue(obj[k]);
+  });
+}
+
+/* ---- صفحة المراكز ---- */
+function getMasoulaEvalCtx_(p) {
+  const auth = evalCenterAuth_(p);
+  if (!auth.ok) return auth;
+  return { ok: true, eligible: evalEligible_(auth.row), masoulat: evalMasoulatOf_(auth.row['اسم المركز']) };
+}
+
+function getMasoulaEvalsForCenter_(p) {
+  const auth = evalCenterAuth_(p);
+  if (!auth.ok) return auth;
+  const c = String(p.center).trim();
+  return { ok: true, evals: evalRows_().filter(function (r) { return String(r['اسم المركز']).trim() === c; }).reverse().map(evalOut_) };
+}
+
+/* إرسال تقييم جديد (بدون p.id) أو تعديل تقييم لم يُعتمد بعد (مع p.id) - من المديرة */
+function submitMasoulaEval_(p) {
+  const auth = evalCenterAuth_(p);
+  if (!auth.ok) return auth;
+  if (!evalEligible_(auth.row)) return { ok: false, error: 'التقييم متاح فقط للمراكز التي فيها مسؤولة مقصف' };
+  const center = String(p.center).trim();
+  let d = p.data;
+  if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { d = {}; } }
+  d = d || {};
+  const masoula = String(d.name || '').trim();
+  if (!masoula) return { ok: false, error: 'اكتبي اسم مسؤولة المقصف' };
+  if (!d.term) return { ok: false, error: 'اختاري الفصل الدراسي' };
+  const chk = evalCheckScores_(d.dirScores, EVAL_DIR_MAX_, 'بنود مديرة المركز');
+  if (!chk.ok) return chk;
+  const directorName = String(p.directorName || '').trim();
+  if (!directorName) return { ok: false, error: 'اكتبي اسم مديرة المركز' };
+  const sig = String(p.signature || '');
+  if (!sig) return { ok: false, error: 'التوقيع مطلوب' };
+  if (sig.length > 45000) return { ok: false, error: 'صورة التوقيع كبيرة جداً' };
+
+  const data = {
+    period: String(d.period || ''), term: String(d.term || ''), year: String(d.year || ''),
+    name: masoula, phone: String(d.phone || ''), juz: String(d.juz || ''), marital: String(d.marital || ''),
+    birthplace: String(d.birthplace || ''), experience: String(d.experience || ''),
+    quranQual: String(d.quranQual || ''), eduQual: String(d.eduQual || ''), evalDate: String(d.evalDate || ''),
+    dirScores: chk.scores, headScores: [],
+    positives: String(d.positives || ''), improvements: String(d.improvements || '')
+  };
+  const json = JSON.stringify(data);
+  if (json.length > 45000) return { ok: false, error: 'النص المكتوب طويل جداً' };
+
+  const sh = evalSheet_();
+  const now = nowParts_();
+  const vals = {
+    'اسم المركز': center, 'اسم المسؤولة': masoula, 'الفترة': data.period, 'الفصل الدراسي': data.term, 'العام': data.year,
+    'بيانات التقييم': json, 'درجة المديرة': chk.total, 'درجة الوحدة': '', 'المجموع الكلي': '', 'الحالة': EVAL_PENDING_,
+    'اسم المديرة': directorName, 'توقيع المديرة': sig,
+    'يوم الإرسال': now.day, 'تاريخ الإرسال': now.date, 'وقت الإرسال': now.time
+  };
+  let id = p.id;
+  if (id) {
+    const row = findEval_(id);
+    if (!row) return { ok: false, error: 'التقييم غير موجود (ربما حُذف)' };
+    if (String(row['اسم المركز']).trim() !== center) return { ok: false, error: 'هذا التقييم لا يتبع هذا المركز' };
+    if (row['الحالة'] === EVAL_DONE_) return { ok: false, error: 'تم اعتماد هذا التقييم من الوحدة ولا يمكن تعديله' };
+    evalSetRow_(sh, row._row, vals);
+  } else {
+    id = Utilities.getUuid();
+    vals['معرف'] = id;
+    appendRowByHeaders_(sh, vals);
+  }
+  invalidateCache_(EVAL_SHEET_);
+  notifyAdminNewEval_(center, masoula, data.term, now, !!p.id);
+  return { ok: true, id: id };
+}
+
+function notifyAdminNewEval_(center, masoula, term, now, isEdit) {
+  center = centerDisplay_(center);
+  if (!ADMIN_NOTIFY_EMAIL || ADMIN_NOTIFY_EMAIL.indexOf('@example.com') !== -1) return;
+  try {
+    MailApp.sendEmail({
+      to: ADMIN_NOTIFY_EMAIL,
+      subject: (isEdit ? 'تعديل ' : '') + 'تقييم مسؤولة المقصف من ' + center + ' - وحدة المقاصف',
+      body: 'السلام عليكم،\n\n' +
+        (isEdit ? 'عدّلت' : 'أرسلت') + ' مديرة مركز "' + center + '" استمارة تقييم مسؤولة المقصف بعد توقيعها.\n' +
+        'اسم المسؤولة: ' + masoula + '\n' + 'الفصل الدراسي: ' + term + '\n' +
+        'اليوم: ' + now.day + '\nالتاريخ: ' + now.date + '\nالوقت: ' + now.time + '\n\n' +
+        'الرجاء الدخول للوحة إدارة وحدة المقاصف ← «تقييم مسؤولات المقاصف» لإضافة درجات الوحدة والتوقيع.\n\n' +
+        '— نظام وحدة المقاصف، جمعية فرقان لتحفيظ القرآن الكريم'
+    });
+  } catch (e) {}
+}
+
+/* التواقيع لتقييم واحد (للعرض وملف PDF) - للمركز صاحب التقييم أو للإدارة */
+function getMasoulaEvalSigs_(p) {
+  const row = findEval_(p.id);
+  if (!row) return { ok: false, error: 'التقييم غير موجود' };
+  if (p.adminPw) {
+    const a = loginAdmin_({ password: p.adminPw });
+    if (!a.ok) return { ok: false, auth: true, error: a.error };
+  } else {
+    const auth = evalCenterAuth_(p);
+    if (!auth.ok) return auth;
+    if (String(row['اسم المركز']).trim() !== String(p.center).trim()) return { ok: false, error: 'هذا التقييم لا يتبع هذا المركز' };
+  }
+  const sh = evalSheet_();
+  const id = String(row['معرف']).trim();
+  let r = row._row;
+  const idCol = colIndex_(sh, 'معرف');
+  if (String(sh.getRange(r, idCol).getValue()).trim() !== id) {
+    const ids = sh.getRange(1, idCol, sh.getLastRow(), 1).getValues();
+    r = -1;
+    for (let k = 1; k < ids.length; k++) { if (String(ids[k][0]).trim() === id) { r = k + 1; break; } }
+    if (r === -1) return { ok: false, error: 'التقييم غير موجود' };
+  }
+  const read = function (h) { const c = colIndex_(sh, h); return c > 0 ? String(sh.getRange(r, c).getValue() || '') : ''; };
+  return { ok: true, directorSig: read('توقيع المديرة'), headSig: read('توقيع الرئيسة') };
+}
+
+function deleteMasoulaEval_(p) {
+  const row = findEval_(p.id);
+  if (!row) return { ok: false, error: 'التقييم غير موجود' };
+  if (p.adminPw) {
+    const a = loginAdmin_({ password: p.adminPw });
+    if (!a.ok) return { ok: false, auth: true, error: a.error };
+  } else {
+    const auth = evalCenterAuth_(p);
+    if (!auth.ok) return auth;
+    if (String(row['اسم المركز']).trim() !== String(p.center).trim()) return { ok: false, error: 'هذا التقييم لا يتبع هذا المركز' };
+    if (row['الحالة'] === EVAL_DONE_) return { ok: false, error: 'تم اعتماد هذا التقييم ولا يمكن حذفه' };
+  }
+  evalSheet_().deleteRow(row._row);
+  invalidateCache_(EVAL_SHEET_);
+  return { ok: true };
+}
+
+/* ---- لوحة الإدارة ---- */
+function getMasoulaEvalsAdmin_(p) {
+  const a = loginAdmin_({ password: p.adminPw });
+  if (!a.ok) return { ok: false, auth: true, error: a.error };
+  return { ok: true, evals: evalRows_().slice().reverse().map(evalOut_) };
+}
+
+function getMasoulaEvalPendingCount_(p) {
+  const a = loginAdmin_({ password: p.adminPw });
+  if (!a.ok) return { ok: false, auth: true, error: a.error };
+  return { ok: true, count: evalRows_().filter(function (r) { return (r['الحالة'] || EVAL_PENDING_) === EVAL_PENDING_; }).length };
+}
+
+/* اعتماد الإدارة: درجات بنود الرئيسة + الإيجابيات ونقاط التحسين + الاسم والتوقيع.
+   يمكن إعادة الحفظ بعد الاعتماد للتعديل (p.keepSig = إبقاء التوقيع السابق). */
+function adminSignMasoulaEval_(p) {
+  const a = loginAdmin_({ password: p.adminPw });
+  if (!a.ok) return { ok: false, auth: true, error: a.error };
+  const row = findEval_(p.id);
+  if (!row) return { ok: false, error: 'التقييم غير موجود' };
+  const chk = evalCheckScores_(p.headScores, EVAL_HEAD_MAX_, 'بنود رئيسة وحدة المقاصف');
+  if (!chk.ok) return chk;
+  const headName = String(p.headName || '').trim();
+  if (!headName) return { ok: false, error: 'اكتبي اسم رئيسة وحدة المقاصف' };
+  const sig = String(p.signature || '');
+  if (!sig && !p.keepSig) return { ok: false, error: 'التوقيع مطلوب' };
+  if (sig.length > 45000) return { ok: false, error: 'صورة التوقيع كبيرة جداً' };
+
+  const data = evalParseData_(row);
+  data.headScores = chk.scores;
+  if (p.positives !== undefined) data.positives = String(p.positives || '');
+  if (p.improvements !== undefined) data.improvements = String(p.improvements || '');
+  const dirTotal = Number(row['درجة المديرة']) || 0;
+  const now = nowParts_();
+  const sh = evalSheet_();
+  const vals = {
+    'بيانات التقييم': JSON.stringify(data), 'درجة الوحدة': chk.total,
+    'المجموع الكلي': Math.round((dirTotal + chk.total) * 100) / 100, 'الحالة': EVAL_DONE_,
+    'اسم الرئيسة': headName, 'يوم الاعتماد': now.day, 'تاريخ الاعتماد': now.date, 'وقت الاعتماد': now.time
+  };
+  if (sig) vals['توقيع الرئيسة'] = sig;
+  evalSetRow_(sh, row._row, vals);
+  invalidateCache_(EVAL_SHEET_);
+  return { ok: true };
 }

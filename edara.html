@@ -189,6 +189,11 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v2M16 3v2"/><rect x="4" y="4.5" width="16" height="16" rx="1.5"/><path d="M4 9.5h16"/><path d="M8.5 13.5l2 2 4-4.5"/><path d="M8.5 17.5h4"/></svg></div>
           <span class="label">محضر اجتماع</span>
         </div>
+        <div class="icon-btn" onclick="showAdminTab('masoulaEvalTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 3.5h6v2H9z"/><path d="M12 9.2l.9 1.9 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z"/><path d="M9 18h6"/></svg></div>
+          <span class="label">تقييم مسؤولات المقاصف</span>
+          <div class="badge hidden" id="adminEvalBadge">0</div>
+        </div>
       </div>
     </div>
   </div>
@@ -877,6 +882,67 @@
     </div>
 
     <!-- ===== تبويب: تقرير الزيارة ===== -->
+    <!-- ===== تبويب: تقييم مسؤولات المقاصف (ترسله المديرة موقّعاً ← نضيف درجات الوحدة ونوقّع) ===== -->
+    <div id="masoulaEvalTab" class="admin-tab-panel hidden">
+      <div class="card" id="aevListCard">
+        <h3 style="margin-top:0;color:var(--maroon);">تقييم مسؤولات المقاصف</h3>
+        <p style="font-size:0.88rem;color:#6f6467;margin-top:0;line-height:1.8;">تصل الاستمارة من مديرة المركز بعد تعبئة بنودها وتوقيعها، فتُضاف درجات بنود رئيسة الوحدة ثم التوقيع والاعتماد. لا تظهر لمسؤولة المقصف.</p>
+        <div class="select-row">
+          <div><label>الحالة</label><select id="aevStatus" onchange="renderAdminEvals_()"><option value="">الكل</option><option value="بانتظار اعتماد الوحدة">بانتظار الاعتماد</option><option value="تم الاعتماد">تم الاعتماد</option></select></div>
+          <div><label>الفصل الدراسي</label><select id="aevTerm" onchange="renderAdminEvals_()"><option value="">الكل</option><option>الأول</option><option>الثاني</option><option>الثالث</option></select></div>
+          <div><label>بحث</label><input type="text" id="aevSearch" placeholder="المركز أو المسؤولة" oninput="renderAdminEvals_()"></div>
+        </div>
+        <table class="log-table" style="margin-top:10px;">
+          <thead><tr><th>المركز</th><th>المسؤولة</th><th>الفصل</th><th>المديرة</th><th>الوحدة</th><th>الكلي</th><th>الحالة</th><th></th></tr></thead>
+          <tbody id="aevTbody"><tr><td colspan="8">جارٍ التحميل...</td></tr></tbody>
+        </table>
+        <div class="export-row"><button class="btn outline" onclick="exportAdminEvalsExcel_()">⬇️ Excel</button></div>
+      </div>
+
+      <div class="card hidden" id="aevDetailCard">
+        <a class="back-link" onclick="closeAdminEval_()">⟵ قائمة التقييمات</a>
+        <h3 style="margin-top:6px;color:var(--maroon);">استمارة تقييم مسؤولة المقصف</h3>
+        <div id="aevInfo" style="line-height:1.9;"></div>
+        <h4 style="color:var(--maroon);margin:14px 0 6px;">بنود خاصة بمديرة المركز <span id="aevDirTotal" style="font-weight:800;"></span></h4>
+        <div id="aevDirBox" style="overflow-x:auto;"></div>
+
+        <h4 style="color:var(--maroon);margin:16px 0 6px;">بنود خاصة برئيسة وحدة المقاصف</h4>
+        <div id="aevHeadBox" style="overflow-x:auto;"></div>
+        <div style="margin-top:6px;font-weight:800;">المجموع: <span id="aevHeadTotal" style="color:var(--maroon);"></span></div>
+
+        <label style="margin-top:14px;">الإيجابيات</label>
+        <textarea id="aevPositives" rows="3"></textarea>
+        <label>نقاط تحتاج إلى تحسين</label>
+        <textarea id="aevImprovements" rows="3"></textarea>
+
+        <div style="margin-top:16px;border-top:1px solid var(--gold-light);padding-top:12px;">
+          <label>اسم رئيسة وحدة المقاصف</label>
+          <input type="text" id="aevHeadName">
+          <div class="checkline hidden" id="aevKeepSigRow"><input type="checkbox" id="aevKeepSig" checked onchange="document.getElementById('aevSigBox').classList.toggle('hidden', this.checked)"><label for="aevKeepSig" style="margin:0;font-weight:500;">إبقاء التوقيع السابق</label></div>
+          <div id="aevSigBox">
+            <label>التوقيع</label>
+            <div class="sig-mode-toggle">
+              <button type="button" class="sig-mode-btn active" data-sigtoggle="aevSig" data-mode="draw" onclick="setSigMode('aevSig','draw')">رسم التوقيع</button>
+              <button type="button" class="sig-mode-btn" data-sigtoggle="aevSig" data-mode="upload" onclick="setSigMode('aevSig','upload')">رفع صورة توقيع</button>
+            </div>
+            <div class="sig-wrap" id="aevSig_drawWrap"><canvas id="aevSig" class="sig-pad"></canvas></div>
+            <div class="sig-upload-wrap hidden" id="aevSig_uploadWrap">
+              <input type="file" accept="image/*" id="aevSig_file">
+              <img id="aevSig_preview" class="sig-upload-preview hidden">
+            </div>
+            <div class="sig-actions"><button type="button" onclick="clearSignatureWidget('aevSig')">مسح التوقيع</button></div>
+          </div>
+          <button class="btn" id="aevSignBtn" onclick="adminSignEval_()" style="margin-top:12px;">إضافة الدرجات والتوقيع والاعتماد</button>
+        </div>
+        <div class="export-row" style="margin-top:12px;">
+          <button class="btn outline" onclick="adminEvalPdf_('print', this)">📄 عرض وطباعة</button>
+          <button class="btn outline" onclick="adminEvalPdf_('save', this)">⬇️ حفظ PDF</button>
+          <button class="btn outline" onclick="adminEvalPdf_('share', this)">📤 مشاركة</button>
+          <button class="btn outline" style="color:#a12a2a;border-color:#e3b3b3;" onclick="deleteAdminEval_()">🗑️ حذف</button>
+        </div>
+      </div>
+    </div>
+
     <div id="visitReportTab" class="admin-tab-panel hidden">
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">تقرير الزيارة اليومي</h3>
@@ -1346,6 +1412,7 @@ function showDashboard() {
   showAdminTab();
   loadPendingBadgeOnly();
   loadOrdersBadge_();
+  loadAdminEvalBadge_();
   loadCentersDropdowns();
 }
 
@@ -1377,6 +1444,212 @@ function showAdminTab(tabId) {
   if (tabId === 'meetingMinutesTab') { initMeetingMinutesTab_(); renderMmTargetLists(); loadMeetingMinutesAdmin(); }
   if (tabId === 'cardsAdminTab') { initAdminCardForm_(); loadCardsAdminOverview(); }
   if (tabId === 'gradesTab') { initGradesTab_(); }
+  if (tabId === 'masoulaEvalTab') { loadAdminEvals_(); }
+}
+
+/* -------- تقييم مسؤولات المقاصف (اعتماد الإدارة) -------- */
+let aevList_ = [];
+let aevCurrent_ = null;
+let aevSigReady_ = false;
+
+function aevPw_(ask) {
+  let pw = '';
+  try { pw = sessionStorage.getItem('maqasif_admin_pw') || ''; } catch (e) {}
+  if (!pw && ask) {
+    pw = prompt('أدخلي كلمة مرور الإدارة:') || '';
+    if (pw) { try { sessionStorage.setItem('maqasif_admin_pw', pw); } catch (e) {} }
+  }
+  return pw;
+}
+
+function aevAuthFailed_(r) {
+  if (r && r.auth) { try { sessionStorage.removeItem('maqasif_admin_pw'); } catch (e) {} }
+}
+
+function loadAdminEvalBadge_() {
+  const pw = aevPw_(false);
+  if (!pw) return;
+  callApi('getMasoulaEvalPendingCount', { adminPw: pw }).then(function (r) {
+    const b = document.getElementById('adminEvalBadge');
+    if (!b || !r || !r.ok) return;
+    b.textContent = r.count;
+    b.classList.toggle('hidden', !r.count);
+  }).catch(function () {});
+}
+
+function loadAdminEvals_() {
+  closeAdminEval_();
+  const tbody = document.getElementById('aevTbody');
+  const pw = aevPw_(true);
+  if (!pw) { tbody.innerHTML = '<tr><td colspan="8">يلزم إدخال كلمة مرور الإدارة</td></tr>'; return; }
+  tbody.innerHTML = '<tr><td colspan="8">جارٍ التحميل...</td></tr>';
+  callApi('getMasoulaEvalsAdmin', { adminPw: pw }).then(function (r) {
+    if (!r || !r.ok) { aevAuthFailed_(r); tbody.innerHTML = '<tr><td colspan="8">' + evalEsc_((r && r.error) || 'تعذّر التحميل') + '</td></tr>'; return; }
+    aevList_ = r.evals || [];
+    renderAdminEvals_();
+  }).catch(function () { tbody.innerHTML = '<tr><td colspan="8">تعذّر التحميل، حاولي مرة أخرى</td></tr>'; });
+}
+
+function aevFiltered_() {
+  const st = document.getElementById('aevStatus').value;
+  const term = document.getElementById('aevTerm').value;
+  const q = document.getElementById('aevSearch').value.trim();
+  return aevList_.filter(function (e) {
+    if (st && e.status !== st) return false;
+    if (term && e.term !== term) return false;
+    if (q && (String(e.center) + ' ' + String(e.masoula)).indexOf(q) === -1) return false;
+    return true;
+  });
+}
+
+function renderAdminEvals_() {
+  const tbody = document.getElementById('aevTbody');
+  const list = aevFiltered_();
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="8">' + (aevList_.length ? 'لا توجد نتائج مطابقة' : 'لم يصل أي تقييم بعد') + '</td></tr>'; return; }
+  tbody.innerHTML = '';
+  list.forEach(function (e) {
+    const done = e.status === 'تم الاعتماد';
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + evalEsc_(e.center) + (e.period ? '<div style="font-size:0.78rem;color:#8a7d76;">' + evalEsc_(e.period) + '</div>' : '') + '</td>' +
+      '<td>' + evalEsc_(e.masoula) + '</td>' +
+      '<td>' + evalEsc_(e.term) + (e.year ? ' ' + toArabicDigits(e.year) : '') + '</td>' +
+      '<td>' + toArabicDigits(e.dirTotal) + '</td>' +
+      '<td>' + (done ? toArabicDigits(e.headTotal) : '—') + '</td>' +
+      '<td><b>' + (done ? toArabicDigits(e.total) : '—') + '</b></td>' +
+      '<td>' + (done ? '<span style="color:#1f8f4e;font-weight:700;">✅ معتمد</span>' : '<span style="color:var(--maroon);font-weight:700;">⏳ بانتظار الاعتماد</span>') + '</td>' +
+      '<td><a href="#" onclick="openAdminEval_(\'' + e.id + '\'); return false;">' + (done ? 'عرض/تعديل' : 'فتح واعتماد') + '</a></td>';
+    tbody.appendChild(tr);
+  });
+}
+
+function aevLiveHead_() { evalLiveTotal_(EVAL_HEAD_ITEMS, 'aevHead', 'aevHeadTotal'); }
+
+function openAdminEval_(id) {
+  const e = aevList_.find(function (x) { return x.id === id; });
+  if (!e) return;
+  aevCurrent_ = e;
+  const d = e.data || {};
+  const done = e.status === 'تم الاعتماد';
+  const row = function (k, v) { return v ? '<div><b>' + k + ':</b> ' + evalEsc_(v) + '</div>' : ''; };
+  document.getElementById('aevInfo').innerHTML =
+    row('المركز', e.center) + row('الفترة', d.period) + row('الفصل الدراسي', (d.term || '') + (d.year ? ' — ' + d.year : '')) +
+    row('اسم المسؤولة', d.name) + row('رقم الجوال', d.phone) + row('الأجزاء المحفوظة', d.juz) +
+    row('الحالة الاجتماعية', d.marital) + row('محل الميلاد', d.birthplace) + row('سنوات الخبرة كمسؤولة مقصف', d.experience) +
+    row('المؤهل في القرآن', d.quranQual) + row('المؤهل العلمي', d.eduQual) + row('تاريخ التقييم', d.evalDate) +
+    '<div style="margin-top:6px;"><b>أرسلته مديرة المركز:</b> ' + evalEsc_(e.directorName) + (e.sentDate ? ' — ' + (e.sentDay || '') + ' ' + toHijriStr(e.sentDate) : '') + '</div>' +
+    (done ? '<div style="margin-top:6px;padding:8px 12px;border:1px solid #bfe3cd;background:#f1faf4;border-radius:10px;">✅ تم الاعتماد' +
+      (e.signedDate ? ' — ' + (e.signedDay || '') + ' ' + toHijriStr(e.signedDate) : '') + ' — المجموع الكلي: <b>' + toArabicDigits(e.total) + ' / ١٠٠</b></div>' : '');
+  document.getElementById('aevDirBox').innerHTML = evalScoresTableHtml_(EVAL_DIR_ITEMS, 'aevDir', d.dirScores || [], true);
+  document.getElementById('aevDirTotal').textContent = '(' + toArabicDigits(e.dirTotal) + ' / ٥٠)';
+  document.getElementById('aevHeadBox').innerHTML = evalScoresTableHtml_(EVAL_HEAD_ITEMS, 'aevHead', d.headScores || [], false);
+  document.querySelectorAll('#aevHeadBox .ev-score').forEach(function (el) { el.addEventListener('input', aevLiveHead_); });
+  aevLiveHead_();
+  document.getElementById('aevPositives').value = d.positives || '';
+  document.getElementById('aevImprovements').value = d.improvements || '';
+  document.getElementById('aevHeadName').value = e.headName || ((typeof FURQAN_CONTACTS !== 'undefined' && FURQAN_CONTACTS.headName) || 'فاطمة مبارك الكثيري');
+  document.getElementById('aevKeepSigRow').classList.toggle('hidden', !done);
+  document.getElementById('aevKeepSig').checked = done;
+  document.getElementById('aevSigBox').classList.toggle('hidden', done);
+  document.getElementById('aevSignBtn').textContent = done ? 'حفظ التعديلات' : 'إضافة الدرجات والتوقيع والاعتماد';
+  document.getElementById('aevListCard').classList.add('hidden');
+  document.getElementById('aevDetailCard').classList.remove('hidden');
+  setTimeout(function () {
+    if (!aevSigReady_) { setupSignatureWidget('aevSig'); aevSigReady_ = true; }
+    else clearSignatureWidget('aevSig');
+  }, 50);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeAdminEval_() {
+  aevCurrent_ = null;
+  document.getElementById('aevDetailCard').classList.add('hidden');
+  document.getElementById('aevListCard').classList.remove('hidden');
+}
+
+function adminSignEval_() {
+  if (!aevCurrent_) return;
+  const sc = evalReadScores_(EVAL_HEAD_ITEMS, 'aevHead');
+  if (!sc.ok) { alert(sc.error); if (sc.el) sc.el.focus(); return; }
+  const headName = document.getElementById('aevHeadName').value.trim();
+  if (!headName) { alert('يُرجى كتابة اسم رئيسة وحدة المقاصف'); return; }
+  const keepSig = aevCurrent_.status === 'تم الاعتماد' && document.getElementById('aevKeepSig').checked;
+  if (!keepSig && !evalSigFilled_('aevSig')) { alert('يُرجى التوقيع أولاً'); return; }
+  const pw = aevPw_(true);
+  if (!pw) return;
+  const btn = document.getElementById('aevSignBtn');
+  setBtnBusy(btn, true);
+  const sigP = keepSig ? Promise.resolve('') : evalShrinkSig_(getSignatureDataUrl('aevSig'));
+  sigP.then(function (sig) {
+    if (!keepSig && !sig) throw new Error('صورة التوقيع كبيرة جداً، يُرجى رسم التوقيع بدلاً من رفع صورة');
+    return callApi('adminSignMasoulaEval', {
+      adminPw: pw, id: aevCurrent_.id, headScores: sc.scores, headName: headName,
+      positives: document.getElementById('aevPositives').value.trim(),
+      improvements: document.getElementById('aevImprovements').value.trim(),
+      signature: sig, keepSig: keepSig
+    });
+  }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) { aevAuthFailed_(r); alert('تعذّر الحفظ: ' + ((r && r.error) || 'خطأ غير معروف')); return; }
+    alert('تم اعتماد التقييم بنجاح ✅');
+    loadAdminEvalBadge_();
+    loadAdminEvals_();
+  }).catch(function (e) {
+    setBtnBusy(btn, false);
+    alert('تعذّر الحفظ: ' + (e && e.message ? e.message : e));
+  });
+}
+
+function adminEvalPdf_(mode, btn) {
+  if (!aevCurrent_) return;
+  const pw = aevPw_(true);
+  if (!pw) return;
+  const ev = aevCurrent_;
+  let win = null;
+  if (mode === 'print') {
+    win = window.open('', '_blank');
+    if (!win) { alert('يُرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع لكي تتمكّني من عرض الاستمارة'); return; }
+    try { win.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>جارٍ التجهيز</title></head><body style="font-family:sans-serif;text-align:center;padding-top:80px;">جارٍ تجهيز الاستمارة...</body></html>'); } catch (e) {}
+  }
+  setBtnBusy(btn, true, 'جارٍ التجهيز...');
+  callApi('getMasoulaEvalSigs', { id: ev.id, adminPw: pw }).then(function (r) {
+    if (!r || !r.ok) { aevAuthFailed_(r); throw new Error((r && r.error) || 'تعذّر جلب التواقيع'); }
+    if (mode !== 'print') { setBtnBusy(btn, false); return masoulaEvalPdf(ev, r, mode, btn); }
+    return masoulaEvalPdfBlob_(ev, r).then(function (blob) { setBtnBusy(btn, false); win.location.href = URL.createObjectURL(blob); });
+  }).catch(function (e) {
+    setBtnBusy(btn, false);
+    if (win) { try { win.close(); } catch (e2) {} }
+    alert('تعذّر تجهيز الاستمارة: ' + (e && e.message === 'nolib' ? 'تعذّر تحميل أداة PDF' : (e && e.message ? e.message : e)));
+  });
+}
+
+function deleteAdminEval_() {
+  if (!aevCurrent_) return;
+  if (!confirm('حذف تقييم «' + aevCurrent_.masoula + '» نهائياً؟')) return;
+  const pw = aevPw_(true);
+  if (!pw) return;
+  callApi('deleteMasoulaEval', { id: aevCurrent_.id, adminPw: pw }).then(function (r) {
+    if (!r || !r.ok) { aevAuthFailed_(r); alert((r && r.error) || 'تعذّر الحذف'); return; }
+    loadAdminEvalBadge_();
+    loadAdminEvals_();
+  });
+}
+
+function exportAdminEvalsExcel_() {
+  const list = aevFiltered_();
+  const rows = list.map(function (e) {
+    const d = e.data || {};
+    const o = { 'المركز': e.center, 'الفترة': d.period || '', 'اسم المسؤولة': e.masoula, 'الفصل الدراسي': e.term, 'العام': e.year };
+    EVAL_DIR_ITEMS.forEach(function (it, i) { o['(مديرة) ' + it[0] + ' /' + it[1]] = (d.dirScores || [])[i] !== undefined ? d.dirScores[i] : ''; });
+    o['مجموع المديرة /50'] = e.dirTotal;
+    EVAL_HEAD_ITEMS.forEach(function (it, i) { o['(الوحدة) ' + it[0] + ' /' + it[1]] = (d.headScores || [])[i] !== undefined ? d.headScores[i] : ''; });
+    o['مجموع الوحدة /50'] = e.headTotal;
+    o['المجموع الكلي /100'] = e.total;
+    o['الإيجابيات'] = d.positives || '';
+    o['نقاط تحتاج إلى تحسين'] = d.improvements || '';
+    o['الحالة'] = e.status;
+    return o;
+  });
+  exportToExcel(rows, 'تقييم مسؤولات المقاصف', 'التقييم');
 }
 
 /* -------- بطاقات التحفيز: نظرة الإدارة -------- */

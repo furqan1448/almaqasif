@@ -127,6 +127,96 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M8.5 13h7M8.5 16.5h4"/><path d="M14.5 18.5c.8-1.3 1.6-1.3 2 0s1.2 1.3 2 0"/></svg></div>
           <span class="label">تقارير الزيارة</span>
         </div>
+        <!-- تقييم مسؤولة المقصف: يظهر فقط للمراكز التي فيها مسؤولة مقصف (لا يظهر في صفحة المسؤولات) -->
+        <div class="icon-btn hidden" id="evalTile" onclick="showView('masoulaEvalView')" style="position:relative;">
+          <span class="badge hidden" id="evalPendingBadge"></span>
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 3.5h6v2H9z"/><path d="M12 9.2l.9 1.9 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z"/><path d="M9 18h6"/></svg></div>
+          <span class="label">تقييم مسؤولة المقصف</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- تقييم مسؤولة المقصف (تعبئة المديرة وتوقيعها ثم إرساله للوحدة) -->
+    <div id="masoulaEvalView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <div class="card" id="evListCard">
+        <h3 style="margin-top:0;color:var(--maroon);">تقييم مسؤولة المقصف</h3>
+        <p style="font-size:0.9rem;color:#6f6467;margin-top:0;line-height:1.8;">تعبّئ مديرة المركز الاستمارة وبنودها، ثم توقّع وترسلها لوحدة المقاصف، فتضيف الوحدة درجاتها وتوقّع وتعتمدها.<br>هذه الاستمارة خاصة بمديرة المركز، ولا تظهر لمسؤولة المقصف.</p>
+        <button class="btn" onclick="openEvalForm_()">＋ تعبئة تقييم جديد</button>
+        <table class="log-table" style="margin-top:14px;">
+          <thead><tr><th>المسؤولة</th><th>الفصل</th><th>الدرجة</th><th>الحالة</th><th></th></tr></thead>
+          <tbody id="evTbody"><tr><td colspan="5">جارٍ التحميل...</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="card hidden" id="evFormCard">
+        <a class="back-link" onclick="closeEvalForm_()">⟵ قائمة التقييمات</a>
+        <h3 style="margin-top:6px;color:var(--maroon);" id="evFormTitle">استمارة تقييم مسؤولة المقصف</h3>
+        <div class="select-row">
+          <div><label>الفترة</label><select id="evPeriod"><option value="صباحية">صباحية</option><option value="مسائية">مسائية</option></select></div>
+          <div><label>الفصل الدراسي</label><select id="evTerm"><option value="الأول">الأول</option><option value="الثاني">الثاني</option><option value="الثالث">الثالث</option></select></div>
+          <div><label>العام</label><select id="evYear"></select></div>
+        </div>
+
+        <h4 style="color:var(--maroon);margin:16px 0 6px;">المعلومات الشخصية</h4>
+        <label>اسم مسؤولة المقصف</label>
+        <input type="text" id="evName" list="evNamesDl" placeholder="اسم المسؤولة" autocomplete="off">
+        <datalist id="evNamesDl"></datalist>
+        <div class="select-row">
+          <div><label>رقم الجوال</label><input type="text" id="evPhone" inputmode="tel"></div>
+          <div><label>الأجزاء المحفوظة</label><input type="text" id="evJuz"></div>
+        </div>
+        <div class="select-row">
+          <div><label>الحالة الاجتماعية</label><select id="evMarital"><option value="">اختاري...</option><option>عزباء</option><option>متزوجة</option><option>مطلقة</option><option>أرملة</option></select></div>
+          <div><label>محل الميلاد</label><input type="text" id="evBirthplace"></div>
+        </div>
+        <div class="select-row">
+          <div><label>سنوات الخبرة كمسؤولة مقصف</label><input type="text" id="evExperience" inputmode="numeric"></div>
+          <div><label>تاريخ التقييم</label><input type="text" id="evEvalDate"></div>
+        </div>
+        <div class="select-row">
+          <div><label>المؤهل في القرآن</label><select id="evQuranQual" onchange="document.getElementById('evQuranQualOther').classList.toggle('hidden', this.value !== 'أخرى')"></select>
+            <input type="text" id="evQuranQualOther" class="hidden" placeholder="اكتبي المؤهل" style="margin-top:6px;"></div>
+          <div><label>المؤهل العلمي</label><input type="text" id="evEduQual"></div>
+        </div>
+
+        <h4 style="color:var(--maroon);margin:16px 0 6px;">بنود خاصة بمديرة المركز</h4>
+        <div id="evDirScoresBox" style="overflow-x:auto;"></div>
+        <div style="margin-top:6px;font-weight:800;">المجموع: <span id="evDirTotal" style="color:var(--maroon);"></span></div>
+        <p style="font-size:0.85rem;color:#8a7d76;margin:4px 0 0;">بنود رئيسة وحدة المقاصف تُضاف من الوحدة بعد الإرسال.</p>
+
+        <label style="margin-top:14px;">الإيجابيات (اختياري)</label>
+        <textarea id="evPositives" rows="3"></textarea>
+        <label>نقاط تحتاج إلى تحسين (اختياري)</label>
+        <textarea id="evImprovements" rows="3"></textarea>
+
+        <div style="margin-top:16px;border-top:1px solid var(--gold-light);padding-top:12px;">
+          <label>اسم مديرة المركز</label>
+          <input type="text" id="evDirectorName" placeholder="اكتبي اسمك">
+          <label>التوقيع</label>
+          <div class="sig-mode-toggle">
+            <button type="button" class="sig-mode-btn active" data-sigtoggle="evSig" data-mode="draw" onclick="setSigMode('evSig','draw')">رسم التوقيع</button>
+            <button type="button" class="sig-mode-btn" data-sigtoggle="evSig" data-mode="upload" onclick="setSigMode('evSig','upload')">رفع صورة توقيع</button>
+          </div>
+          <div class="sig-wrap" id="evSig_drawWrap"><canvas id="evSig" class="sig-pad"></canvas></div>
+          <div class="sig-upload-wrap hidden" id="evSig_uploadWrap">
+            <input type="file" accept="image/*" id="evSig_file">
+            <img id="evSig_preview" class="sig-upload-preview hidden">
+          </div>
+          <div class="sig-actions"><button type="button" onclick="clearSignatureWidget('evSig')">مسح التوقيع</button></div>
+          <button class="btn" id="evSubmitBtn" onclick="submitEval_()" style="margin-top:12px;">توقيع وإرسال لوحدة المقاصف</button>
+        </div>
+      </div>
+
+      <div class="card hidden" id="evDetailCard">
+        <a class="back-link" onclick="closeEvalForm_()">⟵ قائمة التقييمات</a>
+        <h3 style="margin-top:6px;color:var(--maroon);">تقييم مسؤولة المقصف</h3>
+        <div id="evDetailBody" style="line-height:1.9;"></div>
+        <div class="export-row" style="margin-top:12px;">
+          <button class="btn outline" id="evViewBtn" onclick="evalPdfAction_('print', this)">📄 عرض وطباعة</button>
+          <button class="btn outline" onclick="evalPdfAction_('save', this)">⬇️ حفظ PDF</button>
+          <button class="btn outline" onclick="evalPdfAction_('share', this)">📤 مشاركة</button>
+        </div>
       </div>
     </div>
 
@@ -781,6 +871,7 @@ function doLogin() {
     isReadOnlyCenter = !!r.readOnly;
     sessionStorage.setItem('maqasif_center', currentCenter);
     sessionStorage.setItem('maqasif_center_readonly', isReadOnlyCenter ? '1' : '0');
+    try { sessionStorage.setItem('maqasif_center_pw', password); } catch (e) {}
     showDashboard();
   }).catch(function () {
     btn.disabled = false; btn.textContent = 'دخول';
@@ -792,6 +883,8 @@ function doLogin() {
 function logout() {
   sessionStorage.removeItem('maqasif_center');
   sessionStorage.removeItem('maqasif_center_readonly');
+  try { sessionStorage.removeItem('maqasif_center_pw'); } catch (e) {}
+  document.getElementById('evalTile').classList.add('hidden');
   currentCenter = '';
   isReadOnlyCenter = false;
   document.getElementById('dashScreen').classList.add('hidden');
@@ -808,6 +901,7 @@ function showDashboard() {
   showView('homeView');
   refreshPendingBadge();
   loadHomeAnnouncements();
+  initEvalTile_();
   prefetchForCenter_(currentCenter);
 }
 
@@ -830,7 +924,7 @@ function applyReadOnlyRestrictions() {
 }
 
 function showView(id) {
-  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'announcementsView', 'priceListView', 'cardsDeliverView', 'cardsReceiveView', 'cardsFollowupView', 'meetingMinutesView', 'ordersView', 'visitReportsView'].forEach(function (v) {
+  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'announcementsView', 'priceListView', 'cardsDeliverView', 'cardsReceiveView', 'cardsFollowupView', 'meetingMinutesView', 'ordersView', 'visitReportsView', 'masoulaEvalView'].forEach(function (v) {
     document.getElementById(v).classList.toggle('hidden', v !== id);
   });
   if (id === 'salesView') loadSales();
@@ -846,6 +940,7 @@ function showView(id) {
   if (id === 'cardsFollowupView') loadCardsFollowup_();
   if (id === 'meetingMinutesView') loadMeetingMinutesList();
   if (id === 'visitReportsView') loadVrdReports_();
+  if (id === 'masoulaEvalView') loadEvals_();
   if (id === 'homeView') refreshPendingBadge();
   if (id === 'ordersView') initOrdersView_(CARD_ROLE_LABEL_);
 }
@@ -2168,8 +2263,254 @@ function signVrdReport_() {
   });
 }
 
+/* -------- تقييم مسؤولة المقصف (المديرة تعبّئ وتوقّع ← الوحدة تضيف درجاتها وتعتمد) --------
+   كل الطلبات تُرسل مع كلمة مرور المركز، فلا تستطيع مسؤولة المقصف الاطلاع عليه من حسابها. */
+let evList_ = [];
+let evCurrent_ = null;
+let evEditId_ = '';
+let evSigReady_ = false;
+let evMasoulat_ = [];
+
+function evalCenterPw_(askIfMissing) {
+  let pw = '';
+  try { pw = sessionStorage.getItem('maqasif_center_pw') || ''; } catch (e) {}
+  if (!pw && askIfMissing) {
+    pw = prompt('للاطلاع على تقييم مسؤولة المقصف أدخلي كلمة مرور المركز:') || '';
+    if (pw) { try { sessionStorage.setItem('maqasif_center_pw', pw); } catch (e) {} }
+  }
+  return pw;
+}
+
+function evalAuthFailed_(r) {
+  if (r && r.auth) { try { sessionStorage.removeItem('maqasif_center_pw'); } catch (e) {} }
+}
+
+function initEvalTile_() {
+  const tile = document.getElementById('evalTile');
+  tile.classList.add('hidden');
+  const pw = evalCenterPw_(false);
+  if (!pw) return;
+  const centerAtCall = currentCenter;
+  callApi('getMasoulaEvalCtx', { center: currentCenter, password: pw }).then(function (r) {
+    if (centerAtCall !== currentCenter) return;
+    if (!r || !r.ok) { evalAuthFailed_(r); return; }
+    evMasoulat_ = r.masoulat || [];
+    tile.classList.toggle('hidden', !r.eligible);
+    if (r.eligible) refreshEvalBadge_();
+  }).catch(function () {});
+}
+
+/* الشارة: تقييمات تم اعتمادها من الوحدة ولم تفتحها المديرة بعد */
+function refreshEvalBadge_() {
+  const pw = evalCenterPw_(false);
+  const badge = document.getElementById('evalPendingBadge');
+  if (!pw || !badge) return;
+  callApi('getMasoulaEvalsForCenter', { center: currentCenter, password: pw }).then(function (r) {
+    if (!r || !r.ok) return;
+    let seen = {};
+    try { seen = JSON.parse(localStorage.getItem('maqasif_eval_seen') || '{}'); } catch (e) {}
+    const n = (r.evals || []).filter(function (e) { return e.status === 'تم الاعتماد' && !seen[e.id]; }).length;
+    badge.textContent = n;
+    badge.classList.toggle('hidden', !n);
+  }).catch(function () {});
+}
+
+function markEvalSeen_(id) {
+  try {
+    const seen = JSON.parse(localStorage.getItem('maqasif_eval_seen') || '{}');
+    seen[id] = 1;
+    localStorage.setItem('maqasif_eval_seen', JSON.stringify(seen));
+  } catch (e) {}
+}
+
+function evShow_(which) {
+  document.getElementById('evListCard').classList.toggle('hidden', which !== 'list');
+  document.getElementById('evFormCard').classList.toggle('hidden', which !== 'form');
+  document.getElementById('evDetailCard').classList.toggle('hidden', which !== 'detail');
+}
+
+function loadEvals_() {
+  evShow_('list');
+  const tbody = document.getElementById('evTbody');
+  const pw = evalCenterPw_(true);
+  if (!pw) { tbody.innerHTML = '<tr><td colspan="5">يلزم إدخال كلمة مرور المركز</td></tr>'; return; }
+  tbody.innerHTML = '<tr><td colspan="5">جارٍ التحميل...</td></tr>';
+  callApi('getMasoulaEvalsForCenter', { center: currentCenter, password: pw }).then(function (r) {
+    if (!r || !r.ok) {
+      evalAuthFailed_(r);
+      tbody.innerHTML = '<tr><td colspan="5">' + vrdEsc_((r && r.error) || 'تعذّر التحميل') + '</td></tr>';
+      return;
+    }
+    evList_ = r.evals || [];
+    if (!evList_.length) { tbody.innerHTML = '<tr><td colspan="5">لا توجد تقييمات بعد</td></tr>'; return; }
+    tbody.innerHTML = '';
+    evList_.forEach(function (ev) {
+      const done = ev.status === 'تم الاعتماد';
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + vrdEsc_(ev.masoula) + '</td>' +
+        '<td>' + vrdEsc_(ev.term) + (ev.year ? ' ' + toArabicDigits(ev.year) : '') + '</td>' +
+        '<td>' + (done ? '<b>' + toArabicDigits(ev.total) + '</b> / ١٠٠' : toArabicDigits(ev.dirTotal) + ' / ٥٠') + '</td>' +
+        '<td>' + (done ? '<span style="color:#1f8f4e;font-weight:700;">✅ تم الاعتماد</span>' : '<span style="color:var(--maroon);font-weight:700;">⏳ بانتظار اعتماد الوحدة</span>') + '</td>' +
+        '<td><div class="row-actions"><a href="#" onclick="openEvalDetail_(\'' + ev.id + '\'); return false;">عرض</a>' +
+          (done ? '' : '<a href="#" onclick="openEvalForm_(\'' + ev.id + '\'); return false;">تعديل</a><a href="#" onclick="deleteEval_(\'' + ev.id + '\'); return false;">حذف</a>') +
+        '</div></td>';
+      tbody.appendChild(tr);
+    });
+  }).catch(function () { tbody.innerHTML = '<tr><td colspan="5">تعذّر التحميل، حاولي مرة أخرى</td></tr>'; });
+}
+
+function evalLiveDir_() { evalLiveTotal_(EVAL_DIR_ITEMS, 'evDir', 'evDirTotal'); }
+
+function openEvalForm_(id) {
+  const ev = id ? evList_.find(function (x) { return x.id === id; }) : null;
+  const d = (ev && ev.data) || {};
+  evEditId_ = ev ? ev.id : '';
+  document.getElementById('evFormTitle').textContent = ev ? 'تعديل تقييم مسؤولة المقصف' : 'استمارة تقييم مسؤولة المقصف';
+  fillYearSelect('evYear', 1);
+  fillSelect('evQuranQual', EVAL_QURAN_QUALS.concat(['أخرى']), 'اختاري...');
+  document.getElementById('evNamesDl').innerHTML = evMasoulat_.map(function (n) { return '<option value="' + vrdEsc_(n) + '">'; }).join('');
+  const setv = function (elId, v) { const el = document.getElementById(elId); if (el) el.value = v || ''; };
+  setv('evPeriod', d.period || 'صباحية');
+  setv('evTerm', d.term || 'الأول');
+  if (d.year) {
+    const sel = document.getElementById('evYear');
+    if (!Array.prototype.some.call(sel.options, function (o) { return o.value === d.year; })) {
+      const o = document.createElement('option'); o.value = d.year; o.textContent = d.year; sel.appendChild(o);
+    }
+    sel.value = d.year;
+  }
+  setv('evName', d.name || (evMasoulat_.length === 1 ? evMasoulat_[0] : ''));
+  setv('evPhone', d.phone); setv('evJuz', d.juz); setv('evMarital', d.marital); setv('evBirthplace', d.birthplace);
+  setv('evExperience', d.experience); setv('evEduQual', d.eduQual);
+  setv('evEvalDate', d.evalDate || toHijriNumericStr(todayStr()));
+  const q = d.quranQual || '';
+  const known = EVAL_QURAN_QUALS.indexOf(q) !== -1;
+  setv('evQuranQual', q ? (known ? q : 'أخرى') : '');
+  setv('evQuranQualOther', known ? '' : q);
+  document.getElementById('evQuranQualOther').classList.toggle('hidden', !(q && !known));
+  document.getElementById('evDirScoresBox').innerHTML = evalScoresTableHtml_(EVAL_DIR_ITEMS, 'evDir', d.dirScores || [], false);
+  document.querySelectorAll('#evDirScoresBox .ev-score').forEach(function (el) { el.addEventListener('input', evalLiveDir_); });
+  evalLiveDir_();
+  setv('evPositives', d.positives); setv('evImprovements', d.improvements);
+  setv('evDirectorName', ev ? ev.directorName : '');
+  evShow_('form');
+  setTimeout(function () {
+    if (!evSigReady_) { setupSignatureWidget('evSig'); evSigReady_ = true; }
+    else clearSignatureWidget('evSig');
+  }, 50);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeEvalForm_() {
+  evCurrent_ = null;
+  evEditId_ = '';
+  evShow_('list');
+}
+
+function submitEval_() {
+  const val = function (id) { return document.getElementById(id).value.trim(); };
+  const name = val('evName');
+  if (!name) { alert('يُرجى كتابة اسم مسؤولة المقصف'); return; }
+  const sc = evalReadScores_(EVAL_DIR_ITEMS, 'evDir');
+  if (!sc.ok) { alert(sc.error); if (sc.el) sc.el.focus(); return; }
+  const directorName = val('evDirectorName');
+  if (!directorName) { alert('يُرجى كتابة اسم مديرة المركز'); return; }
+  if (!evalSigFilled_('evSig')) { alert('يُرجى التوقيع أولاً'); return; }
+  const rawSig = getSignatureDataUrl('evSig');
+  const pw = evalCenterPw_(true);
+  if (!pw) return;
+  const quran = val('evQuranQual') === 'أخرى' ? val('evQuranQualOther') : val('evQuranQual');
+  const data = {
+    period: val('evPeriod'), term: val('evTerm'), year: val('evYear'),
+    name: name, phone: val('evPhone'), juz: val('evJuz'), marital: val('evMarital'), birthplace: val('evBirthplace'),
+    experience: val('evExperience'), quranQual: quran, eduQual: val('evEduQual'), evalDate: val('evEvalDate'),
+    dirScores: sc.scores, positives: val('evPositives'), improvements: val('evImprovements')
+  };
+  const btn = document.getElementById('evSubmitBtn');
+  setBtnBusy(btn, true);
+  evalShrinkSig_(rawSig).then(function (sig) {
+    if (!sig) throw new Error('صورة التوقيع كبيرة جداً، يُرجى رسم التوقيع بدلاً من رفع صورة');
+    return callApi('submitMasoulaEval', { center: currentCenter, password: pw, id: evEditId_, data: data, directorName: directorName, signature: sig });
+  }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) { evalAuthFailed_(r); alert('تعذّر الإرسال: ' + ((r && r.error) || 'خطأ غير معروف')); return; }
+    alert('تم توقيع التقييم وإرساله لوحدة المقاصف بنجاح ✅');
+    loadEvals_();
+  }).catch(function (e) {
+    setBtnBusy(btn, false);
+    alert('تعذّر الإرسال: ' + (e && e.message ? e.message : e));
+  });
+}
+
+function deleteEval_(id) {
+  if (!confirm('هل تريدين حذف هذا التقييم؟')) return;
+  const pw = evalCenterPw_(true);
+  if (!pw) return;
+  callApi('deleteMasoulaEval', { id: id, center: currentCenter, password: pw }).then(function (r) {
+    if (!r || !r.ok) { evalAuthFailed_(r); alert((r && r.error) || 'تعذّر الحذف'); return; }
+    loadEvals_();
+  });
+}
+
+function openEvalDetail_(id) {
+  const ev = evList_.find(function (x) { return x.id === id; });
+  if (!ev) return;
+  evCurrent_ = ev;
+  const d = ev.data || {};
+  const done = ev.status === 'تم الاعتماد';
+  if (done) { markEvalSeen_(ev.id); refreshEvalBadge_(); }
+  let h = '<div><b>المسؤولة:</b> ' + vrdEsc_(ev.masoula) + '</div>' +
+    '<div><b>الفترة والفصل:</b> ' + vrdEsc_(d.period || '') + ' — الفصل ' + vrdEsc_(d.term || '') + (d.year ? ' ' + toArabicDigits(d.year) : '') + '</div>' +
+    '<div><b>أرسلته:</b> ' + vrdEsc_(ev.directorName) + (ev.sentDate ? ' — ' + (ev.sentDay || '') + ' ' + toHijriStr(ev.sentDate) : '') + '</div>' +
+    '<div><b>درجة بنود المديرة:</b> ' + toArabicDigits(ev.dirTotal) + ' / ٥٠</div>';
+  if (done) {
+    h += '<div><b>درجة بنود الوحدة:</b> ' + toArabicDigits(ev.headTotal) + ' / ٥٠</div>' +
+      '<div style="font-size:1.1rem;"><b>المجموع الكلي:</b> <b style="color:var(--maroon);">' + toArabicDigits(ev.total) + ' / ١٠٠</b></div>' +
+      '<div style="margin-top:8px;padding:10px 14px;border:1px solid #bfe3cd;background:#f1faf4;border-radius:10px;">✅ اعتمدته رئيسة وحدة المقاصف' +
+      (ev.headName ? ': <b>' + vrdEsc_(ev.headName) + '</b>' : '') + (ev.signedDate ? ' — ' + (ev.signedDay || '') + ' ' + toHijriStr(ev.signedDate) : '') + '</div>';
+  } else {
+    h += '<div style="margin-top:8px;padding:10px 14px;border:1px solid #f0d9a8;background:#fff8e8;border-radius:10px;">⏳ بانتظار إضافة درجات الوحدة وتوقيعها</div>';
+  }
+  document.getElementById('evDetailBody').innerHTML = h;
+  evShow_('detail');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function evalPdfAction_(mode, btn) {
+  if (!evCurrent_) return;
+  const pw = evalCenterPw_(true);
+  if (!pw) return;
+  const ev = evCurrent_;
+  // نافذة العرض لازم تنفتح مباشرة مع الضغطة (وإلا يمنعها المتصفح)، فنجلب التواقيع داخل masoulaEvalPdf بعدها
+  if (mode === 'print') {
+    const win = window.open('', '_blank');
+    if (!win) { alert('يُرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع لكي تتمكّني من عرض الاستمارة'); return; }
+    try { win.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>جارٍ التجهيز</title></head><body style="font-family:sans-serif;text-align:center;padding-top:80px;">جارٍ تجهيز الاستمارة...</body></html>'); } catch (e) {}
+    setBtnBusy(btn, true, 'جارٍ التجهيز...');
+    callApi('getMasoulaEvalSigs', { id: ev.id, center: currentCenter, password: pw }).then(function (r) {
+      if (!r || !r.ok) throw new Error((r && r.error) || 'تعذّر جلب التواقيع');
+      return masoulaEvalPdfBlob_(ev, r);
+    }).then(function (blob) {
+      setBtnBusy(btn, false);
+      win.location.href = URL.createObjectURL(blob);
+    }).catch(function (e) {
+      setBtnBusy(btn, false);
+      try { win.close(); } catch (e2) {}
+      alert('تعذّر تجهيز الاستمارة: ' + (e && e.message === 'nolib' ? 'تعذّر تحميل أداة PDF' : (e && e.message ? e.message : e)));
+    });
+    return;
+  }
+  setBtnBusy(btn, true, 'جارٍ التجهيز...');
+  callApi('getMasoulaEvalSigs', { id: ev.id, center: currentCenter, password: pw }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) { evalAuthFailed_(r); alert((r && r.error) || 'تعذّر جلب التواقيع'); return; }
+    masoulaEvalPdf(ev, r, mode, btn);
+  }).catch(function () { setBtnBusy(btn, false); alert('تعذّر الاتصال، حاولي مرة أخرى'); });
+}
+
 function refreshPendingBadge() {
   refreshVrBadge_();
+  if (!document.getElementById('evalTile').classList.contains('hidden')) refreshEvalBadge_();
   callApi('getCenterPendingCount', { center: currentCenter }).then(function (r) {
     if (!r.ok) return;
     const badge = document.getElementById('pendingBadge');
