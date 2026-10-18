@@ -2287,7 +2287,8 @@ function evalAuthFailed_(r) {
 
 function initEvalTile_() {
   const tile = document.getElementById('evalTile');
-  tile.classList.add('hidden');
+  // مراكز «وضع العرض فقط» فيها مسؤولة مقصف دائماً: تظهر الأيقونة فوراً بدون انتظار الخادم
+  tile.classList.toggle('hidden', !isReadOnlyCenter);
   const pw = evalCenterPw_(false);
   if (!pw) return;
   const centerAtCall = currentCenter;
@@ -2295,8 +2296,7 @@ function initEvalTile_() {
     if (centerAtCall !== currentCenter) return;
     if (!r || !r.ok) { evalAuthFailed_(r); return; }
     evMasoulat_ = r.masoulat || [];
-    tile.classList.toggle('hidden', !r.eligible);
-    if (r.eligible) refreshEvalBadge_();
+    if (r.eligible) { tile.classList.remove('hidden'); refreshEvalBadge_(); }
   }).catch(function () {});
 }
 
@@ -2338,7 +2338,7 @@ function loadEvals_() {
   callApi('getMasoulaEvalsForCenter', { center: currentCenter, password: pw }).then(function (r) {
     if (!r || !r.ok) {
       evalAuthFailed_(r);
-      tbody.innerHTML = '<tr><td colspan="5">' + vrdEsc_((r && r.error) || 'تعذّر التحميل') + '</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5">' + vrdEsc_((r && r.error === 'إجراء غير معروف') ? 'الخادم لم يُحدَّث بعد: يلزم نشر Code.gs كنسخة جديدة (New version)' : ((r && r.error) || 'تعذّر التحميل')) + '</td></tr>';
       return;
     }
     evList_ = r.evals || [];

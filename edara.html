@@ -1484,7 +1484,7 @@ function loadAdminEvals_() {
   if (!pw) { tbody.innerHTML = '<tr><td colspan="8">يلزم إدخال كلمة مرور الإدارة</td></tr>'; return; }
   tbody.innerHTML = '<tr><td colspan="8">جارٍ التحميل...</td></tr>';
   callApi('getMasoulaEvalsAdmin', { adminPw: pw }).then(function (r) {
-    if (!r || !r.ok) { aevAuthFailed_(r); tbody.innerHTML = '<tr><td colspan="8">' + evalEsc_((r && r.error) || 'تعذّر التحميل') + '</td></tr>'; return; }
+    if (!r || !r.ok) { aevAuthFailed_(r); tbody.innerHTML = '<tr><td colspan="8">' + evalEsc_((r && r.error === 'إجراء غير معروف') ? 'الخادم لم يُحدَّث بعد: يلزم نشر Code.gs كنسخة جديدة (New version)' : ((r && r.error) || 'تعذّر التحميل')) + '</td></tr>'; return; }
     aevList_ = r.evals || [];
     renderAdminEvals_();
   }).catch(function () { tbody.innerHTML = '<tr><td colspan="8">تعذّر التحميل، حاولي مرة أخرى</td></tr>'; });
