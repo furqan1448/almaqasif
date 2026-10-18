@@ -213,9 +213,10 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         <h3 style="margin-top:6px;color:var(--maroon);">تقييم مسؤولة المقصف</h3>
         <div id="evDetailBody" style="line-height:1.9;"></div>
         <div class="export-row" style="margin-top:12px;">
-          <button class="btn outline" id="evViewBtn" onclick="evalPdfAction_('print', this)">📄 عرض وطباعة</button>
           <button class="btn outline" onclick="evalPdfAction_('save', this)">⬇️ حفظ PDF</button>
-          <button class="btn outline" onclick="evalPdfAction_('share', this)">📤 مشاركة</button>
+          <button class="btn outline" onclick="if (evCurrent_) exportMasoulaEvalExcel(evCurrent_)">⬇️ حفظ Excel</button>
+          <button class="btn outline" id="evEditBtn" onclick="if (evCurrent_) openEvalForm_(evCurrent_.id)">✏️ تعديل</button>
+          <button class="btn outline" id="evDelBtn" style="color:#a12a2a;border-color:#e3b3b3;" onclick="if (evCurrent_) deleteEval_(evCurrent_.id)">🗑️ حذف</button>
         </div>
       </div>
     </div>
@@ -2472,6 +2473,8 @@ function openEvalDetail_(id) {
     h += '<div style="margin-top:8px;padding:10px 14px;border:1px solid #f0d9a8;background:#fff8e8;border-radius:10px;">⏳ بانتظار إضافة درجات الوحدة وتوقيعها</div>';
   }
   document.getElementById('evDetailBody').innerHTML = h;
+  document.getElementById('evEditBtn').classList.toggle('hidden', done);
+  document.getElementById('evDelBtn').classList.toggle('hidden', done);
   evShow_('detail');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }

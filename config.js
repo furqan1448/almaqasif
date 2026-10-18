@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbzTp1pAW-NPN6te0haTXM_VC60m6nIR67e6rs8pXuiYTjOKwaMTS_PVN0ux9hEkiw-T/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzL4sU47bdO9sRYM4mAj_if3rQ1bEnA4FI5waGZ_kGvA6ZtppYh_q2pI0D2DpTfBLE/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -2420,4 +2420,26 @@ function evalLiveTotal_(items, prefix, outId) {
   }
   const out = document.getElementById(outId);
   if (out) out.textContent = toArabicDigits(Math.round(t * 100) / 100) + ' / ' + toArabicDigits(evalSum_(items.map(function (x) { return x[1]; })));
+}
+
+/* حفظ تقييم واحد كملف Excel (البيانات + البنود ودرجاتها + المجاميع) */
+function exportMasoulaEvalExcel(ev) {
+  const d = ev.data || {};
+  const rows = [];
+  const add = function (a, b, c, e) { rows.push({ 'البيان': a, 'التفاصيل': b === undefined ? '' : b, 'الدرجة المستحقة': c === undefined ? '' : c, 'الدرجة المكتسبة': e === undefined ? '' : e }); };
+  add('اسم المركز', ev.center); add('الفترة', d.period); add('الفصل الدراسي', d.term); add('العام', d.year);
+  add('اسم المسؤولة', d.name); add('رقم الجوال', d.phone); add('الأجزاء المحفوظة', d.juz); add('الحالة الاجتماعية', d.marital);
+  add('محل الميلاد', d.birthplace); add('سنوات الخبرة كمسؤولة مقصف', d.experience); add('المؤهل في القرآن', d.quranQual);
+  add('المؤهل العلمي', d.eduQual); add('تاريخ التقييم', d.evalDate);
+  add('', '');
+  EVAL_DIR_ITEMS.forEach(function (it, i) { add('بنود مديرة المركز', it[0], it[1], (d.dirScores || [])[i]); });
+  add('المجموع', 'بنود مديرة المركز', 50, (d.dirScores || []).length ? evalSum_(d.dirScores) : '');
+  const hasHead = (d.headScores || []).length === EVAL_HEAD_ITEMS.length;
+  EVAL_HEAD_ITEMS.forEach(function (it, i) { add('بنود رئيسة وحدة المقاصف', it[0], it[1], hasHead ? d.headScores[i] : ''); });
+  add('المجموع', 'بنود رئيسة وحدة المقاصف', 50, hasHead ? evalSum_(d.headScores) : '');
+  add('المجموع الكلي', '', 100, hasHead ? evalSum_(d.dirScores) + evalSum_(d.headScores) : '');
+  add('', '');
+  add('الإيجابيات', d.positives); add('نقاط تحتاج إلى تحسين', d.improvements);
+  add('مديرة المركز', ev.directorName); add('رئيسة وحدة المقاصف', ev.headName); add('الحالة', ev.status);
+  exportToExcel(rows, masoulaEvalFileName_(ev).replace(/\.pdf$/, ''), 'التقييم');
 }

@@ -935,9 +935,8 @@
           <button class="btn" id="aevSignBtn" onclick="adminSignEval_()" style="margin-top:12px;">إضافة الدرجات والتوقيع والاعتماد</button>
         </div>
         <div class="export-row" style="margin-top:12px;">
-          <button class="btn outline" onclick="adminEvalPdf_('print', this)">📄 عرض وطباعة</button>
           <button class="btn outline" onclick="adminEvalPdf_('save', this)">⬇️ حفظ PDF</button>
-          <button class="btn outline" onclick="adminEvalPdf_('share', this)">📤 مشاركة</button>
+          <button class="btn outline" onclick="if (aevCurrent_) exportMasoulaEvalExcel(aevCurrent_)">⬇️ حفظ Excel</button>
           <button class="btn outline" style="color:#a12a2a;border-color:#e3b3b3;" onclick="deleteAdminEval_()">🗑️ حذف</button>
         </div>
       </div>
@@ -1517,7 +1516,8 @@ function renderAdminEvals_() {
       '<td>' + (done ? toArabicDigits(e.headTotal) : '—') + '</td>' +
       '<td><b>' + (done ? toArabicDigits(e.total) : '—') + '</b></td>' +
       '<td>' + (done ? '<span style="color:#1f8f4e;font-weight:700;">✅ معتمد</span>' : '<span style="color:var(--maroon);font-weight:700;">⏳ بانتظار الاعتماد</span>') + '</td>' +
-      '<td><a href="#" onclick="openAdminEval_(\'' + e.id + '\'); return false;">' + (done ? 'عرض/تعديل' : 'فتح واعتماد') + '</a></td>';
+      '<td><div class="row-actions"><a href="#" onclick="openAdminEval_(\'' + e.id + '\'); return false;">' + (done ? 'تعديل' : 'فتح واعتماد') + '</a>' +
+        '<a href="#" onclick="aevCurrent_ = aevList_.find(function (x) { return x.id === \'' + e.id + '\'; }); deleteAdminEval_(); return false;">حذف</a></div></td>';
     tbody.appendChild(tr);
   });
 }
