@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbxJbh9mR0YTSW5kTSHLoek-vYvV9AQArZfWTseT_z4OHEj4YdKN142yAy9dgF1Wikac/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzL4sU47bdO9sRYM4mAj_if3rQ1bEnA4FI5waGZ_kGvA6ZtppYh_q2pI0D2DpTfBLE/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -2422,24 +2422,231 @@ function evalLiveTotal_(items, prefix, outId) {
   if (out) out.textContent = toArabicDigits(Math.round(t * 100) / 100) + ' / ' + toArabicDigits(evalSum_(items.map(function (x) { return x[1]; })));
 }
 
-/* حفظ تقييم واحد كملف Excel (البيانات + البنود ودرجاتها + المجاميع) */
-function exportMasoulaEvalExcel(ev) {
+/* ======== Excel منسّق لتقييم مسؤولة المقصف (مكتبة ExcelJS: ألوان وحدود ودمج خلايا واتجاه يمين لليسار) ======== */
+let _excelJsPromise_ = null;
+function ensureExcelJs_() {
+  if (typeof ExcelJS !== 'undefined') return Promise.resolve();
+  if (!_excelJsPromise_) {
+    _excelJsPromise_ = _loadScriptOnce_('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js')
+      .catch(function (e) { _excelJsPromise_ = null; throw e; });
+  }
+  return _excelJsPromise_;
+}
+
+const XL_MAROON_ = 'FF8C1A2C';
+const XL_CREAM_ = 'FFF4EFE9';
+const XL_SUM_ = 'FFEFE6DC';
+const XL_BORDER_ = { top: { style: 'thin', color: { argb: 'FF7A6E6B' } }, left: { style: 'thin', color: { argb: 'FF7A6E6B' } },
+  bottom: { style: 'thin', color: { argb: 'FF7A6E6B' } }, right: { style: 'thin', color: { argb: 'FF7A6E6B' } } };
+
+function xlStyle_(cell, o) {
+  o = o || {};
+  cell.font = { name: 'Arial', size: o.size || 12, bold: !!o.bold, color: { argb: o.color || 'FF1F1A19' } };
+  cell.alignment = { horizontal: o.h || 'right', vertical: 'middle', wrapText: true, readingOrder: 'rtl' };
+  if (o.fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: o.fill } };
+  if (o.border !== false) cell.border = XL_BORDER_;
+}
+
+async function xlDownload_(wb, fileName) {
+  const buf = await wb.xlsx.writeBuffer();
+  vrDownloadBlob_(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName);
+}
+
+function xlNum_(v) {
+  if (v === '' || v === null || v === undefined) return '';
+  const n = Number(v);
+  return isNaN(n) ? v : n;
+}
+
+/* حفظ تقييم واحد كملف Excel منسّق بنفس ترتيب الاستمارة */
+async function exportMasoulaEvalExcel(ev) {
+  try { await ensureExcelJs_(); } catch (e) { alert('تعذّر تحميل أداة Excel، تأكدي من الاتصال بالإنترنت وحاولي مرة أخرى'); return; }
   const d = ev.data || {};
-  const rows = [];
-  const add = function (a, b, c, e) { rows.push({ 'البيان': a, 'التفاصيل': b === undefined ? '' : b, 'الدرجة المستحقة': c === undefined ? '' : c, 'الدرجة المكتسبة': e === undefined ? '' : e }); };
-  add('اسم المركز', ev.center); add('الفترة', d.period); add('الفصل الدراسي', d.term); add('العام', d.year);
-  add('اسم المسؤولة', d.name); add('رقم الجوال', d.phone); add('الأجزاء المحفوظة', d.juz); add('الحالة الاجتماعية', d.marital);
-  add('محل الميلاد', d.birthplace); add('سنوات الخبرة كمسؤولة مقصف', d.experience); add('المؤهل في القرآن', d.quranQual);
-  add('المؤهل العلمي', d.eduQual); add('تاريخ التقييم', d.evalDate);
-  add('', '');
-  EVAL_DIR_ITEMS.forEach(function (it, i) { add('بنود مديرة المركز', it[0], it[1], (d.dirScores || [])[i]); });
-  add('المجموع', 'بنود مديرة المركز', 50, (d.dirScores || []).length ? evalSum_(d.dirScores) : '');
-  const hasHead = (d.headScores || []).length === EVAL_HEAD_ITEMS.length;
-  EVAL_HEAD_ITEMS.forEach(function (it, i) { add('بنود رئيسة وحدة المقاصف', it[0], it[1], hasHead ? d.headScores[i] : ''); });
-  add('المجموع', 'بنود رئيسة وحدة المقاصف', 50, hasHead ? evalSum_(d.headScores) : '');
-  add('المجموع الكلي', '', 100, hasHead ? evalSum_(d.dirScores) + evalSum_(d.headScores) : '');
-  add('', '');
-  add('الإيجابيات', d.positives); add('نقاط تحتاج إلى تحسين', d.improvements);
-  add('مديرة المركز', ev.directorName); add('رئيسة وحدة المقاصف', ev.headName); add('الحالة', ev.status);
-  exportToExcel(rows, masoulaEvalFileName_(ev).replace(/\.pdf$/, ''), 'التقييم');
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('التقييم', {
+    views: [{ rightToLeft: true, showGridLines: false }],
+    pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 1,
+      margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } }
+  });
+  ws.columns = [{ width: 18 }, { width: 50 }, { width: 16 }, { width: 16 }];
+  let r = 1;
+  const merge = function (row, c1, c2) { ws.mergeCells(row, c1, row, c2); };
+
+  // العنوان
+  merge(r, 1, 4);
+  ws.getCell(r, 1).value = 'استمارة تقييم مسؤولة المقصف';
+  xlStyle_(ws.getCell(r, 1), { size: 18, bold: true, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_ });
+  ws.getRow(r).height = 34; r++;
+  merge(r, 1, 4);
+  ws.getCell(r, 1).value = 'جمعية فرقان لتحفيظ القرآن الكريم — وحدة المقاصف';
+  xlStyle_(ws.getCell(r, 1), { size: 11, h: 'center', color: XL_MAROON_, border: false });
+  r += 2;
+
+  // بيانات الاستمارة والمعلومات الشخصية (تسمية | قيمة | تسمية | قيمة)
+  const pair = function (k1, v1, k2, v2) {
+    [[1, k1, true], [2, v1, false], [3, k2, true], [4, v2, false]].forEach(function (x) {
+      const c = ws.getCell(r, x[0]);
+      c.value = x[1] === undefined || x[1] === null ? '' : String(x[1]);
+      xlStyle_(c, x[2] ? { bold: true, fill: XL_CREAM_ } : { bold: true, color: XL_MAROON_ });
+    });
+    ws.getRow(r).height = 22; r++;
+  };
+  const section = function (title) {
+    merge(r, 1, 4);
+    ws.getCell(r, 1).value = title;
+    xlStyle_(ws.getCell(r, 1), { bold: true, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_, size: 13 });
+    ws.getRow(r).height = 24; r++;
+  };
+  pair('اسم المركز', ev.center, 'الفترة', d.period);
+  pair('الفصل الدراسي', d.term, 'العام', d.year);
+  r++;
+  section('المعلومات الشخصية');
+  pair('الاسم', d.name, 'رقم الجوال', d.phone);
+  pair('الأجزاء المحفوظة', d.juz, 'الحالة الاجتماعية', d.marital);
+  pair('محل الميلاد', d.birthplace, 'سنوات الخبرة', d.experience);
+  pair('المؤهل في القرآن', d.quranQual, 'المؤهل العلمي', d.eduQual);
+  pair('تاريخ التقييم', d.evalDate, 'الحالة', ev.status);
+  r++;
+
+  // جدول البنود
+  ['القسم', 'البيان', 'الدرجة المستحقة', 'الدرجة المكتسبة'].forEach(function (t, i) {
+    const c = ws.getCell(r, i + 1); c.value = t;
+    xlStyle_(c, { bold: true, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_ });
+  });
+  ws.getRow(r).height = 24; r++;
+
+  const block = function (title, items, scores, show) {
+    const start = r;
+    items.forEach(function (it, i) {
+      ws.getCell(r, 2).value = it[0]; xlStyle_(ws.getCell(r, 2));
+      ws.getCell(r, 3).value = it[1]; xlStyle_(ws.getCell(r, 3), { h: 'center', bold: true });
+      ws.getCell(r, 4).value = show ? xlNum_((scores || [])[i]) : ''; xlStyle_(ws.getCell(r, 4), { h: 'center', bold: true, color: XL_MAROON_ });
+      ws.getRow(r).height = 21; r++;
+    });
+    ws.mergeCells(start, 1, r - 1, 1);
+    ws.getCell(start, 1).value = title;
+    xlStyle_(ws.getCell(start, 1), { bold: true, h: 'center', fill: XL_CREAM_ });
+    // المجموع
+    ws.mergeCells(r, 1, r, 2);
+    ws.getCell(r, 1).value = 'المجموع';
+    xlStyle_(ws.getCell(r, 1), { bold: true, fill: XL_SUM_ });
+    ws.getCell(r, 3).value = { formula: 'SUM(C' + start + ':C' + (r - 1) + ')', result: evalSum_(items.map(function (x) { return x[1]; })) };
+    xlStyle_(ws.getCell(r, 3), { bold: true, h: 'center', fill: XL_SUM_ });
+    ws.getCell(r, 4).value = show ? { formula: 'SUM(D' + start + ':D' + (r - 1) + ')', result: evalSum_(scores) } : '';
+    xlStyle_(ws.getCell(r, 4), { bold: true, h: 'center', fill: XL_SUM_, color: XL_MAROON_ });
+    ws.getRow(r).height = 22;
+    const sumRow = r; r++;
+    return sumRow;
+  };
+  const dirShown = (d.dirScores || []).length === EVAL_DIR_ITEMS.length;
+  const headShown = (d.headScores || []).length === EVAL_HEAD_ITEMS.length;
+  const s1 = block('بنود خاصة بمديرة المركز', EVAL_DIR_ITEMS, d.dirScores, dirShown);
+  const s2 = block('بنود خاصة برئيسة وحدة المقاصف', EVAL_HEAD_ITEMS, d.headScores, headShown);
+  ws.mergeCells(r, 1, r, 2);
+  ws.getCell(r, 1).value = 'المجموع الكلي';
+  xlStyle_(ws.getCell(r, 1), { bold: true, size: 13, color: 'FFFFFFFF', fill: XL_MAROON_ });
+  ws.getCell(r, 3).value = { formula: 'C' + s1 + '+C' + s2, result: 100 };
+  xlStyle_(ws.getCell(r, 3), { bold: true, size: 13, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_ });
+  ws.getCell(r, 4).value = (dirShown && headShown) ? { formula: 'D' + s1 + '+D' + s2, result: evalSum_(d.dirScores) + evalSum_(d.headScores) } : '';
+  xlStyle_(ws.getCell(r, 4), { bold: true, size: 13, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_ });
+  ws.getRow(r).height = 26;
+  r += 2;
+
+  // الإيجابيات ونقاط التحسين
+  const textRow = function (label, text) {
+    ws.getCell(r, 1).value = label; xlStyle_(ws.getCell(r, 1), { bold: true, fill: XL_CREAM_ });
+    ws.mergeCells(r, 2, r, 4);
+    ws.getCell(r, 2).value = text || ''; xlStyle_(ws.getCell(r, 2), { bold: true });
+    [3, 4].forEach(function (c) { ws.getCell(r, c).border = XL_BORDER_; });
+    const lines = String(text || '').split('\n').length;
+    ws.getRow(r).height = Math.max(40, Math.min(160, lines * 20 + Math.ceil(String(text || '').length / 70) * 16));
+    r++;
+  };
+  textRow('الإيجابيات', d.positives);
+  textRow('نقاط تحتاج إلى تحسين', d.improvements);
+  r++;
+
+  // التواقيع (الأسماء)
+  ws.mergeCells(r, 1, r, 2); ws.getCell(r, 1).value = 'رئيسة وحدة المقاصف';
+  ws.mergeCells(r, 3, r, 4); ws.getCell(r, 3).value = 'مديرة المركز';
+  xlStyle_(ws.getCell(r, 1), { bold: true, h: 'center', border: false });
+  xlStyle_(ws.getCell(r, 3), { bold: true, h: 'center', border: false });
+  r++;
+  ws.mergeCells(r, 1, r, 2); ws.getCell(r, 1).value = ev.headName || '';
+  ws.mergeCells(r, 3, r, 4); ws.getCell(r, 3).value = ev.directorName || '';
+  xlStyle_(ws.getCell(r, 1), { bold: true, h: 'center', color: XL_MAROON_, border: false });
+  xlStyle_(ws.getCell(r, 3), { bold: true, h: 'center', color: XL_MAROON_, border: false });
+
+  await xlDownload_(wb, masoulaEvalFileName_(ev).replace(/\.pdf$/, '.xlsx'));
+}
+
+/* حفظ قائمة التقييمات (لوحة الإدارة) كملف Excel منسّق: صف لكل مسؤولة بكل البنود والمجاميع */
+async function exportMasoulaEvalsListExcel(list) {
+  if (!list || !list.length) { alert('لا يوجد بيانات لتصديرها'); return; }
+  try { await ensureExcelJs_(); } catch (e) { alert('تعذّر تحميل أداة Excel، تأكدي من الاتصال بالإنترنت وحاولي مرة أخرى'); return; }
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('تقييم المسؤولات', {
+    views: [{ rightToLeft: true, state: 'frozen', ySplit: 3, xSplit: 3 }],
+    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+  });
+  const base = ['المركز', 'الفترة', 'اسم المسؤولة', 'الفصل', 'العام'];
+  const dirH = EVAL_DIR_ITEMS.map(function (it) { return it[0] + ' (' + it[1] + ')'; });
+  const headH = EVAL_HEAD_ITEMS.map(function (it) { return it[0] + ' (' + it[1] + ')'; });
+  const headers = base.concat(dirH, ['مجموع المديرة (٥٠)'], headH, ['مجموع الوحدة (٥٠)', 'المجموع الكلي (١٠٠)', 'الإيجابيات', 'نقاط تحتاج إلى تحسين', 'الحالة']);
+  const nCols = headers.length;
+  const dirStart = base.length + 1, dirSumCol = dirStart + dirH.length, headStart = dirSumCol + 1, headSumCol = headStart + headH.length, totalCol = headSumCol + 1;
+
+  // العنوان
+  ws.mergeCells(1, 1, 1, nCols);
+  ws.getCell(1, 1).value = 'تقييم مسؤولات المقاصف — وحدة المقاصف، جمعية فرقان لتحفيظ القرآن الكريم';
+  xlStyle_(ws.getCell(1, 1), { size: 16, bold: true, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_ });
+  ws.getRow(1).height = 32;
+  // صف الأقسام
+  const band = function (c1, c2, text, fill) {
+    ws.mergeCells(2, c1, 2, c2);
+    ws.getCell(2, c1).value = text;
+    xlStyle_(ws.getCell(2, c1), { bold: true, h: 'center', fill: fill });
+  };
+  band(1, base.length, 'البيانات', XL_CREAM_);
+  band(dirStart, dirSumCol, 'بنود خاصة بمديرة المركز', XL_SUM_);
+  band(headStart, headSumCol, 'بنود خاصة برئيسة وحدة المقاصف', XL_CREAM_);
+  band(totalCol, nCols, 'النتيجة', XL_SUM_);
+  ws.getRow(2).height = 22;
+  // العناوين
+  headers.forEach(function (h, i) {
+    const c = ws.getCell(3, i + 1); c.value = h;
+    xlStyle_(c, { bold: true, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_, size: 11 });
+  });
+  ws.getRow(3).height = 62;
+
+  list.forEach(function (e, idx) {
+    const d = e.data || {};
+    const r = 4 + idx;
+    const done = (d.headScores || []).length === EVAL_HEAD_ITEMS.length;
+    const vals = [e.center, d.period || '', e.masoula, e.term, e.year]
+      .concat(EVAL_DIR_ITEMS.map(function (x, i) { return xlNum_((d.dirScores || [])[i]); }))
+      .concat([xlNum_(e.dirTotal)])
+      .concat(EVAL_HEAD_ITEMS.map(function (x, i) { return done ? xlNum_(d.headScores[i]) : ''; }))
+      .concat([done ? xlNum_(e.headTotal) : '', done ? xlNum_(e.total) : '', d.positives || '', d.improvements || '', e.status]);
+    vals.forEach(function (v, i) {
+      const col = i + 1;
+      const c = ws.getCell(r, col);
+      c.value = v;
+      const isNum = col >= dirStart && col <= totalCol;
+      const isSum = col === dirSumCol || col === headSumCol || col === totalCol;
+      xlStyle_(c, {
+        h: isNum ? 'center' : 'right', bold: isSum || col <= 3, size: 11,
+        color: isSum ? XL_MAROON_ : (col === nCols ? (done ? 'FF1F8F4E' : XL_MAROON_) : undefined),
+        fill: isSum ? XL_SUM_ : (idx % 2 ? 'FFFBF8F4' : undefined)
+      });
+    });
+    ws.getRow(r).height = 24;
+  });
+
+  ws.columns.forEach(function (col, i) {
+    const n = i + 1;
+    col.width = n === 1 ? 26 : n === 3 ? 24 : n <= base.length ? 11 : (n >= totalCol + 1 && n < nCols) ? 36 : n === nCols ? 20 : 13;
+  });
+  ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3 + list.length, column: nCols } };
+  await xlDownload_(wb, 'تقييم مسؤولات المقاصف.xlsx');
 }

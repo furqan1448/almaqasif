@@ -1635,21 +1635,7 @@ function deleteAdminEval_() {
 }
 
 function exportAdminEvalsExcel_() {
-  const list = aevFiltered_();
-  const rows = list.map(function (e) {
-    const d = e.data || {};
-    const o = { 'المركز': e.center, 'الفترة': d.period || '', 'اسم المسؤولة': e.masoula, 'الفصل الدراسي': e.term, 'العام': e.year };
-    EVAL_DIR_ITEMS.forEach(function (it, i) { o['(مديرة) ' + it[0] + ' /' + it[1]] = (d.dirScores || [])[i] !== undefined ? d.dirScores[i] : ''; });
-    o['مجموع المديرة /50'] = e.dirTotal;
-    EVAL_HEAD_ITEMS.forEach(function (it, i) { o['(الوحدة) ' + it[0] + ' /' + it[1]] = (d.headScores || [])[i] !== undefined ? d.headScores[i] : ''; });
-    o['مجموع الوحدة /50'] = e.headTotal;
-    o['المجموع الكلي /100'] = e.total;
-    o['الإيجابيات'] = d.positives || '';
-    o['نقاط تحتاج إلى تحسين'] = d.improvements || '';
-    o['الحالة'] = e.status;
-    return o;
-  });
-  exportToExcel(rows, 'تقييم مسؤولات المقاصف', 'التقييم');
+  exportMasoulaEvalsListExcel(aevFiltered_());
 }
 
 /* -------- بطاقات التحفيز: نظرة الإدارة -------- */
