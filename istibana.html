@@ -12,7 +12,7 @@
    استبانة قياس أثر نظام وحدة المقاصف — جمعية فرقان
    ضعي هنا رابط تطبيق الويب (Web App) بعد نشر ملف Istibana.gs
    ===================================================================== */
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxuEsziTdMnQuVSppK86OV8RvyHtPI3TFeM4Q4PTpqLDksKxjSyWDq8Zq2SrQ5iojJ_Dg/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0921R-eEkhOgei4M_J0IP34pEQwZNiZVumwszm6OiIoxxarwpSULpYcfYrmoAjV5CYQ/exec";
 </script>
 <style>
 :root{
@@ -24,8 +24,9 @@ html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Tajawal",system-ui,sans-serif;font-size:17px;line-height:1.8}
 .wrap{max-width:820px;margin:0 auto;padding:0 16px 48px}
 
-.letterhead{background:#fff;border-bottom:4px solid var(--red)}
-.letterhead img{display:block;width:100%;max-width:1000px;margin:0 auto}
+.letterhead{max-width:820px;margin:0 auto;padding:16px 16px 0}
+.letterhead img{display:block;width:100%;height:auto;border-radius:14px;box-shadow:0 2px 8px rgba(143,29,44,.18)}
+@media (max-width:600px){.letterhead{padding:10px 10px 0}.letterhead img{border-radius:10px}}
 
 .progress{position:sticky;top:0;z-index:20;background:rgba(246,243,243,.96);backdrop-filter:blur(6px);
   padding:10px 0 8px;border-bottom:1px solid var(--red-line)}
