@@ -236,6 +236,40 @@
           </div>
         </div>
         <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <h3 style="margin:0;color:var(--maroon);">إنشاء إشعار نيابةً عن المركز</h3>
+            <button type="button" class="btn outline" id="anToggleBtn" onclick="toggleAdminNoticeForm_()" style="width:auto;padding:8px 16px;">➕ إنشاء إشعار</button>
+          </div>
+          <p style="margin:8px 0 0;font-size:0.88rem;color:#8a7d76;">عند تأخّر المركز في إرسال الإشعار تُنشئه الإدارة، فيظهر للمديرة/المسؤولة بحالة «بانتظار التوقيع»، وبعد توقيعها يصل إلى الإدارة للاطلاع كالمعتاد.</p>
+          <div id="anForm" class="hidden" style="margin-top:12px;">
+            <label>المركز</label>
+            <select id="anCenter"></select>
+            <label>نوع الإشعار</label>
+            <select id="anType">
+              <option value="استلام">إشعار استلام</option>
+              <option value="تسليم">إشعار تسليم المكافأة</option>
+              <option value="تسليم|قيمة رسوم حفل تحفيظ الصغار">إشعار تسليم رسوم حفل تحفيظ الصغار</option>
+            </select>
+            <label>اسم المسلّمة</label>
+            <input type="text" id="anSender" placeholder="اسم المسلّمة">
+            <label>المبلغ (ريال)</label>
+            <input type="number" id="anAmount" placeholder="0.00" step="0.01">
+            <label>أشهر مبيعات المقصف (يمكن اختيار أكثر من شهر)</label>
+            <div class="month-chips" id="anMonthChips"></div>
+            <div class="select-row">
+              <div><label>الفصل الدراسي</label><select id="anTerm"></select></div>
+              <div><label>العام</label><select id="anYear"></select></div>
+            </div>
+            <div class="error-msg" id="anError"></div>
+            <div class="success-msg" id="anSuccess">تم إنشاء الإشعار، وهو الآن بانتظار توقيع المركز ✅</div>
+            <button class="btn" id="anCreateBtn" onclick="createAdminNotice_()" style="margin-top:14px;">إنشاء الإشعار وإرساله للمركز للتوقيع</button>
+          </div>
+        </div>
+        <div class="card" id="awaitingCard" style="display:none;">
+          <h3 style="margin-top:0;color:var(--maroon);">إشعارات بانتظار توقيع المركز</h3>
+          <div id="awaitingList"></div>
+        </div>
+        <div class="card">
           <h3 style="margin-top:0;color:var(--maroon);">إشعارات بانتظار الاطلاع</h3>
           <div id="pendingList">جاري التحميل...</div>
         </div>
@@ -2140,6 +2174,8 @@ function loadPending() {
   loadPendingForTerm_(term);
 }
 
+let allNoticesAwaiting_ = [];
+
 function loadPendingForTerm_(term) {
   document.getElementById('pendingList').innerHTML = 'جاري التحميل...';
   document.getElementById('doneList').innerHTML = 'جاري التحميل...';
@@ -2152,6 +2188,7 @@ function loadPendingForTerm_(term) {
     }
     allNoticesPending = r.pending || [];
     allNoticesDone = r.done || [];
+    allNoticesAwaiting_ = r.awaiting || [];
     allPending = allNoticesPending; // توافق مع بقية الكود
 
     const alertCard = document.getElementById('alertCard');
@@ -2169,7 +2206,7 @@ function loadPendingForTerm_(term) {
 
     // تشخيص تلقائي: لو رجعت القائمتين فاضيتين تماماً (لا بانتظار ولا تم)، نطلع
     // معلومات الملف المتصل فيه الكود فعلاً - عشان تكتشفي فوراً لو كنتِ متصلة بملف إكسل غلط
-    if (!allNoticesPending.length && !allNoticesDone.length) {
+    if (!allNoticesPending.length && !allNoticesDone.length && !allNoticesAwaiting_.length) {
       showConnectedFileDebug_();
     }
   }).catch(function (err) {
@@ -2212,6 +2249,7 @@ function renderNoticeLists() {
 
   const pendingFiltered = allNoticesPending.filter(matches);
   const doneFiltered = allNoticesDone.filter(matches);
+  renderAwaitingNotices_(allNoticesAwaiting_.filter(matches));
 
   const pendingBox = document.getElementById('pendingList');
   if (!pendingFiltered.length) {
@@ -2274,6 +2312,89 @@ function openDetail(notice) {
   setTimeout(function () { setupSignatureWidget('adminSigPad'); }, 50);
   document.getElementById('editSignedCard').classList.add('hidden');
   checkRewardNotice_(notice);
+}
+
+/* -------- إشعارات تنشئها الإدارة نيابةً عن المركز -------- */
+function toggleAdminNoticeForm_() {
+  const f = document.getElementById('anForm');
+  const open = f.classList.contains('hidden');
+  f.classList.toggle('hidden', !open);
+  document.getElementById('anToggleBtn').textContent = open ? '✖ إغلاق' : '➕ إنشاء إشعار';
+  if (open) initAdminNoticeForm_();
+}
+
+function initAdminNoticeForm_() {
+  const sel = document.getElementById('anCenter');
+  if (!sel.options.length || sel.options.length < 2) {
+    sel.innerHTML = '<option value="">اختاري المركز</option>';
+    centersListCache.forEach(function (c) {
+      const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o);
+    });
+  }
+  if (!document.getElementById('anMonthChips').children.length) renderMonthChips('anMonthChips');
+  if (!document.getElementById('anTerm').options.length) fillSelect('anTerm', AR_TERMS, 'اختاري الفصل');
+  if (!document.getElementById('anYear').options.length) fillYearSelect('anYear');
+}
+
+function createAdminNotice_() {
+  const err = document.getElementById('anError');
+  const ok = document.getElementById('anSuccess');
+  err.style.display = 'none'; ok.style.display = 'none';
+  const center = document.getElementById('anCenter').value;
+  const tv = document.getElementById('anType').value.split('|');
+  const type = tv[0], reason = tv[1] || '';
+  const sender = document.getElementById('anSender').value.trim();
+  const amount = document.getElementById('anAmount').value;
+  const months = getSelectedMonths('anMonthChips');
+  const term = document.getElementById('anTerm').value;
+  const year = document.getElementById('anYear').value;
+  const fail = function (t) { err.textContent = t; err.style.display = 'block'; };
+  if (!center) return fail('اختاري المركز');
+  if (!sender) return fail('أدخلي اسم المسلّمة');
+  if (!(Number(amount) > 0)) return fail('أدخلي المبلغ');
+  if (!months.length || !term || !year) return fail('اختاري شهرًا واحدًا أو أكثر، والفصل الدراسي، والعام');
+  if (!confirm('سيُرسَل هذا الإشعار إلى مركز «' + center + '» ليوقّع عليه. هل تريدين المتابعة؟')) return;
+  const btn = document.getElementById('anCreateBtn');
+  setBtnBusy(btn, true, 'جارٍ الإنشاء...');
+  callApi('createAdminNotice', { center: center, type: type, reason: reason, senderName: sender, amount: amount, month: months.join('، '), term: term, year: year }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) return fail((r && r.error) || 'تعذّر إنشاء الإشعار');
+    ok.style.display = 'block';
+    document.getElementById('anSender').value = '';
+    document.getElementById('anAmount').value = '';
+    renderMonthChips('anMonthChips');
+    loadPending();
+  }).catch(function () { setBtnBusy(btn, false); fail('تعذّر الاتصال بالخادم'); });
+}
+
+function renderAwaitingNotices_(list) {
+  const card = document.getElementById('awaitingCard');
+  const box = document.getElementById('awaitingList');
+  if (!card || !box) return;
+  card.style.display = list.length ? '' : 'none';
+  box.innerHTML = '';
+  list.forEach(function (n) {
+    const div = document.createElement('div');
+    div.className = 'notice-item';
+    const reason = n['بيان مخصص'] ? ' (' + String(n['بيان مخصص']).replace(/^قيمة\s*/, '') + ')' : '';
+    div.innerHTML =
+      '<div>' +
+        '<div><strong>' + n['اسم المركز'] + '</strong> - إشعار ' + n['النوع'] + reason + '</div>' +
+        '<div class="meta">' + Number(n['المبلغ']).toFixed(2) + ' ريال · المسلّمة: ' + (n['اسم المسلّمة'] || '') + '</div>' +
+        (n['الشهر'] ? '<div class="meta">مبيعات ' + n['الشهر'] + ' · الفصل ' + n['الفصل الدراسي'] + ' · ' + n['العام'] + '</div>' : '') +
+        '<div class="row-actions" style="margin-top:6px;"><a href="#" onclick="deleteAwaitingNotice_(' + n._row + '); return false;">حذف</a></div>' +
+      '</div>' +
+      '<span class="status-pill pending">بانتظار توقيع المركز</span>';
+    box.appendChild(div);
+  });
+}
+
+function deleteAwaitingNotice_(row) {
+  if (!confirm('هل تريدين حذف هذا الإشعار؟ لن يظهر للمركز بعد ذلك.')) return;
+  callApi('deleteNotice', { row: row }).then(function (r) {
+    if (r && r.ok) loadPending();
+    else alert('تعذّر الحذف');
+  });
 }
 
 /* -------- مكافآت متعاونات المقاصف (١٠٪ من مبيعات سجل البيع اليومي) -------- */
@@ -4117,10 +4238,17 @@ function vrStatReady_() {
   return false;
 }
 
-/* تسجّل الزيارة مرة واحدة فقط: إذا كانت مسجّلة بنفس المركز والفترة والتاريخ لا تتكرر */
-function vrRecordVisitStat_() {
+/* معرّف سجل الإحصائية المرتبط بالتقرير الجاري تعديله (حتى لا يُنشأ سجل جديد ولا يتغيّر رقم الزيارة) */
+let vrEditStatId_ = '';
+
+/* تسجّل الزيارة مرة واحدة فقط: إذا كانت مسجّلة بنفس المركز والفترة والتاريخ لا تتكرر.
+   وأثناء تعديل تقرير محفوظ يُحدَّث سجل الزيارة الأصلي نفسه (حتى لو تغيّر التاريخ) فلا تتكرر الزيارة ولا يتغيّر رقمها.
+   ترجع معرّف سجل الزيارة (أو نصًا فارغًا). */
+function vrRecordVisitStat_() { return vrSyncVisitStat_(); }
+
+function vrSyncVisitStat_() {
   const v = vrStatData_();
-  if (!v.ok) return Promise.resolve();
+  if (!v.ok) return Promise.resolve('');
   const msg = document.getElementById('vrStatMsg');
   const show = function (t, err) {
     msg.textContent = t;
@@ -4128,19 +4256,39 @@ function vrRecordVisitStat_() {
     msg.style.color = err ? '#b3261e' : '';
   };
   const same = function (a, b) { return vsNorm_(a) === vsNorm_(b); };
+  if (vrEditingId_ && vrEditStatId_) {
+    const sid = vrEditStatId_;
+    return callApi('updateVisitStat', { id: sid, center: v.center, period: v.period, hijriDate: v.hijriDate, dateKey: v.dateKey }).then(function (res) {
+      if (!res || !res.ok) { show('تعذّر تحديث الزيارة في الإحصائية' + (res && res.error ? ': ' + res.error : ''), true); return sid; }
+      show('✅ حُدِّثت الزيارة في الإحصائية دون تغيير رقمها — ' + res.center + ': ' + vsCountLabel_(res.count));
+      return vrLoadStats_(true).then(function () { return sid; });
+    }).catch(function () { show('تعذّر تحديث الزيارة في الإحصائية، تحقّقي من الاتصال.', true); return sid; });
+  }
   return callApi('getVisitStats').then(function (r) {
     const list = (r && r.ok && r.visits) || [];
     const mine = list.filter(function (x) { return same(x.center, v.center); });
-    if (mine.some(function (x) { return x.period === v.period && x.dateKey === v.dateKey; })) {
+    const found = mine.find(function (x) { return x.period === v.period && x.dateKey === v.dateKey; });
+    if (found) {
       show('الزيارة مسجّلة سابقًا في الإحصائية — ' + v.center + ': ' + vsCountLabel_(mine.length));
-      return;
+      return found.id || '';
     }
     return callApi('recordVisitStat', { center: v.center, period: v.period, hijriDate: v.hijriDate, dateKey: v.dateKey }).then(function (res) {
-      if (!res || !res.ok) { show('تعذّر تسجيل الزيارة في الإحصائية' + (res && res.error ? ': ' + res.error : ''), true); return; }
+      if (!res || !res.ok) { show('تعذّر تسجيل الزيارة في الإحصائية' + (res && res.error ? ': ' + res.error : ''), true); return ''; }
       show('✅ سُجّلت الزيارة في الإحصائية — ' + res.center + ': ' + vsCountLabel_(res.count));
-      return vrLoadStats_(true);
+      return vrLoadStats_(true).then(function () { return res.id || ''; });
     });
-  }).catch(function () { show('تعذّر تسجيل الزيارة في الإحصائية، تحقّقي من الاتصال.', true); });
+  }).catch(function () { show('تعذّر تسجيل الزيارة في الإحصائية، تحقّقي من الاتصال.', true); return ''; });
+}
+
+/* مفتاح الزيارة (المركز + الفترة + التاريخ) من بيانات تقرير محفوظ — لإيجاد سجلّه في الإحصائية */
+function vrStatKeyFromData_(d) {
+  const m = vrNum_(d.hijriMonth), day = vrNum_(d.hijriDay);
+  const y = vrNum_(d.year) || vsTodayHijri_().y;
+  return {
+    center: String(d.center || '').replace(/\s+/g, ' ').trim(),
+    period: d.morning ? 'صباحية' : (d.evening ? 'مسائية' : ''),
+    dateKey: y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0')
+  };
 }
 
 /* -------- رقم الزيارة التلقائي من «إحصائية الزيارات» --------
@@ -4166,6 +4314,10 @@ function vrUpdateVisitNumber_() {
   const input = document.getElementById('vrVisitNumber');
   if (!hint || !input) return;
   const v = vrStatData_();
+  if (vrEditingId_ && input.value) {
+    hint.textContent = 'رقم الزيارة محفوظ مع التقرير ولا يتغيّر عند التعديل، ويمكنك تغييره يدويًا إن لزم.';
+    return;
+  }
   if (!v.center || !v.period) { hint.textContent = ''; return; }
   if (!vrStats_) { hint.textContent = 'جارٍ حساب رقم الزيارة...'; vrLoadStats_(); return; }
   const list = vrStats_.filter(function (x) {
@@ -4415,12 +4567,14 @@ async function saveVisitReportToSystem() {
   try {
     const headSig = await vrShrinkSignature_(vrSignatureDataUrl);
     if (vrSignatureDataUrl && !headSig) { alert('تعذّر حفظ صورة توقيع الرئيسة لكبر حجمها؛ سيُستخدم التوقيع الافتراضي إن وُجد.'); }
-    const payload = { center: target, data: JSON.stringify(vrReadForm_()), headSignature: headSig };
+    const statId = await vrSyncVisitStat_();
+    const form = vrReadForm_();
+    form.statId = statId || vrEditStatId_ || '';
+    const payload = { center: target, data: JSON.stringify(form), headSignature: headSig };
     if (vrEditingId_) payload.id = vrEditingId_;
     const r = await callApi('saveVisitReport', payload);
     if (!r || !r.ok) { alert('تعذّر الحفظ: ' + ((r && r.error) || 'خطأ غير معروف')); return; }
     const wasEdit = !!vrEditingId_;
-    vrRecordVisitStat_();
     const panel = document.getElementById('vrSystemPanel');
     document.getElementById('vrSystemMsg').innerHTML = (wasEdit ? '✅ حُفظ التعديل وأُعيد التقرير' : '✅ حُفظ التقرير وأُرسل') +
       ' إلى <b>' + target + '</b>، وهو الآن بانتظار توقيع المديرة من صفحة المراكز.';
@@ -4518,7 +4672,19 @@ function editSavedVisitReport(id) {
   if (!rep) return;
   if (rep.status === 'تم التوقيع' && !confirm('هذا التقرير موقَّع من المديرة، وتعديله سيلغي توقيعها. هل تريدين المتابعة؟')) return;
   vrEditingId_ = id;
+  vrEditStatId_ = (rep.data && rep.data.statId) || '';
   applyVrForm_(rep.data || {});
+  vrLoadStats_().then(function () {
+    if (vrEditingId_ !== id) return;
+    if (!vrEditStatId_) {
+      const k = vrStatKeyFromData_(rep.data || {});
+      const m = (vrStats_ || []).find(function (x) {
+        return x.period === k.period && x.dateKey === k.dateKey && vsNorm_(x.center) === vsNorm_(k.center);
+      });
+      if (m && m.id) vrEditStatId_ = m.id;
+    }
+    vrUpdateVisitNumber_();
+  });
   const sel = document.getElementById('vrTargetCenter');
   sel.value = rep.center; sel.dataset.manual = '1';
   if (rep.headSignature) {
@@ -4535,6 +4701,7 @@ function editSavedVisitReport(id) {
 
 function cancelVrEdit(silent) {
   vrEditingId_ = null;
+  vrEditStatId_ = '';
   document.getElementById('vrEditBanner').classList.add('hidden');
   document.getElementById('vrSaveSystemBtn').textContent = '✍️ حفظ وإرسال للمديرة للتوقيع في الموقع';
   delete document.getElementById('vrTargetCenter').dataset.manual;

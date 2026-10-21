@@ -47,7 +47,7 @@ function setup() {
       'رابط توقيع المركز', 'رابط صورة الإشعار', 'الحالة',
       'رابط توقيع الإدارة', 'رابط صورة الإشعار الموقع',
       'يوم اطلاع الإدارة', 'تاريخ اطلاع الإدارة', 'وقت اطلاع الإدارة',
-      'اسم المستلمة', 'بيانات توقيع المركز', 'فصل الأرشفة'],
+      'اسم المستلمة', 'بيانات توقيع المركز', 'فصل الأرشفة', 'سجّل بواسطة'],
     'المرفقات': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'المالك', 'اليوم', 'التاريخ', 'الوقت'],
     'مرفقات الإشراف': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
     'الإعلانات الهامة': ['معرف', 'النص', 'استهداف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
@@ -1317,6 +1317,8 @@ function handleRequest_(p) {
     if (aliasMaps.any) p = mapStringsDeep_(p, aliasMaps.toReal);   // الاسم المعروض -> الأصلي قبل المعالجة
     const action = p.action;
     switch (action) {
+      case 'createAdminNotice': return json_(createAdminNotice_(p));
+      case 'centerSignNotice': return json_(centerSignNotice_(p));
       case 'getCenters': return json_(getCenters_());
       case 'loginCenter': return json_(loginCenter_(p));
       case 'loginMasoula': return json_(loginMasoula_(p));
@@ -2569,7 +2571,7 @@ function getMasoulaDashboard_(p) {
   let pendingCount = 0;
   if (p.center) {
     const notices = sheetToObjects_('الإشعارات').filter(function (r) {
-      return String(r['اسم المركز']).trim() === String(p.center).trim() && r['الحالة'] !== 'تم الاطلاع';
+      return String(r['اسم المركز']).trim() === String(p.center).trim() && r['الحالة'] !== 'تم الاطلاع' && r['الحالة'] !== NOTICE_AWAIT_CENTER_;
     });
     pendingCount = notices.length;
   }
@@ -2578,7 +2580,8 @@ function getMasoulaDashboard_(p) {
     attendance: attendance,
     pledge: pledgeRows.length ? pledgeRows[pledgeRows.length - 1] : null,
     tasksAck: tasksRows.length ? tasksRows[tasksRows.length - 1] : null,
-    pendingCount: pendingCount
+    pendingCount: pendingCount,
+    toSign: p.center ? centerToSign_(p.center) : []
   };
 }
 
@@ -2631,6 +2634,77 @@ function notifyAdminNewNotice_(type, center, amount, now, noticeImageUrl, sender
   } catch (e) {
     // تجاهل خطأ الإرسال حتى لا يفشل حفظ الإشعار بسببه
   }
+}
+
+/* ------------------- إشعارات تنشئها الإدارة نيابةً عن المركز (عند التأخير) -------------------
+   نفس فكرة بطاقات التحفيز: الإدارة تُنشئ الإشعار فيظهر للمركز بحالة «بانتظار توقيع المركز»،
+   ثم توقّع عليه المديرة/المسؤولة فيتحوّل إلى «بانتظار الاطلاع» ويكمل مساره المعتاد عند الإدارة. */
+const NOTICE_AWAIT_CENTER_ = 'بانتظار توقيع المركز';
+
+function ensureNoticeCol_(sh, header) {
+  if (colIndex_(sh, header) > 0) return;
+  const c = Math.max(sh.getLastColumn(), 1) + 1;
+  sh.getRange(1, c).setValue(header);
+  delete _headerRowCache_[sh.getSheetId()];
+  invalidateCache_(sh.getName());
+}
+
+function centerToSign_(center) {
+  const c = String(center || '').trim();
+  if (!c) return [];
+  return sheetToObjects_('الإشعارات').filter(function (r) {
+    return r['الحالة'] === NOTICE_AWAIT_CENTER_ && String(r['اسم المركز']).trim() === c;
+  }).map(function (r) {
+    return { id: r['معرف'], type: r['النوع'], reason: r['بيان مخصص'] || '', amount: r['المبلغ'] };
+  });
+}
+
+function createAdminNotice_(p) {
+  const center = String(p.center || '').trim();
+  const type = String(p.type || '').trim();
+  const amount = Number(p.amount);
+  if (!center) return { ok: false, error: 'اختاري المركز' };
+  if (type !== 'استلام' && type !== 'تسليم') return { ok: false, error: 'نوع الإشعار غير صحيح' };
+  if (!p.senderName || !String(p.senderName).trim()) return { ok: false, error: 'اسم المسلّمة مطلوب' };
+  if (!(amount > 0)) return { ok: false, error: 'المبلغ مطلوب' };
+  if (!p.month || !p.term || !p.year) return { ok: false, error: 'الشهر والفصل الدراسي والعام مطلوبة' };
+  const sh = sheet_('الإشعارات');
+  ensureNoticeCol_(sh, 'سجّل بواسطة');
+  const id = Utilities.getUuid();
+  const now = nowParts_();
+  appendRowByHeaders_(sh, {
+    'معرف': id, 'النوع': type, 'اسم المركز': center,
+    'يوم الإرسال': now.day, 'تاريخ الإرسال': now.date, 'وقت الإرسال': now.time,
+    'اسم المسلّمة': String(p.senderName).trim(), 'المبلغ': amount,
+    'الشهر': p.month, 'الفصل الدراسي': p.term, 'العام': p.year,
+    'بيان مخصص': p.reason || '',
+    'الحالة': NOTICE_AWAIT_CENTER_, 'سجّل بواسطة': 'الإدارة'
+  });
+  invalidateCache_('الإشعارات');
+  return { ok: true, id: id };
+}
+
+function centerSignNotice_(p) {
+  if (!p.id || !p.center) return { ok: false, error: 'بيانات ناقصة' };
+  if (!p.signature) return { ok: false, error: 'لازم التوقيع' };
+  if (!p.noticeImage) return { ok: false, error: 'صورة الإشعار مطلوبة' };
+  const sh = sheet_('الإشعارات');
+  const target = sheetToObjects_('الإشعارات').find(function (r) { return r['معرف'] === p.id; });
+  if (!target) return { ok: false, error: 'الإشعار غير موجود' };
+  if (String(target['اسم المركز']).trim() !== String(p.center).trim()) return { ok: false, error: 'هذا الإشعار لا يخص مركزك' };
+  if (target['الحالة'] !== NOTICE_AWAIT_CENTER_) return { ok: false, error: 'تم التوقيع على هذا الإشعار سابقًا' };
+  const now = nowParts_();
+  const imageUrl = saveImage_(p.noticeImage, noticeFileName_('إشعار', target['النوع'], target['اسم المركز'], now.date, p.id), ['الإشعارات', target['اسم المركز']]);
+  const row = target._row;
+  setNoticeCell_(sh, row, 'رابط صورة الإشعار', imageUrl);
+  setNoticeCell_(sh, row, 'بيانات توقيع المركز', p.signature);
+  setNoticeCell_(sh, row, 'يوم الإرسال', now.day);
+  setNoticeCell_(sh, row, 'تاريخ الإرسال', now.date);
+  setNoticeCell_(sh, row, 'وقت الإرسال', now.time);
+  setNoticeCell_(sh, row, 'الحالة', 'بانتظار الاطلاع');
+  invalidateCache_('الإشعارات');
+  notifyAdminNewNotice_(target['النوع'], target['اسم المركز'], target['المبلغ'], now, imageUrl, target['اسم المسلّمة']);
+  return { ok: true };
 }
 
 /* ------------------- الصعوبات والمقترحات ------------------- */
@@ -2741,9 +2815,9 @@ function getCenterPendingCount_(p) {
   const center = String(p.center || '').trim();
   let count = 0;
   for (let i = 0; i < rows.length; i++) {
-    if (String(rows[i]['اسم المركز']).trim() === center && rows[i]['الحالة'] !== 'تم الاطلاع') count++;
+    if (String(rows[i]['اسم المركز']).trim() === center && rows[i]['الحالة'] !== 'تم الاطلاع' && rows[i]['الحالة'] !== NOTICE_AWAIT_CENTER_) count++;
   }
-  return { ok: true, count: count };
+  return { ok: true, count: count, toSign: centerToSign_(center) };
 }
 
 // ترجع جميع إشعارات الاستلام والتسليم (بانتظار الاطلاع + تم الاطلاع) - تُستخدم بلوحة الإدارة
@@ -2751,8 +2825,9 @@ function getCenterPendingCount_(p) {
 function getAllNotices_(p) {
   const rows = getRowsForTerm_('الإشعارات', p && p.term, 'فصل الأرشفة').slice().reverse();
   const pending = rows.filter(function (r) { return r['الحالة'] === 'بانتظار الاطلاع'; });
-  const done = rows.filter(function (r) { return r['الحالة'] !== 'بانتظار الاطلاع'; });
-  return { ok: true, pending: pending, done: done };
+  const awaiting = rows.filter(function (r) { return r['الحالة'] === NOTICE_AWAIT_CENTER_; });
+  const done = rows.filter(function (r) { return r['الحالة'] !== 'بانتظار الاطلاع' && r['الحالة'] !== NOTICE_AWAIT_CENTER_; });
+  return { ok: true, pending: pending, awaiting: awaiting, done: done };
 }
 
 function adminSignNotice_(p) {

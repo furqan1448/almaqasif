@@ -59,6 +59,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
   <div class="wrap">
     <!-- الشاشة الرئيسية: الأيقونات -->
     <div id="homeView">
+      <div id="toSignBanner"></div>
       <div id="announceBanner"></div>
       <h2 style="color:var(--maroon);">مرحباً بك</h2>
       <div class="icon-grid">
@@ -1573,6 +1574,7 @@ function clearSig() {
 
 /* -------- نموذج الإشعار -------- */
 function openNoticeForm(type, reason) {
+  endSignMode_(true);
   currentNoticeType = type;
   currentNoticeReason = reason || '';
   document.getElementById('noticeFormTitle').textContent = 'إشعار ' + type;
@@ -1637,6 +1639,7 @@ function previewNotice() {
   if (!months.length || !term || !year) { errBox.textContent = 'اختاري شهر واحد أو أكثر، والفصل الدراسي، والعام'; errBox.style.display = 'block'; return; }
 
   const sigDataUrl = getSignatureDataUrl('sigPad');
+  if (signingNoticeId_ && sigLooksBlank_('sigPad', sigDataUrl)) { errBox.textContent = 'وقّعي في خانة التوقيع أولاً'; errBox.style.display = 'block'; return; }
   const today = todayStr();
 
   generateNoticeImage({
@@ -1663,7 +1666,7 @@ function sendNotice() {
   const btn = document.getElementById('sendNoticeBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
 
-  callApi('submitNotice', {
+  (signingNoticeId_ ? callApi('centerSignNotice', { id: signingNoticeId_, center: currentCenter, signature: sigDataUrl, noticeImage: currentNoticeDataUrl }) : callApi('submitNotice', {
     type: currentNoticeType,
     center: currentCenter,
     senderName: senderName,
@@ -1674,11 +1677,12 @@ function sendNotice() {
     reason: currentNoticeReason,
     signature: sigDataUrl,
     noticeImage: currentNoticeDataUrl
-  }).then(function (r) {
+  })).then(function (r) {
     btn.disabled = false; btn.textContent = 'إرسال إلى إدارة وحدة المقاصف';
     if (r.ok) {
       document.getElementById('noticeSuccess').style.display = 'block';
       btn.classList.add('hidden');
+      endSignMode_(false);
       refreshPendingBadge();
       loadFormNotices_();
     } else {
@@ -1750,6 +1754,12 @@ function buildNoticeItem_(n) {
       (done && n['اسم المستلمة'] ? '<div class="meta">المستلمة: ' + n['اسم المستلمة'] + '</div>' : '') +
       (viewUrl ? '<br><a href="' + viewUrl + '" target="_blank" style="font-size:0.8rem;">عرض الإشعار</a>' : '') +
     '</div>';
+  if (n['الحالة'] === NOTICE_AWAIT_CENTER_) {
+    const ra = div.querySelector('.row-actions');
+    if (ra) ra.innerHTML = ro ? '' : '<a href="#" onclick="startSignById_(\'' + n['معرف'] + '\'); return false;" style="font-weight:700;">✍️ توقيع الإشعار</a>';
+    const pill = div.querySelector('.status-pill');
+    if (pill) pill.textContent = 'بانتظار توقيعك';
+  }
   return div;
 }
 
@@ -1761,6 +1771,7 @@ function loadFormNotices_() {
   callApi('getCenterNotices', { center: currentCenter, term: 'current' }).then(function (r) {
     const list = ((r && r.notices) || []).filter(function (n) { return n['النوع'] === currentNoticeType && String(n['بيان مخصص'] || '') === String(currentNoticeReason || ''); })
       .sort(function (a, b) { return (b._row || 0) - (a._row || 0); });
+    formNoticesCache_ = list;
     if (!r || !r.ok || !list.length) { box.innerHTML = 'لا توجد إشعارات ' + currentNoticeType + ' مسجّلة بعد'; return; }
     box.innerHTML = '';
     list.forEach(function (n) { box.appendChild(buildNoticeItem_(n)); });
@@ -2516,6 +2527,7 @@ function refreshPendingBadge() {
   if (!document.getElementById('evalTile').classList.contains('hidden')) refreshEvalBadge_();
   callApi('getCenterPendingCount', { center: currentCenter }).then(function (r) {
     if (!r.ok) return;
+    renderToSignBanner_(r.toSign);
     const badge = document.getElementById('pendingBadge');
     if (!badge) return;
     if (r.count > 0) { badge.textContent = r.count; badge.classList.remove('hidden'); }

@@ -1845,7 +1845,8 @@ function getSignatureDataUrl(id) {
 /* -------- شريط إجمالي مبالغ الإشعارات (استلام / تسليم) --------
    list: مصفوفة إشعارات (كل إشعار فيه 'النوع' و 'المبلغ') - يرجّع عنصر HTML جاهز أو null لو القائمة فاضية */
 function buildNoticesTotalsBar_(list) {
-  if (!list || !list.length) return null;
+  list = (list || []).filter(function (n) { return n['الحالة'] !== 'بانتظار توقيع المركز'; });
+  if (!list.length) return null;
   const t = { 'استلام': { sum: 0, n: 0 }, 'تسليم': { sum: 0, n: 0 } };
   list.forEach(function (n) {
     const k = n['النوع'] === 'تسليم' ? 'تسليم' : 'استلام';
@@ -2649,4 +2650,132 @@ async function exportMasoulaEvalsListExcel(list) {
   });
   ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3 + list.length, column: nCols } };
   await xlDownload_(wb, 'تقييم مسؤولات المقاصف.xlsx');
+}
+
+/* ==================== إشعارات تنشئها الإدارة نيابةً عن المركز (توقيع المركز) ====================
+   تظهر للمديرة/المسؤولة بحالة «بانتظار توقيع المركز»؛ تضغط «توقيع الإشعار» فتُملأ بيانات النموذج وتُقفل،
+   وتوقّع فقط، ثم يُرسَل إلى الإدارة كأي إشعار عادي. */
+const NOTICE_AWAIT_CENTER_ = 'بانتظار توقيع المركز';
+let signingNoticeId_ = '';
+let formNoticesCache_ = [];
+
+function noticeLabel_(type, reason) {
+  if (type === 'استلام') return 'إشعار استلام';
+  if (reason) return 'إشعار تسليم ' + String(reason).replace(/^قيمة\s*/, '');
+  return 'إشعار تسليم المكافأة';
+}
+
+function sigLooksBlank_(canvasId, dataUrl) {
+  if (!dataUrl) return true;
+  const c = document.getElementById(canvasId);
+  if (!c || !c.width) return false;
+  try {
+    const b = document.createElement('canvas');
+    b.width = c.width; b.height = c.height;
+    return dataUrl === b.toDataURL('image/png');
+  } catch (e) { return false; }
+}
+
+function startSignById_(id) {
+  const n = (formNoticesCache_ || []).find(function (x) { return x['معرف'] === id; });
+  if (n) startSignAdminNotice_(n);
+}
+
+function startSignAdminNotice_(n) {
+  signingNoticeId_ = n['معرف'];
+  const setVal = function (id, v) { const el = document.getElementById(id); if (el) el.value = v; };
+  setVal('senderName', n['اسم المسلّمة'] || '');
+  setVal('noticeAmount', n['المبلغ']);
+  if (typeof rewardAmountManual_ !== 'undefined') rewardAmountManual_ = true;
+  const ensureOpt = function (id, v) {
+    const sel = document.getElementById(id);
+    if (!sel || !v) return;
+    if (!Array.from(sel.options).some(function (o) { return o.value === v; })) {
+      const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o);
+    }
+    sel.value = v;
+  };
+  ensureOpt('noticeTerm', n['الفصل الدراسي']);
+  ensureOpt('noticeYear', n['العام']);
+  const months = String(n['الشهر'] || '').split('،').map(function (m) { return m.trim(); }).filter(Boolean);
+  const chips = document.getElementById('noticeMonthChips');
+  if (chips) {
+    chips.querySelectorAll('.month-chip').forEach(function (c) { c.classList.toggle('selected', months.indexOf(c.textContent) !== -1); });
+    chips.style.pointerEvents = 'none'; chips.style.opacity = '0.75';
+  }
+  ['senderName', 'noticeAmount', 'noticeTerm', 'noticeYear'].forEach(function (id) {
+    const el = document.getElementById(id); if (el) el.disabled = true;
+  });
+  const view = document.getElementById('noticeFormView');
+  let b = document.getElementById('signNoticeBanner');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'signNoticeBanner';
+    b.className = 'card';
+    b.style.cssText = 'border-right:5px solid var(--maroon);background:#fff8ec;';
+    const back = view.querySelector('.back-link');
+    if (back && back.nextSibling) view.insertBefore(b, back.nextSibling); else view.insertBefore(b, view.firstChild);
+  }
+  b.innerHTML = '<strong style="color:var(--maroon);">أنشأت الإدارة هذا الإشعار نيابةً عنكم.</strong>' +
+    '<div style="margin-top:6px;font-size:0.92rem;">راجعي البيانات أدناه ثم وقّعي في خانة التوقيع واضغطي «معاينة الإشعار» ثم «إرسال».</div>' +
+    '<a href="#" id="signNoticeCancel" style="display:inline-block;margin-top:8px;font-size:0.88rem;color:var(--maroon);text-decoration:underline;">إلغاء التوقيع</a>';
+  document.getElementById('signNoticeCancel').onclick = function (e) { e.preventDefault(); endSignMode_(true); };
+  const pv = document.getElementById('noticePreviewCard'); if (pv) pv.classList.add('hidden');
+  const sb = document.getElementById('sendNoticeBtn'); if (sb) sb.classList.remove('hidden');
+  const ok = document.getElementById('noticeSuccess'); if (ok) ok.style.display = 'none';
+  view.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function endSignMode_(clearFields) {
+  const was = !!signingNoticeId_;
+  signingNoticeId_ = '';
+  ['senderName', 'noticeAmount', 'noticeTerm', 'noticeYear'].forEach(function (id) {
+    const el = document.getElementById(id); if (el) el.disabled = false;
+  });
+  const chips = document.getElementById('noticeMonthChips');
+  if (chips) { chips.style.pointerEvents = ''; chips.style.opacity = ''; }
+  const b = document.getElementById('signNoticeBanner');
+  if (b) b.remove();
+  if (was && clearFields) {
+    const sn = document.getElementById('senderName'); if (sn) sn.value = '';
+    const am = document.getElementById('noticeAmount'); if (am) am.value = '';
+    if (typeof renderMonthChips === 'function') renderMonthChips('noticeMonthChips');
+  }
+}
+
+/* شريط الشاشة الرئيسية: إشعارات أنشأتها الإدارة بانتظار توقيع المركز */
+function renderToSignBanner_(list) {
+  const box = document.getElementById('toSignBanner');
+  if (!box) return;
+  box.innerHTML = '';
+  list = list || [];
+  if ((typeof isReadOnlyCenter !== 'undefined') && isReadOnlyCenter) return;
+  if (!list.length) return;
+  const groups = {};
+  list.forEach(function (x) {
+    const k = x.type + '|' + (x.reason || '');
+    if (!groups[k]) groups[k] = { type: x.type, reason: x.reason || '', n: 0 };
+    groups[k].n++;
+  });
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.style.cssText = 'border-right:5px solid var(--maroon);background:#fff8ec;';
+  const title = document.createElement('strong');
+  title.style.color = 'var(--maroon)';
+  title.textContent = 'لديك ' + toArabicDigits(list.length) + (list.length === 1 ? ' إشعار' : ' إشعارات') + ' أنشأتها الإدارة بانتظار توقيعك';
+  card.appendChild(title);
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;';
+  Object.keys(groups).forEach(function (k) {
+    const g = groups[k];
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn outline';
+    btn.style.cssText = 'width:auto;padding:8px 14px;';
+    btn.textContent = noticeLabel_(g.type, g.reason) + ' (' + toArabicDigits(g.n) + ') ← توقيع';
+    btn.onclick = function () { openNoticeForm(g.type, g.reason); };
+    row.appendChild(btn);
+  });
+  card.appendChild(row);
+  box.appendChild(card);
 }
