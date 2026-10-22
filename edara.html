@@ -5743,6 +5743,8 @@ let rsFilter_ = { q: '', f: 'all' };
 const RS_FILTERS_ = [
   { key: 'all',        label: 'الكل',           test: function (m) { return true; } },
   { key: 'missing',    label: 'فيه نقص',        test: function (m) { return !m.verified && m.issues.length > 0 && m.issues.indexOf('nothing') === -1; } },
+  { key: 'salesNoInv', label: 'مبالغ بدون فواتير', test: function (m) { return !m.verified && m.issues.indexOf('salesNoInvoices') !== -1; } },
+  { key: 'invNoSales', label: 'فواتير بدون مبالغ', test: function (m) { return !m.verified && m.issues.indexOf('invoicesNoSales') !== -1; } },
   { key: 'nothing',    label: 'لم يسجّل شيئاً',  test: function (m) { return !m.verified && m.issues.indexOf('nothing') !== -1; } },
   { key: 'partial',    label: 'مكتمل جزئي',     test: function (m) { return !m.verified && !m.issues.length; } },
   { key: 'done',       label: 'مكتمل',          test: function (m) { return !!m.verified; } },
