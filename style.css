@@ -779,3 +779,8 @@ input.as-select::placeholder { color: var(--ink); opacity: 1; }
 .as-opt { padding: 5px 14px; color: var(--ink); font-size: 0.95rem; font-weight: 400; line-height: 1.6; cursor: default; -webkit-tap-highlight-color: transparent; }
 .as-opt.on { background: #6b6b6b; color: #fff; }
 .as-empty { padding: 5px 14px; color: #777; font-size: 0.95rem; }
+
+/* فرز فرعي لأنواع النقص في إحصائيات التسجيل */
+.rs-subfilters { align-items: center; background: #fbf6ee; border: 1px dashed var(--gold-light); border-radius: 12px; padding: 8px 10px; }
+.rs-subfilters.hidden { display: none; }
+.rs-sublabel { color: var(--maroon); font-size: 0.8rem; font-weight: 700; margin-left: 4px; }
