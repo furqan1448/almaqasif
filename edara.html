@@ -5716,6 +5716,7 @@ function renderRegStats_(r) {
       '<td id="rsStatus_' + i + '">' + rsStatusHtml_(m) + '</td>' +
       '<td><label class="rs-verify"><input type="checkbox"' + (m.verified ? ' checked' : '') +
         ' onchange="toggleRegVerified(' + i + ', this)"><span></span></label></td>' +
+      '<td>' + (m.issues.length ? '<button type="button" class="rs-msg-btn" onclick="openRsMsg(' + i + ')" title="مراسلة مديرة المركز بالنقص">💬 مراسلة</button>' : '') + '</td>' +
       '</tr>';
   });
   html += '<div class="card"><h3 style="margin-top:0;color:var(--maroon);font-size:1rem;">تفصيل المراكز</h3>' +
@@ -5731,8 +5732,8 @@ function renderRegStats_(r) {
     }).join('') + '</div>' +
     '<div class="rs-shown" id="rsShown"></div>' +
     '<div class="rs-scroll"><table class="log-table rs-table"><thead><tr>' +
-      '<th>المركز</th><th>استلام</th><th>تسليم المكافأة</th><th>رسوم الحفل</th><th>الفواتير</th><th>أيام المبيعات</th><th>الحالة</th><th>اعتماد</th>' +
-    '</tr></thead><tbody>' + rows + '<tr id="rsNoMatch" class="hidden"><td colspan="8" style="color:#8a7d76;padding:18px;">لا توجد مراكز مطابقة للبحث</td></tr></tbody></table></div>' +
+      '<th>المركز</th><th>استلام</th><th>تسليم المكافأة</th><th>رسوم الحفل</th><th>الفواتير</th><th>أيام المبيعات</th><th>الحالة</th><th>اعتماد</th><th>مراسلة</th>' +
+    '</tr></thead><tbody>' + rows + '<tr id="rsNoMatch" class="hidden"><td colspan="9" style="color:#8a7d76;padding:18px;">لا توجد مراكز مطابقة للبحث</td></tr></tbody></table></div>' +
     '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;line-height:1.8;">«أيام المبيعات» = عدد الأيام المسجّل فيها مبالغ بسجل البيع اليومي. «مبالغ بدون فواتير» = المركز سجّل مبيعات ولم يُدخل أي فاتورة في نفس الفترة، و«فواتير بدون مبالغ» العكس. «مكتمل جزئي» = ما فيه نقص ظاهر بالأرقام، ولا تصير «مكتمل» إلا بعد ما تحطين ✔ في خانة «اعتماد» (الاعتماد خاص بالفصل الحالي ويتفرّغ عند أرشفة الفصل).</p>' +
     '<div class="export-row" style="margin-top:12px;">' +
       '<button class="btn outline" onclick="exportRegStatsExcel()">⬇️ Excel</button>' +
@@ -5847,6 +5848,234 @@ function rsStatusHtml_(m) {
   if (m.verified) return '<span class="rs-pill ok">مكتمل</span>';
   if (m.issues.length) return m.issues.map(function (k) { return '<span class="rs-pill ' + RS_ISSUES_[k].cls + '">' + RS_ISSUES_[k].label + '</span>'; }).join(' ');
   return '<span class="rs-pill part">مكتمل جزئي</span>';
+}
+
+/* ---- مراسلة مديرة المركز بالنقص (واتساب) ---- */
+let rsMsgCtx_ = null;
+
+function rsLoadDirectors_() {
+  if (typeof vrDirectors_ !== 'undefined' && vrDirectors_) return Promise.resolve(vrDirectors_);
+  let pw = '';
+  try { pw = sessionStorage.getItem('maqasif_admin_pw') || ''; } catch (e) {}
+  if (!pw) {
+    pw = prompt('لعرض أرقام المديرات، أدخلي كلمة مرور الإدارة مرة واحدة:') || '';
+    if (!pw) return Promise.resolve([]);
+  }
+  return callApi('getDirectors', { password: pw }).then(function (r) {
+    if (!r || !r.ok) {
+      if (r && r.auth) { try { sessionStorage.removeItem('maqasif_admin_pw'); } catch (e) {} }
+      return [];
+    }
+    try { sessionStorage.setItem('maqasif_admin_pw', pw); } catch (e) {}
+    vrDirectors_ = r.directors || [];
+    return vrDirectors_;
+  }).catch(function () { return []; });
+}
+
+/* المديرات المطابقات لاسم المركز (مع مراعاة الفترة الصباحية/المسائية إن وردت في الاسم) */
+function rsMatchDirectors_(center, list) {
+  const strip = function (t) { return rsNorm_(t).replace(/^مركز\s*/, '').replace(/\s*(الصباحيه|صباحي|صباحيه|المسائيه|مسائي|مسائيه|العصريه|عصري)$/, '').trim(); };
+  const c = strip(center);
+  let found = list.filter(function (d) {
+    const n = strip(d.center);
+    return n && (n === c || c.indexOf(n) !== -1 || n.indexOf(c) !== -1);
+  });
+  const cn = rsNorm_(center);
+  const wantEvening = /مسائ|عصر/.test(cn), wantMorning = /صباح/.test(cn);
+  if (found.length > 1 && (wantEvening || wantMorning)) {
+    const byPeriod = found.filter(function (d) { return wantEvening ? d.evening : !d.evening; });
+    if (byPeriod.length) found = byPeriod;
+  }
+  return found;
+}
+
+function rsIssueLines_(m) {
+  const lines = [];
+  m.issues.forEach(function (k) {
+    if (k === 'salesNoInvoices') lines.push('- تسجيل مبالغ المبيعات (عدد الأيام: ' + m.salesDays + ') دون إدخال أي فاتورة في بيان الفواتير.');
+    if (k === 'invoicesNoSales') lines.push('- إدخال فواتير (عدد الفواتير: ' + m.invoices + ') دون تسجيل مبالغ المبيعات في سجل البيع اليومي.');
+    if (k === 'nothing') lines.push('- عدم وجود أي تسجيل للمقصف في النظام خلال هذه الفترة.');
+  });
+  return lines.join('\n');
+}
+
+/* النص الثابت للرسالة: الكلمات بين القوسين {} تُستبدل تلقائياً لكل مركز */
+const RS_MSG_DEFAULT_ =
+  'السلام عليكم ورحمة الله وبركاته\n' +
+  'الأستاذة الفاضلة/ {المديرة} — مديرة {المركز}\n\n' +
+  'نفيدكم بأنه بعد مراجعة تسجيلات المقصف في نظام وحدة المقاصف للفترة: {الفترة}، تبيّن ما يلي:\n' +
+  '{النقص}\n\n' +
+  'نأمل التكرم بمتابعة استكمال التسجيل في النظام في أقرب وقت.\n' +
+  'شاكرين لكم تعاونكم،\nوحدة المقاصف — جمعية فرقان لتحفيظ القرآن الكريم';
+let rsMsgTemplate_ = null;   // null = لم يُحمَّل بعد، '' = النص الافتراضي
+
+function rsCurrentTemplate_() { return rsMsgTemplate_ || RS_MSG_DEFAULT_; }
+
+function rsLoadTemplate_() {
+  if (rsMsgTemplate_ !== null) return Promise.resolve(rsCurrentTemplate_());
+  try { const t = localStorage.getItem('maqasif_def_msg_tpl'); if (t !== null) rsMsgTemplate_ = t; } catch (e) {}
+  return callApi('getDeficiencyMsgTemplate').then(function (r) {
+    if (r && r.ok) {
+      rsMsgTemplate_ = r.template || '';
+      try { localStorage.setItem('maqasif_def_msg_tpl', rsMsgTemplate_); } catch (e) {}
+    } else if (rsMsgTemplate_ === null) rsMsgTemplate_ = '';
+    return rsCurrentTemplate_();
+  }).catch(function () {
+    if (rsMsgTemplate_ === null) rsMsgTemplate_ = '';
+    return rsCurrentTemplate_();
+  });
+}
+
+function rsBuildMsg_(m, d) {
+  const name = d && d.name ? d.name : '';
+  let t = rsCurrentTemplate_()
+    .split('{المديرة}').join(name)
+    .split('{المركز}').join(m.center)
+    .split('{الفترة}').join(rsPeriodLabel_())
+    .split('{النقص}').join(rsIssueLines_(m));
+  if (!name) t = t.replace(/\/[ \t]*—/g, ' —').replace(/\/[ \t]*$/gm, '');
+  return t;
+}
+
+function toggleRsTplEditor() {
+  const ed = document.getElementById('rsTplEditor');
+  const open = ed.classList.contains('hidden');
+  ed.classList.toggle('hidden', !open);
+  if (open) document.getElementById('rsTplText').value = rsCurrentTemplate_();
+}
+
+function rsInsertField(f) {
+  const ta = document.getElementById('rsTplText');
+  const st = ta.selectionStart || ta.value.length, en = ta.selectionEnd || st;
+  ta.value = ta.value.slice(0, st) + f + ta.value.slice(en);
+  ta.focus(); ta.selectionStart = ta.selectionEnd = st + f.length;
+}
+
+function rsSaveTemplate_(value, btn, okMsg) {
+  let pw = '';
+  try { pw = sessionStorage.getItem('maqasif_admin_pw') || ''; } catch (e) {}
+  if (!pw) { pw = prompt('أدخلي كلمة مرور الإدارة لحفظ النص:') || ''; if (!pw) return; }
+  setBtnBusy(btn, true);
+  callApi('setDeficiencyMsgTemplate', { password: pw, template: value }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) {
+      if (r && r.auth) { try { sessionStorage.removeItem('maqasif_admin_pw'); } catch (e) {} }
+      alert((r && r.error === 'إجراء غير معروف') ? 'يلزم نشر إصدار جديد من Apps Script بعد تحديث Code.gs.' : ((r && r.error) || 'تعذّر الحفظ'));
+      return;
+    }
+    try { sessionStorage.setItem('maqasif_admin_pw', pw); } catch (e) {}
+    rsMsgTemplate_ = r.template || '';
+    try { localStorage.setItem('maqasif_def_msg_tpl', rsMsgTemplate_); } catch (e) {}
+    document.getElementById('rsTplText').value = rsCurrentTemplate_();
+    if (rsMsgCtx_) document.getElementById('rsMsgText').value = rsBuildMsg_(rsMsgCtx_.m, rsMsgCtx_.dir);
+    document.getElementById('rsTplStatus').textContent = okMsg;
+  }).catch(function () { setBtnBusy(btn, false); alert('تعذّر الاتصال بالخادم'); });
+}
+
+function saveRsTemplate(btn) {
+  const v = document.getElementById('rsTplText').value.trim();
+  if (!v) { alert('اكتبي النص أولاً'); return; }
+  if (v.indexOf('{النقص}') === -1 && !confirm('النص لا يحتوي على {النقص}، فلن تظهر تفاصيل النقص في الرسالة. هل تريدين الحفظ؟')) return;
+  rsSaveTemplate_(v === RS_MSG_DEFAULT_ ? '' : v, btn, '✔️ تم حفظ النص الثابت، وسيُستخدم في كل الرسائل.');
+}
+
+function resetRsTemplate(btn) {
+  if (!confirm('استعادة النص الافتراضي بدلاً من النص المحفوظ؟')) return;
+  rsSaveTemplate_('', btn, '✔️ تمت استعادة النص الافتراضي.');
+}
+
+function openRsMsg(i) {
+  const m = rsData_ && rsData_.centers[i];
+  if (!m) return;
+  let box = document.getElementById('rsMsgModal');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'rsMsgModal';
+    box.className = 'rs-modal hidden';
+    box.innerHTML =
+      '<div class="rs-modal-card">' +
+        '<h3 id="rsMsgTitle"></h3>' +
+        '<div id="rsMsgDirRow" class="hidden"><label>المديرة</label><select id="rsMsgDir" onchange="onRsMsgDir()"></select></div>' +
+        '<label>رقم جوال المديرة</label><input type="tel" id="rsMsgPhone" placeholder="05xxxxxxxx" dir="ltr">' +
+        '<div id="rsMsgNote" class="rs-modal-note"></div>' +
+        '<label>نص الرسالة (يمكنك تعديله لهذه الرسالة فقط)</label><textarea id="rsMsgText" rows="10"></textarea>' +
+        '<button type="button" class="rs-tpl-toggle" onclick="toggleRsTplEditor()">✏️ تعديل النص الثابت لكل الرسائل</button>' +
+        '<div id="rsTplEditor" class="rs-tpl-editor hidden">' +
+          '<div class="rs-modal-note" style="color:#6b5e57;">اكتبي النص الذي تريدينه أن يتكرر في كل الرسائل. اضغطي أي حقل لإدراجه، ويُستبدل تلقائياً لكل مركز:</div>' +
+          '<div class="rs-tpl-fields">' + ['{المديرة}', '{المركز}', '{الفترة}', '{النقص}'].map(function (f) {
+            return '<button type="button" onclick="rsInsertField(\'' + f + '\')">' + f + '</button>';
+          }).join('') + '</div>' +
+          '<textarea id="rsTplText" rows="9"></textarea>' +
+          '<div class="export-row" style="margin-top:8px;">' +
+            '<button type="button" class="btn" onclick="saveRsTemplate(this)">💾 حفظ كنص ثابت</button>' +
+            '<button type="button" class="btn outline" onclick="resetRsTemplate(this)">استعادة النص الافتراضي</button>' +
+          '</div>' +
+          '<div id="rsTplStatus" class="rs-modal-note" style="color:#1b7a3a;"></div>' +
+        '</div>' +
+        '<div class="export-row" style="margin-top:10px;">' +
+          '<button type="button" class="btn" onclick="sendRsMsg()">📲 إرسال عبر واتساب</button>' +
+          '<button type="button" class="btn outline" onclick="closeRsMsg()">إغلاق</button>' +
+        '</div>' +
+      '</div>';
+    box.addEventListener('click', function (e) { if (e.target === box) closeRsMsg(); });
+    document.body.appendChild(box);
+  }
+  rsMsgCtx_ = { m: m, dirs: [], dir: null };
+  document.getElementById('rsTplEditor').classList.add('hidden');
+  document.getElementById('rsTplStatus').textContent = '';
+  document.getElementById('rsMsgTitle').textContent = 'مراسلة مديرة ' + m.center;
+  document.getElementById('rsMsgDirRow').classList.add('hidden');
+  document.getElementById('rsMsgPhone').value = '';
+  document.getElementById('rsMsgNote').textContent = 'جارٍ البحث عن رقم المديرة...';
+  document.getElementById('rsMsgText').value = rsBuildMsg_(m, null);
+  box.classList.remove('hidden');
+
+  Promise.all([rsLoadDirectors_(), rsLoadTemplate_()]).then(function (res) {
+    const list = res[0];
+    if (!rsMsgCtx_ || rsMsgCtx_.m !== m) return;
+    document.getElementById('rsMsgText').value = rsBuildMsg_(m, null);
+    const dirs = rsMatchDirectors_(m.center, list || []);
+    rsMsgCtx_.dirs = dirs;
+    const note = document.getElementById('rsMsgNote');
+    if (!dirs.length) {
+      note.textContent = 'لم يُعثر على رقم لهذا المركز في ورقة «أرقام المديرات»، اكتبي الرقم يدوياً.';
+      return;
+    }
+    note.textContent = '';
+    if (dirs.length > 1) {
+      const sel = document.getElementById('rsMsgDir');
+      sel.innerHTML = dirs.map(function (d, k) {
+        return '<option value="' + k + '">' + rsEsc_(d.center + (d.period ? ' — ' + d.period : '') + (d.name ? ' — ' + d.name : '')) + '</option>';
+      }).join('');
+      document.getElementById('rsMsgDirRow').classList.remove('hidden');
+    }
+    rsApplyDir_(dirs[0]);
+  });
+}
+
+function rsApplyDir_(d) {
+  rsMsgCtx_.dir = d || null;
+  document.getElementById('rsMsgPhone').value = d && d.phone ? '0' + d.phone.slice(3) : '';
+  document.getElementById('rsMsgText').value = rsBuildMsg_(rsMsgCtx_.m, d);
+}
+
+function onRsMsgDir() {
+  if (!rsMsgCtx_) return;
+  rsApplyDir_(rsMsgCtx_.dirs[Number(document.getElementById('rsMsgDir').value) || 0]);
+}
+
+function sendRsMsg() {
+  const phone = vrWaPhone_(document.getElementById('rsMsgPhone').value);
+  if (!phone) { alert('اكتبي رقم جوال صحيحاً يبدأ بـ 05'); return; }
+  const text = document.getElementById('rsMsgText').value.trim();
+  if (!text) { alert('اكتبي نص الرسالة'); return; }
+  window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(text), '_blank');
+}
+
+function closeRsMsg() {
+  const box = document.getElementById('rsMsgModal');
+  if (box) box.classList.add('hidden');
+  rsMsgCtx_ = null;
 }
 
 function toggleRegVerified(i, box) {
