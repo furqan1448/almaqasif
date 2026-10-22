@@ -1315,148 +1315,175 @@ function handleRequest_(p) {
     const aliasMaps = centerAliasMaps_();
     DISPLAY_MAP_ = aliasMaps.any ? aliasMaps.toDisplay : null;
     if (aliasMaps.any) p = mapStringsDeep_(p, aliasMaps.toReal);   // الاسم المعروض -> الأصلي قبل المعالجة
-    const action = p.action;
-    switch (action) {
-      case 'createAdminNotice': return json_(createAdminNotice_(p));
-      case 'centerSignNotice': return json_(centerSignNotice_(p));
-      case 'getCenters': return json_(getCenters_());
-      case 'loginCenter': return json_(loginCenter_(p));
-      case 'loginMasoula': return json_(loginMasoula_(p));
-      case 'getMasoulat': return json_(getMasoulat_());
-      case 'getMasoulaGrades': return json_(getMasoulaGrades_(p));
-      case 'saveMasoulaGrades': return json_(saveMasoulaGrades_(p));
-
-      case 'recordSale': return json_(recordSale_(p));
-      case 'getSales': return json_(getSales_(p));
-      case 'updateSale': return json_(updateSale_(p));
-      case 'deleteSale': return json_(deleteSale_(p));
-
-      case 'recordReturn': return json_(recordReturn_(p));
-      case 'getReturns': return json_(getReturns_(p));
-      case 'updateReturn': return json_(updateReturn_(p));
-      case 'deleteReturn': return json_(deleteReturn_(p));
-
-      case 'recordInvoice': return json_(recordInvoice_(p));
-      case 'getInvoices': return json_(getInvoices_(p));
-      case 'updateInvoice': return json_(updateInvoice_(p));
-      case 'deleteInvoice': return json_(deleteInvoice_(p));
-
-      case 'getAttendance': return json_(getAttendance_(p));
-      case 'recordAttendance': return json_(recordAttendance_(p));
-      case 'recordAttendanceBulk': return json_(recordAttendanceBulk_(p));
-      case 'getAttendanceForDate': return json_(getAttendanceForDate_(p));
-
-      case 'getPledge': return json_(getPledge_(p));
-      case 'signPledge': return json_(signPledge_(p));
-      case 'getPledgeStatusAll': return json_(getPledgeStatusAll_());
-
-      case 'getTasksAck': return json_(getTasksAck_(p));
-      case 'acknowledgeTasks': return json_(acknowledgeTasks_(p));
-      case 'getTasksStatusAll': return json_(getTasksStatusAll_());
-
-      case 'getMasoulaDashboard': return json_(getMasoulaDashboard_(p));
-
-      case 'submitNotice': return json_(submitNotice_(p));
-      case 'getCenterNotices': return json_(getCenterNotices_(p));
-      case 'getCenterPendingCount': return json_(getCenterPendingCount_(p));
-      case 'getPendingNotices': return json_(getPendingNotices_());
-      case 'getPendingNoticesCount': return json_(getPendingNoticesCount_());
-      case 'getAllNotices': return json_(getAllNotices_(p));
-      case 'adminSignNotice': return json_(adminSignNotice_(p));
-      case 'updateSignedNotice': return json_(updateSignedNotice_(p));
-      case 'getNoticeAdminSignature': return json_(getNoticeAdminSignature_(p));
-      case 'getNoticeCenterSignature': return json_(getNoticeCenterSignature_(p));
-      case 'submitCanteenOrder': return json_(submitCanteenOrder_(p));
-      case 'getCanteenOrders': return json_(getCanteenOrders_(p));
-      case 'setCanteenOrderStatus': return json_(setCanteenOrderStatus_(p));
-      case 'updateNotice': return json_(updateNotice_(p));
-      case 'deleteNotice': return json_(deleteNotice_(p));
-      case 'exportNoticesToSheet': return json_(exportNoticesToSheet_(p));
-
-      case 'getStats': return json_(getStats_());
-      case 'getRegistrationStats': return json_(getRegistrationStats_(p));
-      case 'setRegistrationVerified': return json_(setRegistrationVerified_(p));
-
-      case 'archiveCurrentTerm': return json_(archiveCurrentTerm_(p));
-      case 'getTermsList': return json_(getTermsList_());
-
-      case 'saveVisitReport': return json_(saveVisitReport_(p));
-      case 'getVisitReportsAdmin': return json_(getVisitReportsAdmin_(p));
-      case 'getVisitReportsForCenter': return json_(getVisitReportsForCenter_(p));
-      case 'getVisitReportPendingCount': return json_(getVisitReportPendingCount_(p));
-      case 'signVisitReport': return json_(signVisitReport_(p));
-      case 'deleteVisitReport': return json_(deleteVisitReport_(p));
-
-      case 'getMasoulaEvalCtx': return json_(getMasoulaEvalCtx_(p));
-      case 'getMasoulaEvalsForCenter': return json_(getMasoulaEvalsForCenter_(p));
-      case 'submitMasoulaEval': return json_(submitMasoulaEval_(p));
-      case 'getMasoulaEvalSigs': return json_(getMasoulaEvalSigs_(p));
-      case 'deleteMasoulaEval': return json_(deleteMasoulaEval_(p));
-      case 'getMasoulaEvalsAdmin': return json_(getMasoulaEvalsAdmin_(p));
-      case 'getMasoulaEvalPendingCount': return json_(getMasoulaEvalPendingCount_(p));
-      case 'adminSignMasoulaEval': return json_(adminSignMasoulaEval_(p));
-
-      case 'recordIncomeItem': return json_(recordIncomeItem_(p));
-      case 'getIncomeItems': return json_(getIncomeItems_(p));
-      case 'updateIncomeItem': return json_(updateIncomeItem_(p));
-      case 'deleteIncomeItem': return json_(deleteIncomeItem_(p));
-
-      case 'recordAttachment': return json_(recordAttachment_(p));
-      case 'getAttachments': return json_(getAttachments_(p));
-      case 'deleteAttachment': return json_(deleteAttachment_(p));
-
-      case 'recordAnnouncement': return json_(recordAnnouncement_(p));
-      case 'getAllAnnouncements': return json_(getAllAnnouncements_());
-      case 'getAnnouncementsFor': return json_(getAnnouncementsFor_(p));
-      case 'deleteAnnouncement': return json_(deleteAnnouncement_(p));
-      case 'recordMeetingMinutes': return json_(recordMeetingMinutes_(p));
-      case 'getAllMeetingMinutes': return json_(getAllMeetingMinutes_());
-      case 'getMeetingMinutesFor': return json_(getMeetingMinutesFor_(p));
-      case 'deleteMeetingMinutes': return json_(deleteMeetingMinutes_(p));
-
-      case 'getPriceItems': return json_(getPriceItems_());
-      case 'addPriceItem': return json_(addPriceItem_(p));
-      case 'updatePriceItem': return json_(updatePriceItem_(p));
-      case 'deletePriceItem': return json_(deletePriceItem_(p));
-      case 'getPriceListManager': return json_(getPriceListManager_());
-      case 'setPriceListManager': return json_(setPriceListManager_(p));
-
-      case 'ping': return json_({ ok: true, serverMs: Date.now() - T0_, version: '2026-10-14-orders-pdf', invoiceReturns: typeof cleanInvoiceReturn_ === 'function', canteenOrders: typeof submitCanteenOrder_ === 'function', lightNotices: typeof getNoticeCenterSignature_ === 'function' });
-      case 'getPurchaseCenters': return json_(getPurchaseCenters_());
-      case 'setPurchaseCenters': return json_(setPurchaseCenters_(p));
-      case 'getExpenseCenters': return json_(getExpenseCenters_());
-      case 'setExpenseCenters': return json_(setExpenseCenters_(p));
-      case 'getPriceListFile': return json_(getPriceListFile_());
-      case 'getContacts': return json_(getContacts_());
-      case 'recordVisitStat': return json_(recordVisitStat_(p));
-      case 'getVisitStats': return json_(getVisitStats_());
-      case 'deleteVisitStat': return json_(deleteVisitStat_(p));
-      case 'updateVisitStat': return json_(updateVisitStat_(p));
-      case 'getCanteenSurvey': return json_(getCanteenSurvey_());
-      case 'saveCanteenSurvey': return json_(saveCanteenSurvey_(p));
-      case 'setPriceListFile': return json_(setPriceListFile_(p));
-
-      case 'loginSupervision': return json_(loginSupervision_(p));
-      case 'loginAdmin': return json_(loginAdmin_(p));
-      case 'getDirectors': return json_(getDirectors_(p));
-
-      case 'recordDifficulty': return json_(recordDifficulty_(p));
-      case 'getDifficulties': return json_(getDifficulties_(p));
-      case 'deleteDifficulty': return json_(deleteDifficulty_(p));
-
-      case 'recordIncentiveEntry': return json_(recordIncentiveEntry_(p));
-      case 'getIncentiveEntries': return json_(getIncentiveEntries_(p));
-      case 'addIncentiveFollowupSplit': return json_(addIncentiveFollowupSplit_(p));
-      case 'getIncentiveFollowupSplits': return json_(getIncentiveFollowupSplits_(p));
-      case 'deleteIncentiveFollowupSplit': return json_(deleteIncentiveFollowupSplit_(p));
-      case 'acknowledgeIncentiveEntries': return json_(acknowledgeIncentiveEntries_(p));
-
-      case 'debugInfo': return json_(debugInfo_());
-
-      default: return json_({ ok: false, error: 'إجراء غير معروف' });
-    }
+    if (p && p.action === 'batch') return json_(runBatch_(p, T0_));
+    return json_(dispatch_(p, T0_));
   } catch (err) {
     return json_({ ok: false, error: err.message });
+  }
+}
+
+/* ------------------- تجميع طلبات القراءة في طلب واحد -------------------
+   كل طلب منفصل يشغّل تنفيذاً جديداً للسكربت كاملاً على خوادم قوقل (وهذا يأخذ معظم الوقت)،
+   وكانت الصفحة بعد الدخول ترسل نحو 10 طلبات قراءة معاً، فيتزاحم التنفيذ خصوصاً عند دخول
+   أكثر من مستخدمة. الآن يجمع المتصفح طلبات القراءة المتزامنة ويرسلها هنا دفعة واحدة،
+   فتُنفَّذ كلها داخل تنفيذ واحد وتشترك في القراءات المخزّنة. يُقبل هنا طلبات القراءة فقط. */
+const BATCH_MAX_ = 25;
+
+function runBatch_(p, T0_) {
+  const calls = Array.isArray(p.calls) ? p.calls.slice(0, BATCH_MAX_) : [];
+  const results = calls.map(function (c) {
+    const sub = (c && typeof c === 'object') ? c : {};
+    const a = String(sub.action || '');
+    if (a.indexOf('get') !== 0 && a !== 'ping') return { ok: false, error: 'غير مسموح ضمن الدفعة' };
+    try {
+      return dispatch_(sub, T0_);
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+  return { ok: true, batch: true, results: results, serverMs: Date.now() - T0_ };
+}
+
+function dispatch_(p, T0_) {
+  const action = p.action;
+  switch (action) {
+    case 'createAdminNotice': return (createAdminNotice_(p));
+    case 'centerSignNotice': return (centerSignNotice_(p));
+    case 'getCenters': return (getCenters_());
+    case 'loginCenter': return (loginCenter_(p));
+    case 'loginMasoula': return (loginMasoula_(p));
+    case 'getMasoulat': return (getMasoulat_());
+    case 'getMasoulaGrades': return (getMasoulaGrades_(p));
+    case 'saveMasoulaGrades': return (saveMasoulaGrades_(p));
+
+    case 'recordSale': return (recordSale_(p));
+    case 'getSales': return (getSales_(p));
+    case 'updateSale': return (updateSale_(p));
+    case 'deleteSale': return (deleteSale_(p));
+
+    case 'recordReturn': return (recordReturn_(p));
+    case 'getReturns': return (getReturns_(p));
+    case 'updateReturn': return (updateReturn_(p));
+    case 'deleteReturn': return (deleteReturn_(p));
+
+    case 'recordInvoice': return (recordInvoice_(p));
+    case 'getInvoices': return (getInvoices_(p));
+    case 'updateInvoice': return (updateInvoice_(p));
+    case 'deleteInvoice': return (deleteInvoice_(p));
+
+    case 'getAttendance': return (getAttendance_(p));
+    case 'recordAttendance': return (recordAttendance_(p));
+    case 'recordAttendanceBulk': return (recordAttendanceBulk_(p));
+    case 'getAttendanceForDate': return (getAttendanceForDate_(p));
+
+    case 'getPledge': return (getPledge_(p));
+    case 'signPledge': return (signPledge_(p));
+    case 'getPledgeStatusAll': return (getPledgeStatusAll_());
+
+    case 'getTasksAck': return (getTasksAck_(p));
+    case 'acknowledgeTasks': return (acknowledgeTasks_(p));
+    case 'getTasksStatusAll': return (getTasksStatusAll_());
+
+    case 'getMasoulaDashboard': return (getMasoulaDashboard_(p));
+
+    case 'submitNotice': return (submitNotice_(p));
+    case 'getCenterNotices': return (getCenterNotices_(p));
+    case 'getCenterPendingCount': return (getCenterPendingCount_(p));
+    case 'getPendingNotices': return (getPendingNotices_());
+    case 'getPendingNoticesCount': return (getPendingNoticesCount_());
+    case 'getAllNotices': return (getAllNotices_(p));
+    case 'adminSignNotice': return (adminSignNotice_(p));
+    case 'updateSignedNotice': return (updateSignedNotice_(p));
+    case 'getNoticeAdminSignature': return (getNoticeAdminSignature_(p));
+    case 'getNoticeCenterSignature': return (getNoticeCenterSignature_(p));
+    case 'submitCanteenOrder': return (submitCanteenOrder_(p));
+    case 'getCanteenOrders': return (getCanteenOrders_(p));
+    case 'setCanteenOrderStatus': return (setCanteenOrderStatus_(p));
+    case 'updateNotice': return (updateNotice_(p));
+    case 'deleteNotice': return (deleteNotice_(p));
+    case 'exportNoticesToSheet': return (exportNoticesToSheet_(p));
+
+    case 'getStats': return (getStats_());
+    case 'getRegistrationStats': return (getRegistrationStats_(p));
+    case 'setRegistrationVerified': return (setRegistrationVerified_(p));
+
+    case 'archiveCurrentTerm': return (archiveCurrentTerm_(p));
+    case 'getTermsList': return (getTermsList_());
+
+    case 'saveVisitReport': return (saveVisitReport_(p));
+    case 'getVisitReportsAdmin': return (getVisitReportsAdmin_(p));
+    case 'getVisitReportsForCenter': return (getVisitReportsForCenter_(p));
+    case 'getVisitReportPendingCount': return (getVisitReportPendingCount_(p));
+    case 'signVisitReport': return (signVisitReport_(p));
+    case 'deleteVisitReport': return (deleteVisitReport_(p));
+
+    case 'getMasoulaEvalCtx': return (getMasoulaEvalCtx_(p));
+    case 'getMasoulaEvalsForCenter': return (getMasoulaEvalsForCenter_(p));
+    case 'submitMasoulaEval': return (submitMasoulaEval_(p));
+    case 'getMasoulaEvalSigs': return (getMasoulaEvalSigs_(p));
+    case 'deleteMasoulaEval': return (deleteMasoulaEval_(p));
+    case 'getMasoulaEvalsAdmin': return (getMasoulaEvalsAdmin_(p));
+    case 'getMasoulaEvalPendingCount': return (getMasoulaEvalPendingCount_(p));
+    case 'adminSignMasoulaEval': return (adminSignMasoulaEval_(p));
+
+    case 'recordIncomeItem': return (recordIncomeItem_(p));
+    case 'getIncomeItems': return (getIncomeItems_(p));
+    case 'updateIncomeItem': return (updateIncomeItem_(p));
+    case 'deleteIncomeItem': return (deleteIncomeItem_(p));
+
+    case 'recordAttachment': return (recordAttachment_(p));
+    case 'getAttachments': return (getAttachments_(p));
+    case 'deleteAttachment': return (deleteAttachment_(p));
+
+    case 'recordAnnouncement': return (recordAnnouncement_(p));
+    case 'getAllAnnouncements': return (getAllAnnouncements_());
+    case 'getAnnouncementsFor': return (getAnnouncementsFor_(p));
+    case 'deleteAnnouncement': return (deleteAnnouncement_(p));
+    case 'recordMeetingMinutes': return (recordMeetingMinutes_(p));
+    case 'getAllMeetingMinutes': return (getAllMeetingMinutes_());
+    case 'getMeetingMinutesFor': return (getMeetingMinutesFor_(p));
+    case 'deleteMeetingMinutes': return (deleteMeetingMinutes_(p));
+
+    case 'getPriceItems': return (getPriceItems_());
+    case 'addPriceItem': return (addPriceItem_(p));
+    case 'updatePriceItem': return (updatePriceItem_(p));
+    case 'deletePriceItem': return (deletePriceItem_(p));
+    case 'getPriceListManager': return (getPriceListManager_());
+    case 'setPriceListManager': return (setPriceListManager_(p));
+
+    case 'ping': return ({ ok: true, serverMs: Date.now() - T0_, version: '2026-10-22-batch', batch: true, invoiceReturns: typeof cleanInvoiceReturn_ === 'function', canteenOrders: typeof submitCanteenOrder_ === 'function', lightNotices: typeof getNoticeCenterSignature_ === 'function' });
+    case 'getPurchaseCenters': return (getPurchaseCenters_());
+    case 'setPurchaseCenters': return (setPurchaseCenters_(p));
+    case 'getExpenseCenters': return (getExpenseCenters_());
+    case 'setExpenseCenters': return (setExpenseCenters_(p));
+    case 'getPriceListFile': return (getPriceListFile_());
+    case 'getContacts': return (getContacts_());
+    case 'recordVisitStat': return (recordVisitStat_(p));
+    case 'getVisitStats': return (getVisitStats_());
+    case 'deleteVisitStat': return (deleteVisitStat_(p));
+    case 'updateVisitStat': return (updateVisitStat_(p));
+    case 'getCanteenSurvey': return (getCanteenSurvey_());
+    case 'saveCanteenSurvey': return (saveCanteenSurvey_(p));
+    case 'setPriceListFile': return (setPriceListFile_(p));
+
+    case 'loginSupervision': return (loginSupervision_(p));
+    case 'loginAdmin': return (loginAdmin_(p));
+    case 'getDirectors': return (getDirectors_(p));
+
+    case 'recordDifficulty': return (recordDifficulty_(p));
+    case 'getDifficulties': return (getDifficulties_(p));
+    case 'deleteDifficulty': return (deleteDifficulty_(p));
+
+    case 'recordIncentiveEntry': return (recordIncentiveEntry_(p));
+    case 'getIncentiveEntries': return (getIncentiveEntries_(p));
+    case 'addIncentiveFollowupSplit': return (addIncentiveFollowupSplit_(p));
+    case 'getIncentiveFollowupSplits': return (getIncentiveFollowupSplits_(p));
+    case 'deleteIncentiveFollowupSplit': return (deleteIncentiveFollowupSplit_(p));
+    case 'acknowledgeIncentiveEntries': return (acknowledgeIncentiveEntries_(p));
+
+    case 'debugInfo': return (debugInfo_());
+
+    default: return { ok: false, error: 'إجراء غير معروف' };
   }
 }
 
