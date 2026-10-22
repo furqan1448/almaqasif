@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbxRfS43OwcQVJz2PIoR9iLj1gQTBPQ91HFWso1JAqq6X_odJF3pOcYhd_Ac_zkcK_pW/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzn8kem41VnsfV4rIa_vT4C277vOAZCr7BXn-kKnnr9SkHimurO5s3TluhgLzMcxG36/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -72,10 +72,10 @@ async function callApi(action, data) {
   }
 
   const payload = Object.assign({ action: action }, data || {});
-  const requestPromise = _fetchWithRetry_(API_URL, {
+  const requestPromise = isRead ? _queueRead_(payload) : _fetchWithRetry_(API_URL, {
     method: "POST",
     body: JSON.stringify(payload)
-  }, isRead ? 3 : 2, isRead).then(function (res) { return res.json(); });
+  }, 2, false).then(function (res) { return res.json(); });
 
   if (!isRead) {
     // أي طلب حفظ/تعديل/حذف: نفرّغ كل الكاش فور نجاحه عشان الشاشات التالية تجيب بيانات محدّثة
@@ -93,6 +93,59 @@ async function callApi(action, data) {
   } finally {
     _apiInFlight_.delete(key);
   }
+}
+
+/* ------------------- تجميع طلبات القراءة المتزامنة في طلب واحد -------------------
+   كل طلب منفصل إلى Apps Script يشغّل تنفيذاً كاملاً جديداً على خوادم قوقل، وهو أكثر ما يستهلك
+   الوقت. طلبات القراءة التي تصدر في اللحظة نفسها (مثل عدّادات الصفحة الرئيسية بعد الدخول)
+   تُجمع هنا وتُرسل دفعة واحدة، ثم يُوزَّع الرد على أصحابه. الطلب المنفرد يُرسل كما هو.
+   لو كان الخادم نسخة قديمة لا تعرف الدفعات، نعود تلقائياً للطلبات المنفصلة. */
+const _BATCH_WAIT_MS_ = 30;
+const _BATCH_MAX_ = 25;
+let _batchQueue_ = [];
+let _batchTimer_ = null;
+let _batchUnsupported_ = false;
+
+function _sendSingleRead_(payload) {
+  return _fetchWithRetry_(API_URL, { method: "POST", body: JSON.stringify(payload) }, 3, true)
+    .then(function (res) { return res.json(); });
+}
+
+function _queueRead_(payload) {
+  if (_batchUnsupported_) return _sendSingleRead_(payload);
+  return new Promise(function (resolve, reject) {
+    _batchQueue_.push({ payload: payload, resolve: resolve, reject: reject });
+    if (_batchQueue_.length >= _BATCH_MAX_) { _flushBatch_(); return; }
+    if (!_batchTimer_) _batchTimer_ = setTimeout(_flushBatch_, _BATCH_WAIT_MS_);
+  });
+}
+
+function _flushBatch_() {
+  if (_batchTimer_) { clearTimeout(_batchTimer_); _batchTimer_ = null; }
+  const items = _batchQueue_;
+  _batchQueue_ = [];
+  if (!items.length) return;
+
+  const sendEach = function () {
+    items.forEach(function (it) { _sendSingleRead_(it.payload).then(it.resolve, it.reject); });
+  };
+  if (items.length === 1 || _batchUnsupported_) { sendEach(); return; }
+
+  _fetchWithTimeout_(API_URL, {
+    method: "POST",
+    body: JSON.stringify({ action: 'batch', calls: items.map(function (it) { return it.payload; }) })
+  }, 40000).then(function (res) { return res.json(); }).then(function (r) {
+    if (r && r.batch && Array.isArray(r.results) && r.results.length === items.length) {
+      items.forEach(function (it, i) { it.resolve(r.results[i]); });
+    } else {
+      // الخادم لم يُحدَّث بعد: نرجع للطريقة القديمة لهذه الجلسة كلها
+      _batchUnsupported_ = true;
+      sendEach();
+    }
+  }).catch(function () {
+    // تعذّرت الدفعة (انقطاع أو تأخر): كل طلب يُعاد منفرداً بمحاولاته المعتادة
+    sendEach();
+  });
 }
 
 /* تخلي أي زر حفظ/إرسال يبيّن إنه انضغط فوراً (يتعطّل + تظهر دوّارة تحميل)
