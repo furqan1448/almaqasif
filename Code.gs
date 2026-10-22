@@ -741,6 +741,23 @@ function getContacts_() {
   };
 }
 
+/* ---- نص رسالة النقص الثابت (إحصائيات التسجيل ← مراسلة المديرة) ----
+   يُحفظ في شيت «الإعدادات» حتى يبقى نفسه على كل الأجهزة. فارغ = يُستخدم النص الافتراضي بالموقع. */
+const DEFICIENCY_MSG_KEY_ = 'نص رسالة النقص';
+
+function getDeficiencyMsgTemplate_() {
+  return { ok: true, template: getSettingValue_(DEFICIENCY_MSG_KEY_) };
+}
+
+function setDeficiencyMsgTemplate_(p) {
+  const auth = loginAdmin_(p);
+  if (!auth.ok) return { ok: false, auth: true, error: auth.error };
+  const t = String(p.template || '').trim();
+  if (t.length > 4000) return { ok: false, error: 'النص طويل جداً' };
+  setSettingValue_(DEFICIENCY_MSG_KEY_, t);
+  return { ok: true, template: t };
+}
+
 function getPriceListFile_() {
   return {
     ok: true,
@@ -1457,6 +1474,8 @@ function dispatch_(p, T0_) {
     case 'getExpenseCenters': return (getExpenseCenters_());
     case 'setExpenseCenters': return (setExpenseCenters_(p));
     case 'getPriceListFile': return (getPriceListFile_());
+    case 'getDeficiencyMsgTemplate': return (getDeficiencyMsgTemplate_());
+    case 'setDeficiencyMsgTemplate': return (setDeficiencyMsgTemplate_(p));
     case 'getContacts': return (getContacts_());
     case 'recordVisitStat': return (recordVisitStat_(p));
     case 'getVisitStats': return (getVisitStats_());
