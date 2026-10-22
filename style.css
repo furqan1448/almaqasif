@@ -784,3 +784,18 @@ input.as-select::placeholder { color: var(--ink); opacity: 1; }
 .rs-subfilters { align-items: center; background: #fbf6ee; border: 1px dashed var(--gold-light); border-radius: 12px; padding: 8px 10px; }
 .rs-subfilters.hidden { display: none; }
 .rs-sublabel { color: var(--maroon); font-size: 0.8rem; font-weight: 700; margin-left: 4px; }
+
+/* زر ونافذة مراسلة المديرة بالنقص */
+.rs-msg-btn { background: #e7f6ec; color: #1b7a3a; border: 1px solid #bfe3cb; border-radius: 999px; padding: 4px 10px; font-family: inherit; font-size: 0.76rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.rs-msg-btn:hover { background: #d4efdd; }
+.rs-modal { position: fixed; inset: 0; background: rgba(40, 20, 20, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 1000; }
+.rs-modal-card { background: #fff; border-radius: 16px; padding: 18px; width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.2); }
+.rs-modal-card h3 { margin: 0 0 12px; color: var(--maroon); font-size: 1rem; }
+.rs-modal-card label { display: block; font-size: 0.85rem; font-weight: 700; margin: 10px 0 4px; }
+.rs-modal-card input, .rs-modal-card select, .rs-modal-card textarea { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 0.95rem; line-height: 1.8; }
+.rs-modal-note { color: #8a6d1a; font-size: 0.8rem; margin-top: 6px; }
+
+.rs-tpl-toggle { background: none; border: 0; color: var(--maroon); font-family: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; padding: 8px 0 0; text-decoration: underline; }
+.rs-tpl-editor { background: #fbf6ee; border: 1px dashed var(--gold-light); border-radius: 12px; padding: 10px; margin-top: 8px; }
+.rs-tpl-fields { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.rs-tpl-fields button { background: #fff; border: 1px solid var(--gold-light); color: var(--maroon); border-radius: 999px; padding: 4px 10px; font-family: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
