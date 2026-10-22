@@ -5724,6 +5724,11 @@ function renderRegStats_(r) {
       return '<button type="button" class="rs-filter' + (rsFilter_.f === f.key ? ' active' : '') + '" data-f="' + f.key + '" onclick="setRsFilter(\'' + f.key + '\')">' +
         f.label + ' <span class="rs-fcount" id="rsFc_' + f.key + '">0</span></button>';
     }).join('') + '</div>' +
+    '<div class="rs-filters rs-subfilters' + (rsFilter_.f === 'missing' ? '' : ' hidden') + '" id="rsSubFilters">' +
+      '<span class="rs-sublabel">نوع النقص:</span>' + RS_SUBFILTERS_.map(function (f) {
+      return '<button type="button" class="rs-filter rs-subfilter' + (rsFilter_.sub === f.key ? ' active' : '') + '" data-s="' + f.key + '" onclick="setRsSubFilter(\'' + f.key + '\')">' +
+        f.label + ' <span class="rs-fcount" id="rsSc_' + f.key + '">0</span></button>';
+    }).join('') + '</div>' +
     '<div class="rs-shown" id="rsShown"></div>' +
     '<div class="rs-scroll"><table class="log-table rs-table"><thead><tr>' +
       '<th>المركز</th><th>استلام</th><th>تسليم المكافأة</th><th>رسوم الحفل</th><th>الفواتير</th><th>أيام المبيعات</th><th>الحالة</th><th>اعتماد</th>' +
@@ -5738,13 +5743,31 @@ function renderRegStats_(r) {
 }
 
 /* ---- البحث والتصفية في جدول المراكز ---- */
-let rsFilter_ = { q: '', f: 'all' };
+let rsFilter_ = { q: '', f: 'all', sub: 'any' };
+
+/* فرز فرعي يظهر فقط عند اختيار «فيه نقص»: نوع النقص */
+const RS_SUBFILTERS_ = [
+  { key: 'any',             label: 'كل حالات النقص' },
+  { key: 'salesNoInvoices', label: 'مبالغ بدون فواتير' },
+  { key: 'invoicesNoSales', label: 'فواتير بدون مبالغ' }
+];
+
+function rsSubOk_(m) {
+  if (rsFilter_.f !== 'missing' || rsFilter_.sub === 'any') return true;
+  return m.issues.indexOf(rsFilter_.sub) !== -1;
+}
+
+function setRsSubFilter(key) {
+  rsFilter_.sub = key;
+  document.querySelectorAll('#rsResult .rs-subfilter').forEach(function (b) {
+    b.classList.toggle('active', b.getAttribute('data-s') === key);
+  });
+  applyRsFilter_();
+}
 
 const RS_FILTERS_ = [
   { key: 'all',        label: 'الكل',           test: function (m) { return true; } },
   { key: 'missing',    label: 'فيه نقص',        test: function (m) { return !m.verified && m.issues.length > 0 && m.issues.indexOf('nothing') === -1; } },
-  { key: 'salesNoInv', label: 'مبالغ بدون فواتير', test: function (m) { return !m.verified && m.issues.indexOf('salesNoInvoices') !== -1; } },
-  { key: 'invNoSales', label: 'فواتير بدون مبالغ', test: function (m) { return !m.verified && m.issues.indexOf('invoicesNoSales') !== -1; } },
   { key: 'nothing',    label: 'لم يسجّل شيئاً',  test: function (m) { return !m.verified && m.issues.indexOf('nothing') !== -1; } },
   { key: 'partial',    label: 'مكتمل جزئي',     test: function (m) { return !m.verified && !m.issues.length; } },
   { key: 'done',       label: 'مكتمل',          test: function (m) { return !!m.verified; } },
@@ -5765,6 +5788,12 @@ function onRsSearch(v) {
 
 function setRsFilter(key) {
   rsFilter_.f = key;
+  if (key !== 'missing') rsFilter_.sub = 'any';
+  const subBox = document.getElementById('rsSubFilters');
+  if (subBox) subBox.classList.toggle('hidden', key !== 'missing');
+  document.querySelectorAll('#rsResult .rs-subfilter').forEach(function (b) {
+    b.classList.toggle('active', b.getAttribute('data-s') === rsFilter_.sub);
+  });
   document.querySelectorAll('#rsResult .rs-filter').forEach(function (b) {
     b.classList.toggle('active', b.getAttribute('data-f') === key);
   });
@@ -5777,12 +5806,18 @@ function applyRsFilter_() {
   const active = RS_FILTERS_.filter(function (f) { return f.key === rsFilter_.f; })[0] || RS_FILTERS_[0];
   const counts = {};
   RS_FILTERS_.forEach(function (f) { counts[f.key] = 0; });
+  const subCounts = {};
+  RS_SUBFILTERS_.forEach(function (f) { subCounts[f.key] = 0; });
+  const missingF = RS_FILTERS_.filter(function (f) { return f.key === 'missing'; })[0];
   let shown = 0;
   rsData_.centers.forEach(function (m, i) {
     const hay = rsNorm_(m.center + ' ' + rsStatusText_(m) + (m.verified ? ' معتمد' : ' غير معتمد'));
     const textOk = words.every(function (w) { return hay.indexOf(w) !== -1; });
     if (textOk) RS_FILTERS_.forEach(function (f) { if (f.test(m)) counts[f.key]++; });
-    const show = textOk && active.test(m);
+    if (textOk && missingF && missingF.test(m)) RS_SUBFILTERS_.forEach(function (f) {
+      if (f.key === 'any' || m.issues.indexOf(f.key) !== -1) subCounts[f.key]++;
+    });
+    const show = textOk && active.test(m) && rsSubOk_(m);
     const tr = document.getElementById('rsRow_' + i);
     if (tr) tr.style.display = show ? '' : 'none';
     if (show) shown++;
@@ -5790,6 +5825,10 @@ function applyRsFilter_() {
   RS_FILTERS_.forEach(function (f) {
     const el = document.getElementById('rsFc_' + f.key);
     if (el) el.textContent = counts[f.key];
+  });
+  RS_SUBFILTERS_.forEach(function (f) {
+    const el = document.getElementById('rsSc_' + f.key);
+    if (el) el.textContent = subCounts[f.key];
   });
   const nm = document.getElementById('rsNoMatch');
   if (nm) nm.classList.toggle('hidden', shown > 0);
