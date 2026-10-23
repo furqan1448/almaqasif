@@ -464,6 +464,16 @@ function backToList() {
 }
 
 /* -------- المبيعات لكل مركز -------- */
+/* ترتيب سجل البيع للعرض: الأحدث أولاً (حسب التاريخ ثم ترتيب الإدخال) */
+function sortSalesNewestFirst_(list) {
+  return list.map(function (s, i) { return { s: s, i: i }; }).sort(function (a, b) {
+    const da = new Date(a.s['التاريخ']).getTime() || 0, db = new Date(b.s['التاريخ']).getTime() || 0;
+    if (db !== da) return db - da;
+    const ra = Number(a.s._row) || a.i, rb = Number(b.s._row) || b.i;
+    return rb - ra;
+  }).map(function (x) { return x.s; });
+}
+
 function loadCenterSales() {
   const center = document.getElementById('salesCenterSelect').value;
   const tbody = document.getElementById('salesTbody');
@@ -476,7 +486,7 @@ function loadCenterSales() {
       return;
     }
     tbody.innerHTML = '';
-    currentSales.forEach(function (s) {
+    sortSalesNewestFirst_(currentSales).forEach(function (s) {
       const tr = document.createElement('tr');
       tr.innerHTML = '<td>' + (s['اسم المركز'] || '') + '</td><td>' + (s['اليوم'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td><td>' + (s['ملاحظات'] || '') + '</td>';
       tbody.appendChild(tr);

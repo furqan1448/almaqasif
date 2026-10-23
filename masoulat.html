@@ -959,6 +959,16 @@ function submitSale() {
   }).catch(function () { setBtnBusy(btn, false); });
 }
 
+/* ترتيب سجل البيع للعرض: الأحدث أولاً (حسب التاريخ ثم ترتيب الإدخال) */
+function sortSalesNewestFirst_(list) {
+  return list.map(function (s, i) { return { s: s, i: i }; }).sort(function (a, b) {
+    const da = new Date(a.s['التاريخ']).getTime() || 0, db = new Date(b.s['التاريخ']).getTime() || 0;
+    if (db !== da) return db - da;
+    const ra = Number(a.s._row) || a.i, rb = Number(b.s._row) || b.i;
+    return rb - ra;
+  }).map(function (x) { return x.s; });
+}
+
 function loadSales() {
   const tbody = document.getElementById('salesTbody');
   tbody.innerHTML = '<tr><td colspan="6">جاري التحميل...</td></tr>';
@@ -972,7 +982,7 @@ function loadSales() {
       return;
     }
     tbody.innerHTML = '';
-    currentSalesData.forEach(function (s) {
+    sortSalesNewestFirst_(currentSalesData).forEach(function (s) {
       const tr = document.createElement('tr');
       tr.innerHTML = '<td>' + (s['اليوم'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td><td>' + (s['ملاحظات'] || '') + '</td>' +
         '<td><div class="row-actions"><a href="#" onclick="editSale(' + s._row + ', ' + Number(s['المبلغ']) + ', \'' + String(s['ملاحظات'] || '').replace(/'/g, "\\'") + '\'); return false;">تعديل</a><a href="#" onclick="deleteSaleRow(' + s._row + '); return false;">حذف</a></div></td>';
