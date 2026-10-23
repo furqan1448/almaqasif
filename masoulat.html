@@ -23,9 +23,13 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
     <h1>دخول مسؤولات المقاصف</h1>
     <p class="sub">وحدة المقاصف - جمعية فرقان</p>
 
-    <label>الاسم أو البريد الإلكتروني</label>
-    <input type="text" id="username" list="usernameOptions" placeholder="اسم المستخدم" autocomplete="off">
-    <datalist id="usernameOptions"></datalist>
+    <label for="username">الاسم أو البريد الإلكتروني</label>
+    <!-- خانة بنفس شكل القائمة المنسدلة في دخول المراكز، ويمكن الكتابة فيها: عند الضغط تظهر الأسماء كلها،
+         وعند كتابة حرف أو أكثر تختصر القائمة. ويمكن كتابة البريد الإلكتروني مباشرة. -->
+    <div class="as-wrap">
+      <input type="text" id="username" class="as-select" placeholder="اختاري الاسم" autocomplete="off">
+      <div id="usernameSuggest" class="as-list hidden" role="listbox"></div>
+    </div>
 
     <label>كلمة المرور</label>
     <div class="pw-wrap">
@@ -681,29 +685,87 @@ if (currentName) showDashboard();
 /* -------- تحميل قائمة أسماء المسؤولات -------- */
 let masoulatListCache_ = [];
 (function () {
-  const list = document.getElementById('usernameOptions');
-
-  function fillOptions(names) {
-    list.innerHTML = '';
-    names.forEach(function (name) {
-      const opt = document.createElement('option');
-      opt.value = name;
-      list.appendChild(opt);
-    });
-  }
-
   try {
     const cached = JSON.parse(localStorage.getItem('maqasif_masoulat_cache') || '[]');
-    if (cached.length) { masoulatListCache_ = cached; fillOptions(cached); }
+    if (cached.length) masoulatListCache_ = cached;
   } catch (e) {}
 
   callApi('getMasoulat').then(function (r) {
-    masoulatListCache_ = r.masoulat || [];
-    if (masoulatListCache_.length) {
-      fillOptions(masoulatListCache_);
-      try { localStorage.setItem('maqasif_masoulat_cache', JSON.stringify(masoulatListCache_)); } catch (e) {}
+    const names = r.masoulat || [];
+    if (names.length) {
+      masoulatListCache_ = names;
+      try { localStorage.setItem('maqasif_masoulat_cache', JSON.stringify(names)); } catch (e) {}
     }
   }).catch(function () {});
+})();
+
+/* -------- اختيار الاسم بالكتابة أو من القائمة (بنفس طريقة دخول المراكز) -------- */
+(function () {
+  const inp = document.getElementById('username');
+  const list = document.getElementById('usernameSuggest');
+  const PH = 'اختاري الاسم';
+  const norm = function (t) {
+    return String(t || '').replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي')
+      .replace(/ة/g, 'ه').replace(/\s+/g, ' ').trim();
+  };
+  const names = function () { return masoulatListCache_.slice(); };
+  let shown = [], hi = -1, typing = false;
+  // عند الكتابة: الأسماء التي تبدأ بما كُتب، ثم التي تبدأ إحدى كلماتها به، وإلا التي تحتويه
+  function matches() {
+    const q = norm(inp.value);
+    if (!typing || !q) return names();
+    const all = names();
+    const a = all.filter(function (n) { return norm(n).indexOf(q) === 0; });
+    const b = all.filter(function (n) {
+      return a.indexOf(n) === -1 && norm(n).split(' ').some(function (x, i, arr) { return arr.slice(i).join(' ').indexOf(q) === 0; });
+    });
+    const c = (a.length || b.length) ? [] : all.filter(function (n) { return norm(n).indexOf(q) !== -1; });
+    return a.concat(b, c);
+  }
+  function paintHi() {
+    Array.prototype.forEach.call(list.children, function (el, i) { el.classList.toggle('on', i === hi); });
+    const el = list.children[hi]; if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+  }
+  function close() { list.classList.add('hidden'); typing = false; }
+  function choose(n) {
+    inp.value = n || ''; close();
+    if (n) { const pw = document.getElementById('password'); if (pw && !pw.value) pw.focus(); }
+  }
+  function open() {
+    const m = matches();
+    // مثل القائمة المنسدلة: أول سطر «اختاري الاسم» ثم الأسماء
+    shown = typing ? m : [''].concat(m);
+    // أثناء الكتابة بدون أي تطابق (مثل كتابة البريد الإلكتروني) نخفي القائمة ونترك الكتابة كما هي
+    if (typing && !shown.length) { list.classList.add('hidden'); hi = -1; return; }
+    list.innerHTML = '';
+    shown.forEach(function (n, i) {
+      const d = document.createElement('div');
+      d.className = 'as-opt'; d.setAttribute('role', 'option'); d.textContent = n || PH;
+      d.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      d.addEventListener('mouseenter', function () { hi = i; paintHi(); });
+      d.addEventListener('click', function () { choose(n); });
+      list.appendChild(d);
+    });
+    hi = typing ? 0 : Math.max(0, shown.indexOf(inp.value.trim()));
+    list.classList.remove('hidden');
+    paintHi();
+  }
+  inp.addEventListener('click', function () { if (list.classList.contains('hidden')) { typing = false; open(); } else close(); });
+  inp.addEventListener('input', function () { typing = true; open(); });
+  inp.addEventListener('keydown', function (e) {
+    const isOpen = !list.classList.contains('hidden');
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!isOpen) { open(); return; }
+      hi = Math.max(0, Math.min(shown.length - 1, hi + (e.key === 'ArrowDown' ? 1 : -1))); paintHi();
+    } else if (e.key === 'Enter') {
+      if (isOpen && hi >= 0 && hi < shown.length) { e.preventDefault(); choose(shown[hi]); }
+    } else if (e.key === 'Escape') close();
+  });
+  inp.addEventListener('blur', function () {
+    setTimeout(function () { if (document.activeElement !== inp) close(); }, 150);
+  });
+  document.addEventListener('click', function (e) { if (!e.target.closest('.as-wrap')) close(); });
 })();
 
 /* -------- الدخول بضغطة Enter من حقل كلمة المرور -------- */
@@ -757,6 +819,7 @@ function logout() {
   currentCenter = '';
   document.getElementById('dashScreen').classList.add('hidden');
   document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('username').value = '';
 }
 
 function showDashboard() {
