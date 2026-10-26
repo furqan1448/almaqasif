@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbyxFjLiN1CD8ENkIbwz-ch76HVZOxS05WfS8auQpi_Bw5Ha5EBcLPteD4X31F9YwI-M/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxFDcAzUkHQwrlFCI-M6vQHJ2x6l_UWB_o9rzE5BLFIJWRuHWuwEsO7-3D-7zziyDM/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -2496,7 +2496,7 @@ const XL_BORDER_ = { top: { style: 'thin', color: { argb: 'FF7A6E6B' } }, left: 
 function xlStyle_(cell, o) {
   o = o || {};
   cell.font = { name: 'Arial', size: o.size || 12, bold: !!o.bold, color: { argb: o.color || 'FF1F1A19' } };
-  cell.alignment = { horizontal: o.h || 'right', vertical: 'middle', wrapText: true, readingOrder: 'rtl' };
+  cell.alignment = { horizontal: o.h || 'right', vertical: o.v || 'middle', wrapText: true, readingOrder: 'rtl' };
   if (o.fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: o.fill } };
   if (o.border !== false) cell.border = XL_BORDER_;
 }
@@ -2529,82 +2529,100 @@ function xlNum_(v) {
   return isNaN(n) ? v : n;
 }
 
-/* حفظ تقييم واحد كملف Excel منسّق بنفس ترتيب الاستمارة */
-async function exportMasoulaEvalExcel(ev) {
+/* حفظ تقييم واحد كملف Excel بنفس تصميم استمارة PDF: الكليشة، الجداول، المجاميع، التواقيع.
+   sigs (اختياري): { headSig, directorSig } صور التواقيع لتظهر أسفل الاستمارة */
+async function exportMasoulaEvalExcel(ev, sigs) {
   try { await ensureExcelJs_(); } catch (e) { alert('تعذّر تحميل أداة Excel، تأكدي من الاتصال بالإنترنت وحاولي مرة أخرى'); return; }
   const d = ev.data || {};
+  const s = sigs || {};
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('التقييم', {
     views: [{ rightToLeft: true, showGridLines: false }],
     pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 1,
-      margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } }
+      margins: { left: 0.3, right: 0.3, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.1 } }
   });
-  ws.columns = [{ width: 18 }, { width: 50 }, { width: 16 }, { width: 16 }];
-  let r = await xlLetterhead_(wb, ws, 690);
-  const merge = function (row, c1, c2) { ws.mergeCells(row, c1, row, c2); };
+  ws.columns = [{ width: 17 }, { width: 20 }, { width: 17 }, { width: 20 }, { width: 17 }, { width: 20 }];
+  let r = await xlLetterhead_(wb, ws, 840);
+  const merge = function (row, c1, c2) { if (c2 > c1) ws.mergeCells(row, c1, row, c2); };
+  const ad = function (v) { return (v === undefined || v === null || v === '') ? '' : toArabicDigits(String(v)); };
 
   // العنوان
-  merge(r, 1, 4);
+  merge(r, 1, 6);
   ws.getCell(r, 1).value = 'استمارة تقييم مسؤولة المقصف';
-  xlStyle_(ws.getCell(r, 1), { size: 18, bold: true, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_ });
-  ws.getRow(r).height = 34; r++;
-  merge(r, 1, 4);
-  ws.getCell(r, 1).value = 'جمعية فرقان لتحفيظ القرآن الكريم — وحدة المقاصف';
-  xlStyle_(ws.getCell(r, 1), { size: 11, h: 'center', color: XL_MAROON_, border: false });
-  r += 2;
+  xlStyle_(ws.getCell(r, 1), { size: 18, bold: true, h: 'center', color: XL_MAROON_, border: false });
+  ws.getRow(r).height = 38; r++;
 
-  // بيانات الاستمارة والمعلومات الشخصية (تسمية | قيمة | تسمية | قيمة)
-  const pair = function (k1, v1, k2, v2) {
-    [[1, k1, true], [2, v1, false], [3, k2, true], [4, v2, false]].forEach(function (x) {
-      const c = ws.getCell(r, x[0]);
-      c.value = x[1] === undefined || x[1] === null ? '' : String(x[1]);
-      xlStyle_(c, x[2] ? { bold: true, fill: XL_CREAM_ } : { bold: true, color: XL_MAROON_ });
+  // خلية تسمية + قيمة (تمتد القيمة على عدد أعمدة)
+  const kv = function (c, label, value, span) {
+    ws.getCell(r, c).value = label;
+    xlStyle_(ws.getCell(r, c), { bold: true, fill: XL_CREAM_ });
+    const end = c + (span || 1);
+    merge(r, c + 1, end);
+    ws.getCell(r, c + 1).value = value === undefined || value === null ? '' : String(value);
+    xlStyle_(ws.getCell(r, c + 1), { bold: true, color: XL_MAROON_, h: 'center' });
+    for (let k = c + 1; k <= end; k++) ws.getCell(r, k).border = XL_BORDER_;
+  };
+  kv(1, 'اسم المركز', ev.center || d.center, 1); ws.getCell(r, 3).value = 'الفترة';
+  merge(r, 2, 2);
+  xlStyle_(ws.getCell(r, 3), { bold: true, fill: XL_CREAM_ });
+  merge(r, 4, 6); ws.getCell(r, 4).value = d.period || ''; xlStyle_(ws.getCell(r, 4), { bold: true, color: XL_MAROON_, h: 'center' });
+  [5, 6].forEach(function (k) { ws.getCell(r, k).border = XL_BORDER_; });
+  ws.getRow(r).height = 24; r++;
+  kv(1, 'الفصل الدراسي', d.term, 1); ws.getCell(r, 3).value = 'العام';
+  xlStyle_(ws.getCell(r, 3), { bold: true, fill: XL_CREAM_ });
+  merge(r, 4, 6); ws.getCell(r, 4).value = ad(d.year); xlStyle_(ws.getCell(r, 4), { bold: true, color: XL_MAROON_, h: 'center' });
+  [5, 6].forEach(function (k) { ws.getCell(r, k).border = XL_BORDER_; });
+  ws.getRow(r).height = 24; r += 2;
+
+  // المعلومات الشخصية (ثلاثة أزواج في كل صف مثل الاستمارة)
+  merge(r, 1, 6);
+  ws.getCell(r, 1).value = 'المعلومات الشخصية';
+  xlStyle_(ws.getCell(r, 1), { bold: true, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_, size: 13 });
+  ws.getRow(r).height = 24; r++;
+  const trio = function (a, b, c) {
+    [[1, a], [3, b], [5, c]].forEach(function (x) {
+      ws.getCell(r, x[0]).value = x[1][0];
+      xlStyle_(ws.getCell(r, x[0]), { bold: true, fill: XL_CREAM_, wrap: true });
+      ws.getCell(r, x[0] + 1).value = x[1][1] === undefined || x[1][1] === null ? '' : String(x[1][1]);
+      xlStyle_(ws.getCell(r, x[0] + 1), { bold: true, color: XL_MAROON_, h: 'center', wrap: true });
     });
-    ws.getRow(r).height = 22; r++;
+    ws.getRow(r).height = 34; r++;
   };
-  const section = function (title) {
-    merge(r, 1, 4);
-    ws.getCell(r, 1).value = title;
-    xlStyle_(ws.getCell(r, 1), { bold: true, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_, size: 13 });
-    ws.getRow(r).height = 24; r++;
-  };
-  pair('اسم المركز', ev.center, 'الفترة', d.period);
-  pair('الفصل الدراسي', d.term, 'العام', d.year);
-  r++;
-  section('المعلومات الشخصية');
-  pair('الاسم', d.name, 'رقم الجوال', d.phone);
-  pair('الأجزاء المحفوظة', d.juz, 'الحالة الاجتماعية', d.marital);
-  pair('محل الميلاد', d.birthplace, 'سنوات الخبرة', d.experience);
-  pair('المؤهل في القرآن', d.quranQual, 'المؤهل العلمي', d.eduQual);
-  pair('تاريخ التقييم', d.evalDate, 'الحالة', ev.status);
+  trio(['الاسم', d.name], ['رقم الجوال', ad(d.phone)], ['الأجزاء المحفوظة', ad(d.juz)]);
+  trio(['الحالة الاجتماعية', d.marital], ['محل الميلاد', d.birthplace], ['سنوات الخبرة كمسؤولة مقصف', ad(d.experience)]);
+  trio(['المؤهل في القرآن', d.quranQual], ['المؤهل العلمي', d.eduQual], ['تاريخ التقييم', ad(d.evalDate)]);
   r++;
 
-  // جدول البنود
-  ['القسم', 'البيان', 'الدرجة المستحقة', 'الدرجة المكتسبة'].forEach(function (t, i) {
-    const c = ws.getCell(r, i + 1); c.value = t;
-    xlStyle_(c, { bold: true, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_ });
-  });
+  // جدول البنود: القسم | البيان (٣ أعمدة) | المستحقة | المكتسبة
+  merge(r, 1, 4);
+  ws.getCell(r, 1).value = 'البيان';
+  xlStyle_(ws.getCell(r, 1), { bold: true, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_ });
+  ws.getCell(r, 5).value = 'الدرجة المستحقة'; xlStyle_(ws.getCell(r, 5), { bold: true, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_ });
+  ws.getCell(r, 6).value = 'الدرجة المكتسبة'; xlStyle_(ws.getCell(r, 6), { bold: true, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_ });
   ws.getRow(r).height = 24; r++;
 
   const block = function (title, items, scores, show) {
     const start = r;
     items.forEach(function (it, i) {
-      ws.getCell(r, 2).value = it[0]; xlStyle_(ws.getCell(r, 2));
-      ws.getCell(r, 3).value = it[1]; xlStyle_(ws.getCell(r, 3), { h: 'center', bold: true });
-      ws.getCell(r, 4).value = show ? xlNum_((scores || [])[i]) : ''; xlStyle_(ws.getCell(r, 4), { h: 'center', bold: true, color: XL_MAROON_ });
-      ws.getRow(r).height = 21; r++;
+      merge(r, 2, 4);
+      ws.getCell(r, 2).value = it[0]; xlStyle_(ws.getCell(r, 2), { wrap: true });
+      [3, 4].forEach(function (k) { ws.getCell(r, k).border = XL_BORDER_; });
+      ws.getCell(r, 5).value = it[1]; xlStyle_(ws.getCell(r, 5), { h: 'center', bold: true });
+      ws.getCell(r, 6).value = show ? xlNum_((scores || [])[i]) : ''; xlStyle_(ws.getCell(r, 6), { h: 'center', bold: true, color: XL_MAROON_ });
+      ws.getRow(r).height = 22; r++;
     });
     ws.mergeCells(start, 1, r - 1, 1);
     ws.getCell(start, 1).value = title;
-    xlStyle_(ws.getCell(start, 1), { bold: true, h: 'center', fill: XL_CREAM_ });
-    // المجموع
-    ws.mergeCells(r, 1, r, 2);
+    xlStyle_(ws.getCell(start, 1), { bold: true, h: 'center', fill: XL_CREAM_, wrap: true });
+    for (let k = start; k < r; k++) ws.getCell(k, 1).border = XL_BORDER_;
+    merge(r, 1, 4);
     ws.getCell(r, 1).value = 'المجموع';
     xlStyle_(ws.getCell(r, 1), { bold: true, fill: XL_SUM_ });
-    ws.getCell(r, 3).value = { formula: 'SUM(C' + start + ':C' + (r - 1) + ')', result: evalSum_(items.map(function (x) { return x[1]; })) };
-    xlStyle_(ws.getCell(r, 3), { bold: true, h: 'center', fill: XL_SUM_ });
-    ws.getCell(r, 4).value = show ? { formula: 'SUM(D' + start + ':D' + (r - 1) + ')', result: evalSum_(scores) } : '';
-    xlStyle_(ws.getCell(r, 4), { bold: true, h: 'center', fill: XL_SUM_, color: XL_MAROON_ });
+    [2, 3, 4].forEach(function (k) { ws.getCell(r, k).border = XL_BORDER_; });
+    ws.getCell(r, 5).value = { formula: 'SUM(E' + start + ':E' + (r - 1) + ')', result: evalSum_(items.map(function (x) { return x[1]; })) };
+    xlStyle_(ws.getCell(r, 5), { bold: true, h: 'center', fill: XL_SUM_ });
+    ws.getCell(r, 6).value = show ? { formula: 'SUM(F' + start + ':F' + (r - 1) + ')', result: evalSum_(scores) } : '';
+    xlStyle_(ws.getCell(r, 6), { bold: true, h: 'center', fill: XL_SUM_, color: XL_MAROON_ });
     ws.getRow(r).height = 22;
     const sumRow = r; r++;
     return sumRow;
@@ -2613,40 +2631,59 @@ async function exportMasoulaEvalExcel(ev) {
   const headShown = (d.headScores || []).length === EVAL_HEAD_ITEMS.length;
   const s1 = block('بنود خاصة بمديرة المركز', EVAL_DIR_ITEMS, d.dirScores, dirShown);
   const s2 = block('بنود خاصة برئيسة وحدة المقاصف', EVAL_HEAD_ITEMS, d.headScores, headShown);
-  ws.mergeCells(r, 1, r, 2);
+  merge(r, 1, 4);
   ws.getCell(r, 1).value = 'المجموع الكلي';
   xlStyle_(ws.getCell(r, 1), { bold: true, size: 13, color: 'FFFFFFFF', fill: XL_MAROON_ });
-  ws.getCell(r, 3).value = { formula: 'C' + s1 + '+C' + s2, result: 100 };
-  xlStyle_(ws.getCell(r, 3), { bold: true, size: 13, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_ });
-  ws.getCell(r, 4).value = (dirShown && headShown) ? { formula: 'D' + s1 + '+D' + s2, result: evalSum_(d.dirScores) + evalSum_(d.headScores) } : '';
-  xlStyle_(ws.getCell(r, 4), { bold: true, size: 13, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_ });
+  [2, 3, 4].forEach(function (k) { ws.getCell(r, k).border = XL_BORDER_; });
+  ws.getCell(r, 5).value = { formula: 'E' + s1 + '+E' + s2, result: 100 };
+  xlStyle_(ws.getCell(r, 5), { bold: true, size: 13, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_ });
+  ws.getCell(r, 6).value = (dirShown && headShown) ? { formula: 'F' + s1 + '+F' + s2, result: evalSum_(d.dirScores) + evalSum_(d.headScores) } : '';
+  xlStyle_(ws.getCell(r, 6), { bold: true, size: 13, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_ });
   ws.getRow(r).height = 26;
   r += 2;
 
   // الإيجابيات ونقاط التحسين
   const textRow = function (label, text) {
-    ws.getCell(r, 1).value = label; xlStyle_(ws.getCell(r, 1), { bold: true, fill: XL_CREAM_ });
-    ws.mergeCells(r, 2, r, 4);
-    ws.getCell(r, 2).value = text || ''; xlStyle_(ws.getCell(r, 2), { bold: true });
-    [3, 4].forEach(function (c) { ws.getCell(r, c).border = XL_BORDER_; });
+    ws.getCell(r, 1).value = label; xlStyle_(ws.getCell(r, 1), { bold: true, fill: XL_CREAM_, wrap: true });
+    merge(r, 2, 6);
+    ws.getCell(r, 2).value = text || ''; xlStyle_(ws.getCell(r, 2), { bold: true, wrap: true, v: 'top' });
+    [3, 4, 5, 6].forEach(function (k) { ws.getCell(r, k).border = XL_BORDER_; });
     const lines = String(text || '').split('\n').length;
-    ws.getRow(r).height = Math.max(40, Math.min(160, lines * 20 + Math.ceil(String(text || '').length / 70) * 16));
+    ws.getRow(r).height = Math.max(48, Math.min(170, lines * 20 + Math.ceil(String(text || '').length / 80) * 16));
     r++;
   };
   textRow('الإيجابيات', d.positives);
   textRow('نقاط تحتاج إلى تحسين', d.improvements);
   r++;
 
-  // التواقيع (الأسماء)
-  ws.mergeCells(r, 1, r, 2); ws.getCell(r, 1).value = 'رئيسة وحدة المقاصف';
-  ws.mergeCells(r, 3, r, 4); ws.getCell(r, 3).value = 'مديرة المركز';
+  // التواقيع: اليمين رئيسة الوحدة، اليسار مديرة المركز (كما في الاستمارة)
+  const addSig = function (dataUrl, col) {
+    if (!dataUrl || typeof dataUrl !== 'string') return;
+    try {
+      const m = /^data:image\/(png|jpe?g|gif);base64,/i.exec(dataUrl);
+      const ext = m ? (m[1].toLowerCase() === 'png' ? 'png' : (m[1].toLowerCase() === 'gif' ? 'gif' : 'jpeg')) : 'png';
+      const id = wb.addImage({ base64: dataUrl, extension: ext });
+      ws.addImage(id, { tl: { col: col, row: r - 1 + 0.1 }, ext: { width: 170, height: 70 } });
+    } catch (e) {}
+  };
+  merge(r, 1, 3); ws.getCell(r, 1).value = 'رئيسة وحدة المقاصف';
+  merge(r, 4, 6); ws.getCell(r, 4).value = 'مديرة المركز';
   xlStyle_(ws.getCell(r, 1), { bold: true, h: 'center', border: false });
-  xlStyle_(ws.getCell(r, 3), { bold: true, h: 'center', border: false });
-  r++;
-  ws.mergeCells(r, 1, r, 2); ws.getCell(r, 1).value = ev.headName || '';
-  ws.mergeCells(r, 3, r, 4); ws.getCell(r, 3).value = ev.directorName || '';
+  xlStyle_(ws.getCell(r, 4), { bold: true, h: 'center', border: false });
+  ws.getRow(r).height = 22; r++;
+  merge(r, 1, 3); ws.getCell(r, 1).value = ev.headName || '';
+  merge(r, 4, 6); ws.getCell(r, 4).value = ev.directorName || '';
   xlStyle_(ws.getCell(r, 1), { bold: true, h: 'center', color: XL_MAROON_, border: false });
-  xlStyle_(ws.getCell(r, 3), { bold: true, h: 'center', color: XL_MAROON_, border: false });
+  xlStyle_(ws.getCell(r, 4), { bold: true, h: 'center', color: XL_MAROON_, border: false });
+  ws.getRow(r).height = 22; r++;
+  merge(r, 1, 3); ws.getCell(r, 1).value = 'التوقيع:';
+  merge(r, 4, 6); ws.getCell(r, 4).value = 'التوقيع:';
+  xlStyle_(ws.getCell(r, 1), { bold: true, h: 'center', border: false });
+  xlStyle_(ws.getCell(r, 4), { bold: true, h: 'center', border: false });
+  ws.getRow(r).height = 22; r++;
+  ws.getRow(r).height = 62;
+  addSig(s.headSig, 0.7);
+  addSig(s.directorSig, 3.7);
 
   await xlDownload_(wb, masoulaEvalFileName_(ev).replace(/\.pdf$/, '.xlsx'));
 }

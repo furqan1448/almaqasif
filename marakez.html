@@ -215,7 +215,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         <div id="evDetailBody" style="line-height:1.9;"></div>
         <div class="export-row" style="margin-top:12px;">
           <button class="btn outline" onclick="evalPdfAction_('save', this)">⬇️ حفظ PDF</button>
-          <button class="btn outline" onclick="if (evCurrent_) exportMasoulaEvalExcel(evCurrent_)">⬇️ حفظ Excel</button>
+          <button class="btn outline" onclick="evExcel_(evCurrent_, this)">⬇️ حفظ Excel</button>
           <button class="btn outline" id="evEditBtn" onclick="if (evCurrent_) openEvalForm_(evCurrent_.id)">✏️ تعديل</button>
           <button class="btn outline" id="evDelBtn" style="color:#a12a2a;border-color:#e3b3b3;" onclick="if (evCurrent_) deleteEval_(evCurrent_.id)">🗑️ حذف</button>
         </div>
@@ -2503,11 +2503,23 @@ function openEvalDetail_(id) {
 }
 
 /* تنزيل مباشر لتقييم واحد من صف القائمة (PDF أو Excel) دون فتحه */
+/* Excel لتقييم واحد مع التواقيع (تُجلب بكلمة مرور المركز) */
+function evExcel_(ev, btn) {
+  if (!ev) return;
+  const pw = evalCenterPw_(true);
+  if (!pw) return;
+  setBtnBusy(btn, true, 'جارٍ التجهيز...');
+  callApi('getMasoulaEvalSigs', { id: ev.id, center: currentCenter, password: pw }).then(function (r) {
+    setBtnBusy(btn, false);
+    return exportMasoulaEvalExcel(ev, (r && r.ok) ? r : null);
+  }).catch(function () { setBtnBusy(btn, false); exportMasoulaEvalExcel(ev, null); });
+}
+
 function evQuick_(id, kind) {
   const ev = (evList_ || []).find(function (x) { return x.id === id; });
   if (!ev) return;
   evCurrent_ = ev;
-  if (kind === 'xlsx') exportMasoulaEvalExcel(ev); else evalPdfAction_('save', null);
+  if (kind === 'xlsx') evExcel_(ev, null); else evalPdfAction_('save', null);
 }
 
 function evalPdfAction_(mode, btn) {

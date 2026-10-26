@@ -970,7 +970,7 @@
         </div>
         <div class="export-row" style="margin-top:12px;">
           <button class="btn outline" onclick="adminEvalPdf_('save', this)">⬇️ حفظ PDF</button>
-          <button class="btn outline" onclick="if (aevCurrent_) exportMasoulaEvalExcel(aevCurrent_)">⬇️ حفظ Excel</button>
+          <button class="btn outline" onclick="aevExcel_(aevCurrent_, this)">⬇️ حفظ Excel</button>
           <button class="btn outline" style="color:#a12a2a;border-color:#e3b3b3;" onclick="deleteAdminEval_()">🗑️ حذف</button>
         </div>
       </div>
@@ -1675,7 +1675,19 @@ function aevQuick_(id, kind) {
   const ev = aevList_.find(function (x) { return x.id === id; });
   if (!ev) return;
   aevCurrent_ = ev;
-  if (kind === 'xlsx') exportMasoulaEvalExcel(ev); else adminEvalPdf_('save', null);
+  if (kind === 'xlsx') aevExcel_(ev, null); else adminEvalPdf_('save', null);
+}
+
+/* Excel لتقييم واحد مع التواقيع (تُجلب بكلمة مرور الإدارة) */
+function aevExcel_(ev, btn) {
+  if (!ev) return;
+  const pw = aevPw_(true);
+  if (!pw) return;
+  setBtnBusy(btn, true, 'جارٍ التجهيز...');
+  callApi('getMasoulaEvalSigs', { id: ev.id, adminPw: pw }).then(function (r) {
+    setBtnBusy(btn, false);
+    return exportMasoulaEvalExcel(ev, (r && r.ok) ? r : null);
+  }).catch(function () { setBtnBusy(btn, false); exportMasoulaEvalExcel(ev, null); });
 }
 
 function printAdminEvals_() {
