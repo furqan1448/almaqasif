@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbyxFjLiN1CD8ENkIbwz-ch76HVZOxS05WfS8auQpi_Bw5Ha5EBcLPteD4X31F9YwI-M/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxFDcAzUkHQwrlFCI-M6vQHJ2x6l_UWB_o9rzE5BLFIJWRuHWuwEsO7-3D-7zziyDM/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -2708,7 +2708,7 @@ async function exportMasoulaEvalsDetailExcel(list) {
   const R0 = await xlLetterhead_(wb, ws, 1100);
   const TR = R0, BR = R0 + 1, HR = R0 + 2;
   ws.mergeCells(TR, 1, TR, nCols);
-  ws.getCell(TR, 1).value = 'تقييم مسؤولات المقاصف — وحدة المقاصف، جمعية فرقان لتحفيظ القرآن الكريم';
+  ws.getCell(TR, 1).value = 'تقييم مسؤولات المقاصف';
   xlStyle_(ws.getCell(TR, 1), { size: 16, bold: true, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_ });
   ws.getRow(TR).height = 32;
   // صف الأقسام
@@ -2792,10 +2792,7 @@ async function exportMasoulaEvalsListExcel(list) {
   ws.getCell(r, 1).value = 'تقييم مسؤولات المقاصف';
   xlStyle_(ws.getCell(r, 1), { size: 16, bold: true, h: 'center', color: 'FFFFFFFF', fill: XL_MAROON_ });
   ws.getRow(r).height = 30; r++;
-  ws.mergeCells(r, 1, r, nCols);
-  ws.getCell(r, 1).value = 'وحدة المقاصف — جمعية فرقان لتحفيظ القرآن الكريم  ·  ' + toHijriStr(todayStr());
-  xlStyle_(ws.getCell(r, 1), { size: 10, h: 'center', color: XL_MAROON_, border: false });
-  ws.getRow(r).height = 20; r += 2;
+  r++;
 
   const heads = ['م', 'المركز', 'الفترة', 'اسم المسؤولة', 'الفصل', 'المديرة (٥٠)', 'الوحدة (٥٠)', 'الكلي (١٠٠)', 'الحالة'];
   heads.forEach(function (h, i) {
