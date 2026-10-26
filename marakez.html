@@ -2374,6 +2374,8 @@ function loadEvals_() {
         '<td>' + (done ? '<b>' + toArabicDigits(ev.total) + '</b> / ١٠٠' : toArabicDigits(ev.dirTotal) + ' / ٥٠') + '</td>' +
         '<td>' + (done ? '<span style="color:#1f8f4e;font-weight:700;">✅ تم الاعتماد</span>' : '<span style="color:var(--maroon);font-weight:700;">⏳ بانتظار اعتماد الوحدة</span>') + '</td>' +
         '<td><div class="row-actions"><a href="#" onclick="openEvalDetail_(\'' + ev.id + '\'); return false;">عرض</a>' +
+          '<a href="#" onclick="evQuick_(\'' + ev.id + '\', \'pdf\'); return false;">PDF</a>' +
+          '<a href="#" onclick="evQuick_(\'' + ev.id + '\', \'xlsx\'); return false;">Excel</a>' +
           (done ? '' : '<a href="#" onclick="openEvalForm_(\'' + ev.id + '\'); return false;">تعديل</a><a href="#" onclick="deleteEval_(\'' + ev.id + '\'); return false;">حذف</a>') +
         '</div></td>';
       tbody.appendChild(tr);
@@ -2498,6 +2500,14 @@ function openEvalDetail_(id) {
   document.getElementById('evDelBtn').classList.toggle('hidden', done);
   evShow_('detail');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* تنزيل مباشر لتقييم واحد من صف القائمة (PDF أو Excel) دون فتحه */
+function evQuick_(id, kind) {
+  const ev = (evList_ || []).find(function (x) { return x.id === id; });
+  if (!ev) return;
+  evCurrent_ = ev;
+  if (kind === 'xlsx') exportMasoulaEvalExcel(ev); else evalPdfAction_('save', null);
 }
 
 function evalPdfAction_(mode, btn) {

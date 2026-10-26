@@ -3823,7 +3823,8 @@ function notifyCanteenOrder_(o) {
     const text = canteenOrderText_(o, center);
 
     const html = '<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;max-width:640px;margin:auto;color:#2b2325;text-align:right;">' +
-      '<div style="background:#6e1523;color:#ffffff;padding:12px 16px;border-radius:10px 10px 0 0;">' +
+      '<img src="https://furqan1448.github.io/almaqasif/furqan-letterhead.jpg" alt="جمعية فرقان لتحفيظ القرآن الكريم" width="640" style="display:block;width:100%;max-width:640px;height:auto;border:0;">' +
+      '<div style="background:#6e1523;color:#ffffff;padding:12px 16px;">' +
         '<div style="font-size:12px;opacity:.85;">جمعية فرقان لتحفيظ القرآن الكريم — وحدة المقاصف</div>' +
         '<div style="font-size:18px;font-weight:bold;margin-top:2px;">طلبات بضاعة المقصف لمركز / ' + htmlEsc_(center) + '</div></div>' +
       '<div style="border:1px solid #e2e2e2;border-top:0;padding:14px 16px;border-radius:0 0 10px 10px;">' +
