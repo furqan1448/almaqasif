@@ -3703,17 +3703,30 @@ function getRegistrationStats_(p) {
       if (it.has) e.anyHas = true;
     });
   } catch (e) {}
+  // مطابقة تامة بالاسم، وإلا مطابقة «احتواء» (اسم الحصر ضمن اسم المركز أو العكس) بشرط ألا يقل عن كلمتين، ونختار الأطول
+  const surveyKeys = Object.keys(surveyBy);
+  const words_ = function (x) { return x ? x.split(' ').length : 0; };
+  const entryFor_ = function (base) {
+    if (surveyBy[base]) return surveyBy[base];
+    const hay = ' ' + base + ' ';
+    let best = '';
+    surveyKeys.forEach(function (k) {
+      if (words_(k) < 2 || k.length <= best.length) return;
+      if (hay.indexOf(' ' + k + ' ') !== -1 || (words_(base) >= 2 && (' ' + k + ' ').indexOf(' ' + base + ' ') !== -1)) best = k;
+    });
+    return best ? surveyBy[best] : null;
+  };
   const hiddenNoCanteen = centers.filter(function (c) {
-    const e = surveyBy[visitBaseName_(c)];
+    const e = entryFor_(visitBaseName_(c));
     if (!e) return false;
     const p = visitPeriodOfName_(c);
     if (p && e.byPeriod[p] !== undefined) return !e.byPeriod[p];
     return !e.anyHas;
   });
   // مراكز «لا مقصف» بالحصر لم تُطابق أي مركز بالإحصائيات (لتشخيص اختلاف الأسماء)
-  const centerBases = {};
-  centers.forEach(function (c) { centerBases[visitBaseName_(c)] = true; });
-  const unmatchedNoCanteen = surveyItems.filter(function (it) { return !it.has && !centerBases[visitBaseName_(it.center)]; })
+  const matchedEntries = [];
+  centers.forEach(function (c) { const e = entryFor_(visitBaseName_(c)); if (e && matchedEntries.indexOf(e) === -1) matchedEntries.push(e); });
+  const unmatchedNoCanteen = surveyItems.filter(function (it) { return !it.has && matchedEntries.indexOf(surveyBy[visitBaseName_(it.center)]) === -1; })
     .map(function (it) { return it.center + (it.period ? ' - ' + it.period : ''); });
   const list = centers.filter(function (c) { return hiddenNoCanteen.indexOf(c) === -1; }).map(function (c) {
     const m = st[c];

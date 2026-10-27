@@ -6176,7 +6176,7 @@ function renderRegStats_(r) {
       r.hiddenNoCanteen.map(rsEsc_).join('، ') + '</div>';
   }
   if (r.unmatchedNoCanteen && r.unmatchedNoCanteen.length) {
-    html += '<div class="rs-note-line" style="color:#b3261e;">⚠️ مراكز «لا مقصف» في الحصر لم يُعثر على اسمها في الإحصائيات (اختلاف في الاسم): ' +
+    html += '<div class="rs-note-line" style="color:#8a7d76;font-size:0.8rem;">ℹ️ مراكز «لا مقصف» بالحصر وليست ضمن الإحصائيات (محذوفة من المراكز أو اسمها مختلف)، ولا تحتاج إخفاءً إن كانت محذوفة: ' +
       r.unmatchedNoCanteen.map(rsEsc_).join('، ') + '</div>';
   }
   if (t.pending) html += '<div class="rs-note-line">⏳ إشعارات بانتظار الاطلاع: <b>' + t.pending + '</b></div>';
