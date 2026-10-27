@@ -5925,7 +5925,9 @@ function renderAmounts_() {
   else body += '<tr style="background:var(--cream);font-weight:700;"><td style="text-align:right;">الإجمالي (' + rows.length + ')</td>' +
     AM_COLS_.map(function (c) { return '<td>' + rsMoney_(tot[c.key]) + '</td>'; }).join('') + '</tr>';
   const hidden = amData_.hiddenNoCanteen || [];
-  out.innerHTML = '<div class="card">' +
+  // الخادم القديم لا يرسل مبالغ الإشعارات: نبيّن ذلك بدل عرض أصفار مضلّلة
+  const stale = amData_.centers[0].receiveAmt === undefined;
+  out.innerHTML = (stale ? '<div class="card" style="border:1.5px solid #b3261e;color:#b3261e;line-height:1.9;">⚠️ مبالغ «إشعار الاستلام» و«المكافأة» و«الرسوم» لا تظهر لأن الخادم لم يُحدَّث بعد. الصقي ملف <b>Code.gs</b> الجديد في Apps Script ثم انشري إصدارًا جديدًا (نشر ← إدارة عمليات النشر ← تعديل ← إصدار جديد ← نشر)، ثم اضغطي «تحديث».</div>' : '') + '<div class="card">' +
     '<div class="rs-search-wrap"><input type="search" id="amSearch" class="rs-search" placeholder="🔍 ابحثي باسم المركز..." value="' + rsEsc_(amQuery_) + '" oninput="onAmSearch(this.value)"></div>' +
     '<div class="rs-scroll"><table class="log-table rs-table am-table" style="min-width:0;width:100%;font-size:0.78rem;"><thead><tr><th style="padding:8px 4px;">المركز</th>' +
     AM_COLS_.map(function (c) { return '<th style="padding:8px 3px;font-size:0.74rem;">' + c.label + '</th>'; }).join('') + '</tr></thead><tbody id="amBody">' + body + '</tbody></table></div>' +
