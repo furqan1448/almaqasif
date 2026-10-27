@@ -1318,6 +1318,33 @@
       <div id="cardsFollowupGroups"><div class="card">جاري التحميل...</div></div>
     </div>
 
+<div id="vrAmendModal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;max-width:460px;width:100%;padding:18px 20px;max-height:92vh;overflow:auto;">
+    <h3 style="margin:0 0 4px;color:var(--maroon);">تعديل التاريخ ونوع الزيارة</h3>
+    <div id="vaCenterLine" style="font-size:0.85rem;color:#8a7d76;margin-bottom:6px;"></div>
+    <div style="font-size:0.82rem;color:#1f8f4e;margin-bottom:10px;line-height:1.8;">يبقى توقيع المديرة كما هو، ولا يتغيّر رقم الزيارة، ويُحدَّث سجل الإحصائية المرتبط بالتقرير.</div>
+    <label>اليوم</label>
+    <select id="vaDay">
+      <option value="الأحد">الأحد</option><option value="الاثنين">الاثنين</option><option value="الثلاثاء">الثلاثاء</option>
+      <option value="الأربعاء">الأربعاء</option><option value="الخميس">الخميس</option><option value="الجمعة">الجمعة</option><option value="السبت">السبت</option>
+    </select>
+    <label>التاريخ الهجري (يوم / شهر / سنة)</label>
+    <div style="display:flex;gap:8px;">
+      <input type="number" id="vaHijriDay" min="1" max="30" placeholder="اليوم" style="width:28%;">
+      <select id="vaHijriMonth" style="width:36%;">
+        <option value="١">١</option><option value="٢">٢</option><option value="٣">٣</option><option value="٤">٤</option><option value="٥">٥</option><option value="٦">٦</option>
+        <option value="٧">٧</option><option value="٨">٨</option><option value="٩">٩</option><option value="١٠">١٠</option><option value="١١">١١</option><option value="١٢">١٢</option>
+      </select>
+      <input type="text" id="vaYear" inputmode="numeric" placeholder="١٤٤٨" style="width:36%;">
+    </div>
+    <label>نوع الزيارة</label>
+    <input type="text" id="vaVisitType">
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="btn" id="vaSaveBtn" onclick="saveVrAmend_()">حفظ التعديل</button>
+      <button class="btn outline" onclick="closeVrAmend_()">إلغاء</button>
+    </div>
+  </div>
+</div>
     <!-- عنصر مخفي: يُستخدم داخليًا لتحويل تقرير الزيارة لملف PDF (حفظ/مشاركة) - لا يظهر بالشاشة
          ملاحظة: نستخدم "قص" (overflow:hidden بأبعاد صفر) بدل إحداثيات بعيدة جدًا (مثل left:-99999px)
          لأن الإحداثيات البعيدة جدًا تخلي أداة تحويل PDF تحاول تنشئ لوحة رسم ضخمة جدًا وتوقف الصفحة (شاشة بيضاء) -->
@@ -4226,6 +4253,37 @@ function collectVisitReportOpts_() {
   };
 }
 
+/* ينتظر وعدًا بحدٍّ أقصى (بالمللي ثانية) ثم يرجع القيمة الاحتياطية بدل أن يعلّق الحفظ */
+function vrWithTimeout_(promise, ms, fallback) {
+  return new Promise(function (resolve) {
+    const t = setTimeout(function () { resolve(fallback); }, ms);
+    Promise.resolve(promise).then(function (v) { clearTimeout(t); resolve(v); }, function () { clearTimeout(t); resolve(fallback); });
+  });
+}
+
+/* اسم اليوم الموافق لتاريخ هجري (أم القرى) للتنبيه عند عدم تطابقه مع اليوم المكتوب؛ يرجع '' إن تعذّر */
+function vrWeekdayOfHijri_(y, m, d) {
+  try {
+    const names = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    const fmt = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', { day: 'numeric', month: 'numeric', year: 'numeric' });
+    const approx = new Date(Date.UTC(622, 6, 16) + ((y - 1) * 354.367 + (m - 1) * 29.53 + (d - 1)) * 86400000);
+    for (let k = -20; k <= 20; k++) {
+      const t = new Date(approx.getTime() + k * 86400000);
+      const parts = fmt.formatToParts(t);
+      const get = function (n) { return parseInt(parts.find(function (p) { return p.type === n; }).value, 10); };
+      if (get('year') === y && get('month') === m && get('day') === d) return names[t.getUTCDay()];
+    }
+  } catch (e) {}
+  return '';
+}
+
+/* تأكيد إذا كان اسم اليوم لا يوافق التاريخ الهجري المكتوب (تنبيه فقط، لا يمنع الحفظ) */
+function vrConfirmWeekday_(dayName, y, m, d) {
+  const wd = vrWeekdayOfHijri_(y, m, d);
+  if (!wd || !dayName || wd === dayName) return true;
+  return confirm('تنبيه: اليوم المختار (' + dayName + ') لا يوافق التاريخ الهجري المكتوب، إذ يوافقه يوم ' + wd + '.\nهل تريدين المتابعة بهذا اليوم؟');
+}
+
 function printVisitReport() {
   const opts = collectVisitReportOpts_();
   if (opts) printVisitReportWindow(opts);
@@ -4301,19 +4359,14 @@ function vrSyncVisitStat_() {
       return vrLoadStats_(true).then(function () { return sid; });
     }).catch(function () { show('تعذّر تحديث الزيارة في الإحصائية، تحقّقي من الاتصال.', true); return sid; });
   }
-  return callApi('getVisitStats').then(function (r) {
-    const list = (r && r.ok && r.visits) || [];
-    const mine = list.filter(function (x) { return same(x.center, v.center); });
-    const found = mine.find(function (x) { return x.period === v.period && x.dateKey === v.dateKey; });
-    if (found) {
-      show('الزيارة مسجّلة سابقًا في الإحصائية — ' + v.center + ': ' + vsCountLabel_(mine.length));
-      return found.id || '';
-    }
-    return callApi('recordVisitStat', { center: v.center, period: v.period, hijriDate: v.hijriDate, dateKey: v.dateKey }).then(function (res) {
-      if (!res || !res.ok) { show('تعذّر تسجيل الزيارة في الإحصائية' + (res && res.error ? ': ' + res.error : ''), true); return ''; }
-      show('✅ سُجّلت الزيارة في الإحصائية — ' + res.center + ': ' + vsCountLabel_(res.count));
-      return vrLoadStats_(true).then(function () { return res.id || ''; });
-    });
+  // طلب واحد: الخادم نفسه يمنع تكرار الزيارة (المركز + الفترة + التاريخ) ويرجع السجل الموجود إن وُجد
+  return callApi('recordVisitStat', { center: v.center, period: v.period, hijriDate: v.hijriDate, dateKey: v.dateKey }).then(function (res) {
+    if (!res || !res.ok) { show('تعذّر تسجيل الزيارة في الإحصائية' + (res && res.error ? ': ' + res.error : ''), true); return ''; }
+    show(res.existed
+      ? 'الزيارة مسجّلة سابقًا في الإحصائية — ' + res.center + ': ' + vsCountLabel_(res.count)
+      : '✅ سُجّلت الزيارة في الإحصائية — ' + res.center + ': ' + vsCountLabel_(res.count));
+    vrLoadStats_(true);   // تحديث رقم الزيارة في الخلفية دون انتظار
+    return res.id || '';
   }).catch(function () { show('تعذّر تسجيل الزيارة في الإحصائية، تحقّقي من الاتصال.', true); return ''; });
 }
 
@@ -4333,16 +4386,23 @@ function vrStatKeyFromData_(d) {
    وإذا كانت الزيارة نفسها (بنفس التاريخ) مسجّلة سابقًا يظهر رقمها الأصلي. */
 let vrStats_ = null;
 let vrStatsLoading_ = null;
+let vrAutoNum_ = '';       // آخر رقم زيارة حُسب تلقائيًا (لنعرف إن عدّلته الرئيسة يدويًا)
+let vrSaving_ = false;     // يمنع تكرار الحفظ أثناء تنفيذه
 
 function vrLoadStats_(force) {
   if (vrStats_ && !force) return Promise.resolve(vrStats_);
   if (vrStatsLoading_ && !force) return vrStatsLoading_;
-  vrStatsLoading_ = callApi('getVisitStats').then(function (r) {
+  vrStatsLoading_ = callApi('getVisitStats', force ? { _t: Date.now() } : undefined).then(function (r) {
     vrStatsLoading_ = null;
     if (r && r.ok) vrStats_ = r.visits || [];
     vrUpdateVisitNumber_();
     return vrStats_;
-  }).catch(function () { vrStatsLoading_ = null; return vrStats_; });
+  }).catch(function () {
+    vrStatsLoading_ = null;
+    const hint = document.getElementById('vrVisitNumberHint');
+    if (hint && !vrStats_) hint.textContent = 'تعذّر حساب رقم الزيارة تلقائيًا (ضعف الاتصال)، اكتبي الرقم يدويًا.';
+    return vrStats_;
+  });
   return vrStatsLoading_;
 }
 
@@ -4363,6 +4423,7 @@ function vrUpdateVisitNumber_() {
   const idx = v.ok ? list.findIndex(function (x) { return x.dateKey === v.dateKey; }) : -1;
   const n = idx >= 0 ? idx + 1 : list.length + 1;
   input.value = n;
+  vrAutoNum_ = String(n);
   const per = v.period === 'صباحية' ? 'الصباحية' : 'المسائية';
   hint.textContent = idx >= 0
     ? 'هذه الزيارة مسجّلة سابقًا، ورقمها ' + vsAr_(n) + ' في الفترة ' + per + '.'
@@ -4598,13 +4659,24 @@ async function saveVisitReportToSystem() {
   if (!opts || !vrStatReady_()) return;
   const target = document.getElementById('vrTargetCenter').value;
   if (!target) { alert('اختاري «المركز الذي يظهر له التقرير للتوقيع»'); document.getElementById('vrTargetCenter').focus(); return; }
+  if (vrSaving_) return;
+  { const sd = vrStatData_(); const km = sd.dateKey.split('-');
+    if (sd.ok && !vrConfirmWeekday_(document.getElementById('vrDayName').value, parseInt(km[0], 10), parseInt(km[1], 10), parseInt(km[2], 10))) return; }
   if (vrEditingId_ && !confirm('سيُلغى توقيع المديرة (إن وُجد) ويُعاد إرسال التقرير لها للتوقيع. هل تريدين المتابعة؟')) return;
+  vrSaving_ = true;
   const btn = document.getElementById('vrSaveSystemBtn');
   setBtnBusy(btn, true);
   try {
+    // تقرير جديد: نحدّث الإحصائية من الخادم مباشرة (بحدٍّ أقصى ١٥ ثانية) ليُحسب رقم الزيارة على أحدث البيانات
+    if (!vrEditingId_) {
+      const numInput = document.getElementById('vrVisitNumber');
+      await vrWithTimeout_(vrLoadStats_(true), 15000, null);
+      if (!numInput.value || numInput.value === vrAutoNum_) vrUpdateVisitNumber_();
+    }
     const headSig = await vrShrinkSignature_(vrSignatureDataUrl);
     if (vrSignatureDataUrl && !headSig) { alert('تعذّر حفظ صورة توقيع الرئيسة لكبر حجمها؛ سيُستخدم التوقيع الافتراضي إن وُجد.'); }
-    const statId = await vrSyncVisitStat_();
+    // تسجيل الزيارة بالإحصائية بحدٍّ أقصى ٣٠ ثانية: الخادم يمنع التكرار، فلا ضرر لو وصل الطلب متأخرًا
+    const statId = await vrWithTimeout_(vrSyncVisitStat_(), 30000, '');
     const form = vrReadForm_();
     form.statId = statId || vrEditStatId_ || '';
     const payload = { center: target, data: JSON.stringify(form), headSignature: headSig };
@@ -4633,6 +4705,7 @@ async function saveVisitReportToSystem() {
   } catch (e) {
     alert('تعذّر الاتصال بالسيرفر: ' + (e && e.message ? e.message : e));
   } finally {
+    vrSaving_ = false;
     setBtnBusy(btn, false);
   }
 }
@@ -4675,7 +4748,10 @@ function renderVrSaved_() {
       '<td>' + vrStatusHtml_(rep) + '</td>' +
       '<td><div class="row-actions">' +
         '<a href="#" onclick="printSavedVisitReport(\'' + rep.id + '\'); return false;">عرض/طباعة</a>' +
-        '<a href="#" onclick="editSavedVisitReport(\'' + rep.id + '\'); return false;">تعديل</a>' +
+        (rep.status === 'تم التوقيع'
+          ? '<a href="#" onclick="amendSavedVisitReport(\'' + rep.id + '\'); return false;">تعديل التاريخ/النوع</a>' +
+            '<a href="#" onclick="editSavedVisitReport(\'' + rep.id + '\'); return false;">تعديل كامل</a>'
+          : '<a href="#" onclick="editSavedVisitReport(\'' + rep.id + '\'); return false;">تعديل</a>') +
         '<a href="#" onclick="deleteSavedVisitReport(\'' + rep.id + '\'); return false;">حذف</a>' +
       '</div></td>';
     tbody.appendChild(tr);
@@ -4702,6 +4778,67 @@ function vrOptsFromSaved_(rep) {
 function printSavedVisitReport(id) {
   const rep = vrSavedList_.find(function (x) { return x.id === id; });
   if (rep) printVisitReportWindow(vrOptsFromSaved_(rep));
+}
+
+/* -------- تعديل محدود بعد توقيع المديرة: اليوم + التاريخ الهجري + نوع الزيارة فقط (يبقى التوقيع) -------- */
+let vrAmendId_ = null;
+
+function amendSavedVisitReport(id) {
+  const rep = vrSavedList_.find(function (x) { return x.id === id; });
+  if (!rep) return;
+  const f = rep.data || {};
+  vrAmendId_ = id;
+  document.getElementById('vaDay').value = f.day || 'الأحد';
+  document.getElementById('vaHijriDay').value = vrNum_(f.hijriDay) || '';
+  document.getElementById('vaHijriMonth').value = String(vrNum_(f.hijriMonth) || 1).replace(/[0-9]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'[d]; });
+  document.getElementById('vaYear').value = f.year || '';
+  document.getElementById('vaVisitType').value = f.visitType || 'تقييم';
+  document.getElementById('vaCenterLine').textContent = (rep.centerDisplay || rep.center || '') + (f.visitNumber ? ' — الزيارة رقم ' + toArabicDigits(f.visitNumber) : '');
+  document.getElementById('vrAmendModal').classList.remove('hidden');
+}
+
+function closeVrAmend_() {
+  vrAmendId_ = null;
+  document.getElementById('vrAmendModal').classList.add('hidden');
+}
+
+async function saveVrAmend_() {
+  const id = vrAmendId_;
+  const rep = vrSavedList_.find(function (x) { return x.id === id; });
+  if (!rep) return;
+  const day = document.getElementById('vaDay').value;
+  const hd = vrNum_(document.getElementById('vaHijriDay').value);
+  const hmRaw = document.getElementById('vaHijriMonth').value;
+  const hm = vrNum_(hmRaw);
+  const year = document.getElementById('vaYear').value.trim();
+  const vt = document.getElementById('vaVisitType').value.trim();
+  if (!(hd >= 1 && hd <= 30)) { alert('اكتبي يوم التاريخ الهجري (من ١ إلى ٣٠).'); return; }
+  if (!vt) { alert('اكتبي نوع الزيارة.'); return; }
+  const f = rep.data || {};
+  const y = vrNum_(year) || vsTodayHijri_().y;
+  if (!vrConfirmWeekday_(day, y, hm, hd)) return;
+  const morning = !!f.morning, evening = !!f.evening;
+  const stat = (f.statId && (morning || evening)) ? {
+    center: String(f.center || '').replace(/\s+/g, ' ').trim(),
+    period: morning ? 'صباحية' : 'مسائية',
+    hijriDate: vsAr_(hd) + ' ' + VS_MONTHS_[hm - 1] + ' ' + vsAr_(y) + 'هـ',
+    dateKey: y + '-' + String(hm).padStart(2, '0') + '-' + String(hd).padStart(2, '0')
+  } : null;
+  const btn = document.getElementById('vaSaveBtn');
+  setBtnBusy(btn, true);
+  try {
+    const r = await callApi('amendVisitReport', { id: id, fields: { day: day, hijriDay: hd, hijriMonth: hmRaw, year: year, visitType: vt }, stat: stat });
+    if (!r || !r.ok) { alert('تعذّر حفظ التعديل: ' + ((r && r.error) || 'خطأ غير معروف')); return; }
+    rep.data = r.data || rep.data;
+    closeVrAmend_();
+    renderVrSaved_();
+    vrLoadStats_(true);
+    loadVrSaved_();
+  } catch (e) {
+    alert('تعذّر الاتصال بالسيرفر: ' + (e && e.message ? e.message : e));
+  } finally {
+    setBtnBusy(btn, false);
+  }
 }
 
 function editSavedVisitReport(id) {

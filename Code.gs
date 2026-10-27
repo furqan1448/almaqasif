@@ -598,19 +598,35 @@ function recordVisitStat_(p) {
   const center = visitCenterKey_(p.center);
   if (!center) return { ok: false, error: 'اسم المركز مطلوب' };
   if (!p.hijriDate) return { ok: false, error: 'تاريخ الزيارة مطلوب' };
-  const sh = visitStatsSheet_();
-  const id = Utilities.getUuid();
-  const now = nowParts_();
-  appendRowByHeaders_(sh, {
-    'معرف': id, 'اسم المركز': center, 'الفترة': p.period || '',
-    'التاريخ الهجري': p.hijriDate, 'مفتاح التاريخ': p.dateKey || '',
-    'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
-  });
-  invalidateCache_(VISIT_STATS_SHEET_);
-  const count = sheetToObjects_(VISIT_STATS_SHEET_).filter(function (r) {
-    return visitCenterKey_(r['اسم المركز']) === center;
-  }).length;
-  return { ok: true, id: id, center: center, count: count };
+  // قفل: يمنع تسجيل الزيارة مرتين لو وصل الطلب مكررًا (ضغطتان متتاليتان أو إعادة إرسال بعد تعليق)
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(15000); } catch (e) { return { ok: false, error: 'النظام مشغول، أعيدي المحاولة بعد لحظات' }; }
+  try {
+    const sh = visitStatsSheet_();
+    const period = String(p.period || '');
+    const dateKey = String(p.dateKey || '');
+    const all = sheetToObjects_(VISIT_STATS_SHEET_);
+    // الزيارة نفسها (المركز + الفترة + التاريخ) لا تُسجَّل إلا مرة واحدة: نُرجع السجل الموجود
+    const existing = dateKey ? all.find(function (r) {
+      return visitCenterKey_(r['اسم المركز']) === center && String(r['الفترة'] || '') === period &&
+        String(r['مفتاح التاريخ'] || '') === dateKey;
+    }) : null;
+    const countOf = function () {
+      return sheetToObjects_(VISIT_STATS_SHEET_).filter(function (r) { return visitCenterKey_(r['اسم المركز']) === center; }).length;
+    };
+    if (existing) return { ok: true, id: existing['معرف'], center: center, count: countOf(), existed: true };
+    const id = Utilities.getUuid();
+    const now = nowParts_();
+    appendRowByHeaders_(sh, {
+      'معرف': id, 'اسم المركز': center, 'الفترة': period,
+      'التاريخ الهجري': p.hijriDate, 'مفتاح التاريخ': dateKey,
+      'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
+    });
+    invalidateCache_(VISIT_STATS_SHEET_);
+    return { ok: true, id: id, center: center, count: countOf() };
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
 }
 
 function getVisitStats_() {
@@ -1428,6 +1444,7 @@ function dispatch_(p, T0_) {
     case 'getTermsList': return (getTermsList_());
 
     case 'saveVisitReport': return (saveVisitReport_(p));
+    case 'amendVisitReport': return (amendVisitReport_(p));
     case 'getVisitReportsAdmin': return (getVisitReportsAdmin_(p));
     case 'getVisitReportsForCenter': return (getVisitReportsForCenter_(p));
     case 'getVisitReportPendingCount': return (getVisitReportPendingCount_(p));
@@ -3187,6 +3204,45 @@ function saveVisitReport_(p) {
   });
   invalidateCache_(VISIT_REPORT_SHEET_);
   return { ok: true, id: id };
+}
+
+/* تعديل محدود لتقرير زيارة (حتى بعد توقيع المديرة): اليوم + التاريخ الهجري (يوم/شهر/سنة) + نوع الزيارة فقط.
+   لا يمسّ أي شيء آخر ولا يلغي التوقيع ولا يغيّر الحالة. ويُحدَّث سجل الإحصائية المرتبط (إن وُجد) في الطلب نفسه. */
+const VR_AMEND_DAYS_ = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+function vrArDigits_(v) {
+  return String(v === undefined || v === null ? '' : v).replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 0x0660); });
+}
+function amendVisitReport_(p) {
+  const row = findVisitReport_(p.id);
+  if (!row) return { ok: false, error: 'التقرير غير موجود (ربما حُذف)' };
+  const f = p.fields || {};
+  let data = {};
+  try { data = JSON.parse(row['بيانات التقرير'] || '{}'); } catch (e) { data = {}; }
+  const day = String(f.day || '').trim();
+  if (VR_AMEND_DAYS_.indexOf(day) === -1) return { ok: false, error: 'اليوم غير صحيح' };
+  const hd = parseInt(vrArDigits_(f.hijriDay), 10);
+  if (!(hd >= 1 && hd <= 30)) return { ok: false, error: 'يوم التاريخ الهجري يجب أن يكون بين ١ و٣٠' };
+  const hm = parseInt(vrArDigits_(f.hijriMonth), 10);
+  if (!(hm >= 1 && hm <= 12)) return { ok: false, error: 'شهر التاريخ الهجري يجب أن يكون بين ١ و١٢' };
+  const yr = vrArDigits_(f.year).replace(/\D/g, '');
+  if (yr && yr.length !== 4) return { ok: false, error: 'السنة الهجرية غير صحيحة' };
+  const vt = String(f.visitType || '').trim().slice(0, 60);
+  if (!vt) return { ok: false, error: 'نوع الزيارة مطلوب' };
+  data.day = day;
+  data.hijriDay = String(hd);
+  data.hijriMonth = String(hm).replace(/[0-9]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'[d]; });
+  if (yr) data.year = yr;
+  data.visitType = vt;
+  const sh = visitReportSheet_();
+  sh.getRange(row._row, colIndex_(sh, 'بيانات التقرير')).setValue(JSON.stringify(data));
+  invalidateCache_(VISIT_REPORT_SHEET_);
+  let statUpdated = false;
+  const s = p.stat;
+  if (s && data.statId && s.hijriDate) {
+    const r = updateVisitStat_({ id: data.statId, center: s.center || data.center, period: s.period || '', hijriDate: s.hijriDate, dateKey: s.dateKey || '' });
+    statUpdated = !!(r && r.ok);
+  }
+  return { ok: true, data: data, statUpdated: statUpdated };
 }
 
 function getVisitReportsAdmin_(p) {
