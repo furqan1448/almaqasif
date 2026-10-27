@@ -3607,7 +3607,10 @@ function visitNormName_(s) {
     .replace(/\s+/g, ' ').trim();
 }
 function visitBaseName_(s) {
-  return visitNormName_(s).replace(/(^|\s)(ال)?(صباحيه|صباحي|مسائيه|مسائي)(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim();
+  return visitNormName_(s).replace(/[-–—_()]/g, ' ')
+    .replace(/(^|\s)(ال)?(صباحيه|صباحي|مسائيه|مسائي)(?=\s|$)/g, ' ')
+    .replace(/(^|\s)(ال)?فتره(?=\s|$)/g, ' ')          // كلمة «الفترة» قد تكون بالاسم وقد لا تكون بالحصر
+    .replace(/\s+/g, ' ').trim();
 }
 function visitPeriodOfName_(s) {
   const n = visitNormName_(s);
@@ -3689,8 +3692,10 @@ function getRegistrationStats_(p) {
   // المراكز التي لا يوجد فيها مقصف حسب «حصر المقاصف» لا تظهر في الإحصائيات.
   // أسماء المراكز قد تحوي الفترة (مثل «... - الفترة المسائية»)، فنقارن الاسم دون كلمة الفترة + الفترة المفهومة من الاسم (نفس منطق شاشة الحصر).
   const surveyBy = {};
+  let surveyItems = [];
   try {
-    (getCanteenSurvey_().items || []).forEach(function (it) {
+    surveyItems = getCanteenSurvey_().items || [];
+    surveyItems.forEach(function (it) {
       const k = visitBaseName_(it.center);
       const e = surveyBy[k] || (surveyBy[k] = { byPeriod: {}, anyHas: false });
       const p = String(it.period || '').trim();
@@ -3705,6 +3710,11 @@ function getRegistrationStats_(p) {
     if (p && e.byPeriod[p] !== undefined) return !e.byPeriod[p];
     return !e.anyHas;
   });
+  // مراكز «لا مقصف» بالحصر لم تُطابق أي مركز بالإحصائيات (لتشخيص اختلاف الأسماء)
+  const centerBases = {};
+  centers.forEach(function (c) { centerBases[visitBaseName_(c)] = true; });
+  const unmatchedNoCanteen = surveyItems.filter(function (it) { return !it.has && !centerBases[visitBaseName_(it.center)]; })
+    .map(function (it) { return it.center + (it.period ? ' - ' + it.period : ''); });
   const list = centers.filter(function (c) { return hiddenNoCanteen.indexOf(c) === -1; }).map(function (c) {
     const m = st[c];
     const days = Object.keys(m.salesDays).length;
@@ -3743,7 +3753,8 @@ function getRegistrationStats_(p) {
   ['salesTotal', 'receiveAmt', 'rewardAmt', 'feeAmt', 'capital'].forEach(function (k) { totals[k] = Math.round(totals[k] * 100) / 100; });
 
   return { ok: true, period: useDates ? 'range' : (period === 'all' ? 'all' : 'term'),
-    from: useDates ? from : '', to: useDates ? to : '', centers: list, totals: totals, hiddenNoCanteen: hiddenNoCanteen };
+    from: useDates ? from : '', to: useDates ? to : '', centers: list, totals: totals, hiddenNoCanteen: hiddenNoCanteen,
+    surveyCount: surveyItems.length, surveyNoCount: surveyItems.filter(function (it) { return !it.has; }).length, unmatchedNoCanteen: unmatchedNoCanteen };
 }
 
 

@@ -6166,9 +6166,18 @@ function renderRegStats_(r) {
     '<div class="rs-kpi"><div class="v">' + t.fee + '</div><div class="l">إشعار تسليم رسوم حفل تحفيظ الصغار</div></div>' +
     '<div class="rs-kpi"><div class="v">' + t.invoices + '</div><div class="l">بيان الفواتير</div></div>' +
     '</div>';
+  if (r.hiddenNoCanteen === undefined) {
+    html += '<div class="rs-note-line" style="color:#b3261e;">⚠️ لم تُخفَ المراكز التي لا مقصف فيها لأن الخادم لم يُحدَّث: الصقي <b>Code.gs</b> الجديد في Apps Script وانشري إصدارًا جديدًا ثم اضغطي «تحديث».</div>';
+  } else if (!r.surveyNoCount) {
+    html += '<div class="rs-note-line">ℹ️ لا يوجد في «حصر المقاصف» أي مركز محفوظ بحالة «لا مقصف»، فلذلك لم يُخفَ شيء. افتحي «حصر المقاصف»، اختاري «لا» للمراكز التي ليس فيها مقصف، ثم اضغطي «حفظ الحصر».</div>';
+  }
   if (r.hiddenNoCanteen && r.hiddenNoCanteen.length) {
     html += '<div class="rs-note-line">🚫 أُخفي ' + r.hiddenNoCanteen.length + ' مركز لا يوجد فيه مقصف حسب «حصر المقاصف»: ' +
       r.hiddenNoCanteen.map(rsEsc_).join('، ') + '</div>';
+  }
+  if (r.unmatchedNoCanteen && r.unmatchedNoCanteen.length) {
+    html += '<div class="rs-note-line" style="color:#b3261e;">⚠️ مراكز «لا مقصف» في الحصر لم يُعثر على اسمها في الإحصائيات (اختلاف في الاسم): ' +
+      r.unmatchedNoCanteen.map(rsEsc_).join('، ') + '</div>';
   }
   if (t.pending) html += '<div class="rs-note-line">⏳ إشعارات بانتظار الاطلاع: <b>' + t.pending + '</b></div>';
 
