@@ -249,62 +249,139 @@
      يُبنى بعرض صفحة A4 في ٣ أعمدة متوازنة، ثم يُصغَّر الخط تلقائيًا حتى تتسع القائمة في صفحة واحدة.
      إذا كانت الأصناف كثيرة جدًا فلا يقل الخط عن حد مقروء، وتنتقل البقية إلى صفحة ثانية. */
   var PAGE_W = 794, PAGE_H = 1123;   // A4 بدقة 96
-  var PDF_CSS = [
-    '.pmp{width:' + PAGE_W + 'px;background:#fff;color:#2a2224;font-family:Tajawal,Arial,sans-serif;direction:rtl;word-spacing:3px}',
+  /* شكل ملف PDF: 'cards' | 'soft' | 'classic' */
+  var PDF_VARIANT = 'cards';
+  var PDF_BASE = [
+    '.pmp{width:' + PAGE_W + 'px;background:#fff;color:#211b1d;font-family:Tajawal,Arial,sans-serif;direction:rtl;word-spacing:2px}',
+    '.pmp *{box-sizing:border-box;font-family:Tajawal,Arial,sans-serif}',
     '.pmp img.lh{display:block;width:100%;height:auto}',
-    '.pmp .ttl{text-align:center;padding:10px 30px 6px}',
-    '.pmp .ttl h1{margin:0;color:#8f1d2c;font-size:26px;font-weight:800;line-height:1.3;word-spacing:5px}',
-    '.pmp .ttl div{color:#857a7c;font-size:12px}',
-    '.pmp .cols{display:flex;gap:14px;padding:6px 26px 18px;align-items:flex-start}',
+    '.pmp .ttl{display:flex;align-items:flex-end;justify-content:space-between;padding:16px 28px 10px;margin:0 0 4px}',
+    '.pmp .ttl h1{margin:0;color:#8f1d2c;font-size:30px;font-weight:800;line-height:1.2;word-spacing:4px}',
+    '.pmp .ttl .sub{color:#857a7c;font-size:12.5px;margin-top:2px}',
+    '.pmp .ttl .chips{display:flex;gap:6px}',
+    '.pmp .ttl .chip{background:#f8eef0;color:#8f1d2c;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700;white-space:nowrap}',
+    '.pmp .cols{display:flex;gap:14px;padding:6px 28px 14px;align-items:flex-start}',
     '.pmp .col{flex:1;min-width:0}',
-    '.pmp .blk{margin:0 0 9px;break-inside:avoid;page-break-inside:avoid}',
-    '.pmp .bh{background:#8f1d2c;color:#fff;font-weight:800;border-radius:6px;padding:3px 9px;display:flex;justify-content:space-between;align-items:center}',
-    '.pmp .bh small{font-weight:500;opacity:.85}',
-    '.pmp .r{display:flex;align-items:baseline;gap:5px;padding:2px 3px;border-bottom:1px solid #f1e6e7}',
+    '.pmp .blk{margin:0 0 10px;break-inside:avoid;page-break-inside:avoid}',
+    '.pmp .bh{display:flex;align-items:center;gap:7px;font-weight:800}',
+    '.pmp .bh .t{flex:1;white-space:nowrap}',
+    '.pmp .bh .ic{flex:none;display:grid;place-items:center}',
+    '.pmp .bh .ic svg{stroke:#8f1d2c}',
+    '.pmp .bh .c{font-weight:600;font-size:.78em;white-space:nowrap}',
+    '.pmp .bh .t em{font-style:normal;font-weight:600;font-size:.78em;opacity:.7}',
+    '.pmp .r{display:flex;align-items:center;gap:6px}',
     '.pmp .r .n{white-space:nowrap;flex:none}',
-    '.pmp .r .d{flex:1;min-width:6px;border-bottom:1.5px dotted #d6c4c6;transform:translateY(-3px)}',
-    '.pmp .r .p{font-weight:800;color:#8f1d2c;white-space:nowrap;display:inline-flex;align-items:baseline;gap:4px}',
-    '.pmp .r .p small{font-weight:500;color:#857a7c;font-size:.8em}',
-    '.pmp .r .p.t{color:#a77420;font-weight:700}',
-    '.pmp .ft{text-align:center;color:#a09597;font-size:10.5px;padding:0 0 12px}'
+    '.pmp .r .d{flex:1;min-width:6px}',
+    '.pmp .wrapnames .r .n{white-space:normal;flex:1 1 auto;min-width:0}',
+    '.pmp .wrapnames .r .d{display:none}',
+    '.pmp .r .p{white-space:nowrap;display:inline-flex;align-items:baseline;gap:3px;font-weight:800;color:#8f1d2c}',
+    '.pmp .r .p small{font-weight:600;font-size:.74em}',
+    '.pmp .r .p.t{color:#9a6a17;font-weight:700}',
+    '.pmp .ft{display:flex;justify-content:space-between;align-items:center;margin:0 28px;padding:8px 0 14px;border-top:1px solid #efe6e7;color:#a09597;font-size:11px;white-space:nowrap}'
   ].join('\n');
+  var PDF_VARIANTS = {
+    /* (أ) بطاقات — مثل شكل الشاشة */
+    cards: [
+      '.pmp .blk{border:1px solid #eee2e4;border-radius:12px;padding:6px 10px 3px;background:#fff}',
+      '.pmp .bh{color:#211b1d;padding:1px 0 6px;border-bottom:1px solid #f1e7e8;margin-bottom:2px}',
+      '.pmp .bh .ic{width:1.75em;height:1.75em;border-radius:7px;background:#f8eef0}',
+      '.pmp .bh .ic svg{width:1.1em;height:1.1em}',
+      '.pmp .bh .c{color:#9a9092;background:#f6f3f3;border-radius:20px;padding:0 8px}',
+      '.pmp .r{padding:2.5px 0;border-bottom:1px solid #f6f1f1}',
+      '.pmp .blk .r:last-child{border-bottom:0}',
+      '.pmp .r .p{background:#f8eef0;border-radius:6px;padding:0 7px}',
+      '.pmp .r .p.t{background:#fbf3e3}'
+    ].join('\n'),
+    /* (ب) عناوين ناعمة — شريط وردي فاتح وأسطر منقّطة */
+    soft: [
+      '.pmp .bh{color:#8f1d2c;background:#f8eef0;border-radius:8px;padding:3px 9px;border-right:4px solid #8f1d2c;margin-bottom:3px}',
+      '.pmp .bh .ic svg{width:1.05em;height:1.05em}',
+      '.pmp .bh .c{color:#8f1d2c;opacity:.75}',
+      '.pmp .r{padding:2px 6px}',
+      '.pmp .blk .r:nth-child(odd){background:#fcf9f9}',
+      '.pmp .r .d{border-bottom:1.5px dotted #dccbcd;align-self:flex-end;margin-bottom:.45em}'
+    ].join('\n'),
+    /* (ج) رسمي أنيق — خط عنابي تحت العنوان وفواصل رفيعة */
+    classic: [
+      '.pmp .cols{gap:0}',
+      '.pmp .col{padding:0 12px;border-left:1px solid #efe6e7}',
+      '.pmp .col:last-child{border-left:0}',
+      '.pmp .bh{color:#8f1d2c;padding:0 0 4px;border-bottom:2px solid #8f1d2c;margin-bottom:2px}',
+      '.pmp .bh .ic svg{width:1.05em;height:1.05em}',
+      '.pmp .bh .c{color:#fff;background:#8f1d2c;border-radius:20px;padding:0 7px}',
+      '.pmp .r{padding:2.5px 0;border-bottom:1px solid #f3ecec}',
+      '.pmp .r .p{min-width:3.6em;justify-content:flex-start}'
+    ].join('\n')
+  };
+
+  /* خط Tajawal مضمّن داخل ملف PDF (بدونه قد يظهر الملف بخط آخر) */
+  var FONT_CSS_URL = 'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap';
+  var _fontCss = null;
+  function blobToData(b) { return new Promise(function (res) { var fr = new FileReader(); fr.onload = function () { res(fr.result); }; fr.readAsDataURL(b); }); }
+  function fontEmbedCss() {
+    if (_fontCss !== null) return Promise.resolve(_fontCss);
+    return fetch(FONT_CSS_URL).then(function (r) { return r.text(); }).then(function (css) {
+      var urls = [], re = /url\((['"]?)(https:[^)'"]+)\1\)/g, m;
+      while ((m = re.exec(css))) if (urls.indexOf(m[2]) < 0) urls.push(m[2]);
+      return Promise.all(urls.map(function (u) {
+        return fetch(u).then(function (r) { return r.blob(); }).then(blobToData).then(function (d) { css = css.split(u).join(d); });
+      })).then(function () { _fontCss = css; return css; });
+    }).catch(function () { _fontCss = ''; return ''; });
+  }
 
   /* الكليشة كصورة مضمّنة حتى تظهر دائمًا في ملف PDF */
   var _lhData = null;
   function letterheadSrc() {
     if (_lhData) return Promise.resolve(_lhData);
     return fetch(LETTERHEAD).then(function (r) { if (!r.ok) throw 0; return r.blob(); }).then(function (b) {
-      return new Promise(function (res) { var fr = new FileReader(); fr.onload = function () { _lhData = fr.result; res(_lhData); }; fr.readAsDataURL(b); });
+      return blobToData(b).then(function (d) { _lhData = d; return d; });
     }).catch(function () { return LETTERHEAD; });
   }
 
-  function buildPdfNode(cats, fs, lhSrc, ncols) {
+  /* توزيع التصنيفات بترتيبها على أعمدة متساوية الطول؛ التصنيف الطويل يُكمَل في العمود التالي بعنوان «تابع» */
+  var HEAD_W = 2.4;
+  function balanceCols(cats, k) {
+    var total = cats.reduce(function (n, c) { return n + c.items.length + HEAD_W; }, 0);
+    var H = (total + HEAD_W * (k - 1)) / k;
+    var cols = [[]], used = 0;
+    var queue = cats.map(function (c) { return { name: c.name, items: c.items.slice(), count: c.items.length, cont: false }; });
+    while (queue.length) {
+      var c = queue[0], rem = H - used, need = HEAD_W + c.items.length, last = cols.length === k;
+      if (last || need <= rem + 0.6) { cols[cols.length - 1].push(c); used += need; queue.shift(); continue; }
+      var take = Math.floor(rem - HEAD_W + 0.4);
+      if (take >= 3 && c.items.length - take >= 3) {
+        cols[cols.length - 1].push({ name: c.name, items: c.items.slice(0, take), count: c.count, cont: c.cont });
+        queue[0] = { name: c.name, items: c.items.slice(take), count: c.count, cont: true };
+      }
+      cols.push([]); used = 0;
+    }
+    while (cols.length < k) cols.push([]);
+    return cols;
+  }
+
+  function buildPdfNode(cats, fs, lhSrc, ncols, variant, fontCss) {
     // توزيع التصنيفات على أعمدة متوازنة بحسب عدد الأسطر، مع الحفاظ على الترتيب
     ncols = ncols || 3;
-    var weights = cats.map(function (c) { return c.items.length + 1.6; });
-    var total = weights.reduce(function (a, b) { return a + b; }, 0);
-    var cols = [], acc = 0, col = 0;
-    for (var q = 0; q < ncols; q++) cols.push([]);
-    cats.forEach(function (c, i) {
-      if (col < ncols - 1 && acc > 0 && acc + weights[i] / 2 > (total / ncols) * (col + 1)) col++;
-      cols[col].push(c); acc += weights[i];
-    });
+    variant = PDF_VARIANTS[variant] ? variant : PDF_VARIANT;
+    var cols = balanceCols(cats, ncols);
+    var count = cats.reduce(function (n, c) { return n + c.items.length; }, 0);
     var root = document.createElement('div');
     root.className = 'pmp';
-    root.innerHTML = '<style>' + PDF_CSS + '</style>' +
+    root.innerHTML = '<style>' + (fontCss || '') + PDF_BASE + '\n' + PDF_VARIANTS[variant] + '</style>' +
       '<img class="lh" src="' + esc(lhSrc || LETTERHEAD) + '" alt="">' +
-      '<div class="ttl"><h1>' + TITLE + '</h1><div>وحدة المقاصف — ' + esc(todayLabel()) + '</div></div>' +
-      '<div class="cols" style="font-size:' + fs + 'px;line-height:1.55">' + cols.map(function (list) {
+      '<div class="ttl"><div><h1>' + TITLE + '</h1><div class="sub">وحدة المقاصف — ' + esc(todayLabel()) + '</div></div>' +
+        '<div class="chips"><span class="chip">' + countLabel(count) + '</span><span class="chip">' + AR(cats.length) + ' تصنيفات</span></div></div>' +
+      '<div class="cols' + (variant === 'soft' ? '' : ' wrapnames') + '" style="font-size:' + fs + 'px;line-height:1.5">' + cols.map(function (list) {
         return '<div class="col">' + list.map(function (c) {
-          return '<div class="blk"><div class="bh" style="font-size:' + (fs + 1) + 'px"><span>' + esc(c.name) + '</span><small>' + AR(c.items.length) + '</small></div>' +
+          return '<div class="blk"><div class="bh" style="font-size:' + (fs + 1.5) + 'px"><span class="ic">' + svg(iconFor(c.name)) + '</span><span class="t">' + esc(c.name) + (c.cont ? ' <em>(تابع)</em>' : '') + '</span>' + (c.cont ? '' : '<span class="c">' + AR(c.count) + '</span>') + '</div>' +
             c.items.map(function (it) {
               var n = toNum(it.price);
               return '<div class="r"><span class="n">' + esc(it.name) + '</span><span class="d"></span>' +
-                (n !== null ? '<span class="p"><b>' + AR(n) + '</b><small>ريال</small></span>' : '<span class="p t">' + esc(it.price) + '</span>') + '</div>';
+                (n !== null ? '<span class="p">' + AR(n) + '<small>ريال</small></span>' : '<span class="p t">' + esc(it.price) + '</span>') + '</div>';
             }).join('') + '</div>';
         }).join('') + '</div>';
       }).join('') + '</div>' +
-      '<div class="ft">الأسعار بالريال السعودي</div>';
+      '<div class="ft"><span>الأسعار بالريال السعودي</span><span>جمعية فرقان لتحفيظ القرآن الكريم بالطائف</span></div>';
     return root;
   }
 
@@ -338,7 +415,8 @@
     return out;
   }
 
-  function exportPdf(items) {
+  function exportPdf(items, opts) {
+    opts = opts || {};
     var cats = group(items);
     if (!cats.length) { alert('لا توجد أصناف لتصديرها'); return Promise.resolve(); }
     // حاوية مخفية بنفس طريقة النظام: لا تظهر على الشاشة ولا تتأثر بعرض الجوال
@@ -350,14 +428,15 @@
     document.body.appendChild(wrap);
     var node;
     var lh = LETTERHEAD;
-    return loadScript(HTML2PDF_URL, 'html2pdf').then(letterheadSrc).then(function (src) {
+    var fcss = '';
+    return loadScript(HTML2PDF_URL, 'html2pdf').then(fontEmbedCss).then(function (f) { fcss = f; return letterheadSrc(); }).then(function (src) {
       lh = src;
       // تصغير الخط تدريجيًا حتى تتسع القائمة في صفحة واحدة (بحد أدنى مقروء)
       // صفحة واحدة دائمًا: نصغّر الخط في ٣ أعمدة، ثم ننتقل إلى ٤ أعمدة إن لزم
-      var fs = 13.5, ncols = 3;
+      var fs = 15, ncols = 3;
       var tryFit = function () {
         host.innerHTML = '';
-        node = buildPdfNode(cats, fs, lh, ncols);
+        node = buildPdfNode(cats, fs, lh, ncols, opts.variant, fcss);
         host.appendChild(node);
         return waitImages(node).then(function () {
           if (node.scrollHeight <= PAGE_H - 4) return;
@@ -372,7 +451,7 @@
     }).then(function () {
       // الطريقة الأدق للنص العربي: html-to-image، ثم html2canvas احتياطيًا
       return loadScript(HTML2IMG_URL, 'htmlToImage').then(function () {
-        return htmlToImage.toCanvas(node, { pixelRatio: 2, backgroundColor: '#ffffff', width: PAGE_W, height: node.scrollHeight, cacheBust: true });
+        return htmlToImage.toCanvas(node, { pixelRatio: 2, backgroundColor: '#ffffff', width: PAGE_W, height: node.scrollHeight, fontEmbedCSS: fcss || undefined });
       }).then(function (canvas) {
         return html2pdf().set(PDF_OPTS).from(fitOnePage(canvas), 'canvas').save();
       }).catch(function () {
