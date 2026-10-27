@@ -640,7 +640,11 @@
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">ملاحظات</h3>
         <textarea id="anText" rows="2" placeholder="اكتبي الملاحظة أو المطلوب إنجازه..." onkeydown="if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) addAdminNote_()"></textarea>
-        <button class="btn" id="anAddBtn" onclick="addAdminNote_()" style="margin-top:8px;">＋ إضافة</button>
+        <div id="anEditBanner" class="hidden" style="margin-top:8px;padding:8px 12px;border:1px solid var(--gold-light);background:var(--cream);border-radius:10px;font-size:0.85rem;">✏️ تعديل ملاحظة — عدّلي النص ثم اضغطي «حفظ التعديل»</div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="btn" id="anAddBtn" onclick="addAdminNote_()">＋ إضافة</button>
+          <button class="btn outline hidden" id="anCancelBtn" onclick="cancelAdminNoteEdit_()" style="width:auto;padding:0 22px;">إلغاء</button>
+        </div>
       </div>
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
@@ -6046,6 +6050,7 @@ function addAdminNote_() {
   const ta = document.getElementById('anText');
   const text = ta.value.trim();
   if (!text) { ta.focus(); return; }
+  if (anEditId_) { saveAdminNoteEdit_(text); return; }
   const pw = anPw_(); if (!pw) return;
   const btn = document.getElementById('anAddBtn');
   setBtnBusy(btn, true, 'جارِ الإضافة...');
@@ -6076,21 +6081,47 @@ function toggleAdminNote_(id, done) {
   });
 }
 
+let anEditId_ = null;
+
+/* التعديل في مكان الكتابة نفسه: ينقل النص لخانة الكتابة أعلى الصفحة ويرجعكِ إليها */
 function editAdminNote_(id) {
   const n = (anList_ || []).find(function (x) { return x.id === id; });
   if (!n) return;
-  const t = prompt('تعديل الملاحظة:', n.text);
-  if (t === null) return;
-  const text = t.trim();
-  if (!text || text === n.text) return;
-  const old = n.text;
-  n.text = text; renderAdminNotes_();
-  callApi('saveAdminNote', { adminPw: anPw_(), id: id, text: text }).then(function (r) {
-    if (!r || !r.ok) throw new Error((r && r.error) || '');
-  }).catch(function (err) {
-    n.text = old; renderAdminNotes_();
-    alert('تعذّر حفظ التعديل' + (err && err.message ? ': ' + err.message : ''));
-  });
+  anEditId_ = id;
+  const ta = document.getElementById('anText');
+  ta.value = n.text;
+  document.getElementById('anAddBtn').textContent = '💾 حفظ التعديل';
+  document.getElementById('anCancelBtn').classList.remove('hidden');
+  document.getElementById('anEditBanner').classList.remove('hidden');
+  ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  ta.focus();
+  try { ta.setSelectionRange(ta.value.length, ta.value.length); } catch (e) {}
+}
+
+function cancelAdminNoteEdit_() {
+  anEditId_ = null;
+  document.getElementById('anText').value = '';
+  const ab = document.getElementById('anAddBtn');
+  delete ab.dataset.originalHtml;
+  ab.textContent = '＋ إضافة';
+  document.getElementById('anCancelBtn').classList.add('hidden');
+  document.getElementById('anEditBanner').classList.add('hidden');
+}
+
+function saveAdminNoteEdit_(text) {
+  const id = anEditId_;
+  const n = (anList_ || []).find(function (x) { return x.id === id; });
+  if (!n) { cancelAdminNoteEdit_(); return; }
+  const pw = anPw_(); if (!pw) return;
+  const btn = document.getElementById('anAddBtn');
+  setBtnBusy(btn, true, 'جارِ الحفظ...');
+  callApi('saveAdminNote', { adminPw: pw, id: id, text: text }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) { anAuthFailed_(r); alert('تعذّر حفظ التعديل' + (r && r.error ? ': ' + r.error : '')); return; }
+    n.text = text;
+    cancelAdminNoteEdit_();
+    renderAdminNotes_();
+  }).catch(function () { setBtnBusy(btn, false); alert('تعذّر الاتصال بالخادم، حاولي مرة أخرى.'); });
 }
 
 function deleteAdminNote_(id) {
@@ -6098,6 +6129,7 @@ function deleteAdminNote_(id) {
   const idx = (anList_ || []).findIndex(function (x) { return x.id === id; });
   if (idx < 0) return;
   const removed = anList_.splice(idx, 1)[0];
+  if (anEditId_ === id) cancelAdminNoteEdit_();
   renderAdminNotes_();
   callApi('deleteAdminNote', { adminPw: anPw_(), id: id }).then(function (r) {
     if (!r || !r.ok) throw new Error((r && r.error) || '');
