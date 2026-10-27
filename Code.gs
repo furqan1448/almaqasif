@@ -1443,6 +1443,10 @@ function dispatch_(p, T0_) {
     case 'archiveCurrentTerm': return (archiveCurrentTerm_(p));
     case 'getTermsList': return (getTermsList_());
 
+    case 'getAdminNotes': return (getAdminNotes_(p));
+    case 'saveAdminNote': return (saveAdminNote_(p));
+    case 'setAdminNoteDone': return (setAdminNoteDone_(p));
+    case 'deleteAdminNote': return (deleteAdminNote_(p));
     case 'saveVisitReport': return (saveVisitReport_(p));
     case 'amendVisitReport': return (amendVisitReport_(p));
     case 'getVisitReportsAdmin': return (getVisitReportsAdmin_(p));
@@ -3134,6 +3138,79 @@ function archiveCurrentTerm_(p) {
 /* ------------------- تقارير الزيارة (حفظ + توقيع مديرة المركز) -------------------
    الإدارة تكتب التقرير وتختار المركز ← يُحفظ «بانتظار توقيع المديرة» ← المديرة توقّع من صفحة المراكز.
    التعديل من الإدارة فقط، وأي تعديل يلغي توقيع المديرة ويعيد التقرير لحالة الانتظار. */
+/* ======================= ملاحظات الإدارة =======================
+   قائمة مهام خاصة بالإدارة: تكتب الملاحظة وتضع ✔ عند إنجازها. محفوظة بالشيت (تظهر من أي جهاز)، وكل الطلبات تحتاج كلمة مرور الإدارة.
+   تُنشأ الورقة تلقائيًا عند أول استخدام، ولا تُقرأ إلا عند فتح الأيقونة. */
+const ADMIN_NOTES_SHEET_ = 'ملاحظات الإدارة';
+const ADMIN_NOTES_HEADERS_ = ['معرف', 'الملاحظة', 'منجزة', 'تاريخ الإضافة', 'تاريخ الإنجاز'];
+
+function adminNotesSheet_() {
+  let sh = sheet_(ADMIN_NOTES_SHEET_);
+  if (!sh) {
+    sh = SpreadsheetApp.getActiveSpreadsheet().insertSheet(ADMIN_NOTES_SHEET_);
+    sh.getRange(1, 1, 1, ADMIN_NOTES_HEADERS_.length).setValues([ADMIN_NOTES_HEADERS_]).setFontWeight('bold');
+    sh.setRightToLeft(true);
+    sh.getRange(2, 1, sh.getMaxRows() - 1, ADMIN_NOTES_HEADERS_.length).setNumberFormat('@');
+  }
+  return sh;
+}
+
+function adminNotesAuth_(p) {
+  const a = loginAdmin_({ password: p && p.adminPw });
+  return a.ok ? null : { ok: false, auth: true, error: a.error };
+}
+
+function adminNoteOut_(r) {
+  return { id: String(r['معرف']), text: String(r['الملاحظة'] || ''), done: String(r['منجزة'] || '').trim() === 'نعم',
+    added: String(r['تاريخ الإضافة'] || ''), doneDate: String(r['تاريخ الإنجاز'] || '') };
+}
+
+function getAdminNotes_(p) {
+  const bad = adminNotesAuth_(p); if (bad) return bad;
+  if (!sheet_(ADMIN_NOTES_SHEET_)) return { ok: true, notes: [] };
+  return { ok: true, notes: sheetToObjects_(ADMIN_NOTES_SHEET_).filter(function (r) { return String(r['معرف'] || '').trim(); }).map(adminNoteOut_) };
+}
+
+/* إضافة (بدون p.id) أو تعديل نص ملاحظة (مع p.id) */
+function saveAdminNote_(p) {
+  const bad = adminNotesAuth_(p); if (bad) return bad;
+  const text = String(p.text || '').trim().slice(0, 2000);
+  if (!text) return { ok: false, error: 'اكتبي الملاحظة' };
+  const sh = adminNotesSheet_();
+  if (p.id) {
+    const row = sheetToObjects_(ADMIN_NOTES_SHEET_).find(function (r) { return String(r['معرف']) === String(p.id); });
+    if (!row) return { ok: false, error: 'الملاحظة غير موجودة' };
+    sh.getRange(row._row, colIndex_(sh, 'الملاحظة')).setValue(text);
+    invalidateCache_(ADMIN_NOTES_SHEET_);
+    return { ok: true, id: p.id, text: text };
+  }
+  const id = Utilities.getUuid();
+  appendRowByHeaders_(sh, { 'معرف': id, 'الملاحظة': text, 'منجزة': 'لا', 'تاريخ الإضافة': nowParts_().date });
+  invalidateCache_(ADMIN_NOTES_SHEET_);
+  return { ok: true, id: id, text: text, added: nowParts_().date };
+}
+
+function setAdminNoteDone_(p) {
+  const bad = adminNotesAuth_(p); if (bad) return bad;
+  const row = sheetToObjects_(ADMIN_NOTES_SHEET_).find(function (r) { return String(r['معرف']) === String(p.id); });
+  if (!row) return { ok: false, error: 'الملاحظة غير موجودة' };
+  const sh = adminNotesSheet_();
+  const done = !!p.done;
+  sh.getRange(row._row, colIndex_(sh, 'منجزة')).setValue(done ? 'نعم' : 'لا');
+  sh.getRange(row._row, colIndex_(sh, 'تاريخ الإنجاز')).setValue(done ? nowParts_().date : '');
+  invalidateCache_(ADMIN_NOTES_SHEET_);
+  return { ok: true, done: done, doneDate: done ? nowParts_().date : '' };
+}
+
+function deleteAdminNote_(p) {
+  const bad = adminNotesAuth_(p); if (bad) return bad;
+  const row = sheetToObjects_(ADMIN_NOTES_SHEET_).find(function (r) { return String(r['معرف']) === String(p.id); });
+  if (!row) return { ok: true };
+  adminNotesSheet_().deleteRow(row._row);
+  invalidateCache_(ADMIN_NOTES_SHEET_);
+  return { ok: true };
+}
+
 const VISIT_REPORT_SHEET_ = 'تقارير الزيارة';
 const VISIT_REPORT_HEADERS_ = ['معرف', 'اسم المركز', 'بيانات التقرير', 'توقيع الرئيسة', 'الحالة',
   'يوم الإرسال', 'تاريخ الإرسال', 'وقت الإرسال',

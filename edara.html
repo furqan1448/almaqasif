@@ -141,6 +141,10 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M8 5v14M14 10v9"/></svg></div>
           <span class="label">مبالغ المقاصف</span>
         </div>
+        <div class="icon-btn" onclick="showAdminTab('notesTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 3.5h6v2H9z"/><path d="M8.5 11l1.6 1.6 2.9-3"/><path d="M8.5 17h7"/></svg></div>
+          <span class="label">ملاحظات</span>
+        </div>
         <div class="icon-btn" onclick="showAdminTab('announcementsTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 8.5a4 4 0 0 1 0 7"/><path d="M18 6a8 8 0 0 1 0 12"/></svg></div>
           <span class="label">إشعارات هامة</span>
@@ -629,6 +633,24 @@
         <button class="btn" id="amRunBtn" onclick="loadAmounts_(true)">تحديث</button>
       </div>
       <div id="amResult"></div>
+    </div>
+
+    <!-- ===== تبويب: ملاحظات الإدارة (قائمة مهام بعلامة ✔ عند الإنجاز؛ تُحمَّل عند فتح الأيقونة فقط) ===== -->
+    <div id="notesTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">ملاحظات</h3>
+        <textarea id="anText" rows="2" placeholder="اكتبي الملاحظة أو المطلوب إنجازه..." onkeydown="if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) addAdminNote_()"></textarea>
+        <button class="btn" id="anAddBtn" onclick="addAdminNote_()" style="margin-top:8px;">＋ إضافة</button>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+          <div id="anSummary" style="font-weight:700;color:var(--maroon);"></div>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;font-size:0.85rem;margin:0;">
+            <input type="checkbox" id="anHideDone" style="width:auto;" onchange="renderAdminNotes_()"> إخفاء المنجزة
+          </label>
+        </div>
+        <div id="anList">جارِ التحميل...</div>
+      </div>
     </div>
 
     <!-- ===== تبويب: إشعارات هامة ===== -->
@@ -1516,6 +1538,7 @@ function showAdminTab(tabId) {
   if (tabId === 'statsTab') loadStats();
   if (tabId === 'regStatsTab') loadRegStats();
   if (tabId === 'amountsTab') loadAmounts_();
+  if (tabId === 'notesTab') loadAdminNotes_();
   if (tabId === 'noticesTab') loadPending();
   if (tabId === 'attendanceTab') loadAttendanceChecklist();
   if (tabId === 'salesTab') { loadCenterSales(); loadRewardSummary_(); }
@@ -5961,6 +5984,117 @@ function printAmounts_() {
 }
 
 /* ==================== مبالغ المقاصف (نهاية) ==================== */
+
+/* ==================== ملاحظات الإدارة ==================== */
+let anList_ = null;
+
+function anPw_() { return aevPw_(true); }
+
+function anAuthFailed_(r) {
+  if (r && r.auth) { try { sessionStorage.removeItem('maqasif_admin_pw'); } catch (e) {} }
+}
+
+function loadAdminNotes_() {
+  const pw = anPw_();
+  if (!pw) { document.getElementById('anList').textContent = 'أدخلي كلمة مرور الإدارة لعرض الملاحظات.'; return; }
+  if (anList_) { renderAdminNotes_(); }
+  callApi('getAdminNotes', { adminPw: pw }).then(function (r) {
+    if (!r || !r.ok) { anAuthFailed_(r); document.getElementById('anList').textContent = 'تعذّر تحميل الملاحظات' + (r && r.error ? ': ' + r.error : ''); return; }
+    anList_ = r.notes || [];
+    renderAdminNotes_();
+  }).catch(function () { if (!anList_) document.getElementById('anList').textContent = 'تعذّر الاتصال بالخادم، حاولي مرة أخرى.'; });
+}
+
+function renderAdminNotes_() {
+  const box = document.getElementById('anList');
+  const list = anList_ || [];
+  const open = list.filter(function (n) { return !n.done; });
+  const done = list.filter(function (n) { return n.done; });
+  document.getElementById('anSummary').textContent = list.length
+    ? 'المتبقي: ' + toArabicDigits(open.length) + ' · المنجز: ' + toArabicDigits(done.length) : '';
+  const hideDone = document.getElementById('anHideDone').checked;
+  // غير المنجزة أولًا (الأحدث فوق)، ثم المنجزة
+  const rows = open.slice().reverse().concat(hideDone ? [] : done.slice().reverse());
+  if (!rows.length) { box.innerHTML = '<div style="color:#8a7d76;padding:8px 0;">' + (list.length ? 'كل الملاحظات منجزة 👏' : 'لا توجد ملاحظات بعد.') + '</div>'; return; }
+  box.innerHTML = rows.map(function (n) {
+    return '<div class="an-row" style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--gold-light);">' +
+      '<input type="checkbox" style="width:22px;height:22px;margin-top:3px;flex:none;accent-color:#1f8f4e;" ' + (n.done ? 'checked ' : '') + 'onchange="toggleAdminNote_(\'' + n.id + '\', this.checked)">' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="white-space:pre-wrap;word-break:break-word;line-height:1.8;' + (n.done ? 'text-decoration:line-through;color:#8a7d76;' : '') + '">' + rsEsc_(n.text) + '</div>' +
+        '<div style="font-size:0.74rem;color:#8a7d76;">' + (n.added ? 'أُضيفت ' + toHijriStr(n.added) : '') + (n.done && n.doneDate ? ' · أُنجزت ✅ ' + toHijriStr(n.doneDate) : '') + '</div>' +
+      '</div>' +
+      '<div class="row-actions" style="flex:none;"><a href="#" onclick="editAdminNote_(\'' + n.id + '\'); return false;">تعديل</a>' +
+      '<a href="#" onclick="deleteAdminNote_(\'' + n.id + '\'); return false;">حذف</a></div>' +
+    '</div>';
+  }).join('');
+}
+
+function addAdminNote_() {
+  const ta = document.getElementById('anText');
+  const text = ta.value.trim();
+  if (!text) { ta.focus(); return; }
+  const pw = anPw_(); if (!pw) return;
+  const btn = document.getElementById('anAddBtn');
+  setBtnBusy(btn, true, 'جارِ الإضافة...');
+  callApi('saveAdminNote', { adminPw: pw, text: text }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) { anAuthFailed_(r); alert('تعذّرت الإضافة' + (r && r.error ? ': ' + r.error : '')); return; }
+    (anList_ = anList_ || []).push({ id: r.id, text: r.text, done: false, added: r.added || todayStr(), doneDate: '' });
+    ta.value = '';
+    renderAdminNotes_();
+  }).catch(function () { setBtnBusy(btn, false); alert('تعذّر الاتصال بالخادم، حاولي مرة أخرى.'); });
+}
+
+/* تغيير الحالة فورًا بالشاشة ثم الحفظ بالخلفية (يرجع التغيير إن فشل) */
+function toggleAdminNote_(id, done) {
+  const n = (anList_ || []).find(function (x) { return x.id === id; });
+  if (!n) return;
+  const prev = { done: n.done, doneDate: n.doneDate };
+  n.done = !!done; n.doneDate = done ? todayStr() : '';
+  renderAdminNotes_();
+  callApi('setAdminNoteDone', { adminPw: anPw_(), id: id, done: !!done }).then(function (r) {
+    if (!r || !r.ok) throw new Error((r && r.error) || '');
+    n.doneDate = r.doneDate || n.doneDate;
+    renderAdminNotes_();
+  }).catch(function (err) {
+    n.done = prev.done; n.doneDate = prev.doneDate;
+    renderAdminNotes_();
+    alert('تعذّر حفظ الحالة' + (err && err.message ? ': ' + err.message : '') + '، حاولي مرة أخرى.');
+  });
+}
+
+function editAdminNote_(id) {
+  const n = (anList_ || []).find(function (x) { return x.id === id; });
+  if (!n) return;
+  const t = prompt('تعديل الملاحظة:', n.text);
+  if (t === null) return;
+  const text = t.trim();
+  if (!text || text === n.text) return;
+  const old = n.text;
+  n.text = text; renderAdminNotes_();
+  callApi('saveAdminNote', { adminPw: anPw_(), id: id, text: text }).then(function (r) {
+    if (!r || !r.ok) throw new Error((r && r.error) || '');
+  }).catch(function (err) {
+    n.text = old; renderAdminNotes_();
+    alert('تعذّر حفظ التعديل' + (err && err.message ? ': ' + err.message : ''));
+  });
+}
+
+function deleteAdminNote_(id) {
+  if (!confirm('هل تريدين حذف هذه الملاحظة؟')) return;
+  const idx = (anList_ || []).findIndex(function (x) { return x.id === id; });
+  if (idx < 0) return;
+  const removed = anList_.splice(idx, 1)[0];
+  renderAdminNotes_();
+  callApi('deleteAdminNote', { adminPw: anPw_(), id: id }).then(function (r) {
+    if (!r || !r.ok) throw new Error((r && r.error) || '');
+  }).catch(function (err) {
+    anList_.splice(idx, 0, removed); renderAdminNotes_();
+    alert('تعذّر الحذف' + (err && err.message ? ': ' + err.message : ''));
+  });
+}
+
+/* ==================== ملاحظات الإدارة (نهاية) ==================== */
 
 function onRsPeriodChange() {
   const custom = document.getElementById('rsPeriod').value === 'custom';
