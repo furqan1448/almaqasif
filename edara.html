@@ -1374,7 +1374,7 @@
   <div style="background:#fff;border-radius:14px;max-width:460px;width:100%;padding:18px 20px;max-height:92vh;overflow:auto;">
     <h3 style="margin:0 0 4px;color:var(--maroon);">تعديل التاريخ ونوع الزيارة</h3>
     <div id="vaCenterLine" style="font-size:0.85rem;color:#8a7d76;margin-bottom:6px;"></div>
-    <div style="font-size:0.82rem;color:#1f8f4e;margin-bottom:10px;line-height:1.8;">يبقى توقيع المديرة كما هو، ولا يتغيّر رقم الزيارة، ويُحدَّث سجل الإحصائية المرتبط بالتقرير.</div>
+    <div style="font-size:0.82rem;color:#1f8f4e;margin-bottom:10px;line-height:1.8;">يبقى توقيع المديرة كما هو، ولا يُعاد إرسال التقرير لها، ويُحدَّث سجل الإحصائية المرتبط بالتقرير عند تغيير التاريخ.</div>
     <label>اليوم</label>
     <select id="vaDay">
       <option value="الأحد">الأحد</option><option value="الاثنين">الاثنين</option><option value="الثلاثاء">الثلاثاء</option>
@@ -1389,8 +1389,16 @@
       </select>
       <input type="text" id="vaYear" inputmode="numeric" placeholder="١٤٤٨" style="width:36%;">
     </div>
-    <label>نوع الزيارة</label>
-    <input type="text" id="vaVisitType">
+    <div class="select-row">
+      <div>
+        <label>نوع الزيارة</label>
+        <input type="text" id="vaVisitType">
+      </div>
+      <div>
+        <label>رقم الزيارة</label>
+        <input type="number" id="vaVisitNumber" min="1" placeholder="١">
+      </div>
+    </div>
     <div style="display:flex;gap:8px;margin-top:14px;">
       <button class="btn" id="vaSaveBtn" onclick="saveVrAmend_()">حفظ التعديل</button>
       <button class="btn outline" onclick="closeVrAmend_()">إلغاء</button>
@@ -4847,6 +4855,7 @@ function amendSavedVisitReport(id) {
   document.getElementById('vaHijriMonth').value = String(vrNum_(f.hijriMonth) || 1).replace(/[0-9]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'[d]; });
   document.getElementById('vaYear').value = f.year || '';
   document.getElementById('vaVisitType').value = f.visitType || 'تقييم';
+  document.getElementById('vaVisitNumber').value = vrNum_(f.visitNumber) || '';
   document.getElementById('vaCenterLine').textContent = (rep.centerDisplay || rep.center || '') + (f.visitNumber ? ' — الزيارة رقم ' + toArabicDigits(f.visitNumber) : '');
   document.getElementById('vrAmendModal').classList.remove('hidden');
 }
@@ -4868,6 +4877,8 @@ async function saveVrAmend_() {
   const vt = document.getElementById('vaVisitType').value.trim();
   if (!(hd >= 1 && hd <= 30)) { alert('اكتبي يوم التاريخ الهجري (من ١ إلى ٣٠).'); return; }
   if (!vt) { alert('اكتبي نوع الزيارة.'); return; }
+  const vn = vrNum_(document.getElementById('vaVisitNumber').value);
+  if (document.getElementById('vaVisitNumber').value.trim() && vn < 1) { alert('رقم الزيارة غير صحيح.'); return; }
   const f = rep.data || {};
   const y = vrNum_(year) || vsTodayHijri_().y;
   if (!vrConfirmWeekday_(day, y, hm, hd)) return;
@@ -4881,7 +4892,7 @@ async function saveVrAmend_() {
   const btn = document.getElementById('vaSaveBtn');
   setBtnBusy(btn, true);
   try {
-    const r = await callApi('amendVisitReport', { id: id, fields: { day: day, hijriDay: hd, hijriMonth: hmRaw, year: year, visitType: vt }, stat: stat });
+    const r = await callApi('amendVisitReport', { id: id, fields: { day: day, hijriDay: hd, hijriMonth: hmRaw, year: year, visitType: vt, visitNumber: vn || '' }, stat: stat });
     if (!r || !r.ok) { alert('تعذّر حفظ التعديل: ' + ((r && r.error) || 'خطأ غير معروف')); return; }
     rep.data = r.data || rep.data;
     closeVrAmend_();

@@ -3284,7 +3284,7 @@ function saveVisitReport_(p) {
 }
 
 /* تعديل محدود لتقرير زيارة (حتى بعد توقيع المديرة): اليوم + التاريخ الهجري (يوم/شهر/سنة) + نوع الزيارة فقط.
-   لا يمسّ أي شيء آخر ولا يلغي التوقيع ولا يغيّر الحالة. ويُحدَّث سجل الإحصائية المرتبط (إن وُجد) في الطلب نفسه. */
+   (+ رقم الزيارة). لا يمسّ أي شيء آخر ولا يلغي التوقيع ولا يغيّر الحالة. ويُحدَّث سجل الإحصائية المرتبط (إن وُجد) في الطلب نفسه. */
 const VR_AMEND_DAYS_ = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 function vrArDigits_(v) {
   return String(v === undefined || v === null ? '' : v).replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 0x0660); });
@@ -3310,6 +3310,12 @@ function amendVisitReport_(p) {
   data.hijriMonth = String(hm).replace(/[0-9]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'[d]; });
   if (yr) data.year = yr;
   data.visitType = vt;
+  // رقم الزيارة (اختياري): أرقام فقط، يُحفظ كما كُتب إن وُجد
+  const vnRaw = vrArDigits_(f.visitNumber).replace(/\D/g, '');
+  if (f.visitNumber !== undefined && String(f.visitNumber).trim() !== '') {
+    if (!vnRaw || vnRaw.length > 3 || parseInt(vnRaw, 10) < 1) return { ok: false, error: 'رقم الزيارة غير صحيح' };
+    data.visitNumber = String(parseInt(vnRaw, 10));
+  }
   const sh = visitReportSheet_();
   sh.getRange(row._row, colIndex_(sh, 'بيانات التقرير')).setValue(JSON.stringify(data));
   invalidateCache_(VISIT_REPORT_SHEET_);
