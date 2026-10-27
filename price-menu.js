@@ -1,0 +1,365 @@
+/* =====================================================================
+   price-menu.js — عرض قائمة الأسعار وتصديرها (ملف مشترك)
+   يستخدمه: menu.html (الصفحة العامة)، marakez.html، masoulat.html، edara.html
+   - PriceMenu.render(container, items, opts)  عرض القائمة بتصميم بطاقات وأسطر منقّطة
+   - PriceMenu.exportExcel(items)              ملف Excel منسّق (اتجاه يمين لليسار)
+   - PriceMenu.exportPdf(items)                ملف PDF مضغوط (صفحة واحدة غالبًا)
+   items: صفوف ورقة «قائمة الأسعار» كما يرجعها getPriceItems
+   ===================================================================== */
+(function () {
+  'use strict';
+
+  var LETTERHEAD = (typeof FURQAN_LETTERHEAD_URL !== 'undefined' && FURQAN_LETTERHEAD_URL) ? FURQAN_LETTERHEAD_URL : 'furqan-letterhead.jpg';
+  var EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+  var HTML2PDF_URL = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+  var TITLE = 'قائمة الأسعار';
+  var FILE_NAME = 'قائمة-الأسعار';
+
+  /* ---------- أدوات ---------- */
+  function AR(s) { return String(s).replace(/\d/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'[d]; }).replace(/\./g, '٫'); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function toNum(v) {
+    var n = String(v == null ? '' : v).trim().replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace('٫', '.');
+    return /^\d+(\.\d+)?$/.test(n) ? +n : null;
+  }
+  function priceHtml(p) {
+    var v = String(p == null ? '' : p).trim();
+    if (!v) return '';
+    var n = toNum(v);
+    return n !== null ? '<span class="pm-pr">' + AR(n) + '<small>ريال</small></span>' : '<span class="pm-pr pm-text">' + esc(v) + '</span>';
+  }
+  function countLabel(n) { return AR(n) + ' ' + (n === 1 ? 'صنف' : n === 2 ? 'صنفان' : n <= 10 ? 'أصناف' : 'صنفًا'); }
+  function todayLabel() {
+    try { return new Date().toLocaleDateString('ar-SA-u-ca-gregory-nu-arab', { year: 'numeric', month: 'long', day: 'numeric' }); }
+    catch (e) { return ''; }
+  }
+  function loadScript(src, globalName) {
+    if (globalName && window[globalName]) return Promise.resolve();
+    loadScript._p = loadScript._p || {};
+    if (!loadScript._p[src]) {
+      loadScript._p[src] = new Promise(function (resolve, reject) {
+        var s = document.createElement('script');
+        s.src = src; s.async = true;
+        s.onload = function () { resolve(); };
+        s.onerror = function () { delete loadScript._p[src]; reject(new Error('load ' + src)); };
+        document.head.appendChild(s);
+      });
+    }
+    return loadScript._p[src];
+  }
+
+  /* تجميع الأصناف حسب التصنيف بالترتيب */
+  function group(items) {
+    var list = (items || []).map(function (r) {
+      return {
+        row: r._row, raw: r,
+        cat: String(r['التصنيف'] || 'أخرى').trim() || 'أخرى',
+        name: String(r['اسم الصنف'] || '').trim(),
+        price: r['السعر'],
+        order: Number(r['ترتيب']) || 0
+      };
+    }).filter(function (it) { return it.name; });
+    list.sort(function (a, b) { return a.order - b.order; });
+    var cats = [], idx = {};
+    list.forEach(function (it) {
+      if (!(it.cat in idx)) { idx[it.cat] = cats.length; cats.push({ name: it.cat, items: [] }); }
+      cats[idx[it.cat]].items.push(it);
+    });
+    return cats;
+  }
+
+  /* ---------- الأيقونات ---------- */
+  var ICONS = {
+    chips: '<path d="M7 3h10l-1.2 3.5L17 10l-1.2 3.5L17 17l-1 4H8l-1-4 1.2-3.5L7 10l1.2-3.5z"/><path d="M10 9.5h4M10 13h4"/>',
+    candy: '<circle cx="12" cy="12" r="4.2"/><path d="M8.8 9.2L4.5 5.5 3 9l2.6.4M15.2 14.8l4.3 3.7L21 15l-2.6-.4"/>',
+    drink: '<path d="M7 7h10l-1.4 13.2a1 1 0 0 1-1 .8H9.4a1 1 0 0 1-1-.8z"/><path d="M6 7h12M13 7l1.5-4H17"/>',
+    cake: '<path d="M4 20h16v-6.5a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 4 13.5z"/><path d="M4 16c1.6 1.2 3.4 1.2 5.3 0s3.7-1.2 5.4 0 3.6 1.2 5.3 0M12 12V8.5M12 5.5v.5"/>',
+    cookie: '<circle cx="12" cy="12" r="8.5"/><path d="M9 9h.01M14.5 8.5h.01M15 14h.01M9.5 14.5h.01M12 11.5h.01"/>',
+    choco: '<rect x="6" y="3" width="12" height="18" rx="1.6"/><path d="M6 9h12M6 15h12M12 3v18"/>',
+    tag: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.3"/>',
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+    del: '<path d="M5 7h14M10 11v6M14 11v6M7 7l1 13h8l1-13M9 7V4h6v3"/>'
+  };
+  function iconFor(cat) {
+    var c = String(cat);
+    if (/بطاط|شيبس|تسالي/.test(c)) return ICONS.chips;
+    if (/حلو|حلاو|مصاص/.test(c)) return ICONS.candy;
+    if (/ماء|مياه|عصير|مشروب|شاي|قهو|حليب/.test(c)) return ICONS.drink;
+    if (/كيك|كرو|معجن|فطائر|فطاير/.test(c)) return ICONS.cake;
+    if (/بسك|بساك|ويفر/.test(c)) return ICONS.cookie;
+    if (/شوك|شوكولا/.test(c)) return ICONS.choco;
+    return ICONS.tag;
+  }
+  function svg(inner) { return '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>'; }
+
+  /* ---------- التنسيق (يُضاف مرة واحدة) ---------- */
+  var CSS = [
+    '.pm-cat{background:#fff;border:1px solid #eadcde;border-radius:16px;padding:16px 20px 8px;margin:0 0 14px;scroll-margin-top:130px}',
+    '.pm-head{display:flex;align-items:center;gap:10px;padding-bottom:10px;margin-bottom:4px;border-bottom:1.5px solid #8f1d2c}',
+    '.pm-ico{flex:none;width:36px;height:36px;border-radius:50%;background:#f7eef0;display:grid;place-items:center}',
+    '.pm-ico svg{width:20px;height:20px;stroke:#8f1d2c}',
+    '.pm-head h2{margin:0;font-size:20px;font-weight:800;color:#8f1d2c;line-height:1.3;flex:1}',
+    '.pm-head span{font-size:12.5px;color:#857a7c;font-weight:500}',
+    '.pm-rows{display:grid;grid-template-columns:1fr 1fr;column-gap:32px}',
+    '.pm-row{display:flex;align-items:baseline;gap:8px;padding:9px 0;border-bottom:1px solid #f3eaeb}',
+    '.pm-nm{font-weight:500;font-size:16px;color:#2a2224}',
+    '.pm-nm mark{background:#fbe7b6;color:inherit;border-radius:3px;padding:0 2px}',
+    '.pm-lead{flex:1;min-width:14px;border-bottom:2px dotted #dccbcd;transform:translateY(-5px)}',
+    '.pm-pr{flex:none;font-weight:800;color:#8f1d2c;font-size:16.5px;white-space:nowrap}',
+    '.pm-pr small{font-size:11.5px;font-weight:500;color:#857a7c;margin-right:3px}',
+    '.pm-pr.pm-text{font-size:13.5px;color:#b8893a}',
+    '.pm-act{flex:none;display:inline-flex;gap:2px;margin-right:4px}',
+    '.pm-act button{border:0;background:transparent;width:28px;height:28px;border-radius:8px;cursor:pointer;display:grid;place-items:center;padding:0}',
+    '.pm-act button svg{width:16px;height:16px;stroke:#8f1d2c}',
+    '.pm-act button:hover{background:#f7eef0}',
+    '.pm-act button.pm-del svg{stroke:#b3261e}',
+    '.pm-empty{text-align:center;color:#857a7c;padding:24px 8px}',
+    '@media (max-width:640px){.pm-cat{padding:14px 14px 6px}.pm-rows{grid-template-columns:1fr}.pm-head h2{font-size:18px}.pm-nm{font-size:15.5px}}'
+  ].join('\n');
+  function ensureCss() {
+    if (document.getElementById('pm-style')) return;
+    var st = document.createElement('style');
+    st.id = 'pm-style'; st.textContent = CSS;
+    document.head.appendChild(st);
+  }
+
+  /* ---------- العرض ---------- */
+  function normalize(s) { return String(s || '').replace(/[ً-ْـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').toLowerCase().trim(); }
+  function highlight(name, q) {
+    if (!q) return esc(name);
+    var i = normalize(name).indexOf(q);
+    if (i < 0) return esc(name);
+    var map = [], k = 0;
+    for (var j = 0; j < name.length; j++) { if (!/[ً-ْـ]/.test(name[j])) map[k++] = j; }
+    var s = map[i], e = (map[i + q.length - 1] != null ? map[i + q.length - 1] : name.length - 1) + 1;
+    return esc(name.slice(0, s)) + '<mark>' + esc(name.slice(s, e)) + '</mark>' + esc(name.slice(e));
+  }
+
+  /* opts: { query, idPrefix, emptyText, onEdit(rawItem), onDelete(rawItem) } */
+  function render(container, items, opts) {
+    opts = opts || {};
+    ensureCss();
+    var q = normalize(opts.query || '');
+    var cats = group(items);
+    var editable = typeof opts.onEdit === 'function' || typeof opts.onDelete === 'function';
+    var flat = [];
+    var html = cats.map(function (c, ci) {
+      var list = q ? c.items.filter(function (it) { return normalize(it.name).indexOf(q) >= 0 || normalize(c.name).indexOf(q) >= 0; }) : c.items;
+      if (!list.length) return '';
+      return '<section class="pm-cat"' + (opts.idPrefix ? ' id="' + opts.idPrefix + ci + '"' : '') + '>' +
+        '<div class="pm-head"><div class="pm-ico">' + svg(iconFor(c.name)) + '</div><h2>' + esc(c.name) + '</h2><span>' + countLabel(list.length) + '</span></div>' +
+        '<div class="pm-rows">' + list.map(function (it) {
+          var i = flat.push(it) - 1;
+          var act = editable
+            ? '<span class="pm-act">' +
+                (opts.onEdit ? '<button type="button" class="pm-edit" data-i="' + i + '" title="تعديل" aria-label="تعديل">' + svg(ICONS.edit) + '</button>' : '') +
+                (opts.onDelete ? '<button type="button" class="pm-del" data-i="' + i + '" title="حذف" aria-label="حذف">' + svg(ICONS.del) + '</button>' : '') +
+              '</span>'
+            : '';
+          return '<div class="pm-row"><span class="pm-nm">' + highlight(it.name, q) + '</span><span class="pm-lead"></span>' + priceHtml(it.price) + act + '</div>';
+        }).join('') + '</div></section>';
+    }).join('');
+    container.innerHTML = html || '<div class="pm-empty">' + esc(opts.emptyText || (items && items.length ? 'لا توجد أصناف مطابقة' : 'لا توجد أصناف بعد')) + '</div>';
+    if (editable) {
+      container.onclick = function (e) {
+        var b = e.target.closest('.pm-edit, .pm-del'); if (!b) return;
+        var it = flat[+b.getAttribute('data-i')]; if (!it) return;
+        if (b.classList.contains('pm-edit') && opts.onEdit) opts.onEdit(it.raw);
+        if (b.classList.contains('pm-del') && opts.onDelete) opts.onDelete(it.raw);
+      };
+    }
+    return cats;
+  }
+
+  /* ---------- Excel منسّق ---------- */
+  function exportExcel(items) {
+    var cats = group(items);
+    if (!cats.length) { alert('لا توجد أصناف لتصديرها'); return Promise.resolve(); }
+    return loadScript(EXCELJS_URL, 'ExcelJS').then(function () {
+      var wb = new ExcelJS.Workbook();
+      var ws = wb.addWorksheet('قائمة الأسعار', { views: [{ rightToLeft: true, state: 'frozen', ySplit: 3 }], pageSetup: { paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+      ws.columns = [{ width: 8 }, { width: 38 }, { width: 16 }];
+      var MAROON = 'FF8F1D2C', SOFT = 'FFF7EEF0', LINE = 'FFEADCDE';
+      var font = function (o) { return Object.assign({ name: 'Arial', size: 12 }, o || {}); };
+
+      ws.mergeCells('A1:C1');
+      ws.getCell('A1').value = TITLE;
+      ws.getCell('A1').font = font({ size: 18, bold: true, color: { argb: 'FFFFFFFF' } });
+      ws.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MAROON } };
+      ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
+      ws.getRow(1).height = 34;
+      ws.mergeCells('A2:C2');
+      ws.getCell('A2').value = 'وحدة المقاصف — ' + todayLabel();
+      ws.getCell('A2').font = font({ size: 11, color: { argb: 'FF857A7C' } });
+      ws.getCell('A2').alignment = { horizontal: 'center' };
+      var hdr = ws.getRow(3);
+      hdr.values = ['م', 'اسم الصنف', 'السعر (ريال)'];
+      hdr.eachCell(function (c) {
+        c.font = font({ bold: true, color: { argb: MAROON } });
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SOFT } };
+        c.alignment = { horizontal: 'center', vertical: 'middle' };
+        c.border = { bottom: { style: 'medium', color: { argb: MAROON } } };
+      });
+      hdr.height = 22;
+
+      var n = 0;
+      cats.forEach(function (c) {
+        var r = ws.addRow([c.name + '  (' + c.items.length + ')', '', '']);
+        ws.mergeCells('A' + r.number + ':C' + r.number);
+        r.getCell(1).font = font({ bold: true, size: 13, color: { argb: 'FFFFFFFF' } });
+        r.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MAROON } };
+        r.getCell(1).alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+        r.height = 22;
+        c.items.forEach(function (it, i) {
+          n++;
+          var num = toNum(it.price);
+          var row = ws.addRow([n, it.name, num !== null ? num : String(it.price || '')]);
+          row.getCell(1).alignment = { horizontal: 'center' };
+          row.getCell(2).alignment = { horizontal: 'right' };
+          row.getCell(3).alignment = { horizontal: 'center' };
+          if (num !== null) row.getCell(3).numFmt = Number.isInteger(num) ? '0' : '0.0#';
+          row.eachCell(function (cell) {
+            cell.font = font();
+            cell.border = { bottom: { style: 'thin', color: { argb: LINE } } };
+            if (i % 2 === 1) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFCF8F8' } };
+          });
+          row.getCell(3).font = font({ bold: true, color: { argb: MAROON } });
+        });
+      });
+      return wb.xlsx.writeBuffer();
+    }).then(function (buf) {
+      if (!buf) return;
+      var blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = FILE_NAME + '.xlsx';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    }).catch(function () { alert('تعذّر تحميل ملف Excel، تحقّقي من الاتصال بالإنترنت ثم أعيدي المحاولة.'); });
+  }
+
+  /* ---------- PDF مضغوط ----------
+     يُبنى بعرض صفحة A4 في ٣ أعمدة متوازنة، ثم يُصغَّر الخط تلقائيًا حتى تتسع القائمة في صفحة واحدة.
+     إذا كانت الأصناف كثيرة جدًا فلا يقل الخط عن حد مقروء، وتنتقل البقية إلى صفحة ثانية. */
+  var PAGE_W = 794, PAGE_H = 1123;   // A4 بدقة 96
+  var PDF_CSS = [
+    '.pmp{width:' + PAGE_W + 'px;background:#fff;color:#2a2224;font-family:Tajawal,Arial,sans-serif;direction:rtl;word-spacing:3px}',
+    '.pmp img.lh{display:block;width:100%;height:auto}',
+    '.pmp .ttl{text-align:center;padding:10px 30px 6px}',
+    '.pmp .ttl h1{margin:0;color:#8f1d2c;font-size:26px;font-weight:800;line-height:1.3;word-spacing:5px}',
+    '.pmp .ttl div{color:#857a7c;font-size:12px}',
+    '.pmp .cols{display:flex;gap:14px;padding:6px 26px 18px;align-items:flex-start}',
+    '.pmp .col{flex:1;min-width:0}',
+    '.pmp .blk{margin:0 0 9px;break-inside:avoid;page-break-inside:avoid}',
+    '.pmp .bh{background:#8f1d2c;color:#fff;font-weight:800;border-radius:6px;padding:3px 9px;display:flex;justify-content:space-between;align-items:center}',
+    '.pmp .bh small{font-weight:500;opacity:.85}',
+    '.pmp .r{display:flex;align-items:baseline;gap:5px;padding:2px 3px;border-bottom:1px solid #f1e6e7}',
+    '.pmp .r .n{white-space:nowrap;flex:none}',
+    '.pmp .r .d{flex:1;min-width:6px;border-bottom:1.5px dotted #d6c4c6;transform:translateY(-3px)}',
+    '.pmp .r .p{font-weight:800;color:#8f1d2c;white-space:nowrap;display:inline-flex;align-items:baseline;gap:4px}',
+    '.pmp .r .p small{font-weight:500;color:#857a7c;font-size:.8em}',
+    '.pmp .r .p.t{color:#a77420;font-weight:700}',
+    '.pmp .ft{text-align:center;color:#a09597;font-size:10.5px;padding:0 0 12px}'
+  ].join('\n');
+
+  /* الكليشة كصورة مضمّنة حتى تظهر دائمًا في ملف PDF */
+  var _lhData = null;
+  function letterheadSrc() {
+    if (_lhData) return Promise.resolve(_lhData);
+    return fetch(LETTERHEAD).then(function (r) { if (!r.ok) throw 0; return r.blob(); }).then(function (b) {
+      return new Promise(function (res) { var fr = new FileReader(); fr.onload = function () { _lhData = fr.result; res(_lhData); }; fr.readAsDataURL(b); });
+    }).catch(function () { return LETTERHEAD; });
+  }
+
+  function buildPdfNode(cats, fs, lhSrc) {
+    // توزيع التصنيفات على ٣ أعمدة متوازنة بحسب عدد الأسطر، مع الحفاظ على الترتيب
+    var weights = cats.map(function (c) { return c.items.length + 1.6; });
+    var total = weights.reduce(function (a, b) { return a + b; }, 0);
+    var cols = [[], [], []], acc = 0, col = 0;
+    cats.forEach(function (c, i) {
+      if (col < 2 && acc > 0 && acc + weights[i] / 2 > (total / 3) * (col + 1)) col++;
+      cols[col].push(c); acc += weights[i];
+    });
+    var root = document.createElement('div');
+    root.className = 'pmp';
+    root.innerHTML = '<style>' + PDF_CSS + '</style>' +
+      '<img class="lh" src="' + esc(lhSrc || LETTERHEAD) + '" alt="">' +
+      '<div class="ttl"><h1>' + TITLE + '</h1><div>وحدة المقاصف — ' + esc(todayLabel()) + '</div></div>' +
+      '<div class="cols" style="font-size:' + fs + 'px;line-height:1.55">' + cols.map(function (list) {
+        return '<div class="col">' + list.map(function (c) {
+          return '<div class="blk"><div class="bh" style="font-size:' + (fs + 1) + 'px"><span>' + esc(c.name) + '</span><small>' + AR(c.items.length) + '</small></div>' +
+            c.items.map(function (it) {
+              var n = toNum(it.price);
+              return '<div class="r"><span class="n">' + esc(it.name) + '</span><span class="d"></span>' +
+                (n !== null ? '<span class="p"><b>' + AR(n) + '</b><small>ريال</small></span>' : '<span class="p t">' + esc(it.price) + '</span>') + '</div>';
+            }).join('') + '</div>';
+        }).join('') + '</div>';
+      }).join('') + '</div>' +
+      '<div class="ft">الأسعار بالريال السعودي</div>';
+    return root;
+  }
+
+  function waitImages(node) {
+    var imgs = Array.prototype.slice.call(node.querySelectorAll('img'));
+    return Promise.all(imgs.map(function (im) {
+      return im.complete ? Promise.resolve() : new Promise(function (r) { im.onload = im.onerror = function () { r(); }; });
+    }));
+  }
+
+  var HTML2IMG_URL = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js';
+  var PDF_OPTS = {
+    margin: 0,
+    filename: FILE_NAME + '.pdf',
+    image: { type: 'jpeg', quality: 0.95 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: PAGE_W },
+    jsPDF: { unit: 'px', format: [PAGE_W, PAGE_H], orientation: 'portrait', hotfixes: ['px_scaling'] },
+    pagebreak: { mode: ['css', 'legacy'], avoid: '.blk' }
+  };
+
+  function exportPdf(items) {
+    var cats = group(items);
+    if (!cats.length) { alert('لا توجد أصناف لتصديرها'); return Promise.resolve(); }
+    // حاوية مخفية بنفس طريقة النظام: لا تظهر على الشاشة ولا تتأثر بعرض الجوال
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;overflow:hidden;z-index:-1;direction:ltr';
+    var host = document.createElement('div');
+    host.style.cssText = 'width:' + PAGE_W + 'px;background:#fff';
+    wrap.appendChild(host);
+    document.body.appendChild(wrap);
+    var node;
+    var lh = LETTERHEAD;
+    return loadScript(HTML2PDF_URL, 'html2pdf').then(letterheadSrc).then(function (src) {
+      lh = src;
+      // تصغير الخط تدريجيًا حتى تتسع القائمة في صفحة واحدة (بحد أدنى مقروء)
+      var fs = 13.5;
+      var tryFit = function () {
+        host.innerHTML = '';
+        node = buildPdfNode(cats, fs, lh);
+        host.appendChild(node);
+        return waitImages(node).then(function () {
+          if (node.scrollHeight > PAGE_H - 4 && fs > 9.5) { fs -= 0.5; return tryFit(); }
+        });
+      };
+      return tryFit();
+    }).then(function () {
+      if (document.fonts && document.fonts.ready) return document.fonts.ready;
+    }).then(function () {
+      // الطريقة الأدق للنص العربي: html-to-image، ثم html2canvas احتياطيًا
+      return loadScript(HTML2IMG_URL, 'htmlToImage').then(function () {
+        return htmlToImage.toCanvas(node, { pixelRatio: 2, backgroundColor: '#ffffff', width: PAGE_W, height: node.scrollHeight, cacheBust: true });
+      }).then(function (canvas) {
+        return html2pdf().set(PDF_OPTS).from(canvas, 'canvas').save();
+      }).catch(function () {
+        return html2pdf().set(PDF_OPTS).from(node).toContainer().get('container').then(function (c) {
+          if (c.parentElement) c.parentElement.style.direction = 'ltr';
+          c.style.position = 'absolute'; c.style.top = '0'; c.style.left = '0'; c.style.right = 'auto';
+          c.style.margin = '0'; c.style.width = PAGE_W + 'px'; c.style.direction = 'rtl';
+        }).toCanvas().toPdf().save();
+      });
+    }).catch(function () {
+      alert('تعذّر إنشاء ملف PDF، تحقّقي من الاتصال بالإنترنت ثم أعيدي المحاولة.');
+    }).then(function () { wrap.remove(); });
+  }
+
+  window.PriceMenu = { render: render, exportExcel: exportExcel, exportPdf: exportPdf, group: group, _buildPdfNode: buildPdfNode };
+})();

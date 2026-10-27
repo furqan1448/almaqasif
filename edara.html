@@ -1461,8 +1461,8 @@
         <input type="text" id="priceSearchInput" class="price-search" placeholder="🔍 ابحثي عن صنف..." oninput="filterPriceItemsAdmin()">
         <div id="priceItemsList">جاري التحميل...</div>
         <div class="export-row">
-          <button class="btn outline" onclick="exportPriceListExcel()">⬇️ Excel</button>
-          <button class="btn outline" onclick="printPriceListReport()">🖨️ PDF</button>
+          <button class="btn outline" onclick="exportPriceListExcel()">تحميل Excel</button>
+          <button class="btn outline" onclick="printPriceListReport()">تحميل PDF</button>
         </div>
       </div>
     </div>
@@ -1475,6 +1475,7 @@
 <script>window.PDF_LIBS_ENABLED = true; /* مكتبات الـPDF تتحمّل بالخلفية - انظر config.js */</script>
 <script src="logo-config.js"></script>
 <script src="config.js"></script>
+<script src="price-menu.js"></script>
 <script src="autosave.js"></script>
 <script>
 let isLoggedIn = sessionStorage.getItem('maqasif_admin') === 'yes';
@@ -3405,29 +3406,10 @@ function filterPriceItemsAdmin() {
 }
 
 function renderPriceItemsAdminGrid_(items) {
-  const box = document.getElementById('priceItemsList');
-  if (!items.length) { box.innerHTML = 'ما فيه أصناف مطابقة'; return; }
-  const categories = Array.from(new Set(items.map(function (it) { return it['التصنيف']; }).filter(Boolean)));
-  box.innerHTML = '';
-  categories.forEach(function (cat) {
-    const catWrap = document.createElement('div');
-    const grid = document.createElement('div');
-    grid.className = 'price-grid';
-    items.filter(function (it) { return it['التصنيف'] === cat; }).forEach(function (it) {
-      const chip = document.createElement('div');
-      chip.className = 'price-chip';
-      chip.innerHTML =
-        '<div class="pactions">' +
-          '<a href="#" onclick="editPriceItem(' + it._row + ', ' + JSON.stringify(it['التصنيف']) + ', ' + JSON.stringify(it['اسم الصنف']) + ', ' + JSON.stringify(it['السعر']) + '); return false;">✎</a>' +
-          '<a href="#" onclick="deletePriceItemRow(' + it._row + '); return false;">×</a>' +
-        '</div>' +
-        '<div class="pname">' + (it['اسم الصنف'] || '') + '</div>' +
-        '<div class="pprice">' + (it['السعر'] || '') + '</div>';
-      grid.appendChild(chip);
-    });
-    catWrap.innerHTML = '<h4 class="price-cat-title">' + cat + '</h4>';
-    catWrap.appendChild(grid);
-    box.appendChild(catWrap);
+  PriceMenu.render(document.getElementById('priceItemsList'), items, {
+    query: document.getElementById('priceSearchInput').value,
+    onEdit: function (it) { editPriceItem(it._row, it['التصنيف'], it['اسم الصنف'], it['السعر']); },
+    onDelete: function (it) { deletePriceItemRow(it._row); }
   });
 }
 
@@ -3485,19 +3467,11 @@ function deletePriceItemRow(row) {
 }
 
 function exportPriceListExcel() {
-  const rows = currentPriceItemsCache_.map(function (it) {
-    return { 'التصنيف': it['التصنيف'] || '', 'اسم الصنف': it['اسم الصنف'] || '', 'السعر': it['السعر'] || '' };
-  });
-  exportToExcel(rows, 'قائمة-الأسعار', 'الأسعار');
+  PriceMenu.exportExcel(currentPriceItemsCache_);
 }
 
 function printPriceListReport() {
-  const rows = currentPriceItemsCache_.map(function (it) {
-    return { category: it['التصنيف'] || '', name: it['اسم الصنف'] || '', price: it['السعر'] || '' };
-  });
-  printReport('قائمة أسعار المقصف', '', [
-    { key: 'category', label: 'التصنيف' }, { key: 'name', label: 'اسم الصنف' }, { key: 'price', label: 'السعر' }
-  ], rows);
+  PriceMenu.exportPdf(currentPriceItemsCache_);
 }
 
 /* -------- المرفقات -------- */
