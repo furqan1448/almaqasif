@@ -3523,6 +3523,22 @@ function noticeKind_(r) {
   return 'other';
 }
 
+/* مطابقة أسماء المراكز مع «حصر المقاصف» (نفس منطق vsNorm_/vsBase_ في لوحة الإدارة) */
+function visitNormName_(s) {
+  return String(s || '').replace(/[\u064B-\u0652\u0640]/g, '')
+    .replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+    .replace(/\s+/g, ' ').trim();
+}
+function visitBaseName_(s) {
+  return visitNormName_(s).replace(/(^|\s)(ال)?(صباحيه|صباحي|مسائيه|مسائي)(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function visitPeriodOfName_(s) {
+  const n = visitNormName_(s);
+  if (/(^|\s)(ال)?(مسائيه|مسائي)(?=\s|$)/.test(n)) return 'مسائية';
+  if (/(^|\s)(ال)?(صباحيه|صباحي)(?=\s|$)/.test(n)) return 'صباحية';
+  return '';
+}
+
 function getRegistrationStats_(p) {
   p = p || {};
   const period = String(p.period || 'term');
@@ -3558,6 +3574,7 @@ function getRegistrationStats_(p) {
     if (!st[c]) {
       addCenter(c);
       st[c] = { center: c, receive: 0, reward: 0, fee: 0, other: 0, pending: 0,
+        receiveAmt: 0, rewardAmt: 0, feeAmt: 0, otherAmt: 0,
         invoices: 0, capital: 0, profit: 0, salesEntries: 0, salesDays: {}, salesTotal: 0 };
     }
     return st[c];
@@ -3567,7 +3584,9 @@ function getRegistrationStats_(p) {
   notices.forEach(function (r) {
     if (!inRange(r['تاريخ الإرسال'])) return;
     const m = S(r['اسم المركز']); if (!m) return;
-    m[noticeKind_(r)]++;
+    const kind = noticeKind_(r);
+    m[kind]++;
+    m[kind + 'Amt'] += Number(r['المبلغ']) || 0;       // مبلغ الإشعار (استلام / مكافأة / رسوم حفل)
     if (String(r['الحالة'] || '').trim() === 'بانتظار الاطلاع') m.pending++;
   });
   invoices.forEach(function (r) {
@@ -3590,7 +3609,26 @@ function getRegistrationStats_(p) {
   });
 
   const verified = getRegistrationVerifiedMap_();
-  const list = centers.map(function (c) {
+  // المراكز التي لا يوجد فيها مقصف حسب «حصر المقاصف» لا تظهر في الإحصائيات.
+  // أسماء المراكز قد تحوي الفترة (مثل «... - الفترة المسائية»)، فنقارن الاسم دون كلمة الفترة + الفترة المفهومة من الاسم (نفس منطق شاشة الحصر).
+  const surveyBy = {};
+  try {
+    (getCanteenSurvey_().items || []).forEach(function (it) {
+      const k = visitBaseName_(it.center);
+      const e = surveyBy[k] || (surveyBy[k] = { byPeriod: {}, anyHas: false });
+      const p = String(it.period || '').trim();
+      if (p) e.byPeriod[p] = !!(e.byPeriod[p] || it.has);
+      if (it.has) e.anyHas = true;
+    });
+  } catch (e) {}
+  const hiddenNoCanteen = centers.filter(function (c) {
+    const e = surveyBy[visitBaseName_(c)];
+    if (!e) return false;
+    const p = visitPeriodOfName_(c);
+    if (p && e.byPeriod[p] !== undefined) return !e.byPeriod[p];
+    return !e.anyHas;
+  });
+  const list = centers.filter(function (c) { return hiddenNoCanteen.indexOf(c) === -1; }).map(function (c) {
     const m = st[c];
     const days = Object.keys(m.salesDays).length;
     const issues = [];
@@ -3600,6 +3638,8 @@ function getRegistrationStats_(p) {
     return {
       center: c,
       receive: m.receive, reward: m.reward, fee: m.fee, other: m.other,
+      receiveAmt: Math.round(m.receiveAmt * 100) / 100, rewardAmt: Math.round(m.rewardAmt * 100) / 100,
+      feeAmt: Math.round(m.feeAmt * 100) / 100,
       noticesTotal: m.receive + m.reward + m.fee + m.other,
       pending: m.pending,
       invoices: m.invoices,
@@ -3618,14 +3658,15 @@ function getRegistrationStats_(p) {
     return a.center < b.center ? -1 : 1;
   });
 
-  const totals = { receive: 0, reward: 0, fee: 0, other: 0, pending: 0, invoices: 0, salesEntries: 0, salesTotal: 0 };
+  const totals = { receive: 0, reward: 0, fee: 0, other: 0, pending: 0, invoices: 0, salesEntries: 0, salesTotal: 0, salesDays: 0,
+    receiveAmt: 0, rewardAmt: 0, feeAmt: 0, capital: 0 };
   list.forEach(function (m) {
     Object.keys(totals).forEach(function (k) { totals[k] += m[k]; });
   });
-  totals.salesTotal = Math.round(totals.salesTotal * 100) / 100;
+  ['salesTotal', 'receiveAmt', 'rewardAmt', 'feeAmt', 'capital'].forEach(function (k) { totals[k] = Math.round(totals[k] * 100) / 100; });
 
   return { ok: true, period: useDates ? 'range' : (period === 'all' ? 'all' : 'term'),
-    from: useDates ? from : '', to: useDates ? to : '', centers: list, totals: totals };
+    from: useDates ? from : '', to: useDates ? to : '', centers: list, totals: totals, hiddenNoCanteen: hiddenNoCanteen };
 }
 
 
