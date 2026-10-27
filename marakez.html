@@ -278,19 +278,8 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
     <!-- قائمة الأسعار -->
     <div id="priceListView" class="hidden">
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">قائمة الأسعار</h3>
-        <div class="combo-wrap price-search">
-          <input type="text" id="priceSearchInput" placeholder="🔍 ابحثي عن صنف..." oninput="filterPriceItemsList()" autocomplete="off">
-          <div id="priceSearchList" class="combo-list hidden"></div>
-        </div>
-        <div id="priceItemsList">جاري التحميل...</div>
-        <div class="export-row">
-          <button class="btn outline" onclick="exportPriceListExcel()">تحميل Excel</button>
-          <button class="btn outline" onclick="printPriceListReport()">تحميل PDF</button>
-          <button class="btn outline" onclick="openPriceListFile()">📎 ملف/رابط القائمة</button>
-        </div>
-      </div>
+      <!-- الواجهة كاملة من price-menu.js (نفس شكل رابط المنيو) -->
+      <div id="priceMenuApp"></div>
     </div>
 
     <!-- الإشعارات الهامة -->
@@ -1941,32 +1930,22 @@ function formatPriceLabel_(price) {
   return /^[0-9.]+$/.test(p) ? (p + ' ريال') : p;
 }
 
+let priceMenuApp_ = null;
+function priceMenuApp() {
+  if (!priceMenuApp_) {
+    priceMenuApp_ = PriceMenu.app(document.getElementById('priceMenuApp'), {
+      extraButtons: [{ label: 'ملف/رابط القائمة', icon: 'link', onClick: openPriceListFile }]
+    });
+  }
+  return priceMenuApp_;
+}
+
 function loadPriceItemsList() {
-  document.getElementById('priceSearchInput').value = '';
+  const app = priceMenuApp();
   callApi('getPriceItems').then(function (r) {
     currentPriceItemsCache_ = r.items || [];
-    renderPriceItemsGrid_(currentPriceItemsCache_);
-  });
-}
-
-function filterPriceItemsList() {
-  const q = document.getElementById('priceSearchInput').value.trim().toLowerCase();
-  if (!q) { renderPriceItemsGrid_(currentPriceItemsCache_); return; }
-  const filtered = currentPriceItemsCache_.filter(function (it) {
-    return String(it['اسم الصنف'] || '').toLowerCase().indexOf(q) !== -1 ||
-      String(it['التصنيف'] || '').toLowerCase().indexOf(q) !== -1;
-  });
-  renderPriceItemsGrid_(filtered);
-}
-
-setupSearchableDropdown('priceSearchInput', 'priceSearchList', function () {
-  return currentPriceItemsCache_.map(function (it) { return it['اسم الصنف']; }).filter(Boolean);
-}, filterPriceItemsList);
-
-function renderPriceItemsGrid_(items) {
-  PriceMenu.render(document.getElementById('priceItemsList'), items, {
-    query: document.getElementById('priceSearchInput').value
-  });
+    app.setItems(currentPriceItemsCache_);
+  }).catch(function () { app.setError('', loadPriceItemsList); });
 }
 
 function exportPriceListExcel() {

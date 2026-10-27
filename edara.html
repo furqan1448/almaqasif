@@ -1456,15 +1456,8 @@
         <div class="success-msg" id="priceItemSuccess">تم الحفظ بنجاح ✅</div>
       </div>
 
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">الأصناف الحالية</h3>
-        <input type="text" id="priceSearchInput" class="price-search" placeholder="🔍 ابحثي عن صنف..." oninput="filterPriceItemsAdmin()">
-        <div id="priceItemsList">جاري التحميل...</div>
-        <div class="export-row">
-          <button class="btn outline" onclick="exportPriceListExcel()">تحميل Excel</button>
-          <button class="btn outline" onclick="printPriceListReport()">تحميل PDF</button>
-        </div>
-      </div>
+      <!-- الأصناف الحالية: الواجهة كاملة من price-menu.js (نفس شكل رابط المنيو) مع التعديل والحذف -->
+      <div id="priceMenuApp"></div>
     </div>
 
   </div>
@@ -3383,34 +3376,25 @@ function removePriceListFile() {
   });
 }
 
+let priceMenuApp_ = null;
+function priceMenuApp() {
+  if (!priceMenuApp_) {
+    priceMenuApp_ = PriceMenu.app(document.getElementById('priceMenuApp'), {
+      onEdit: function (it) { editPriceItem(it._row, it['التصنيف'], it['اسم الصنف'], it['السعر']); },
+      onDelete: function (it) { deletePriceItemRow(it._row); }
+    });
+  }
+  return priceMenuApp_;
+}
+
 function loadPriceItemsAdmin() {
-  const box = document.getElementById('priceItemsList');
-  box.innerHTML = 'جاري التحميل...';
+  const app = priceMenuApp();
   callApi('getPriceItems').then(function (r) {
     currentPriceItemsCache_ = r.items || [];
     const categories = Array.from(new Set(currentPriceItemsCache_.map(function (it) { return it['التصنيف']; }).filter(Boolean)));
     document.getElementById('priceCategoriesList').innerHTML = categories.map(function (c) { return '<option value="' + c + '">'; }).join('');
-    document.getElementById('priceSearchInput').value = '';
-    renderPriceItemsAdminGrid_(currentPriceItemsCache_);
-  });
-}
-
-function filterPriceItemsAdmin() {
-  const q = document.getElementById('priceSearchInput').value.trim().toLowerCase();
-  if (!q) { renderPriceItemsAdminGrid_(currentPriceItemsCache_); return; }
-  const filtered = currentPriceItemsCache_.filter(function (it) {
-    return String(it['اسم الصنف'] || '').toLowerCase().indexOf(q) !== -1 ||
-      String(it['التصنيف'] || '').toLowerCase().indexOf(q) !== -1;
-  });
-  renderPriceItemsAdminGrid_(filtered);
-}
-
-function renderPriceItemsAdminGrid_(items) {
-  PriceMenu.render(document.getElementById('priceItemsList'), items, {
-    query: document.getElementById('priceSearchInput').value,
-    onEdit: function (it) { editPriceItem(it._row, it['التصنيف'], it['اسم الصنف'], it['السعر']); },
-    onDelete: function (it) { deletePriceItemRow(it._row); }
-  });
+    app.setItems(currentPriceItemsCache_);
+  }).catch(function () { app.setError('', loadPriceItemsAdmin); });
 }
 
 function submitPriceItem() {

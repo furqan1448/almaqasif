@@ -219,19 +219,8 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         <div class="success-msg" id="priceItemSuccess">تم الحفظ بنجاح ✅</div>
       </div>
 
-      <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">قائمة الأسعار</h3>
-        <div class="combo-wrap price-search">
-          <input type="text" id="priceSearchInput" placeholder="🔍 ابحثي عن صنف..." oninput="filterPriceItemsView()" autocomplete="off">
-          <div id="priceSearchList" class="combo-list hidden"></div>
-        </div>
-        <div id="priceItemsList">جاري التحميل...</div>
-        <div class="export-row">
-          <button class="btn outline" onclick="exportPriceListExcel()">تحميل Excel</button>
-          <button class="btn outline" onclick="printPriceListReport()">تحميل PDF</button>
-          <button class="btn outline" onclick="openPriceListFile()">📎 ملف/رابط القائمة</button>
-        </div>
-      </div>
+      <!-- الواجهة كاملة من price-menu.js (نفس شكل رابط المنيو) -->
+      <div id="priceMenuApp"></div>
     </div>
 
     <!-- الإشعارات الهامة -->
@@ -1967,45 +1956,35 @@ function loadPriceItemsView() {
   callApi('getPriceListManager').then(function (r) {
     isPriceListManager_ = !!(r && r.masoula && currentName && r.masoula.trim() === currentName.trim());
     formCard.classList.toggle('hidden', !isPriceListManager_);
-    document.getElementById('priceSearchInput').value = '';
     renderPriceItemsList_();
   });
 }
 
+/* الواجهة تُنشأ مرة واحدة؛ أزرار التعديل والحذف تظهر لمسؤولة قائمة الأسعار فقط */
+let priceMenuApp_ = null, priceMenuAppMgr_ = null;
+function priceMenuApp() {
+  if (!priceMenuApp_ || priceMenuAppMgr_ !== isPriceListManager_) {
+    priceMenuAppMgr_ = isPriceListManager_;
+    const opts = { extraButtons: [{ label: 'ملف/رابط القائمة', icon: 'link', onClick: openPriceListFile }] };
+    if (isPriceListManager_) {
+      opts.onEdit = function (it) { editPriceItem(it._row, it['التصنيف'], it['اسم الصنف'], it['السعر']); };
+      opts.onDelete = function (it) { deletePriceItemRow(it._row); };
+    }
+    priceMenuApp_ = PriceMenu.app(document.getElementById('priceMenuApp'), opts);
+  }
+  return priceMenuApp_;
+}
+
 function renderPriceItemsList_() {
-  const box = document.getElementById('priceItemsList');
-  box.innerHTML = 'جاري التحميل...';
+  const app = priceMenuApp();
   callApi('getPriceItems').then(function (r) {
     currentPriceItemsCache_ = r.items || [];
     if (isPriceListManager_) {
       const categories = Array.from(new Set(currentPriceItemsCache_.map(function (it) { return it['التصنيف']; }).filter(Boolean)));
       document.getElementById('priceCategoriesList').innerHTML = categories.map(function (c) { return '<option value="' + c + '">'; }).join('');
     }
-    renderPriceItemsGrid_(currentPriceItemsCache_);
-  });
-}
-
-function filterPriceItemsView() {
-  const q = document.getElementById('priceSearchInput').value.trim().toLowerCase();
-  if (!q) { renderPriceItemsGrid_(currentPriceItemsCache_); return; }
-  const filtered = currentPriceItemsCache_.filter(function (it) {
-    return String(it['اسم الصنف'] || '').toLowerCase().indexOf(q) !== -1 ||
-      String(it['التصنيف'] || '').toLowerCase().indexOf(q) !== -1;
-  });
-  renderPriceItemsGrid_(filtered);
-}
-
-setupSearchableDropdown('priceSearchInput', 'priceSearchList', function () {
-  return currentPriceItemsCache_.map(function (it) { return it['اسم الصنف']; }).filter(Boolean);
-}, filterPriceItemsView);
-
-function renderPriceItemsGrid_(items) {
-  const opts = { query: document.getElementById('priceSearchInput').value };
-  if (isPriceListManager_) {
-    opts.onEdit = function (it) { editPriceItem(it._row, it['التصنيف'], it['اسم الصنف'], it['السعر']); };
-    opts.onDelete = function (it) { deletePriceItemRow(it._row); };
-  }
-  PriceMenu.render(document.getElementById('priceItemsList'), items, opts);
+    app.setItems(currentPriceItemsCache_);
+  }).catch(function () { app.setError('', renderPriceItemsList_); });
 }
 
 function submitPriceItem() {

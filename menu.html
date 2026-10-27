@@ -21,109 +21,25 @@ const REFRESH_MS = 60 * 1000;   // تحديث تلقائي كل دقيقة أث�
 </script>
 <script src="price-menu.js"></script>
 <style>
-:root{ --red:#8f1d2c; --red-d:#6b111f; --ink:#211b1d; --muted:#9a9092; --bg:#f4f2f2; }
+:root{ --bg:#f4f2f2; }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Tajawal",system-ui,sans-serif;font-size:17px;line-height:1.7;-webkit-font-smoothing:antialiased}
-button,input{font:inherit}
-.wrap{max-width:900px;margin:0 auto;padding:0 16px}
-
-.letterhead{max-width:900px;margin:0 auto;padding:14px 16px 0}
-.letterhead img{display:block;width:100%;height:auto;border-radius:16px}
-
-/* بطاقة العنوان */
-.top{position:relative;overflow:hidden;margin-top:14px;border-radius:22px;color:#fff;padding:24px 22px 20px;
-  background:linear-gradient(135deg,#9b2236,#6b111f);box-shadow:0 12px 30px rgba(107,17,31,.25)}
-.top::after{content:"";position:absolute;width:240px;height:240px;border-radius:50%;left:-80px;top:-100px;background:rgba(255,255,255,.07)}
-.top > *{position:relative;z-index:1}
-.top small{opacity:.85;font-weight:700;font-size:13px}
-.top h1{margin:4px 0 14px;font-size:34px;font-weight:900;line-height:1.2}
-.stats{display:flex;gap:8px;flex-wrap:wrap}
-.stats div{background:rgba(255,255,255,.14);border-radius:12px;padding:6px 12px;font-size:13px;min-width:64px}
-.stats b{display:block;font-size:19px;font-weight:800;line-height:1.3}
-.stats .live b{display:flex;align-items:center;gap:6px;font-size:14px;padding-top:3px}
-.dot{width:8px;height:8px;border-radius:50%;background:#5ee08f;box-shadow:0 0 0 3px rgba(94,224,143,.25)}
-.dot.off{background:#ffd166;box-shadow:0 0 0 3px rgba(255,209,102,.25)}
-.dl{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
-.dl button{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#fff;
-  font-weight:700;border-radius:12px;padding:7px 14px;cursor:pointer;font-size:14px;transition:.15s}
-.dl button:hover{background:#fff;color:var(--red)}
-.dl button:hover svg{stroke:var(--red)}
-.dl button svg{width:17px;height:17px;stroke:#fff}
-.dl button:disabled{opacity:.6;cursor:wait}
-
-/* البحث والتصنيفات */
-.bar{position:sticky;top:0;z-index:30;background:rgba(244,242,242,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:14px 0 6px}
-.search{position:relative}
-.search input{width:100%;border:0;background:#fff;border-radius:14px;padding:12px 44px 12px 40px;font-size:16px;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.05)}
-.search input:focus{outline:none;box-shadow:0 0 0 3px rgba(143,29,44,.15)}
-.search svg{position:absolute;right:15px;top:50%;transform:translateY(-50%);width:18px;height:18px;stroke:var(--muted)}
-.search .clear{position:absolute;left:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--muted);
-  width:30px;height:30px;border-radius:50%;cursor:pointer;display:none;font-size:20px;line-height:1}
-.tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 0 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-.tabs::-webkit-scrollbar{display:none}
-.tab{flex:none;border:0;background:#fff;color:#5c5153;border-radius:12px;padding:7px 15px;cursor:pointer;font-weight:700;font-size:14.5px;
-  white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.04);transition:.15s}
-.tab:hover{color:var(--red)}
-.tab.active{background:var(--ink);color:#fff}
-
-main{padding:8px 0 40px}
-.state{text-align:center;padding:50px 16px;color:var(--muted);background:#fff;border-radius:20px}
-.state h3{color:var(--ink);margin:0 0 4px;font-size:19px}
-.btn{border:0;background:var(--red);color:#fff;font-weight:700;border-radius:12px;padding:9px 24px;cursor:pointer;margin-top:12px}
-.skel-card{background:#fff;border-radius:20px;padding:18px}
-.skel{height:14px;border-radius:7px;margin:14px 0;background:linear-gradient(90deg,#efe9e9 25%,#f7f3f3 50%,#efe9e9 75%);background-size:200% 100%;animation:sk 1.2s infinite}
-@keyframes sk{to{background-position:-200% 0}}
-
+body{margin:0;background:var(--bg);color:#211b1d;font-family:"Tajawal",system-ui,sans-serif;font-size:17px;line-height:1.7;-webkit-font-smoothing:antialiased}
+.wrap{max-width:900px;margin:0 auto;padding:14px 16px 0}
+.letterhead img{display:block;width:100%;height:auto;border-radius:16px;margin-bottom:14px}
 footer{text-align:center;color:#a39a9c;font-size:13px;padding:4px 16px 34px}
-.totop{position:fixed;left:16px;bottom:18px;z-index:40;width:46px;height:46px;border-radius:14px;border:0;background:var(--ink);
+.totop{position:fixed;left:16px;bottom:18px;z-index:40;width:46px;height:46px;border-radius:14px;border:0;background:#211b1d;
   box-shadow:0 6px 16px rgba(0,0,0,.2);cursor:pointer;display:grid;place-items:center;opacity:0;pointer-events:none;transition:.2s}
 .totop.show{opacity:1;pointer-events:auto}
 .totop svg{width:20px;height:20px;stroke:#fff}
-
-@media (max-width:640px){
-  body{font-size:16px}
-  .letterhead{padding:10px 10px 0}.letterhead img{border-radius:12px}
-  .top{padding:22px 18px 18px}.top h1{font-size:30px}
-}
-@media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important;scroll-behavior:auto!important} }
+@media (max-width:640px){ body{font-size:16px} .wrap{padding:10px 10px 0} .letterhead img{border-radius:12px} }
 </style>
 </head>
 <body>
 
-<div class="letterhead"><img src="furqan-letterhead.jpg" alt="جمعية فرقان لتحفيظ القرآن الكريم"></div>
-
 <div class="wrap">
-  <header class="top">
-    <small>وحدة المقاصف</small>
-    <h1>قائمة الأسعار</h1>
-    <div class="stats">
-      <div><b id="stItems">—</b>صنفًا</div>
-      <div><b id="stCats">—</b>تصنيفات</div>
-      <div class="live"><b><span class="dot" id="dot"></span><span id="stLive">جارٍ التحميل</span></b><span id="stTime">&nbsp;</span></div>
-    </div>
-    <div class="dl">
-      <button type="button" id="dlPdf"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 12v6M9 15l3 3 3-3"/></svg>تحميل PDF</button>
-      <button type="button" id="dlXlsx"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/></svg>تحميل Excel</button>
-    </div>
-  </header>
-</div>
-
-<div class="bar" id="bar">
-  <div class="wrap">
-    <div class="search">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-      <input id="q" type="text" enterkeyhint="search" placeholder="ابحثي عن صنف..." autocomplete="off" aria-label="البحث عن صنف">
-      <button class="clear" id="clear" aria-label="مسح البحث">×</button>
-    </div>
-    <nav class="tabs" id="tabs" aria-label="التصنيفات"></nav>
-  </div>
-</div>
-
-<div class="wrap">
-  <main id="menu">
-    <div class="skel-card"><div class="skel" style="width:30%"></div><div class="skel"></div><div class="skel"></div><div class="skel" style="width:80%"></div></div>
-  </main>
+  <div class="letterhead"><img src="furqan-letterhead.jpg" alt="جمعية فرقان لتحفيظ القرآن الكريم"></div>
+  <div id="app"></div>
 </div>
 
 <footer>الأسعار بالريال السعودي، وتُحدَّث تلقائيًا عند تعديل قائمة الأسعار.</footer>
@@ -133,10 +49,10 @@ footer{text-align:center;color:#a39a9c;font-size:13px;padding:4px 16px 34px}
 </button>
 
 <script>
+/* الواجهة كلها من price-menu.js (PriceMenu.app) — نفس الشكل المستخدم داخل نظام المقاصف */
 const AR = s => String(s).replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[d]);
-const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-
-let RAW = [], CATS = [], lastOk = 0;
+const menu = PriceMenu.app(document.getElementById("app"), { live: true, allTop: 0 });
+let lastOk = 0, hasData = false;
 
 async function fetchMenu() {
   let lastErr;
@@ -153,104 +69,29 @@ async function fetchMenu() {
   }
   throw lastErr || new Error("network");
 }
-
-const $menu = document.getElementById("menu"), $tabs = document.getElementById("tabs");
-const $q = document.getElementById("q"), $clear = document.getElementById("clear");
-
-function renderTabs() {
-  $tabs.innerHTML = `<button class="tab active" data-target="top">الكل</button>` +
-    CATS.map((c, i) => `<button class="tab" data-target="cat-${i}">${esc(c.name)}</button>`).join("");
-}
-function renderMenu() {
-  $clear.style.display = $q.value ? "block" : "none";
-  PriceMenu.render($menu, RAW, {
-    query: $q.value, idPrefix: "cat-",
-    emptyText: RAW.length ? "لم نجد صنفًا يطابق «" + $q.value + "»." : "لم تُضف أصناف إلى قائمة الأسعار بعد."
-  });
-  observeSections();
-}
-function setStatus(live, time, ok) {
-  document.getElementById("stLive").textContent = live;
-  document.getElementById("stTime").textContent = time || " ";
-  document.getElementById("dot").classList.toggle("off", !ok);
-}
 const timeLabel = d => AR(d.toLocaleTimeString("ar-SA-u-nu-latn", { hour: "numeric", minute: "2-digit" }));
 
-function apply(items) {
-  const sig = JSON.stringify(items);
-  if (sig === apply._sig) return;
-  apply._sig = sig;
-  RAW = items; CATS = PriceMenu.group(items);
-  document.getElementById("stItems").textContent = AR(CATS.reduce((n, c) => n + c.items.length, 0));
-  document.getElementById("stCats").textContent = AR(CATS.length);
-  renderTabs(); renderMenu();
-}
 async function load() {
   try {
     const items = await fetchMenu();
-    apply(items);
+    menu.setItems(items); hasData = true;
     lastOk = Date.now();
     try { localStorage.setItem("maqasif_menu_cache", JSON.stringify({ t: lastOk, items })); } catch (_) {}
-    setStatus("محدّثة", "آخر تحديث " + timeLabel(new Date()), true);
+    menu.setStatus("محدّثة", "آخر تحديث " + timeLabel(new Date()), true);
   } catch (e) {
-    if (RAW.length) {
-      setStatus("غير متصلة", "المعروض آخر نسخة", false);
-    } else {
-      $menu.innerHTML = `<div class="state"><h3>تعذّر تحميل القائمة</h3>تحقّقي من الاتصال بالإنترنت ثم أعيدي المحاولة.<br><button class="btn" id="retry">إعادة المحاولة</button></div>`;
-      document.getElementById("retry").onclick = () => { $menu.innerHTML = '<div class="state">جارٍ التحميل...</div>'; load(); };
-      setStatus("غير متصلة", "", false);
-    }
+    if (hasData) menu.setStatus("غير متصلة", "المعروض آخر نسخة", false);
+    else { menu.setError("", load); menu.setStatus("غير متصلة", "", false); }
   }
 }
 
-/* التحميل */
-function busy(btn, on, label) { btn.disabled = on; if (label) btn.lastChild.textContent = label; }
-document.getElementById("dlPdf").onclick = async e => {
-  const b = e.currentTarget; if (!RAW.length) return;
-  busy(b, true, "جارٍ التجهيز..."); await PriceMenu.exportPdf(RAW); busy(b, false, "تحميل PDF");
-};
-document.getElementById("dlXlsx").onclick = async e => {
-  const b = e.currentTarget; if (!RAW.length) return;
-  busy(b, true, "جارٍ التجهيز..."); await PriceMenu.exportExcel(RAW); busy(b, false, "تحميل Excel");
-};
-
-/* التفاعل */
-$tabs.addEventListener("click", e => {
-  const b = e.target.closest(".tab"); if (!b) return;
-  if ($q.value) { $q.value = ""; renderMenu(); }
-  const t = b.dataset.target;
-  if (t === "top") window.scrollTo({ top: 0, behavior: "smooth" });
-  else document.getElementById(t)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  setActive(t);
-});
-function setActive(t) {
-  $tabs.querySelectorAll(".tab").forEach(c => c.classList.toggle("active", c.dataset.target === t));
-  const a = $tabs.querySelector(".tab.active");
-  if (a) a.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-}
-let io;
-function observeSections() {
-  if (io) io.disconnect();
-  if (!("IntersectionObserver" in window)) return;
-  io = new IntersectionObserver(entries => {
-    entries.forEach(en => { if (en.isIntersecting && !$q.value) setActive(en.target.id); });
-  }, { rootMargin: "-150px 0px -60% 0px" });
-  document.querySelectorAll(".pm-cat[id]").forEach(s => io.observe(s));
-}
-$q.addEventListener("input", () => { renderMenu(); setActive("top"); });
-$clear.addEventListener("click", () => { $q.value = ""; renderMenu(); $q.focus(); });
-
 const $top = document.getElementById("totop");
-window.addEventListener("scroll", () => {
-  $top.classList.toggle("show", window.scrollY > 700);
-  if (window.scrollY < 150 && !$q.value) setActive("top");
-}, { passive: true });
+window.addEventListener("scroll", () => $top.classList.toggle("show", window.scrollY > 700), { passive: true });
 $top.onclick = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
 /* التشغيل: عرض فوري من آخر نسخة محفوظة، ثم تحديث من الشيت */
 try {
   const c = JSON.parse(localStorage.getItem("maqasif_menu_cache") || "null");
-  if (c && Array.isArray(c.items) && c.items.length) { apply(c.items); setStatus("جارٍ التحقق", "", true); }
+  if (c && Array.isArray(c.items) && c.items.length) { menu.setItems(c.items); hasData = true; menu.setStatus("جارٍ التحقق", "", true); }
 } catch (_) {}
 load();
 setInterval(() => { if (!document.hidden) load(); }, REFRESH_MS);

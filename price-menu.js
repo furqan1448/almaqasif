@@ -1,7 +1,8 @@
 /* =====================================================================
    price-menu.js — عرض قائمة الأسعار وتصديرها (ملف مشترك)
    يستخدمه: menu.html (الصفحة العامة)، marakez.html، masoulat.html، edara.html
-   - PriceMenu.render(container, items, opts)  عرض القائمة بتصميم بطاقات وأسطر منقّطة
+   - PriceMenu.app(host, opts)                 الواجهة الكاملة (بطاقة العنوان + البحث + التصنيفات + القائمة)
+   - PriceMenu.render(container, items, opts)  عرض بطاقات التصنيفات فقط
    - PriceMenu.exportExcel(items)              ملف Excel منسّق (اتجاه يمين لليسار)
    - PriceMenu.exportPdf(items)                ملف PDF مضغوط (صفحة واحدة غالبًا)
    items: صفوف ورقة «قائمة الأسعار» كما يرجعها getPriceItems
@@ -19,7 +20,8 @@
   function AR(s) { return String(s).replace(/\d/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'[d]; }).replace(/\./g, '٫'); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function toNum(v) {
-    var n = String(v == null ? '' : v).trim().replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace('٫', '.');
+    var n = String(v == null ? '' : v).trim().replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace('٫', '.')
+      .replace(/\s*(ريال|ريالات|ر\.?\s?س\.?)\s*$/, '').trim();   // «1 ريال» تُعامل كرقم
     return /^\d+(\.\d+)?$/.test(n) ? +n : null;
   }
   function priceHtml(p) {
@@ -102,7 +104,8 @@
     '.pm-head{display:flex;align-items:center;gap:12px;padding:14px 0 12px;border-bottom:1px solid #f1ecec}',
     '.pm-ico{flex:none;width:40px;height:40px;border-radius:12px;background:#f8eef0;display:grid;place-items:center}',
     '.pm-ico svg{width:21px;height:21px;stroke:#8f1d2c}',
-    '.pm-head h2{margin:0;font-size:19px;font-weight:800;color:#211b1d;line-height:1.3;flex:1}',
+    '.pm-head h2{margin:0;font-family:Tajawal,system-ui,sans-serif;font-size:19px;font-weight:800;color:#211b1d;line-height:1.3;flex:1}',
+    '.pm-cat,.pm-cat *{font-family:Tajawal,system-ui,sans-serif}',
     '.pm-head span{font-size:12.5px;color:#9a9092;background:#f6f3f3;border-radius:20px;padding:2px 10px;font-weight:500;white-space:nowrap}',
     '.pm-rows{display:grid;grid-template-columns:1fr 1fr;column-gap:28px}',
     '.pm-row{display:flex;align-items:center;gap:8px;padding:12px 0;border-bottom:1px solid #f6f2f2}',
@@ -384,5 +387,199 @@
     }).then(function () { wrap.remove(); });
   }
 
-  window.PriceMenu = { render: render, exportExcel: exportExcel, exportPdf: exportPdf, group: group, _buildPdfNode: buildPdfNode };
+  /* =====================================================================
+     الواجهة الكاملة (نفس شكل رابط المنيو تمامًا): بطاقة العنوان + البحث + التصنيفات + القائمة
+     PriceMenu.app(host, opts) ← يرجع { setItems(items), setStatus(label, time, ok), setError(msg, retry), items() }
+     opts: { live, onEdit, onDelete, extraButtons:[{label, onClick}], allTop, emptyText }
+     ===================================================================== */
+  var APP_CSS = [
+    '.pma{font-family:Tajawal,system-ui,sans-serif;color:#211b1d;direction:rtl;text-align:right}',
+    '.pma *{box-sizing:border-box}',
+    '.pma h1,.pma h2,.pma h3{font-family:Tajawal,system-ui,sans-serif}',
+    '.pma-top{position:relative;overflow:hidden;border-radius:22px;color:#fff;padding:24px 22px 20px;background:linear-gradient(135deg,#9b2236,#6b111f);box-shadow:0 12px 30px rgba(107,17,31,.25)}',
+    '.pma-top::after{content:"";position:absolute;width:240px;height:240px;border-radius:50%;left:-80px;top:-100px;background:rgba(255,255,255,.07)}',
+    '.pma-top>*{position:relative;z-index:1}',
+    '.pma-top small{opacity:.85;font-weight:700;font-size:13px}',
+    '.pma-top h1{margin:4px 0 14px;font-size:34px;font-weight:900;line-height:1.2;color:#fff}',
+    '.pma-stats{display:flex;gap:8px;flex-wrap:wrap}',
+    '.pma-stats>div{background:rgba(255,255,255,.14);border-radius:12px;padding:6px 12px;font-size:13px;min-width:64px;line-height:1.6}',
+    '.pma-stats b{display:block;font-size:19px;font-weight:800;line-height:1.3}',
+    '.pma-stats .pma-live b{display:flex;align-items:center;gap:6px;font-size:14px;padding-top:3px}',
+    '.pma-dot{width:8px;height:8px;border-radius:50%;background:#5ee08f;box-shadow:0 0 0 3px rgba(94,224,143,.25)}',
+    '.pma-dot.off{background:#ffd166;box-shadow:0 0 0 3px rgba(255,209,102,.25)}',
+    '.pma-dl{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}',
+    '.pma .pma-dl button{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#fff;font:700 14px Tajawal,system-ui,sans-serif;border-radius:12px;padding:7px 14px;cursor:pointer;transition:.15s;width:auto;margin:0}',
+    '.pma .pma-dl button:hover{background:#fff;color:#8f1d2c}',
+    '.pma .pma-dl button:hover svg{stroke:#8f1d2c}',
+    '.pma .pma-dl button svg{width:17px;height:17px;stroke:#fff;fill:none}',
+    '.pma .pma-dl button:disabled{opacity:.6;cursor:wait}',
+    '.pma-bar{position:sticky;z-index:15;padding:14px 0 6px}',
+    '.pma-search{position:relative}',
+    '.pma .pma-search input{width:100%;border:0;background:#fff;border-radius:14px;padding:12px 44px 12px 40px;font:400 16px Tajawal,system-ui,sans-serif;color:#211b1d;box-shadow:0 1px 3px rgba(0,0,0,.05);margin:0;height:auto}',
+    '.pma .pma-search input:focus{outline:none;box-shadow:0 0 0 3px rgba(143,29,44,.15);border:0}',
+    '.pma-search>svg{position:absolute;right:15px;top:50%;transform:translateY(-50%);width:18px;height:18px;stroke:#9a9092;fill:none;pointer-events:none}',
+    '.pma .pma-clear{position:absolute;left:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#9a9092;width:30px;height:30px;border-radius:50%;cursor:pointer;display:none;font-size:20px;line-height:1;padding:0;margin:0}',
+    '.pma-tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 0 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}',
+    '.pma-tabs::-webkit-scrollbar{display:none}',
+    '.pma .pma-tab{flex:none;border:0;background:#fff;color:#5c5153;border-radius:12px;padding:7px 15px;cursor:pointer;font:700 14.5px Tajawal,system-ui,sans-serif;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.04);transition:.15s;width:auto;margin:0}',
+    '.pma .pma-tab:hover{color:#8f1d2c}',
+    '.pma .pma-tab.active{background:#211b1d;color:#fff}',
+    '.pma-list{padding:8px 0 10px;font-size:16px;line-height:1.7}',
+    '.pma-state{text-align:center;padding:44px 16px;color:#9a9092;background:#fff;border-radius:20px}',
+    '.pma-state h3{color:#211b1d;margin:0 0 4px;font-size:19px}',
+    '.pma .pma-state button{border:0;background:#8f1d2c;color:#fff;font:700 15px Tajawal,system-ui,sans-serif;border-radius:12px;padding:9px 24px;cursor:pointer;margin-top:12px;width:auto}',
+    '.pma-skel-card{background:#fff;border-radius:20px;padding:18px}',
+    '.pma-skel{height:14px;border-radius:7px;margin:14px 0;background:linear-gradient(90deg,#efe9e9 25%,#f7f3f3 50%,#efe9e9 75%);background-size:200% 100%;animation:pmaSk 1.2s infinite}',
+    '@keyframes pmaSk{to{background-position:-200% 0}}',
+    '@media (max-width:640px){.pma-top{padding:22px 18px 18px}.pma-top h1{font-size:30px}}',
+    '@media (prefers-reduced-motion:reduce){.pma *{animation:none!important;transition:none!important}}'
+  ].join('\n');
+
+  var DL_ICONS = {
+    pdf: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 12v6M9 15l3 3 3-3"/>',
+    xlsx: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/>',
+    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'
+  };
+  function dlIcon(k) { return '<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + (DL_ICONS[k] || DL_ICONS.link) + '</svg>'; }
+
+  function app(host, opts) {
+    opts = opts || {};
+    ensureCss();
+    if (!document.getElementById('pma-style')) {
+      var st = document.createElement('style'); st.id = 'pma-style'; st.textContent = APP_CSS; document.head.appendChild(st);
+    }
+    var uid = 'pma' + (app._n = (app._n || 0) + 1) + '-';
+    var extras = opts.extraButtons || [];
+    host.innerHTML =
+      '<div class="pma">' +
+        '<header class="pma-top"><small>وحدة المقاصف</small><h1>' + TITLE + '</h1>' +
+          '<div class="pma-stats"><div><b data-k="items">—</b>صنفًا</div><div><b data-k="cats">—</b>تصنيفات</div>' +
+          (opts.live ? '<div class="pma-live"><b><span class="pma-dot" data-k="dot"></span><span data-k="live">جارٍ التحميل</span></b><span data-k="time">&nbsp;</span></div>' : '') +
+          '</div>' +
+          '<div class="pma-dl"><button type="button" data-a="pdf">' + dlIcon('pdf') + '<span>تحميل PDF</span></button>' +
+          '<button type="button" data-a="xlsx">' + dlIcon('xlsx') + '<span>تحميل Excel</span></button>' +
+          extras.map(function (b, i) { return '<button type="button" data-x="' + i + '">' + dlIcon(b.icon || 'link') + '<span>' + esc(b.label) + '</span></button>'; }).join('') +
+          '</div></header>' +
+        '<div class="pma-bar"><div class="pma-search">' +
+          '<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>' +
+          '<input type="text" enterkeyhint="search" placeholder="ابحثي عن صنف..." autocomplete="off" aria-label="البحث عن صنف">' +
+          '<button type="button" class="pma-clear" aria-label="مسح البحث">×</button></div>' +
+          '<nav class="pma-tabs" aria-label="التصنيفات"></nav></div>' +
+        '<div class="pma-list"><div class="pma-skel-card"><div class="pma-skel" style="width:30%"></div><div class="pma-skel"></div><div class="pma-skel"></div><div class="pma-skel" style="width:80%"></div></div></div>' +
+      '</div>';
+    var root = host.firstChild;
+    var $ = function (sel) { return root.querySelector(sel); };
+    var bar = $('.pma-bar'), input = $('.pma-search input'), clear = $('.pma-clear'), tabs = $('.pma-tabs'), list = $('.pma-list');
+    var RAW = [], CATS = [], sig = null, tabsSig = null;
+
+    /* الشريط الثابت يلتصق أسفل الشريط العلوي للنظام (إن وُجد) وبلون خلفية الصفحة */
+    function topOffset() { var tb = document.querySelector('.topbar'); return tb && getComputedStyle(tb).position === 'sticky' ? tb.offsetHeight : 0; }
+    function pageBg() {
+      var c = getComputedStyle(document.body).backgroundColor;
+      var m = c && c.match(/\d+(\.\d+)?/g);
+      return m && m.length >= 3 && (m.length < 4 || +m[3] > 0) ? 'rgba(' + m[0] + ',' + m[1] + ',' + m[2] + ',.94)' : 'rgba(244,242,242,.94)';
+    }
+    function layoutBar() {
+      var t = topOffset();
+      bar.style.top = t + 'px';
+      var stuck = root.offsetParent && bar.getBoundingClientRect().top <= t + 1 && root.getBoundingClientRect().top < t;
+      bar.style.background = stuck ? pageBg() : 'transparent';
+      bar.style.backdropFilter = bar.style.webkitBackdropFilter = stuck ? 'blur(10px)' : 'none';
+    }
+    layoutBar();
+
+    function scrollToY(y) { window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' }); }
+    function headerSpace() { return topOffset() + bar.offsetHeight + 10; }
+
+    function renderTabs() {
+      var s = CATS.map(function (c) { return c.name; }).join('|');
+      if (s === tabsSig) return; tabsSig = s;
+      tabs.innerHTML = '<button type="button" class="pma-tab active" data-t="all">الكل</button>' +
+        CATS.map(function (c, i) { return '<button type="button" class="pma-tab" data-t="' + uid + i + '">' + esc(c.name) + '</button>'; }).join('');
+    }
+    function renderList() {
+      clear.style.display = input.value ? 'block' : 'none';
+      render(list, RAW, {
+        query: input.value, idPrefix: uid, onEdit: opts.onEdit, onDelete: opts.onDelete,
+        emptyText: RAW.length ? 'لم نجد صنفًا يطابق «' + input.value + '».' : (opts.emptyText || 'لم تُضف أصناف إلى قائمة الأسعار بعد.')
+      });
+    }
+    function setActive(t) {
+      var a = null;
+      Array.prototype.forEach.call(tabs.children, function (b) { var on = b.getAttribute('data-t') === t; b.classList.toggle('active', on); if (on) a = b; });
+      if (a) {
+        var tr = tabs.getBoundingClientRect(), ar = a.getBoundingClientRect();
+        tabs.scrollTo({ left: tabs.scrollLeft + (ar.left + ar.width / 2) - (tr.left + tr.width / 2), behavior: 'smooth' });
+      }
+    }
+    function setItems(items) {
+      var s = JSON.stringify(items || []);
+      if (s === sig) return; sig = s;
+      RAW = items || []; CATS = group(RAW);
+      $('[data-k="items"]').textContent = AR(CATS.reduce(function (n, c) { return n + c.items.length; }, 0));
+      $('[data-k="cats"]').textContent = AR(CATS.length);
+      layoutBar(); renderTabs(); renderList();
+    }
+    function setStatus(label, time, ok) {
+      if (!opts.live) return;
+      $('[data-k="live"]').textContent = label;
+      $('[data-k="time"]').textContent = time || ' ';
+      $('[data-k="dot"]').classList.toggle('off', !ok);
+    }
+    function setError(msg, retry) {
+      list.innerHTML = '<div class="pma-state"><h3>تعذّر تحميل القائمة</h3>' + esc(msg || 'تحقّقي من الاتصال بالإنترنت ثم أعيدي المحاولة.') +
+        (retry ? '<br><button type="button" class="pma-retry">إعادة المحاولة</button>' : '') + '</div>';
+      if (retry) list.querySelector('.pma-retry').onclick = function () { list.innerHTML = '<div class="pma-state">جارٍ التحميل...</div>'; retry(); };
+    }
+
+    /* التحميل */
+    root.querySelector('.pma-dl').addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      var x = b.getAttribute('data-x');
+      if (x != null) { if (extras[+x] && extras[+x].onClick) extras[+x].onClick(); return; }
+      if (!RAW.length) return;
+      var lbl = b.querySelector('span'), old = lbl.textContent;
+      b.disabled = true; lbl.textContent = 'جارٍ التجهيز...';
+      Promise.resolve(b.getAttribute('data-a') === 'pdf' ? exportPdf(RAW) : exportExcel(RAW))
+        .then(function () { b.disabled = false; lbl.textContent = old; }, function () { b.disabled = false; lbl.textContent = old; });
+    });
+
+    /* التصنيفات والبحث */
+    tabs.addEventListener('click', function (e) {
+      var b = e.target.closest('.pma-tab'); if (!b) return;
+      if (input.value) { input.value = ''; renderList(); }
+      var t = b.getAttribute('data-t');
+      if (t === 'all') {
+        var y = typeof opts.allTop === 'number' ? opts.allTop : root.getBoundingClientRect().top + window.scrollY - topOffset() - 10;
+        scrollToY(y);
+      } else {
+        var sec = document.getElementById(t);
+        if (sec) scrollToY(sec.getBoundingClientRect().top + window.scrollY - headerSpace());
+      }
+      setActive(t);
+      lock = Date.now();
+    });
+    input.addEventListener('input', function () { renderList(); setActive('all'); });
+    clear.addEventListener('click', function () { input.value = ''; renderList(); input.focus(); });
+
+    /* تمييز التصنيف الظاهر أثناء التمرير */
+    var lock = 0, ticking = false;
+    window.addEventListener('scroll', function () {
+      if (ticking) return; ticking = true;
+      requestAnimationFrame(function () {
+        ticking = false;
+        if (!root.offsetParent) return;
+        layoutBar();
+        if (input.value || Date.now() - lock < 700) return;
+        var line = headerSpace() + 20, cur = 'all';
+        Array.prototype.forEach.call(list.querySelectorAll('.pm-cat[id]'), function (s) { if (s.getBoundingClientRect().top <= line) cur = s.id; });
+        var act = tabs.querySelector('.pma-tab.active');
+        if (!act || act.getAttribute('data-t') !== cur) setActive(cur);
+      });
+    }, { passive: true });
+
+    return { setItems: setItems, setStatus: setStatus, setError: setError, items: function () { return RAW; }, el: root };
+  }
+
+  window.PriceMenu = { render: render, app: app, exportExcel: exportExcel, exportPdf: exportPdf, group: group, _buildPdfNode: buildPdfNode };
 })();
