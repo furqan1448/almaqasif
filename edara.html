@@ -1428,21 +1428,6 @@
       </div>
 
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">ملف أو رابط إضافي لقائمة الأسعار</h3>
-        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">يظهر كزر "📎 ملف/رابط القائمة" لكل المراكز والمسؤولات (عرض فقط، الإدارة هي وحدها اللي تضيفه أو تعدّله).</p>
-        <div id="priceFileCurrent" style="margin-bottom:10px;color:#8a7d76;font-size:0.9rem;">جاري التحميل...</div>
-        <label>رابط خارجي</label>
-        <input type="text" id="priceFileLinkInput" placeholder="https://...">
-        <label style="margin-top:10px;">أو ارفعي ملف (PDF/صورة...) - يلغي الرابط أعلاه لو اتعبّى</label>
-        <input type="file" id="priceFileUploadInput">
-        <div style="display:flex;gap:8px;margin-top:12px;">
-          <button class="btn" id="priceFileSaveBtn" onclick="savePriceListFile()">حفظ</button>
-          <button class="btn secondary" onclick="removePriceListFile()">إزالة</button>
-        </div>
-        <div class="success-msg" id="priceFileSuccess">تم الحفظ بنجاح ✅</div>
-      </div>
-
-      <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);" id="priceItemFormTitle">إضافة صنف</h3>
         <label>التصنيف</label>
         <input type="text" id="priceItemCategory" list="priceCategoriesList" placeholder="مثال: البطاطسات">
@@ -1557,7 +1542,7 @@ function showAdminTab(tabId) {
   if (tabId === 'tasksStatusTab') loadTasksStatus();
   if (tabId === 'incomeTab') loadIncomeItems();
   if (tabId === 'announcementsTab') { renderAnnounceTargetLists(); loadAnnouncementsAdmin(); }
-  if (tabId === 'priceListTab') { loadPriceManagerSelect(); loadPriceItemsAdmin(); loadPriceListFileAdmin(); }
+  if (tabId === 'priceListTab') { loadPriceManagerSelect(); loadPriceItemsAdmin(); }
   if (tabId === 'visitReportTab') { initVisitReportTab_(); }
   if (tabId === 'visitStatsTab') { initVisitStatsTab_(); }
   if (tabId === 'canteenSurveyTab') { loadCanteenSurvey(); }
@@ -3316,64 +3301,6 @@ function savePriceListManager() {
       setTimeout(function () { s.style.display = 'none'; }, 2500);
     }
   }).catch(function () { setBtnBusy(btn, false); });
-}
-
-/* -------- ملف/رابط إضافي لقائمة الأسعار (الإدارة فقط) -------- */
-function loadPriceListFileAdmin() {
-  const box = document.getElementById('priceFileCurrent');
-  callApi('getPriceListFile').then(function (r) {
-    if (r && r.link) {
-      box.innerHTML = 'الحالي: <a href="' + r.link + '" target="_blank">' + (r.label || 'فتح الملف/الرابط') + '</a>';
-      document.getElementById('priceFileLinkInput').value = r.link;
-    } else {
-      box.textContent = 'لا يوجد ملف حالياً';
-      document.getElementById('priceFileLinkInput').value = '';
-    }
-  });
-}
-
-function savePriceListFile() {
-  const btn = document.getElementById('priceFileSaveBtn');
-  const fileInput = document.getElementById('priceFileUploadInput');
-  const file = fileInput.files[0];
-
-  function finish(payload) {
-    payload.actor = 'admin';
-    setBtnBusy(btn, true);
-    callApi('setPriceListFile', payload).then(function (r) {
-      setBtnBusy(btn, false);
-      if (r.ok) {
-        fileInput.value = '';
-        const s = document.getElementById('priceFileSuccess');
-        s.style.display = 'block';
-        setTimeout(function () { s.style.display = 'none'; }, 2500);
-        loadPriceListFileAdmin();
-      } else {
-        alert('صار خطأ أثناء الحفظ:\n' + (r.error || 'خطأ غير معروف'));
-      }
-    }).catch(function () { setBtnBusy(btn, false); });
-  }
-
-  if (file) {
-    if (file.size > 15 * 1024 * 1024) { alert('حجم الملف كبير جداً (الحد الأقصى 15 ميجا)'); return; }
-    const reader = new FileReader();
-    reader.onload = function () {
-      finish({ kind: 'file', fileData: reader.result, fileName: file.name, mimeType: file.type, label: file.name });
-    };
-    reader.readAsDataURL(file);
-    return;
-  }
-
-  const link = document.getElementById('priceFileLinkInput').value.trim();
-  if (!link) { alert('اكتبي رابط أو اختاري ملف'); return; }
-  finish({ kind: 'link', link: link, label: 'رابط قائمة الأسعار' });
-}
-
-function removePriceListFile() {
-  if (!confirm('متأكدة تبين تزيلين الملف/الرابط الحالي؟')) return;
-  callApi('setPriceListFile', { actor: 'admin', kind: 'link', link: '', label: '' }).then(function (r) {
-    if (r.ok) loadPriceListFileAdmin();
-  });
 }
 
 let priceMenuApp_ = null;

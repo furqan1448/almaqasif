@@ -1933,9 +1933,7 @@ function formatPriceLabel_(price) {
 let priceMenuApp_ = null;
 function priceMenuApp() {
   if (!priceMenuApp_) {
-    priceMenuApp_ = PriceMenu.app(document.getElementById('priceMenuApp'), {
-      extraButtons: [{ label: 'ملف/رابط القائمة', icon: 'link', onClick: openPriceListFile }]
-    });
+    priceMenuApp_ = PriceMenu.app(document.getElementById('priceMenuApp'), {});
   }
   return priceMenuApp_;
 }
@@ -1954,14 +1952,6 @@ function exportPriceListExcel() {
 
 function printPriceListReport() {
   PriceMenu.exportPdf(currentPriceItemsCache_);
-}
-
-/* رابط أو ملف إضافي لقائمة الأسعار - تضيفه الإدارة فقط من edara.html، وهنا فقط عرض */
-function openPriceListFile() {
-  callApi('getPriceListFile').then(function (r) {
-    if (r.link) { window.open(r.link, '_blank'); }
-    else { alert('لا يوجد ملف حالياً'); }
-  });
 }
 
 /* -------- المرفقات -------- */
