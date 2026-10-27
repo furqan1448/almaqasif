@@ -105,10 +105,6 @@ textarea{min-height:100px;resize:vertical}
 @keyframes sp{to{transform:rotate(360deg)}}
 .form-alert{display:none;margin-top:14px;color:#b3261e;font-weight:700}
 
-.draft-note{display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
-  background:#eef7f1;border:1px solid #cfe8d9;color:var(--ok);border-radius:10px;padding:10px 16px;margin-top:14px;font-size:15.5px;font-weight:500}
-.draft-note button{font:inherit;font-size:14.5px;font-weight:700;background:none;border:0;color:var(--red);text-decoration:underline;cursor:pointer;padding:0}
-.draft-status{font-size:13.5px;color:var(--muted);font-weight:500;min-width:110px;text-align:right;white-space:nowrap}
 
 .done{display:none;text-align:center;background:#fff;border-radius:16px;padding:40px 24px;margin-top:30px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .done svg{width:72px;height:72px;stroke:var(--ok)}
@@ -125,7 +121,6 @@ footer{text-align:center;color:#999;font-size:13.5px;margin-top:30px}
   .field.child{margin-right:6px;padding-right:12px}
   .rating{gap:5px}
   .rating span{font-size:12.5px;padding:8px 2px}
-  .draft-status{min-width:0;font-size:12px}
 }
 </style>
 </head>
@@ -137,7 +132,6 @@ footer{text-align:center;color:#999;font-size:13.5px;margin-top:30px}
   <span style="font-size:14px;color:var(--muted);font-weight:700">نسبة الإنجاز</span>
   <div class="bar"><span id="barFill"></span></div>
   <span class="pct" id="pct">٠٪</span>
-  <span class="draft-status" id="draftStatus"></span>
 </div></div>
 
 <div class="wrap">
@@ -151,12 +145,7 @@ footer{text-align:center;color:#999;font-size:13.5px;margin-top:30px}
   <div class="intro">
     <p>السلام عليكم ورحمة الله وبركاته،</p>
     <p>أختي الفاضلة، نسعد بمشاركتك في هذه الاستبانة لتقييم تجربة استخدام النظام الإلكتروني الموحد للمقاصف، والتعرّف على مدى إسهامه في تنظيم الأعمال وتيسير توثيقها ومتابعتها، والاستفادة من ملاحظاتك ومقترحاتك بما يسهم في تطوير النظام وتحسين كفاءته.</p>
-    <p>الحقول المعلَّمة بـ (<span class="req">*</span>) مطلوبة. تُحفظ إجاباتك تلقائيًا مسودةً على هذا الجهاز، ويمكنك إكمالها لاحقًا.</p>
-  </div>
-
-  <div class="draft-note" id="draftNote">
-    <span>تم استرجاع إجاباتك المحفوظة سابقًا، ويمكنك إكمال الاستبانة من حيث توقفت.</span>
-    <button type="button" id="clearDraftBtn">مسح المسودة والبدء من جديد</button>
+    <p>الحقول المعلَّمة بـ (<span class="req">*</span>) مطلوبة.</p>
   </div>
 
   <form id="form" novalidate>
@@ -406,10 +395,8 @@ function updateProgress() {
   all.forEach(f => { if (isFilled(f.dataset.req)) f.classList.remove("missing"); });
   if (done === all.length) showAlert("");
 }
-/* ===== حفظ المسودة تلقائيًا على الجهاز ===== */
+/* ===== حفظ الإجابات تلقائيًا على الجهاز (دون إظهار أي إشعار) ===== */
 const DRAFT_KEY = "maqasif_survey_draft";
-const draftStatus = document.getElementById("draftStatus");
-const draftNote = document.getElementById("draftNote");
 let draftTimer = null, restoring = false;
 
 function collectState() {
@@ -435,23 +422,18 @@ function saveDraft() {
     if (hasContent(s)) {
       s.savedAt = Date.now();
       localStorage.setItem(DRAFT_KEY, JSON.stringify(s));
-      draftStatus.textContent = "✓ تم حفظ المسودة";
     } else {
       localStorage.removeItem(DRAFT_KEY);
-      draftStatus.textContent = "";
     }
   } catch (_) {}
 }
 function scheduleSave() {
   clearTimeout(draftTimer);
-  draftStatus.textContent = "جارٍ الحفظ...";
   draftTimer = setTimeout(saveDraft, 600);
 }
 function clearDraft() {
   clearTimeout(draftTimer);
   try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
-  draftStatus.textContent = "";
-  draftNote.style.display = "none";
 }
 function checkValues(name, values) {
   const set = [].concat(values || []).map(String);
@@ -482,19 +464,8 @@ function restoreDraft() {
     else pendingCenter = s.center;
   }
   restoring = false;
-  draftStatus.textContent = "✓ تم حفظ المسودة";
-  draftNote.style.display = "flex";
   return true;
 }
-document.getElementById("clearDraftBtn").addEventListener("click", () => {
-  if (!confirm("هل تريدين مسح جميع الإجابات المحفوظة والبدء من جديد؟")) return;
-  clearDraft();
-  pendingCenter = "";
-  form.reset();
-  form.querySelectorAll(".missing").forEach(f => f.classList.remove("missing"));
-  applyConditions(); updateProgress(); showAlert("");
-  window.scrollTo({ top: 0, behavior: "smooth" });
-});
 
 function onChange() { applyConditions(); updateProgress(); scheduleSave(); }
 form.addEventListener("input", onChange);
