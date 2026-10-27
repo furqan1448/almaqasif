@@ -48,12 +48,16 @@
     return loadScript._p[src];
   }
 
+  /* أسماء العرض للتصنيفات (لا تغيّر الشيت) — تظهر هكذا في الصفحة وفي PDF وExcel */
+  var CAT_ALIASES = { 'البطاطسات': 'البطاطس' };
+  function catName(c) { c = String(c || '').trim() || 'أخرى'; return CAT_ALIASES[c] || c; }
+
   /* تجميع الأصناف حسب التصنيف بالترتيب */
   function group(items) {
     var list = (items || []).map(function (r) {
       return {
         row: r._row, raw: r,
-        cat: String(r['التصنيف'] || 'أخرى').trim() || 'أخرى',
+        cat: catName(r['التصنيف']),
         name: String(r['اسم الصنف'] || '').trim(),
         price: r['السعر'],
         order: Number(r['ترتيب']) || 0
@@ -94,27 +98,27 @@
 
   /* ---------- التنسيق (يُضاف مرة واحدة) ---------- */
   var CSS = [
-    '.pm-cat{background:#fff;border:1px solid #eadcde;border-radius:16px;padding:16px 20px 8px;margin:0 0 14px;scroll-margin-top:130px}',
-    '.pm-head{display:flex;align-items:center;gap:10px;padding-bottom:10px;margin-bottom:4px;border-bottom:1.5px solid #8f1d2c}',
-    '.pm-ico{flex:none;width:36px;height:36px;border-radius:50%;background:#f7eef0;display:grid;place-items:center}',
-    '.pm-ico svg{width:20px;height:20px;stroke:#8f1d2c}',
-    '.pm-head h2{margin:0;font-size:20px;font-weight:800;color:#8f1d2c;line-height:1.3;flex:1}',
-    '.pm-head span{font-size:12.5px;color:#857a7c;font-weight:500}',
-    '.pm-rows{display:grid;grid-template-columns:1fr 1fr;column-gap:32px}',
-    '.pm-row{display:flex;align-items:baseline;gap:8px;padding:9px 0;border-bottom:1px solid #f3eaeb}',
-    '.pm-nm{font-weight:500;font-size:16px;color:#2a2224}',
+    '.pm-cat{background:#fff;border:1px solid #f0e9ea;border-radius:20px;padding:4px 18px 4px;margin:0 0 12px;box-shadow:0 2px 10px rgba(33,27,29,.05);scroll-margin-top:140px}',
+    '.pm-head{display:flex;align-items:center;gap:12px;padding:14px 0 12px;border-bottom:1px solid #f1ecec}',
+    '.pm-ico{flex:none;width:40px;height:40px;border-radius:12px;background:#f8eef0;display:grid;place-items:center}',
+    '.pm-ico svg{width:21px;height:21px;stroke:#8f1d2c}',
+    '.pm-head h2{margin:0;font-size:19px;font-weight:800;color:#211b1d;line-height:1.3;flex:1}',
+    '.pm-head span{font-size:12.5px;color:#9a9092;background:#f6f3f3;border-radius:20px;padding:2px 10px;font-weight:500;white-space:nowrap}',
+    '.pm-rows{display:grid;grid-template-columns:1fr 1fr;column-gap:28px}',
+    '.pm-row{display:flex;align-items:center;gap:8px;padding:12px 0;border-bottom:1px solid #f6f2f2}',
+    '.pm-nm{font-weight:500;font-size:16px;color:#211b1d}',
     '.pm-nm mark{background:#fbe7b6;color:inherit;border-radius:3px;padding:0 2px}',
-    '.pm-lead{flex:1;min-width:14px;border-bottom:2px dotted #dccbcd;transform:translateY(-5px)}',
-    '.pm-pr{flex:none;font-weight:800;color:#8f1d2c;font-size:16.5px;white-space:nowrap}',
-    '.pm-pr small{font-size:11.5px;font-weight:500;color:#857a7c;margin-right:3px}',
-    '.pm-pr.pm-text{font-size:13.5px;color:#b8893a}',
-    '.pm-act{flex:none;display:inline-flex;gap:2px;margin-right:4px}',
+    '.pm-lead{flex:1;min-width:10px}',
+    '.pm-pr{flex:none;font-weight:800;color:#8f1d2c;font-size:15.5px;white-space:nowrap;background:#f8eef0;border-radius:10px;padding:3px 10px}',
+    '.pm-pr small{font-size:11.5px;font-weight:600;color:#8f1d2c;margin-right:3px}',
+    '.pm-pr.pm-text{font-size:13px;color:#946a1f;background:#fbf3e3}',
+    '.pm-act{flex:none;display:inline-flex;gap:2px;margin-right:2px}',
     '.pm-act button{border:0;background:transparent;width:28px;height:28px;border-radius:8px;cursor:pointer;display:grid;place-items:center;padding:0}',
     '.pm-act button svg{width:16px;height:16px;stroke:#8f1d2c}',
-    '.pm-act button:hover{background:#f7eef0}',
+    '.pm-act button:hover{background:#f8eef0}',
     '.pm-act button.pm-del svg{stroke:#b3261e}',
     '.pm-empty{text-align:center;color:#857a7c;padding:24px 8px}',
-    '@media (max-width:640px){.pm-cat{padding:14px 14px 6px}.pm-rows{grid-template-columns:1fr}.pm-head h2{font-size:18px}.pm-nm{font-size:15.5px}}'
+    '@media (max-width:640px){.pm-cat{padding:4px 14px}.pm-rows{grid-template-columns:1fr}.pm-head h2{font-size:18px}.pm-nm{font-size:15.5px}}'
   ].join('\n');
   function ensureCss() {
     if (document.getElementById('pm-style')) return;
@@ -271,13 +275,15 @@
     }).catch(function () { return LETTERHEAD; });
   }
 
-  function buildPdfNode(cats, fs, lhSrc) {
-    // توزيع التصنيفات على ٣ أعمدة متوازنة بحسب عدد الأسطر، مع الحفاظ على الترتيب
+  function buildPdfNode(cats, fs, lhSrc, ncols) {
+    // توزيع التصنيفات على أعمدة متوازنة بحسب عدد الأسطر، مع الحفاظ على الترتيب
+    ncols = ncols || 3;
     var weights = cats.map(function (c) { return c.items.length + 1.6; });
     var total = weights.reduce(function (a, b) { return a + b; }, 0);
-    var cols = [[], [], []], acc = 0, col = 0;
+    var cols = [], acc = 0, col = 0;
+    for (var q = 0; q < ncols; q++) cols.push([]);
     cats.forEach(function (c, i) {
-      if (col < 2 && acc > 0 && acc + weights[i] / 2 > (total / 3) * (col + 1)) col++;
+      if (col < ncols - 1 && acc > 0 && acc + weights[i] / 2 > (total / ncols) * (col + 1)) col++;
       cols[col].push(c); acc += weights[i];
     });
     var root = document.createElement('div');
@@ -316,6 +322,19 @@
     pagebreak: { mode: ['css', 'legacy'], avoid: '.blk' }
   };
 
+  /* احتياط أخير: إن بقيت الصورة أطول من صفحة A4 نصغّرها كلها لتتسع في صفحة واحدة */
+  function fitOnePage(canvas) {
+    var ratio = PAGE_H / PAGE_W;
+    if (canvas.height / canvas.width <= ratio * 0.995) return canvas;
+    var out = document.createElement('canvas');
+    out.height = canvas.height;
+    out.width = Math.ceil(canvas.height / (ratio * 0.99));   // هامش بسيط يمنع ظهور صفحة ثانية فارغة بسبب التقريب
+    var ctx = out.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(canvas, Math.round((out.width - canvas.width) / 2), 0);
+    return out;
+  }
+
   function exportPdf(items) {
     var cats = group(items);
     if (!cats.length) { alert('لا توجد أصناف لتصديرها'); return Promise.resolve(); }
@@ -331,13 +350,17 @@
     return loadScript(HTML2PDF_URL, 'html2pdf').then(letterheadSrc).then(function (src) {
       lh = src;
       // تصغير الخط تدريجيًا حتى تتسع القائمة في صفحة واحدة (بحد أدنى مقروء)
-      var fs = 13.5;
+      // صفحة واحدة دائمًا: نصغّر الخط في ٣ أعمدة، ثم ننتقل إلى ٤ أعمدة إن لزم
+      var fs = 13.5, ncols = 3;
       var tryFit = function () {
         host.innerHTML = '';
-        node = buildPdfNode(cats, fs, lh);
+        node = buildPdfNode(cats, fs, lh, ncols);
         host.appendChild(node);
         return waitImages(node).then(function () {
-          if (node.scrollHeight > PAGE_H - 4 && fs > 9.5) { fs -= 0.5; return tryFit(); }
+          if (node.scrollHeight <= PAGE_H - 4) return;
+          if (ncols === 3 && fs > 10) { fs -= 0.5; return tryFit(); }
+          if (ncols === 3) { ncols = 4; fs = 12; return tryFit(); }
+          if (fs > 8) { fs -= 0.5; return tryFit(); }
         });
       };
       return tryFit();
@@ -348,7 +371,7 @@
       return loadScript(HTML2IMG_URL, 'htmlToImage').then(function () {
         return htmlToImage.toCanvas(node, { pixelRatio: 2, backgroundColor: '#ffffff', width: PAGE_W, height: node.scrollHeight, cacheBust: true });
       }).then(function (canvas) {
-        return html2pdf().set(PDF_OPTS).from(canvas, 'canvas').save();
+        return html2pdf().set(PDF_OPTS).from(fitOnePage(canvas), 'canvas').save();
       }).catch(function () {
         return html2pdf().set(PDF_OPTS).from(node).toContainer().get('container').then(function (c) {
           if (c.parentElement) c.parentElement.style.direction = 'ltr';
