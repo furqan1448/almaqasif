@@ -6,7 +6,7 @@
 <title>استبانة قياس أثر نظام وحدة المقاصف</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://script.google.com/macros/s/AKfycbxlhqNaHRFE6aiDlvXJA00kt0WwxCrrrTqQ8aogM2DfUgt5b4GFCTI_8U4Yig88szKK5Q/exec">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <script>
 /* =====================================================================
    استبانة قياس أثر نظام وحدة المقاصف — جمعية فرقان
@@ -143,8 +143,7 @@ footer{text-align:center;color:#999;font-size:13.5px;margin-top:30px}
 
   <div class="intro">
     <p>السلام عليكم ورحمة الله وبركاته،</p>
-    <p>أختي الفاضلة، نسعد بمشاركتكِ في هذه الاستبانة لتقييم تجربة استخدام النظام الإلكتروني الموحد للمقاصف، والتعرّف على مدى إسهامه في تنظيم الأعمال وتيسير توثيقها ومتابعتها، والاستفادة من ملاحظاتكِ ومقترحاتكِ بما يسهم في تطوير النظام وتحسين كفاءته..</p>
-    <p>.</p>
+    <p>أختي الفاضلة، نسعد بمشاركتك في هذه الاستبانة لتقييم تجربة استخدام النظام الإلكتروني الموحد للمقاصف، والتعرّف على مدى إسهامه في تنظيم الأعمال وتيسير توثيقها ومتابعتها، والاستفادة من ملاحظاتك ومقترحاتك بما يسهم في تطوير النظام وتحسين كفاءته.</p>
     <p>الحقول المعلَّمة بـ (<span class="req">*</span>) مطلوبة.</p>
   </div>
 
@@ -165,7 +164,7 @@ footer{text-align:center;color:#999;font-size:13.5px;margin-top:30px}
       <div class="field" data-req="center">
         <label for="center">اسم المركز <span class="req">*</span></label>
         <select id="center" name="center" disabled>
-          <option value="">جار تحميل أسماء المراكز...</option>
+          <option value="">جارٍ تحميل أسماء المراكز...</option>
         </select>
         <div class="hint" id="centerHint" style="display:none"></div>
         <div class="err-msg">يُرجى اختيار المركز.</div>
@@ -210,7 +209,7 @@ footer{text-align:center;color:#999;font-size:13.5px;margin-top:30px}
 <div class="done" id="doneView">
   <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M7.5 12.5l3 3 6-6.5"/></svg>
   <h2>تم إرسال الاستبانة بنجاح</h2>
-  <p>شكرًا لك على وقتك ومشاركتك، وجزاك الله خيرًا.</p>
+  <p>شكرًا لكِ على وقتكِ ومشاركتكِ، وجزاكِ الله خيرًا.</p>
   <button type="button" class="btn ghost" id="againBtn">إرسال استجابة أخرى من هذا الجهاز</button>
 </div>
 
@@ -235,14 +234,14 @@ const QUESTIONS = [
     title: "أصبح الوقت المستغرق في توثيق أعمال المقصف ومتابعتها:",
     options: ["أقل بكثير", "أقل", "مماثلًا", "أكثر", "أكثر بكثير"] },
   { sec: 2, key: "easier", type: "radio", req: true,
-    title: "هل ترين أن النظام سهّل عليك أداء مهامك؟",
+    title: "هل ترين أن النظام سهّل عليكِ أداء مهامكِ؟",
     options: ["نعم، بدرجة كبيرة", "نعم، إلى حدّ ما", "لم ألاحظ فرقًا", "لا، أجد صعوبة في استخدامه"] },
 
   { sec: 3, key: "experience", type: "radio", req: true,
-    title: "كيف تصفين تجربتك مع النظام الإلكتروني حتى الآن؟",
+    title: "كيف تصفين تجربتكِ مع النظام الإلكتروني حتى الآن؟",
     options: ["سهلة وواضحة", "جيدة مع وجود بعض الصعوبات", "أواجه صعوبات في بعض المهام", "أواجه صعوبات في معظم المهام"] },
   { sec: 3, key: "clarity", type: "radio", req: true,
-    title: "هل واجهت صعوبة في تنفيذ أي مهمة بسبب عدم وضوح خطواتها؟",
+    title: "هل واجهتِ صعوبة في تنفيذ أي مهمة بسبب عدم وضوح خطواتها؟",
     options: ["نعم", "أحيانًا", "لا"] },
   { sec: 3, key: "unclearTasks", type: "check", req: true, child: true,
     showIf: { key: "clarity", in: ["نعم", "أحيانًا"] },
@@ -252,24 +251,24 @@ const QUESTIONS = [
     title: "ما الجهاز الذي تستخدمينه غالبًا في الدخول إلى النظام؟",
     options: ["الجوال", "الحاسب", "كلاهما"] },
   { sec: 3, key: "tech", type: "radio", req: true,
-    title: "هل واجهتك مشكلات تقنية أثناء استخدام النظام؟",
+    title: "هل واجهتكِ مشكلات تقنية أثناء استخدام النظام؟",
     options: ["نعم، بصورة متكررة", "أحيانًا", "نادرًا", "لم أواجه مشكلات تقنية"] },
   { sec: 3, key: "techTypes", type: "check", req: true, child: true,
     showIf: { key: "tech", in: ["نعم، بصورة متكررة", "أحيانًا", "نادرًا"] },
-    title: "ما نوع المشكلات التي واجهتك؟", note: "(يمكن اختيار أكثر من مشكلة)",
+    title: "ما نوع المشكلات التي واجهتكِ؟", note: "(يمكن اختيار أكثر من مشكلة)",
     options: ["بطء تحميل الصفحات", "تعذّر حفظ البيانات", "تعذّر تسجيل الدخول", "تعذّر رفع المرفقات",
               "عدم ظهور البيانات بعد حفظها", "أخرى"] },
   { sec: 3, key: "video", type: "radio", req: true,
-    title: "هل اطّلعت على المقطع التعريفي بطريقة استخدام النظام؟",
+    title: "هل اطّلعتِ على المقطع التعريفي بطريقة استخدام النظام؟",
     options: ["نعم، وكان واضحًا ومفيدًا", "نعم، ولكنه يحتاج إلى توضيح أكثر", "لم أطّلع عليه"] },
   { sec: 3, key: "rating", type: "rating", req: true,
-    title: "ما تقييمك العام للنظام؟",
+    title: "ما تقييمكِ العام للنظام؟",
     options: [{ v: 5, l: "ممتاز" }, { v: 4, l: "جيد جدًا" }, { v: 3, l: "جيد" }, { v: 2, l: "مقبول" }, { v: 1, l: "ضعيف" }] },
 
   { sec: 4, key: "difficulties", type: "text", req: false,
-    title: "أبرز الصعوبات التي واجهتك في استخدام النظام" },
+    title: "أبرز الصعوبات التي واجهتكِ في استخدام النظام" },
   { sec: 4, key: "suggestions", type: "text", req: false,
-    title: "مقترحاتك لتطوير النظام، وما ترغبين في تحسينه أو إضافته ليصبح استخدامه أسهل" }
+    title: "مقترحاتكِ لتطوير النظام، وما ترغبين في تحسينه أو إضافته ليصبح استخدامه أسهل" }
 ];
 
 const AR = n => String(n).replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[d]);
@@ -365,7 +364,7 @@ async function loadCenters() {
     centerHint.innerHTML = 'تحقّقي من الاتصال بالإنترنت، ثم <a id="retryCenters">أعيدي المحاولة</a>.';
     centerHint.style.display = "block";
     document.getElementById("retryCenters").onclick = () => {
-      centerSel.innerHTML = '<option value="">جار تحميل أسماء المراكز...</option>';
+      centerSel.innerHTML = '<option value="">جارٍ تحميل أسماء المراكز...</option>';
       centerHint.style.display = "none";
       loadCenters();
     };
@@ -425,7 +424,7 @@ form.addEventListener("submit", async e => {
   };
 
   btn.disabled = true;
-  document.getElementById("btnText").textContent = "جار الإرسال...";
+  document.getElementById("btnText").textContent = "جارٍ الإرسال...";
   try {
     let res = null, lastErr;
     for (let attempt = 0; attempt < 3 && !res; attempt++) {
