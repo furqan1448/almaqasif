@@ -581,13 +581,13 @@
     <div id="deliveryTab" class="admin-tab-panel hidden">
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">جدول مواعيد تسليم المديرات</h3>
-        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">حدّدي المراكز المطلوبة، ثم اكتبي لكل مركز تاريخ التسليم (يظهر اليوم والتاريخ الهجري تلقائياً)، أو استخدمي «التوزيع التلقائي» لتوزيع المراكز المحددة على الأيام بالتسلسل.</p>
+        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">تُنظَّم المواعيد في بطاقات حسب اليوم، ويمكن طيّ كل بطاقة أو فتحها والبحث باسم المركز.</p>
         <div class="select-row">
           <div><label>1) اكتبي تاريخ التسليم</label>
             <input type="date" id="dlvPick" onchange="dlvPickChanged_()">
             <div id="dlvPickInfo" style="font-size:0.85rem;color:var(--maroon);margin-top:4px;min-height:1.2em;"></div>
           </div>
-          <div><label>عدد المديرات في اليوم</label><input type="number" id="dlvPerDay" value="10" min="1" max="100" onchange="dlvSummary_()"></div>
+          <div><label>عدد المديرات في اليوم</label><input type="number" id="dlvPerDay" value="10" min="1" max="100" onchange="dlvRender_()"></div>
         </div>
         <p style="color:#8a7d76;font-size:0.85rem;margin:8px 0;">2) حدّدي المراكز من القائمة، 3) اضغطي «اعتماد التاريخ للمحددة» (يُحفظ فوراً)، ثم كرّري مع تاريخ آخر للمراكز المتبقية. يمكنك تعديل تاريخ أي مركز في أي وقت.</p>
         <div class="export-row" style="margin:8px 0;">
@@ -600,11 +600,9 @@
           <tbody id="dlvTbody"><tr><td colspan="2">جاري التحميل...</td></tr></tbody>
         </table></div>
         <h4 style="margin:16px 0 6px;color:var(--maroon);">المواعيد المحددة <span id="dlvDoneCount"></span></h4>
-        <div class="table-scroll"><table class="log-table" id="dlvDoneTable">
-          <thead><tr><th>المركز</th><th>التاريخ</th><th>اليوم</th><th>التاريخ الهجري</th><th></th></tr></thead>
-          <tbody id="dlvDoneTbody"><tr><td colspan="5">لا توجد مواعيد بعد</td></tr></tbody>
-        </table></div>
-        <div id="dlvSummary" style="margin-top:8px;font-size:0.88rem;"></div>
+        <input type="search" id="dlvSearch" placeholder="🔍 بحث باسم المركز..." oninput="dlvFilter_()" style="margin:0 0 8px;">
+        <div id="dlvDoneBox"><div style="color:#8a7d76;">لا توجد مواعيد بعد</div></div>
+        <div id="dlvSummary"></div>
         <button class="btn" id="dlvSaveBtn" onclick="dlvSave_()" style="margin-top:10px;">حفظ الجدول</button>
         <div class="success-msg" id="dlvOk">تم حفظ الجدول ✅</div>
         <div class="export-row">
@@ -3072,11 +3070,12 @@ function loadDelivery_() {
   callApi('getCenters').then(function (r) { centersListCache = r.centers || []; go(); });
 }
 function dlvRender_() {
-  const tb = document.getElementById('dlvTbody'), td = document.getElementById('dlvDoneTbody');
-  tb.innerHTML = ''; td.innerHTML = '';
-  let rest = 0, done = 0;
+  const tb = document.getElementById('dlvTbody'), box = document.getElementById('dlvDoneBox');
+  tb.innerHTML = ''; box.innerHTML = '';
+  const per = Math.max(1, Number(document.getElementById('dlvPerDay').value) || 10);
+  let rest = 0, done = 0; const groups = {};
   centersListCache.forEach(function (c, i) {
-    if (!dlvState_.map[c]) {          // غير محدد له موعد: يظهر للتحديد فقط
+    if (!dlvState_.map[c]) {
       rest++;
       const tr = document.createElement('tr');
       const t0 = document.createElement('td'); const cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'dlv-cb'; cb.checked = !!dlvState_.sel[c];
@@ -3086,33 +3085,57 @@ function dlvRender_() {
       tr.appendChild(t0); tr.appendChild(t1); tb.appendChild(tr);
       return;
     }
-    done++;                            // محدد له موعد: لا يدخل في أي تحديد جديد، ويُعدَّل من هنا
-    dlvState_.sel[c] = false;
-    const tr = document.createElement('tr');
-    const t1 = document.createElement('td'); t1.textContent = c;
-    const t2 = document.createElement('td'); const inp = document.createElement('input'); inp.type = 'date'; inp.id = 'dlvD' + i; inp.value = dlvState_.map[c]; inp.style.margin = '0';
-    inp.onchange = function () { if (inp.value) { dlvState_.map[c] = inp.value; dlvRow_(i); dlvSummary_(); dlvDirty_(); } };
-    t2.appendChild(inp);
-    const t3 = document.createElement('td'); t3.id = 'dlvDay' + i;
-    const t4 = document.createElement('td'); t4.id = 'dlvH' + i;
-    const t5 = document.createElement('td'); const rm = document.createElement('a'); rm.href = '#'; rm.textContent = 'إلغاء الموعد';
-    rm.onclick = function (ev) { ev.preventDefault(); delete dlvState_.map[c]; dlvRender_(); dlvPickChanged_(); dlvSave_(true); };
-    t5.appendChild(rm);
-    [t1, t2, t3, t4, t5].forEach(function (t) { tr.appendChild(t); });
-    td.appendChild(tr);
-    dlvRow_(i);
+    done++; dlvState_.sel[c] = false;
+    (groups[dlvState_.map[c]] = groups[dlvState_.map[c]] || []).push({ c: c, i: i });
+  });
+  Object.keys(groups).sort().forEach(function (v) {
+    const g = groups[v], d = dlvParse_(v), over = g.length > per;
+    const det = document.createElement('details'); det.className = 'dlv-day'; det.open = true;
+    det.style.cssText = 'border:1px solid #e3d3c9;border-radius:12px;margin-bottom:10px;overflow:hidden;background:#fff;';
+    const sm = document.createElement('summary');
+    sm.style.cssText = 'cursor:pointer;padding:10px 14px;background:linear-gradient(90deg,#8C1A2C,#a8283c);color:#fff;font-weight:bold;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;';
+    sm.innerHTML = '<span>' + DLV_DAYS_[d.getDay()] + ' — ' + toHijriStr(v) + ' <small style="opacity:.85;font-weight:normal;">(' + dlvGreg_(v) + ')</small></span>' +
+      '<span style="background:' + (over ? '#fff3cd;color:#8a5a00' : 'rgba(255,255,255,.2)') + ';border-radius:14px;padding:2px 12px;font-size:.85rem;">' + toArabicDigits(g.length) + ' / ' + toArabicDigits(per) + '</span>';
+    det.appendChild(sm);
+    const bar = document.createElement('div'); bar.style.cssText = 'height:4px;background:#f1e6df;';
+    bar.innerHTML = '<div style="height:100%;width:' + Math.min(100, Math.round(g.length / per * 100)) + '%;background:' + (over ? '#e0a800' : '#2e8b57') + ';"></div>';
+    det.appendChild(bar);
+    const tbl = document.createElement('table'); tbl.className = 'log-table'; tbl.style.margin = '0';
+    tbl.innerHTML = '<thead><tr><th>م</th><th>المركز</th><th>تعديل التاريخ</th><th></th></tr></thead>';
+    const tbd = document.createElement('tbody');
+    g.forEach(function (x, k) {
+      const tr = document.createElement('tr'); tr.className = 'dlv-row'; tr.setAttribute('data-name', x.c);
+      const t0 = document.createElement('td'); t0.textContent = toArabicDigits(k + 1);
+      const t1 = document.createElement('td'); t1.textContent = x.c;
+      const t2 = document.createElement('td'); const inp = document.createElement('input'); inp.type = 'date'; inp.id = 'dlvD' + x.i; inp.value = v; inp.style.margin = '0';
+      inp.onchange = function () { if (inp.value) { dlvState_.map[x.c] = inp.value; dlvRender_(); dlvDirty_(); } };
+      t2.appendChild(inp);
+      const t3 = document.createElement('td'); const rm = document.createElement('a'); rm.href = '#'; rm.textContent = 'إلغاء الموعد';
+      rm.onclick = function (ev) { ev.preventDefault(); delete dlvState_.map[x.c]; dlvRender_(); dlvPickChanged_(); dlvSave_(true); };
+      t3.appendChild(rm);
+      [t0, t1, t2, t3].forEach(function (t) { tr.appendChild(t); });
+      tbd.appendChild(tr);
+    });
+    tbl.appendChild(tbd);
+    const wrap = document.createElement('div'); wrap.className = 'table-scroll'; wrap.appendChild(tbl);
+    det.appendChild(wrap); box.appendChild(det);
   });
   if (!rest) tb.innerHTML = '<tr><td colspan="2">تم تحديد موعد لجميع المراكز ✅</td></tr>';
-  if (!done) td.innerHTML = '<tr><td colspan="5">لا توجد مواعيد بعد</td></tr>';
+  if (!done) box.innerHTML = '<div style="color:#8a7d76;">لا توجد مواعيد بعد</div>';
   document.getElementById('dlvRestCount').textContent = '(' + toArabicDigits(rest) + ')';
   document.getElementById('dlvDoneCount').textContent = '(' + toArabicDigits(done) + ')';
   document.getElementById('dlvAll').checked = false;
-  dlvSummary_();
+  dlvFilter_();
 }
-function dlvRow_(i) {
-  const v = document.getElementById('dlvD' + i).value, d = dlvParse_(v);
-  document.getElementById('dlvDay' + i).textContent = d ? DLV_DAYS_[d.getDay()] : '';
-  document.getElementById('dlvH' + i).textContent = d ? toHijriStr(v) : '';
+function dlvFilter_() {
+  const q = (document.getElementById('dlvSearch').value || '').trim();
+  document.querySelectorAll('#dlvDoneBox .dlv-day').forEach(function (det) {
+    let any = false;
+    det.querySelectorAll('.dlv-row').forEach(function (tr) { const m = !q || tr.getAttribute('data-name').indexOf(q) !== -1; tr.style.display = m ? '' : 'none'; if (m) any = true; });
+    det.style.display = any ? '' : 'none';
+    if (q && any) det.open = true;
+  });
+  document.querySelectorAll('#dlvTbody tr').forEach(function (tr) { tr.style.display = (!q || tr.textContent.indexOf(q) !== -1) ? '' : 'none'; });
 }
 function dlvToggleAll_(on) { centersListCache.forEach(function (c) { dlvState_.sel[c] = on && !dlvState_.map[c]; }); document.querySelectorAll('.dlv-cb').forEach(function (cb) { cb.checked = on; }); }
 function dlvDirty_() { document.getElementById('dlvSaveBtn').textContent = 'حفظ الجدول (توجد تعديلات غير محفوظة)'; }
@@ -3144,17 +3167,7 @@ function dlvClearSel_() {
   document.getElementById('dlvAll').checked = false;
   dlvRender_(); dlvPickChanged_(); dlvSave_(true);
 }
-function dlvSummary_() {
-  const per = Math.max(1, Number(document.getElementById('dlvPerDay').value) || 10);
-  const cnt = {};
-  centersListCache.forEach(function (c) { const v = dlvState_.map[c]; if (v) cnt[v] = (cnt[v] || 0) + 1; });
-  const days = Object.keys(cnt).sort();
-  document.getElementById('dlvSummary').innerHTML = days.length ? days.map(function (v) {
-    const over = cnt[v] > per;
-    return '<span style="display:inline-block;margin:2px 4px;padding:3px 10px;border-radius:14px;border:1px solid ' + (over ? '#c0392b' : '#d9c9c0') + ';color:' + (over ? '#c0392b' : 'inherit') + ';">' +
-      DLV_DAYS_[dlvParse_(v).getDay()] + ' ' + toHijriNumericStr(v) + ': ' + toArabicDigits(cnt[v]) + (over ? ' (يتجاوز العدد المحدد)' : '') + '</span>';
-  }).join('') : '';
-}
+function dlvSummary_() {}
 function dlvSave_(quiet) {
   const pw = aevPw_(true); if (!pw) return;
   const btn = document.getElementById('dlvSaveBtn'); setBtnBusy(btn, true);
@@ -3175,8 +3188,49 @@ function dlvRows_() {
 }
 function dlvExcel_() { const r = dlvRows_(); if (!r.length) { alert('لا توجد مواعيد لتصديرها'); return; } exportToExcel(r, 'مواعيد-تسليم-المديرات', 'مواعيد التسليم'); }
 function dlvPrint_() {
-  const r = dlvRows_(); if (!r.length) { alert('لا توجد مواعيد لطباعتها'); return; }
-  printReport('جدول مواعيد تسليم المديرات', '', ['م', 'المركز', 'اليوم', 'التاريخ الهجري', 'التاريخ الميلادي'].map(function (k) { return { key: k, label: k }; }), r);
+  const rows = dlvRows_();
+  if (!rows.length) { alert('لا توجد مواعيد لطباعتها'); return; }
+  const lh = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
+  const groups = {}, order = [];
+  centersListCache.filter(function (c) { return dlvState_.map[c]; }).forEach(function (c) { const v = dlvState_.map[c]; if (!groups[v]) { groups[v] = []; order.push(v); } groups[v].push(c); });
+  order.sort();
+  const esc = function (s) { return String(s).replace(/[&<>]/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]; }); };
+  let secs = '';
+  order.forEach(function (v) {
+    const g = groups[v], d = dlvParse_(v);
+    secs += '<section class="day"><div class="band" onclick="this.parentNode.classList.toggle(\'closed\')"><span class="dn">' + DLV_DAYS_[d.getDay()] + '</span><span>' + toHijriStr(v) + '</span><span class="gr">الموافق ' + dlvGreg_(v) + '</span><span class="cnt">' + toArabicDigits(g.length) + ' مديرات</span></div>' +
+      '<table><thead><tr><th style="width:7%">م</th><th>المركز</th><th style="width:22%">الفترة</th><th style="width:20%">التوقيع</th></tr></thead><tbody>' +
+      g.map(function (c, k) {
+        const m = /^(.*?)\s*[-–]\s*(الفترة.*)$/.exec(c);
+        return '<tr><td>' + toArabicDigits(k + 1) + '</td><td class="nm">' + esc(m ? m[1] : c) + '</td><td>' + esc(m ? m[2] : '') + '</td><td></td></tr>';
+      }).join('') + '</tbody></table></section>';
+  });
+  const first = order[0], last = order[order.length - 1];
+  const html = '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>جدول مواعيد تسليم المديرات</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>' +
+    "@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Tajawal:wght@400;500;700;800&display=swap');" +
+    '@page{size:A4 portrait;margin:0 0 12mm}*{box-sizing:border-box}html,body{margin:0;padding:0}' +
+    'body{font-family:"Tajawal",sans-serif;color:#2b2321;background:#f6f1ee;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.page{max-width:860px;margin:0 auto;background:#fff;min-height:100vh;padding-bottom:20px}' +
+    '.tools{position:sticky;top:0;z-index:5;background:#6e1523;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}' +
+    '.tools input{flex:1;min-width:160px;padding:8px 12px;border-radius:8px;border:0;font:inherit}.tools button{background:#fff;color:#6e1523;border:0;border-radius:8px;padding:8px 14px;font:inherit;font-weight:700;cursor:pointer}' +
+    '.lh{width:100%;display:block}.content{padding:0 26px}h1{font-family:"Amiri",serif;color:#8C1A2C;font-size:1.7rem;margin:16px 0 4px}' +
+    '.meta{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 16px}.chip{border:1px solid #e3d3c9;background:#fbf6f3;border-radius:20px;padding:4px 14px;font-size:.88rem;color:#6e1523}.chip b{font-size:1rem}' +
+    '.day{margin-bottom:16px;border:1px solid #d9c3b8;border-radius:10px;overflow:hidden;break-inside:avoid;page-break-inside:avoid}' +
+    '.band{background:linear-gradient(90deg,#8C1A2C,#a8283c);color:#fff;padding:9px 14px;display:flex;gap:14px;align-items:center;font-weight:700;cursor:pointer}.band .dn{font-size:1.1rem}.band .gr{font-weight:400;opacity:.9;font-size:.85rem}.band .cnt{margin-inline-start:auto;background:rgba(255,255,255,.2);border-radius:14px;padding:2px 12px;font-size:.85rem}' +
+    'table{width:100%;border-collapse:collapse;font-size:.92rem}th{background:#f3e8e1;color:#6e1523;padding:7px 8px;border-bottom:1px solid #d9c3b8}td{padding:8px;text-align:center;border-bottom:1px solid #eee2db;height:32px}td.nm{text-align:right;font-weight:500}tbody tr:nth-child(even){background:#fcf8f6}tbody tr:last-child td{border-bottom:0}' +
+    '.day.closed table{display:none}.hide{display:none!important}' +
+    '.foot{text-align:center;color:#8a7d76;font-size:.8rem;margin-top:10px}' +
+    '@media print{body{background:#fff}.tools{display:none}.page{max-width:none}.content{padding:0 14mm}.day.closed table{display:table}}' +
+    '</style></head><body><div class="page"><div class="tools"><input type="search" id="q" placeholder="🔍 ابحثي باسم المركز..." oninput="dlvPF()"><button onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>' +
+    (lh ? '<img class="lh" src="' + lh + '" alt="كليشة جمعية فرقان">' : '') +
+    '<div class="content"><h1>جدول مواعيد تسليم المديرات</h1><div class="meta">' +
+    '<span class="chip">عدد المراكز: <b>' + toArabicDigits(rows.length) + '</b></span><span class="chip">عدد الأيام: <b>' + toArabicDigits(order.length) + '</b></span>' +
+    '<span class="chip">من ' + toHijriStr(first) + ' إلى ' + toHijriStr(last) + '</span><span class="chip">تاريخ الإصدار: ' + toHijriStr(todayStr()) + '</span></div>' + secs +
+    '<div class="foot">اضغطي على شريط اليوم لطيّه أو فتحه، واستخدمي البحث لتصفية المراكز.</div></div></div>' +
+    '<script>function dlvPF(){var q=document.getElementById("q").value.trim();document.querySelectorAll(".day").forEach(function(s){var any=false;s.querySelectorAll("tbody tr").forEach(function(r){var m=!q||r.textContent.indexOf(q)>-1;r.classList.toggle("hide",!m);if(m)any=true});s.classList.toggle("hide",!any)})}<\/script></body></html>';
+  const win = window.open('', '_blank');
+  if (!win) { alert('يرجى السماح بالنوافذ المنبثقة لهذا الموقع'); return; }
+  win.document.write(html); win.document.close();
 }
 
 /* تسجيل قيد (فاتورة/مشتريات/مصروفات) من الإدارة نيابةً عن المركز المختار */
