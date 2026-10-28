@@ -2331,7 +2331,7 @@ function setExpenseCenters_(p) {
 const DELIVERY_SCHED_KEY_ = 'جدول مواعيد التسليم';
 function getDeliverySchedule_() {
   let d = {};
-  try { d = JSON.parse(getSettingValue_(DELIVERY_SCHED_KEY) || '{}') || {}; } catch (e) { d = {}; }
+  try { d = JSON.parse(getSettingValue_(DELIVERY_SCHED_KEY_) || '{}') || {}; } catch (e) { d = {}; }
   return { ok: true, schedule: d };
 }
 function setDeliverySchedule_(p) {
@@ -2345,7 +2345,7 @@ function setDeliverySchedule_(p) {
   });
   const out = { perDay: Math.max(1, Math.min(100, Number(s.perDay) || 10)), skipWeekend: s.skipWeekend !== false,
                 startH: String(s.startH || '').slice(0, 20), map: map };
-  setSettingValue_(DELIVERY_SCHED_KEY, JSON.stringify(out));
+  setSettingValue_(DELIVERY_SCHED_KEY_, JSON.stringify(out));
   return { ok: true };
 }
 
