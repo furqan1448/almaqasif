@@ -3123,7 +3123,8 @@ function dlvRender_() {
   if (!rest) tb.innerHTML = '<tr><td colspan="2">تم تحديد موعد لجميع المراكز ✅</td></tr>';
   if (!done) box.innerHTML = '<div style="color:#8a7d76;">لا توجد مواعيد بعد</div>';
   document.getElementById('dlvRestCount').textContent = '(' + toArabicDigits(rest) + ')';
-  document.getElementById('dlvDoneCount').textContent = '(' + toArabicDigits(done) + ')';
+  const st = dlvStats_(centersListCache.filter(function (c) { return dlvState_.map[c]; }));
+  document.getElementById('dlvDoneCount').textContent = done ? '(' + toArabicDigits(st.centers) + ' مركزاً' + (st.two ? '، منها ' + toArabicDigits(st.two) + ' بفترتين' : '') + ' — ' + toArabicDigits(st.periods) + ' فترة)' : '(٠)';
   document.getElementById('dlvAll').checked = false;
   dlvFilter_();
 }
@@ -3139,6 +3140,22 @@ function dlvFilter_() {
 }
 function dlvToggleAll_(on) { centersListCache.forEach(function (c) { dlvState_.sel[c] = on && !dlvState_.map[c]; }); document.querySelectorAll('.dlv-cb').forEach(function (cb) { cb.checked = on; }); }
 function dlvDirty_() { document.getElementById('dlvSaveBtn').textContent = 'حفظ الجدول (توجد تعديلات غير محفوظة)'; }
+/* إحصاء المراكز: المركز الذي له فترتان (صباحية ومسائية، سواء كقيدين أو قيد واحد) يُحسب مركزاً واحداً */
+function dlvStats_(names) {
+  const norm = function (s) { return String(s).replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/\s+/g, ' ').trim(); };
+  const map = {};
+  names.forEach(function (c) {
+    const parts = /^(.*?)\s*[-–]\s*(الفترة.*)$/.exec(c);
+    const base = norm(parts ? parts[1] : c), per = parts ? parts[2] : '';
+    const o = map[base] = map[base] || { am: false, pm: false, other: 0 };
+    const am = per.indexOf('صباح') !== -1, pm = per.indexOf('مسائ') !== -1;
+    if (am) o.am = true; if (pm) o.pm = true; if (!am && !pm) o.other++;
+  });
+  const bases = Object.keys(map);
+  const two = bases.filter(function (b) { return map[b].am && map[b].pm; }).length;
+  const periods = bases.reduce(function (s, b) { return s + (map[b].am ? 1 : 0) + (map[b].pm ? 1 : 0) + map[b].other; }, 0);
+  return { entries: names.length, centers: bases.length, two: two, periods: periods };
+}
 function dlvPickChanged_() {
   const v = document.getElementById('dlvPick').value, box = document.getElementById('dlvPickInfo');
   const d = dlvParse_(v);
@@ -3205,6 +3222,7 @@ async function dlvPdf_(btn) {
     order.sort();
     /* ترتيب الصفحات: الأيام بالتسلسل، وإن لم يتّسع اليوم يُكمل بالصفحة التالية */
     const PH = 1123, LH = 139, TOP = 14, FOOT = 34, BAND = 40, THEAD = 30, ROW = 32, GAP = 12, HEAD1 = 104;
+    const st = dlvStats_(centersListCache.filter(function (c) { return dlvState_.map[c]; }));
     const pages = [[]];
     let used = HEAD1;
     const cap = function (pi) { return PH - LH - TOP - FOOT; };
@@ -3237,7 +3255,7 @@ async function dlvPdf_(btn) {
     pages.forEach(function (pg, pi) {
       html += '<div class="dp">' + (lh ? '<img class="lh" crossorigin="anonymous" src="' + lh + '" alt="">' : '<div style="height:' + LH + 'px"></div>') + '<div class="ct">';
       if (pi === 0) {
-        html += '<h1>جدول مواعيد تسليم المديرات مبالغ المقاصف</h1><div class="meta"><span class="chip">عدد المراكز: <b>' + toArabicDigits(rows.length) + '</b></span><span class="chip">عدد الأيام: <b>' + toArabicDigits(order.length) + '</b></span>' +
+        html += '<h1>جدول مواعيد تسليم المديرات مبالغ المقاصف</h1><div class="meta"><span class="chip">عدد المراكز: <b>' + toArabicDigits(st.centers) + '</b></span>' + (st.two ? '<span class="chip">مراكز بفترتين: <b>' + toArabicDigits(st.two) + '</b></span>' : '') + '<span class="chip">إجمالي الفترات: <b>' + toArabicDigits(st.periods) + '</b></span><span class="chip">عدد الأيام: <b>' + toArabicDigits(order.length) + '</b></span>' +
           '<span class="chip">من ' + toHijriStr(order[0]) + ' إلى ' + toHijriStr(order[order.length - 1]) + '</span><span class="chip">تاريخ الإصدار: ' + toHijriStr(todayStr()) + '</span></div>';
       }
       pg.forEach(function (s) {
