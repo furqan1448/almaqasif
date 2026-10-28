@@ -592,13 +592,17 @@
         <p style="color:#8a7d76;font-size:0.85rem;margin:8px 0;">2) حدّدي المراكز من القائمة، 3) اضغطي «اعتماد التاريخ للمحددة» (يُحفظ فوراً)، ثم كرّري مع تاريخ آخر للمراكز المتبقية. يمكنك تعديل تاريخ أي مركز في أي وقت.</p>
         <div class="export-row" style="margin:8px 0;">
           <button class="btn" id="dlvApplyBtn" onclick="dlvApply_()">اعتماد التاريخ للمحددة</button>
-          <button class="btn outline" onclick="dlvClearSel_()">إزالة موعد المحددة</button>
         </div>
-        <label style="display:flex;align-items:center;gap:6px;font-weight:normal;margin:6px 0;"><input type="checkbox" id="dlvOnlyRest" onchange="dlvRender_()"> <span>عرض المراكز غير المحدد لها موعد فقط</span></label>
+        <h4 style="margin:12px 0 6px;color:var(--maroon);">المراكز التي لم يُحدَّد لها موعد <span id="dlvRestCount"></span></h4>
         <label style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-bottom:8px;"><input type="checkbox" id="dlvAll" onchange="dlvToggleAll_(this.checked)"> <span>تحديد الكل</span></label>
         <div class="table-scroll"><table class="log-table" id="dlvTable">
-          <thead><tr><th></th><th>المركز</th><th>التاريخ</th><th>اليوم</th><th>التاريخ الهجري</th></tr></thead>
-          <tbody id="dlvTbody"><tr><td colspan="5">جاري التحميل...</td></tr></tbody>
+          <thead><tr><th></th><th>المركز</th></tr></thead>
+          <tbody id="dlvTbody"><tr><td colspan="2">جاري التحميل...</td></tr></tbody>
+        </table></div>
+        <h4 style="margin:16px 0 6px;color:var(--maroon);">المواعيد المحددة <span id="dlvDoneCount"></span></h4>
+        <div class="table-scroll"><table class="log-table" id="dlvDoneTable">
+          <thead><tr><th>المركز</th><th>التاريخ</th><th>اليوم</th><th>التاريخ الهجري</th><th></th></tr></thead>
+          <tbody id="dlvDoneTbody"><tr><td colspan="5">لا توجد مواعيد بعد</td></tr></tbody>
         </table></div>
         <div id="dlvSummary" style="margin-top:8px;font-size:0.88rem;"></div>
         <button class="btn" id="dlvSaveBtn" onclick="dlvSave_()" style="margin-top:10px;">حفظ الجدول</button>
@@ -3068,25 +3072,41 @@ function loadDelivery_() {
   callApi('getCenters').then(function (r) { centersListCache = r.centers || []; go(); });
 }
 function dlvRender_() {
-  const tb = document.getElementById('dlvTbody');
-  tb.innerHTML = '';
-  const onlyRest = document.getElementById('dlvOnlyRest').checked;
+  const tb = document.getElementById('dlvTbody'), td = document.getElementById('dlvDoneTbody');
+  tb.innerHTML = ''; td.innerHTML = '';
+  let rest = 0, done = 0;
   centersListCache.forEach(function (c, i) {
-    if (onlyRest && dlvState_.map[c]) return;
+    if (!dlvState_.map[c]) {          // غير محدد له موعد: يظهر للتحديد فقط
+      rest++;
+      const tr = document.createElement('tr');
+      const t0 = document.createElement('td'); const cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'dlv-cb'; cb.checked = !!dlvState_.sel[c];
+      cb.onchange = function () { dlvState_.sel[c] = cb.checked; };
+      t0.appendChild(cb);
+      const t1 = document.createElement('td'); t1.textContent = c;
+      tr.appendChild(t0); tr.appendChild(t1); tb.appendChild(tr);
+      return;
+    }
+    done++;                            // محدد له موعد: لا يدخل في أي تحديد جديد، ويُعدَّل من هنا
+    dlvState_.sel[c] = false;
     const tr = document.createElement('tr');
-    const td0 = document.createElement('td'); const cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'dlv-cb'; cb.checked = !!dlvState_.sel[c];
-    cb.onchange = function () { dlvState_.sel[c] = cb.checked; };
-    td0.appendChild(cb);
-    const td1 = document.createElement('td'); td1.textContent = c;
-    const td2 = document.createElement('td'); const inp = document.createElement('input'); inp.type = 'date'; inp.id = 'dlvD' + i; inp.value = dlvState_.map[c] || ''; inp.style.margin = '0';
-    inp.onchange = function () { dlvState_.map[c] = inp.value; dlvRow_(i); dlvSummary_(); dlvDirty_(); };
-    td2.appendChild(inp);
-    const td3 = document.createElement('td'); td3.id = 'dlvDay' + i;
-    const td4 = document.createElement('td'); td4.id = 'dlvH' + i;
-    [td0, td1, td2, td3, td4].forEach(function (t) { tr.appendChild(t); });
-    tb.appendChild(tr);
+    const t1 = document.createElement('td'); t1.textContent = c;
+    const t2 = document.createElement('td'); const inp = document.createElement('input'); inp.type = 'date'; inp.id = 'dlvD' + i; inp.value = dlvState_.map[c]; inp.style.margin = '0';
+    inp.onchange = function () { if (inp.value) { dlvState_.map[c] = inp.value; dlvRow_(i); dlvSummary_(); dlvDirty_(); } };
+    t2.appendChild(inp);
+    const t3 = document.createElement('td'); t3.id = 'dlvDay' + i;
+    const t4 = document.createElement('td'); t4.id = 'dlvH' + i;
+    const t5 = document.createElement('td'); const rm = document.createElement('a'); rm.href = '#'; rm.textContent = 'إلغاء الموعد';
+    rm.onclick = function (ev) { ev.preventDefault(); delete dlvState_.map[c]; dlvRender_(); dlvPickChanged_(); dlvSave_(true); };
+    t5.appendChild(rm);
+    [t1, t2, t3, t4, t5].forEach(function (t) { tr.appendChild(t); });
+    td.appendChild(tr);
     dlvRow_(i);
   });
+  if (!rest) tb.innerHTML = '<tr><td colspan="2">تم تحديد موعد لجميع المراكز ✅</td></tr>';
+  if (!done) td.innerHTML = '<tr><td colspan="5">لا توجد مواعيد بعد</td></tr>';
+  document.getElementById('dlvRestCount').textContent = '(' + toArabicDigits(rest) + ')';
+  document.getElementById('dlvDoneCount').textContent = '(' + toArabicDigits(done) + ')';
+  document.getElementById('dlvAll').checked = false;
   dlvSummary_();
 }
 function dlvRow_(i) {
@@ -3094,7 +3114,7 @@ function dlvRow_(i) {
   document.getElementById('dlvDay' + i).textContent = d ? DLV_DAYS_[d.getDay()] : '';
   document.getElementById('dlvH' + i).textContent = d ? toHijriStr(v) : '';
 }
-function dlvToggleAll_(on) { centersListCache.forEach(function (c) { dlvState_.sel[c] = on; }); document.querySelectorAll('.dlv-cb').forEach(function (cb) { cb.checked = on; }); }
+function dlvToggleAll_(on) { centersListCache.forEach(function (c) { dlvState_.sel[c] = on && !dlvState_.map[c]; }); document.querySelectorAll('.dlv-cb').forEach(function (cb) { cb.checked = on; }); }
 function dlvDirty_() { document.getElementById('dlvSaveBtn').textContent = 'حفظ الجدول (توجد تعديلات غير محفوظة)'; }
 function dlvPickChanged_() {
   const v = document.getElementById('dlvPick').value, box = document.getElementById('dlvPickInfo');
@@ -3107,10 +3127,10 @@ function dlvPickChanged_() {
 function dlvApply_() {
   const v = document.getElementById('dlvPick').value;
   if (!dlvParse_(v)) { alert('اكتبي تاريخ التسليم أولاً'); return; }
-  const list = centersListCache.filter(function (c) { return dlvState_.sel[c]; });
+  const list = centersListCache.filter(function (c) { return dlvState_.sel[c] && !dlvState_.map[c]; });
   if (!list.length) { alert('حدّدي المراكز أولاً'); return; }
   const per = Math.max(1, Number(document.getElementById('dlvPerDay').value) || 10);
-  let n = 0; centersListCache.forEach(function (c) { if (dlvState_.map[c] === v && !dlvState_.sel[c]) n++; });
+  let n = 0; centersListCache.forEach(function (c) { if (dlvState_.map[c] === v) n++; });
   if (n + list.length > per && !confirm('عدد المراكز في هذا اليوم سيصبح ' + toArabicDigits(n + list.length) + ' وهو أكثر من ' + toArabicDigits(per) + '. هل تريدين المتابعة؟')) return;
   list.forEach(function (c) { dlvState_.map[c] = v; dlvState_.sel[c] = false; });
   document.getElementById('dlvAll').checked = false;
