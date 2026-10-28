@@ -522,6 +522,20 @@
         <button class="btn" id="expenseCentersSaveBtn" onclick="saveExpenseCenters()" style="margin-top:10px;">حفظ</button>
         <div class="success-msg" id="expenseCentersSuccess">تم الحفظ بنجاح ✅</div>
       </details>
+      <details class="card collapse-card">
+        <summary><span>تسجيل قيد نيابةً عن المركز</span></summary>
+        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">يُسجَّل القيد في المركز المختار أعلاه، ويظهر لديه موسومًا بعبارة «تم تسجيلها من قبل الإدارة».</p>
+        <label>نوع القيد</label>
+        <select id="admInvType" onchange="admInvTypeChanged_()"><option value="فاتورة">فاتورة</option><option value="مشتريات">مشتريات</option><option value="مصروفات">مصروفات</option></select>
+        <label>رقم الفاتورة</label><input type="text" id="admInvNo">
+        <label>مصدر الفاتورة</label><input type="text" id="admInvSrc">
+        <label>التاريخ</label><input type="date" id="admInvDate">
+        <label id="admInvAmtLbl">رأس المال (ريال)</label><input type="number" id="admInvAmt" class="no-spin" inputmode="decimal" step="0.01" onwheel="this.blur()">
+        <div id="admInvPrfWrap"><label>الربح (ريال)</label><input type="number" id="admInvPrf" class="no-spin" inputmode="decimal" step="0.01" onwheel="this.blur()"></div>
+        <label>ملاحظات</label><input type="text" id="admInvNotes">
+        <button class="btn" id="admInvBtn" onclick="adminRecordInvoice()" style="margin-top:10px;">حفظ القيد</button>
+        <div class="success-msg" id="admInvOk">تم تسجيل القيد ✅</div>
+      </details>
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">بيان الفواتير لكل مركز</h3>
         <div class="select-row">
@@ -1649,7 +1663,7 @@ function openAdminEval_(id) {
       (e.signedDate ? ' — ' + (e.signedDay || '') + ' ' + toHijriStr(e.signedDate) : '') + ' — المجموع الكلي: <b>' + toArabicDigits(e.total) + ' / ١٠٠</b></div>' : '');
   document.getElementById('aevDirBox').innerHTML = evalScoresTableHtml_(EVAL_DIR_ITEMS, 'aevDir', d.dirScores || [], true);
   document.getElementById('aevDirTotal').textContent = '(' + toArabicDigits(e.dirTotal) + ' / ٥٠)';
-  document.getElementById('aevHeadBox').innerHTML = evalScoresTableHtml_(EVAL_HEAD_ITEMS, 'aevHead', d.headScores || [], false);
+  document.getElementById('aevHeadBox').innerHTML = evalScoresTableHtml_(EVAL_HEAD_ITEMS, 'aevHead', evalHeadExpand_(d.headScores || []), false);
   document.querySelectorAll('#aevHeadBox .ev-score').forEach(function (el) { el.addEventListener('input', aevLiveHead_); });
   aevLiveHead_();
   document.getElementById('aevPositives').value = d.positives || '';
@@ -2994,6 +3008,38 @@ function saveExpenseCenters() {
 }
 
 /* -------- الفواتير لكل مركز -------- */
+
+/* تسجيل قيد (فاتورة/مشتريات/مصروفات) من الإدارة نيابةً عن المركز المختار */
+function admInvTypeChanged_() {
+  const t = document.getElementById('admInvType').value;
+  document.getElementById('admInvAmtLbl').textContent = t === 'فاتورة' ? 'رأس المال (ريال)' : (t === 'مشتريات' ? 'قيمة المشتريات (ريال)' : 'المبلغ (ريال)');
+  document.getElementById('admInvPrfWrap').style.display = t === 'مصروفات' ? 'none' : '';
+}
+function adminRecordInvoice() {
+  const center = document.getElementById('invoicesCenterSelect').value;
+  if (!center) { alert('اختاري المركز أولاً من القائمة أدناه'); return; }
+  const type = document.getElementById('admInvType').value;
+  const amt = Number(document.getElementById('admInvAmt').value);
+  const date = document.getElementById('admInvDate').value || todayStr();
+  if (!(amt > 0)) { alert('أدخلي المبلغ'); return; }
+  const prf = type === 'مصروفات' ? 0 : (Number(document.getElementById('admInvPrf').value) || 0);
+  const pw = aevPw_(true);
+  if (!pw) return;
+  const btn = document.getElementById('admInvBtn');
+  setBtnBusy(btn, true);
+  callApi('recordInvoice', {
+    adminPw: pw, center: center, entryType: type, invoiceNumber: document.getElementById('admInvNo').value.trim(),
+    invoiceSource: document.getElementById('admInvSrc').value.trim(), date: date, totalAmount: amt, profit: prf,
+    notes: document.getElementById('admInvNotes').value.trim()
+  }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) { aevAuthFailed_(r); alert('تعذّر الحفظ: ' + ((r && r.error) || 'خطأ غير معروف')); return; }
+    ['admInvNo', 'admInvSrc', 'admInvAmt', 'admInvPrf', 'admInvNotes'].forEach(function (i) { document.getElementById(i).value = ''; });
+    const ok = document.getElementById('admInvOk'); ok.style.display = 'block'; setTimeout(function () { ok.style.display = ''; }, 2500);
+    loadCenterInvoices();
+  });
+}
+
 function loadCenterInvoices() {
   const center = document.getElementById('invoicesCenterSelect').value;
   const tbody = document.getElementById('invoicesTbody');

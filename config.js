@@ -2066,7 +2066,9 @@ function invoiceReturnHtml_(inv) {
 
 /* الملاحظات كما كتبتها المسؤولة (الرجيع صار له عمود مستقل: المرتجعات) */
 function invoiceNotesText_(inv) {
-  return String((inv && inv['ملاحظات']) || '');
+  const n = String((inv && inv['ملاحظات']) || '');
+  const tag = (inv && String(inv['سجّلتها الإدارة'] || '').trim() === 'نعم') ? 'تم تسجيلها من قبل الإدارة' : '';
+  return tag ? (n ? n + ' — ' + tag : tag) : n;
 }
 
 function invoiceSummary_(list) {
@@ -2216,7 +2218,23 @@ const EVAL_DIR_ITEMS = [
   ['تنفيذ ما يُسند إليها من مهام ضمن الاختصاص', 5],
   ['القيام بأعمال البيع وما يتعلق به بكفاءة وفاعلية', 5]
 ];
+/* بنود رئيسة وحدة المقاصف: بند «تفعيل السجلات والبيانات إلكترونياً» (١٣ درجة) مقسَّم إلى ستة بنود فرعية */
 const EVAL_HEAD_ITEMS = [
+  ['المحافظة على نظافة المقصف', 5],
+  ['حضور الاجتماعات والدورات التدريبية', 10],
+  ['سرعة جرد الفواتير بدقة', 10],
+  ['السعي لتطوير أداء المقصف وابتكار حلول للتحديات', 2],
+  ['حسن التعامل مع الآخرين', 5],
+  ['تفعيل السجلات إلكترونياً: تسجيل الفواتير', 3],
+  ['تفعيل السجلات إلكترونياً: توثيق إشعار الاستلام', 2],
+  ['تفعيل السجلات إلكترونياً: الاطلاع على التعهد والالتزام به', 1.5],
+  ['تفعيل السجلات إلكترونياً: الاطلاع على المهام', 1.5],
+  ['تفعيل السجلات إلكترونياً: تسجيل المبيعات اليومية', 3],
+  ['تفعيل السجلات إلكترونياً: الالتزام بتنفيذ التوجيهات والتنبيهات خلال الوقت المحدد', 2],
+  ['المحافظة على الواردات المالية وتسليمها دورياً', 5]
+];
+/* الصيغة القديمة (سبعة بنود) للتقييمات المعتمدة سابقاً */
+const EVAL_HEAD_ITEMS_OLD = [
   ['المحافظة على نظافة المقصف', 5],
   ['حضور الاجتماعات والدورات التدريبية', 10],
   ['سرعة جرد الفواتير بدقة', 10],
@@ -2225,6 +2243,19 @@ const EVAL_HEAD_ITEMS = [
   ['تفعيل السجلات والبيانات الخاصة بالمقصف إلكترونياً', 13],
   ['المحافظة على الواردات المالية وتسليمها دورياً', 5]
 ];
+function evalHeadItemsOf_(scores) {
+  return (scores && scores.length === EVAL_HEAD_ITEMS_OLD.length) ? EVAL_HEAD_ITEMS_OLD : EVAL_HEAD_ITEMS;
+}
+function evalHeadDone_(scores) {
+  return !!scores && (scores.length === EVAL_HEAD_ITEMS.length || scores.length === EVAL_HEAD_ITEMS_OLD.length);
+}
+/* توسيع درجات قديمة إلى الصيغة الجديدة (البنود الفرعية الستة تُترك فارغة) */
+function evalHeadExpand_(scores) {
+  if (scores && scores.length === EVAL_HEAD_ITEMS_OLD.length) {
+    return scores.slice(0, 5).concat(['', '', '', '', '', ''], [scores[6]]);
+  }
+  return scores || [];
+}
 const EVAL_QURAN_QUALS = ['مجازة', 'خاتمة', 'حافظة', 'دورات حفظ', 'خريجة دبلوم عالي إعداد المعلمات',
   'خريجة دبلوم متوسط لتأهيل المعلمات', 'خريجة تأهيل معلمات', 'خريجة دورة تأهيل منتهي بالتوظيف'];
 
@@ -2270,9 +2301,10 @@ function buildMasoulaEvalHTML(ev, sigs) {
   const lh = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
   const dir = d.dirScores || [];
   const head = d.headScores || [];
-  const hasHead = head.length === EVAL_HEAD_ITEMS.length;
+  const hasHead = evalHeadDone_(head);
+  const HI = hasHead ? evalHeadItemsOf_(head) : EVAL_HEAD_ITEMS;
   const dirMax = evalSum_(EVAL_DIR_ITEMS.map(function (x) { return x[1]; }));
-  const headMax = evalSum_(EVAL_HEAD_ITEMS.map(function (x) { return x[1]; }));
+  const headMax = evalSum_(HI.map(function (x) { return x[1]; }));
   const kv = function (k, v, span) { return '<td class="ev-k">' + k + '</td><td class="ev-v"' + (span ? ' colspan="' + span + '"' : '') + '>' + evalEsc_(v || '') + '</td>'; };
 
   let h = '<div class="ev-doc">';
@@ -2293,8 +2325,8 @@ function buildMasoulaEvalHTML(ev, sigs) {
       '<td>' + it[0] + '</td><td class="ev-c">' + toArabicDigits(it[1]) + '</td><td class="ev-got">' + evalNum_(dir[i]) + '</td></tr>';
   });
   h += '<tr class="ev-sum"><td colspan="2">المجموع</td><td class="ev-c">' + toArabicDigits(dirMax) + '</td><td class="ev-got">' + (dir.length ? toArabicDigits(evalSum_(dir)) : '') + '</td></tr>';
-  EVAL_HEAD_ITEMS.forEach(function (it, i) {
-    h += '<tr>' + (i === 0 ? '<td class="ev-side" rowspan="' + EVAL_HEAD_ITEMS.length + '">بنود خاصة برئيسة وحدة المقاصف</td>' : '') +
+  HI.forEach(function (it, i) {
+    h += '<tr>' + (i === 0 ? '<td class="ev-side" rowspan="' + HI.length + '">بنود خاصة برئيسة وحدة المقاصف</td>' : '') +
       '<td>' + it[0] + '</td><td class="ev-c">' + toArabicDigits(it[1]) + '</td><td class="ev-got">' + (hasHead ? evalNum_(head[i]) : '') + '</td></tr>';
   });
   h += '<tr class="ev-sum"><td colspan="2">المجموع</td><td class="ev-c">' + toArabicDigits(headMax) + '</td><td class="ev-got">' + (hasHead ? toArabicDigits(evalSum_(head)) : '') + '</td></tr>';
@@ -2628,9 +2660,9 @@ async function exportMasoulaEvalExcel(ev, sigs) {
     return sumRow;
   };
   const dirShown = (d.dirScores || []).length === EVAL_DIR_ITEMS.length;
-  const headShown = (d.headScores || []).length === EVAL_HEAD_ITEMS.length;
+  const headShown = evalHeadDone_(d.headScores);
   const s1 = block('بنود خاصة بمديرة المركز', EVAL_DIR_ITEMS, d.dirScores, dirShown);
-  const s2 = block('بنود خاصة برئيسة وحدة المقاصف', EVAL_HEAD_ITEMS, d.headScores, headShown);
+  const s2 = block('بنود خاصة برئيسة وحدة المقاصف', headShown ? evalHeadItemsOf_(d.headScores) : EVAL_HEAD_ITEMS, d.headScores, headShown);
   merge(r, 1, 4);
   ws.getCell(r, 1).value = 'المجموع الكلي';
   xlStyle_(ws.getCell(r, 1), { bold: true, size: 13, color: 'FFFFFFFF', fill: XL_MAROON_ });
@@ -2732,11 +2764,12 @@ async function exportMasoulaEvalsDetailExcel(list) {
   list.forEach(function (e, idx) {
     const d = e.data || {};
     const r = HR + 1 + idx;
-    const done = (d.headScores || []).length === EVAL_HEAD_ITEMS.length;
+    const done = evalHeadDone_(d.headScores);
+    const hx = evalHeadExpand_(d.headScores);
     const vals = [e.center, d.period || '', e.masoula, e.term, e.year]
       .concat(EVAL_DIR_ITEMS.map(function (x, i) { return xlNum_((d.dirScores || [])[i]); }))
       .concat([xlNum_(e.dirTotal)])
-      .concat(EVAL_HEAD_ITEMS.map(function (x, i) { return done ? xlNum_(d.headScores[i]) : ''; }))
+      .concat(EVAL_HEAD_ITEMS.map(function (x, i) { return done ? xlNum_(hx[i]) : ''; }))
       .concat([done ? xlNum_(e.headTotal) : '', done ? xlNum_(e.total) : '', d.positives || '', d.improvements || '', e.status]);
     vals.forEach(function (v, i) {
       const col = i + 1;
@@ -2765,7 +2798,7 @@ async function exportMasoulaEvalsDetailExcel(list) {
 function evalCompactRows_(list) {
   return list.map(function (e, i) {
     const d = e.data || {};
-    const done = (d.headScores || []).length === EVAL_HEAD_ITEMS.length;
+    const done = evalHeadDone_(d.headScores);
     return {
       n: i + 1, center: e.center || '', period: d.period || '', masoula: e.masoula || '',
       term: (e.term || '') + (e.year ? ' ' + e.year : ''),

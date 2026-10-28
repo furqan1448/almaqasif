@@ -41,7 +41,7 @@ function setup() {
     'المراكز': ['اسم المركز', 'كلمة المرور', 'وضع العرض فقط', 'الاسم المعروض', 'تفعيل التقييم'],
     'المبيعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'الوقت', 'المبلغ', 'ملاحظات', 'الفصل الدراسي', 'وقت التسجيل الفعلي'],
     'المرتجعات': ['معرف', 'اسم المركز', 'اليوم', 'التاريخ', 'وصف الصنف', 'الكمية', 'القيمة', 'ملاحظات', 'الفصل الدراسي'],
-    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'مصدر الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح', 'ملاحظات', 'الفصل الدراسي', 'نوع القيد', 'نوع الرجيع', 'رجيع رأس المال', 'رجيع الربح', 'رجيع للإثبات', 'كمية الرجيع', 'المرتجعات', 'تفاصيل الرجيع'],
+    'الفواتير': ['معرف', 'اسم المركز', 'رقم الفاتورة', 'مصدر الفاتورة', 'اليوم', 'التاريخ', 'المبلغ الإجمالي', 'الربح', 'ملاحظات', 'الفصل الدراسي', 'نوع القيد', 'نوع الرجيع', 'رجيع رأس المال', 'رجيع الربح', 'رجيع للإثبات', 'كمية الرجيع', 'المرتجعات', 'تفاصيل الرجيع', 'سجّلتها الإدارة'],
     'الإشعارات': ['معرف', 'النوع', 'اسم المركز', 'يوم الإرسال', 'تاريخ الإرسال', 'وقت الإرسال',
       'اسم المسلّمة', 'المبلغ', 'الشهر', 'الفصل الدراسي', 'العام', 'بيان مخصص',
       'رابط توقيع المركز', 'رابط صورة الإشعار', 'الحالة',
@@ -2370,14 +2370,26 @@ function cleanInvoiceReturn_(p, type, amount, profit) {
   };
 }
 
+const ADMIN_REG_COL_ = 'سجّلتها الإدارة';
 function recordInvoice_(p) {
+  let byAdmin = false;
+  if (p.adminPw) {   // تسجيل من الإدارة نيابةً عن المركز
+    const a = loginAdmin_({ password: p.adminPw });
+    if (!a.ok) return { ok: false, auth: true, error: a.error };
+    byAdmin = true;
+    if (!String(p.center || '').trim()) return { ok: false, error: 'اختاري المركز' };
+  }
   const sh = sheet_('الفواتير');
   ensureInvoiceTypeCol_(sh);
+  if (byAdmin && colIndex_(sh, ADMIN_REG_COL_) === -1) {
+    sh.getRange(1, sh.getLastColumn() + 1).setValue(ADMIN_REG_COL_).setFontWeight('bold');
+    delete _headerRowCache_[sh.getSheetId()];
+  }
   const id = Utilities.getUuid();
   const date = p.date || nowParts_().date;
   const day = dayNameForDateStr_(date);
   let type = cleanEntryType_(p.entryType);
-  if (!centerCanEntryType_(p.center, type)) return { ok: false, error: 'نوع «' + type + '» غير مفعّل لهذا المركز' };
+  if (!byAdmin && !centerCanEntryType_(p.center, type)) return { ok: false, error: 'نوع «' + type + '» غير مفعّل لهذا المركز' };
   ensureInvoiceReturnCols_(sh);
   const amt = Number(p.totalAmount) || 0, prf = type === 'مصروفات' ? 0 : (Number(p.profit) || 0);
   const ret = cleanInvoiceReturn_(p, type, amt, prf);
@@ -2386,7 +2398,8 @@ function recordInvoice_(p) {
     'معرف': id, 'اسم المركز': p.center, 'رقم الفاتورة': p.invoiceNumber || '', 'مصدر الفاتورة': p.invoiceSource || '', 'اليوم': day, 'التاريخ': date,
     'المبلغ الإجمالي': amt, 'الربح': prf, 'ملاحظات': p.notes || '',
     'نوع القيد': type,
-    'نوع الرجيع': ret.type, 'رجيع رأس المال': ret.cap, 'رجيع الربح': ret.profit, 'رجيع للإثبات': ret.proof, 'كمية الرجيع': ret.qty, 'المرتجعات': ret.text, 'تفاصيل الرجيع': ret.json
+    'نوع الرجيع': ret.type, 'رجيع رأس المال': ret.cap, 'رجيع الربح': ret.profit, 'رجيع للإثبات': ret.proof, 'كمية الرجيع': ret.qty, 'المرتجعات': ret.text, 'تفاصيل الرجيع': ret.json,
+    'سجّلتها الإدارة': byAdmin ? 'نعم' : ''
   });
   invalidateCache_('الفواتير');
   return { ok: true, id: id, returnSaved: ret.count > 0 };
@@ -4113,7 +4126,7 @@ const EVAL_HEADERS_ = ['معرف', 'اسم المركز', 'اسم المسؤول
   'اسم المديرة', 'توقيع المديرة', 'يوم الإرسال', 'تاريخ الإرسال', 'وقت الإرسال',
   'اسم الرئيسة', 'توقيع الرئيسة', 'يوم الاعتماد', 'تاريخ الاعتماد', 'وقت الاعتماد'];
 const EVAL_DIR_MAX_ = [2, 7, 6, 10, 5, 5, 5, 5, 5];     // بنود خاصة بمديرة المركز (المجموع ٥٠)
-const EVAL_HEAD_MAX_ = [5, 10, 10, 2, 5, 13, 5];        // بنود خاصة برئيسة وحدة المقاصف (المجموع ٥٠)
+const EVAL_HEAD_MAX_ = [5, 10, 10, 2, 5, 3, 2, 1.5, 1.5, 3, 2, 5];        // بنود خاصة برئيسة وحدة المقاصف (المجموع ٥٠)
 const EVAL_PENDING_ = 'بانتظار اعتماد الوحدة';
 const EVAL_DONE_ = 'تم الاعتماد';
 SKIP_READ_COLS_[EVAL_SHEET_] = ['توقيع المديرة', 'توقيع الرئيسة'];

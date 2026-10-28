@@ -381,7 +381,7 @@
             }).join('') + '</div>';
         }).join('') + '</div>';
       }).join('') + '</div>' +
-      '<div class="ft"><span>الأسعار بالريال السعودي</span><span>جمعية فرقان لتحفيظ القرآن الكريم بالطائف</span></div>';
+      '<div style="height:14px"></div>';
     return root;
   }
 
