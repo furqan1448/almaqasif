@@ -129,6 +129,10 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h2M4 12h2M4 18h2"/><path d="M9 6h11M9 12h11M9 18h11"/></svg></div>
           <span class="label">الحضور</span>
         </div>
+        <div class="icon-btn" onclick="showAdminTab('profilesTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="9.5" r="2.5"/><path d="M7.5 17c.8-2.2 2.5-3.2 4.5-3.2s3.7 1 4.5 3.2"/></svg></div>
+          <span class="label">استبانة المسؤولات</span>
+        </div>
         <div class="icon-btn" onclick="showAdminTab('deliveryTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8 15l2.5 2.5L16 13"/></svg></div>
           <span class="label">مواعيد التسليم</span>
@@ -574,6 +578,21 @@
           <button class="btn outline" onclick="exportCurrentInvoices()">⬇️ Excel</button>
           <button class="btn outline" onclick="printCurrentInvoices()">🖨️ PDF</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: استبانة المسؤولات ===== -->
+    <div id="profilesTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">استبانة بيانات المسؤولات</h3>
+        <div id="prfStat" style="margin-bottom:10px;font-weight:bold;"></div>
+        <input type="search" id="prfSearch" placeholder="🔍 بحث بالاسم أو المركز..." oninput="prfAdminRender_()" style="margin:0 0 8px;">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:normal;margin:6px 0;"><input type="checkbox" id="prfOnlyMissing" onchange="prfAdminRender_()"> <span>عرض من لم تعبّئ الاستبانة فقط</span></label>
+        <div class="table-scroll"><table class="log-table">
+          <thead><tr><th>م</th><th>الاسم</th><th>المركز</th><th>الحالة الاجتماعية</th><th>رقم الجوال</th><th>محل الميلاد</th><th>مقدار الحفظ</th><th>سنوات الخبرة</th><th>المؤهل العلمي</th><th>التخصص</th><th>الخبرات السابقة</th><th>آخر تحديث</th></tr></thead>
+          <tbody id="prfAdminBody"><tr><td colspan="12">جاري التحميل...</td></tr></tbody>
+        </table></div>
+        <div class="export-row"><button class="btn outline" onclick="prfAdminExcel_()">⬇️ Excel</button></div>
       </div>
     </div>
 
@@ -1586,6 +1605,7 @@ function showAdminTab(tabId) {
   if (tabId === 'noticesTab') loadPending();
   if (tabId === 'attendanceTab') loadAttendanceChecklist();
   if (tabId === 'deliveryTab') loadDelivery_();
+  if (tabId === 'profilesTab') loadProfilesAdmin_();
   if (tabId === 'salesTab') { loadCenterSales(); loadRewardSummary_(); }
   if (tabId === 'returnsTab') loadCenterReturns();
   if (tabId === 'ordersAdminTab') loadCanteenOrdersAdmin();
@@ -3048,6 +3068,49 @@ function saveExpenseCenters() {
 }
 
 /* -------- الفواتير لكل مركز -------- */
+
+/* ======== استبانة المسؤولات (عرض الإدارة) ======== */
+let prfAdminData_ = { profiles: [], masoulat: [] };
+function loadProfilesAdmin_() {
+  const pw = aevPw_(true); if (!pw) return;
+  document.getElementById('prfAdminBody').innerHTML = '<tr><td colspan="12">جاري التحميل...</td></tr>';
+  callApi('getMasoulaProfilesAdmin', { adminPw: pw, _t: Date.now() }).then(function (r) {
+    if (!r || !r.ok) { aevAuthFailed_(r); document.getElementById('prfAdminBody').innerHTML = '<tr><td colspan="12">' + ((r && r.error) || 'تعذّر التحميل (تأكدي من نشر أحدث Code.gs)') + '</td></tr>'; return; }
+    prfAdminData_ = { profiles: r.profiles || [], masoulat: r.masoulat || [] };
+    prfAdminRender_();
+  });
+}
+function prfAdminRows_() {
+  const by = {}; prfAdminData_.profiles.forEach(function (p) { by[p.name.trim()] = p; });
+  const rows = [], seen = {};
+  prfAdminData_.masoulat.forEach(function (m) { seen[m.name] = true; rows.push({ name: m.name, center: m.center, p: by[m.name] || null }); });
+  prfAdminData_.profiles.forEach(function (p) { if (!seen[p.name.trim()]) rows.push({ name: p.name, center: p.center, p: p }); });
+  return rows;
+}
+function prfAdminRender_() {
+  const all = prfAdminRows_(), q = (document.getElementById('prfSearch').value || '').trim(), miss = document.getElementById('prfOnlyMissing').checked;
+  const done = all.filter(function (x) { return x.p; }).length;
+  document.getElementById('prfStat').textContent = 'عبّأت الاستبانة ' + toArabicDigits(done) + ' من ' + toArabicDigits(all.length) + ' مسؤولة';
+  const list = all.filter(function (x) { return (!miss || !x.p) && (!q || (x.name + ' ' + x.center).indexOf(q) !== -1); });
+  const body = document.getElementById('prfAdminBody'); body.innerHTML = '';
+  if (!list.length) { body.innerHTML = '<tr><td colspan="12">لا توجد نتائج</td></tr>'; return; }
+  const esc = function (s) { return String(s === undefined || s === null ? '' : s).replace(/[&<>]/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]; }); };
+  list.forEach(function (x, i) {
+    const p = x.p, tr = document.createElement('tr');
+    tr.innerHTML = p ? '<td>' + toArabicDigits(i + 1) + '</td><td>' + esc(x.name) + '</td><td>' + esc(x.center || p.center) + '</td><td>' + esc(p.marital) + '</td><td dir="ltr">' + esc(p.phone) + '</td><td>' + esc(p.birthplace) + '</td><td>' + esc(p.juz || '—') + '</td><td>' + esc(p.years) + '</td><td>' + esc(p.edu) + '</td><td>' + esc(p.major || '—') + '</td><td style="white-space:pre-wrap;text-align:right;">' + esc(p.expText || '—') + '</td><td>' + (p.updatedDate ? toHijriStr(p.updatedDate) : '') + '</td>'
+      : '<td>' + toArabicDigits(i + 1) + '</td><td>' + esc(x.name) + '</td><td>' + esc(x.center) + '</td><td colspan="9" style="color:#c0392b;">لم تعبّئ الاستبانة بعد</td>';
+    body.appendChild(tr);
+  });
+}
+function prfAdminExcel_() {
+  const rows = prfAdminRows_().filter(function (x) { return x.p; }).map(function (x, i) {
+    const p = x.p;
+    return { 'م': i + 1, 'الاسم': x.name, 'المركز': x.center || p.center, 'الحالة الاجتماعية': p.marital, 'رقم الجوال': p.phone, 'محل الميلاد': p.birthplace,
+      'مقدار الحفظ في القرآن الكريم': p.juz, 'سنوات الخبرة كمسؤولة مقصف': p.years, 'المؤهل العلمي': p.edu, 'التخصص': p.major, 'الخبرات السابقة': p.expText };
+  });
+  if (!rows.length) { alert('لا توجد بيانات لتصديرها'); return; }
+  exportToExcel(rows, 'استبانة-المسؤولات', 'الاستبانة');
+}
 
 /* ======== مواعيد تسليم المديرات ======== */
 let dlvState_ = { map: {}, sel: {} };

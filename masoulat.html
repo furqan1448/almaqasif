@@ -166,9 +166,51 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v2M16 3v2"/><rect x="4" y="4.5" width="16" height="16" rx="1.5"/><path d="M4 9.5h16"/><path d="M8.5 13.5l2 2 4-4.5"/><path d="M8.5 17.5h4"/></svg></div>
           <span class="label">محاضر الاجتماعات</span>
         </div>
+        <div class="icon-btn" onclick="showView('profileView')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="9.5" r="2.5"/><path d="M7.5 17c.8-2.2 2.5-3.2 4.5-3.2s3.7 1 4.5 3.2"/></svg></div>
+          <span class="label">استبانة بياناتي</span>
+        </div>
         <div class="icon-btn" onclick="showView('faqView')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.2 1-1.2 1.8"/><circle cx="12" cy="16.8" r="0.5" fill="currentColor"/></svg></div>
           <span class="label">الأسئلة الشائعة</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- استبانة البيانات الشخصية -->
+    <div id="profileView" class="hidden">
+      <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">استبانة البيانات الشخصية</h3>
+        <p style="color:#8a7d76;font-size:0.88rem;margin-top:0;">يُرجى تعبئة البيانات التالية بدقّة. الحقول المعلَّمة بـ <b style="color:#c0392b;">*</b> مطلوبة، ويمكنك تحديث بياناتك في أي وقت.</p>
+        <div id="prfLoading" style="color:#8a7d76;">جاري تحميل بياناتك...</div>
+        <div id="prfForm" class="hidden">
+          <label>الاسم</label>
+          <input type="text" id="prfName" readonly style="background:#f3ede8;">
+          <label>المركز</label>
+          <input type="text" id="prfCenter" readonly style="background:#f3ede8;">
+          <label>الحالة الاجتماعية <b style="color:#c0392b;">*</b></label>
+          <select id="prfMarital"><option value="">اختاري</option><option>عزباء</option><option>متزوجة</option><option>مطلقة</option><option>أرملة</option></select>
+          <label>رقم الجوال <b style="color:#c0392b;">*</b></label>
+          <input type="text" id="prfPhone" inputmode="tel" dir="ltr" style="text-align:right;" placeholder="05XXXXXXXX">
+          <label>محل الميلاد <b style="color:#c0392b;">*</b></label>
+          <input type="text" id="prfBirth">
+          <label>مقدار الحفظ في القرآن الكريم (اختياري)</label>
+          <input type="text" id="prfJuz" placeholder="مثال: القرآن كاملاً، أو ١٥ جزءاً">
+          <label>سنوات الخبرة كمسؤولة مقصف <b style="color:#c0392b;">*</b></label>
+          <input type="number" id="prfYears" class="no-spin" inputmode="decimal" min="0" step="0.5">
+          <label>المؤهل العلمي <b style="color:#c0392b;">*</b></label>
+          <select id="prfEdu" onchange="prfEduChanged_()"><option value="">اختاري</option><option>ابتدائي</option><option>متوسط</option><option>ثانوي</option><option>دبلوم</option><option>جامعي</option></select>
+          <div id="prfMajorWrap" class="hidden">
+            <label>التخصص <b style="color:#c0392b;">*</b></label>
+            <input type="text" id="prfMajor" placeholder="مثال: الشريعة، اللغة العربية...">
+          </div>
+          <label style="margin-top:14px;">الخبرات السابقة (اختياري)</label>
+          <div id="prfExpBox"></div>
+          <button type="button" class="btn outline" onclick="prfAddExp_()" style="margin-top:6px;">＋ إضافة خبرة</button>
+          <div style="margin-top:14px;"><button class="btn" id="prfSaveBtn" onclick="prfSave_()">حفظ الاستبانة</button></div>
+          <div class="success-msg" id="prfOk">تم حفظ بياناتك بنجاح ✅</div>
+          <div id="prfUpdated" style="color:#8a7d76;font-size:0.82rem;margin-top:8px;"></div>
         </div>
       </div>
     </div>
@@ -893,7 +935,7 @@ function loadDashboardData() {
 }
 
 function showView(id) {
-  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'tasksView', 'announcementsView', 'priceListView', 'cardsDeliverView', 'cardsReceiveView', 'cardsFollowupView', 'meetingMinutesView', 'faqView', 'ordersView'].forEach(function (v) {
+  ['homeView', 'salesView', 'noticeFormView', 'noticesView', 'invoicesView', 'returnsView', 'attachmentsView', 'difficultiesView', 'tasksView', 'announcementsView', 'priceListView', 'cardsDeliverView', 'cardsReceiveView', 'cardsFollowupView', 'meetingMinutesView', 'faqView', 'ordersView', 'profileView'].forEach(function (v) {
     document.getElementById(v).classList.toggle('hidden', v !== id);
   });
   if (id === 'salesView') loadSales();
@@ -909,6 +951,7 @@ function showView(id) {
   if (id === 'cardsFollowupView') loadCardsFollowup_();
   if (id === 'meetingMinutesView') loadMeetingMinutesList();
   if (id === 'faqView') initFaq_();
+  if (id === 'profileView') initProfile_();
   if (id === 'ordersView') initOrdersView_(CARD_ROLE_LABEL_);
   if (id === 'homeView' && currentCenter) refreshPendingBadge();
 }
@@ -2137,6 +2180,73 @@ function deleteAttachmentRow(row) {
 }
 
 /* -------- الصعوبات والمقترحات -------- */
+
+/* ======== استبانة البيانات الشخصية ======== */
+function prfEduChanged_() {
+  const uni = document.getElementById('prfEdu').value === 'جامعي';
+  document.getElementById('prfMajorWrap').classList.toggle('hidden', !uni);
+}
+function prfAddExp_(x) {
+  x = x || {};
+  const box = document.getElementById('prfExpBox');
+  const row = document.createElement('div');
+  row.className = 'prf-exp';
+  row.style.cssText = 'border:1px solid #e3d3c9;border-radius:12px;padding:10px;margin-bottom:8px;background:#fcf8f6;';
+  row.innerHTML = '<input type="text" class="prf-place" placeholder="جهة العمل" style="margin-bottom:6px;">' +
+    '<input type="text" class="prf-title" placeholder="المسمى الوظيفي" style="margin-bottom:6px;">' +
+    '<input type="text" class="prf-period" placeholder="المدة (مثال: سنتان)">' +
+    '<a href="#" style="display:inline-block;margin-top:6px;color:#c0392b;font-size:0.85rem;">حذف هذه الخبرة</a>';
+  row.querySelector('.prf-place').value = x.place || '';
+  row.querySelector('.prf-title').value = x.title || '';
+  row.querySelector('.prf-period').value = x.period || '';
+  row.querySelector('a').onclick = function (ev) { ev.preventDefault(); row.remove(); };
+  box.appendChild(row);
+}
+function initProfile_() {
+  document.getElementById('prfLoading').classList.remove('hidden');
+  document.getElementById('prfForm').classList.add('hidden');
+  document.getElementById('prfName').value = currentName;
+  document.getElementById('prfCenter').value = currentCenter || '—';
+  callApi('getMasoulaProfile', { name: currentName, _t: Date.now() }).then(function (r) {
+    const p = (r && r.ok && r.profile) || null;
+    document.getElementById('prfExpBox').innerHTML = '';
+    document.getElementById('prfMarital').value = p ? p.marital : '';
+    document.getElementById('prfPhone').value = p ? p.phone : '';
+    document.getElementById('prfBirth').value = p ? p.birthplace : '';
+    document.getElementById('prfJuz').value = p ? p.juz : '';
+    document.getElementById('prfYears').value = p ? p.years : '';
+    document.getElementById('prfEdu').value = p ? p.edu : '';
+    document.getElementById('prfMajor').value = p ? p.major : '';
+    (p && p.experiences || []).forEach(function (x) { prfAddExp_(x); });
+    prfEduChanged_();
+    document.getElementById('prfUpdated').textContent = p && p.updatedDate ? 'آخر تحديث لبياناتك: ' + toHijriStr(p.updatedDate) + ' ' + toArabicDigits(p.updatedTime || '') : '';
+    document.getElementById('prfLoading').classList.add('hidden');
+    document.getElementById('prfForm').classList.remove('hidden');
+  }).catch(function () { document.getElementById('prfLoading').textContent = 'تعذّر تحميل بياناتك، حاولي مرة أخرى'; });
+}
+function prfSave_() {
+  const v = function (id) { return document.getElementById(id).value.trim(); };
+  const edu = v('prfEdu');
+  if (!v('prfMarital')) { alert('اختاري الحالة الاجتماعية'); return; }
+  if (!v('prfPhone')) { alert('اكتبي رقم الجوال'); return; }
+  if (!v('prfBirth')) { alert('اكتبي محل الميلاد'); return; }
+  if (v('prfYears') === '') { alert('اكتبي سنوات الخبرة كمسؤولة مقصف'); return; }
+  if (!edu) { alert('اختاري المؤهل العلمي'); return; }
+  if (edu === 'جامعي' && !v('prfMajor')) { alert('اكتبي التخصص'); return; }
+  const exps = Array.prototype.map.call(document.querySelectorAll('#prfExpBox .prf-exp'), function (row) {
+    return { place: row.querySelector('.prf-place').value.trim(), title: row.querySelector('.prf-title').value.trim(), period: row.querySelector('.prf-period').value.trim() };
+  }).filter(function (x) { return x.place || x.title || x.period; });
+  if (exps.some(function (x) { return !x.place; })) { alert('اكتبي جهة العمل في كل خبرة سابقة، أو احذفي الصف الفارغ'); return; }
+  const btn = document.getElementById('prfSaveBtn');
+  setBtnBusy(btn, true);
+  callApi('saveMasoulaProfile', { name: currentName, center: currentCenter, marital: v('prfMarital'), phone: v('prfPhone'), birthplace: v('prfBirth'),
+    juz: v('prfJuz'), years: v('prfYears'), edu: edu, major: edu === 'جامعي' ? v('prfMajor') : '', experiences: exps }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) { alert((r && r.error) || 'تعذّر الحفظ، حاولي مرة أخرى'); return; }
+    const ok = document.getElementById('prfOk'); ok.style.display = 'block'; setTimeout(function () { ok.style.display = 'none'; }, 3000);
+  }).catch(function () { setBtnBusy(btn, false); alert('تعذّر الاتصال بالخادم'); });
+}
+
 function submitDifficulty() {
   const type = document.querySelector('input[name="diffType"]:checked').value;
   const text = document.getElementById('diffText').value.trim();
