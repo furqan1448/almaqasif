@@ -583,21 +583,18 @@
         <h3 style="margin-top:0;color:var(--maroon);">جدول مواعيد تسليم المديرات</h3>
         <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">حدّدي المراكز المطلوبة، ثم اكتبي لكل مركز تاريخ التسليم (يظهر اليوم والتاريخ الهجري تلقائياً)، أو استخدمي «التوزيع التلقائي» لتوزيع المراكز المحددة على الأيام بالتسلسل.</p>
         <div class="select-row">
-          <div><label>بداية التسليم (هجري)</label>
-            <div style="display:flex;gap:6px;direction:ltr;">
-              <input type="number" id="dlvHY" value="1448" min="1400" max="1500" style="width:90px;margin:0;" title="السنة">
-              <input type="number" id="dlvHM" value="7" min="1" max="12" style="width:70px;margin:0;" title="الشهر">
-              <input type="number" id="dlvHD" value="8" min="1" max="30" style="width:70px;margin:0;" title="اليوم">
-            </div>
-            <div id="dlvStartInfo" style="font-size:0.82rem;color:#8a7d76;margin-top:4px;"></div>
+          <div><label>1) اكتبي تاريخ التسليم</label>
+            <input type="date" id="dlvPick" onchange="dlvPickChanged_()">
+            <div id="dlvPickInfo" style="font-size:0.85rem;color:var(--maroon);margin-top:4px;min-height:1.2em;"></div>
           </div>
-          <div><label>عدد المديرات في اليوم</label><input type="number" id="dlvPerDay" value="10" min="1" max="100"></div>
+          <div><label>عدد المديرات في اليوم</label><input type="number" id="dlvPerDay" value="10" min="1" max="100" onchange="dlvSummary_()"></div>
         </div>
-        <label style="display:flex;align-items:center;gap:6px;font-weight:normal;margin:8px 0;"><input type="checkbox" id="dlvSkipWk" checked> <span>تجاوز يومي الجمعة والسبت</span></label>
+        <p style="color:#8a7d76;font-size:0.85rem;margin:8px 0;">2) حدّدي المراكز من القائمة، 3) اضغطي «اعتماد التاريخ للمحددة» (يُحفظ فوراً)، ثم كرّري مع تاريخ آخر للمراكز المتبقية. يمكنك تعديل تاريخ أي مركز في أي وقت.</p>
         <div class="export-row" style="margin:8px 0;">
-          <button class="btn outline" onclick="dlvAuto_()">توزيع تلقائي للمراكز المحددة</button>
-          <button class="btn outline" onclick="dlvClear_()">مسح التواريخ</button>
+          <button class="btn" id="dlvApplyBtn" onclick="dlvApply_()">اعتماد التاريخ للمحددة</button>
+          <button class="btn outline" onclick="dlvClearSel_()">إزالة موعد المحددة</button>
         </div>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:normal;margin:6px 0;"><input type="checkbox" id="dlvOnlyRest" onchange="dlvRender_()"> <span>عرض المراكز غير المحدد لها موعد فقط</span></label>
         <label style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-bottom:8px;"><input type="checkbox" id="dlvAll" onchange="dlvToggleAll_(this.checked)"> <span>تحديد الكل</span></label>
         <div class="table-scroll"><table class="log-table" id="dlvTable">
           <thead><tr><th></th><th>المركز</th><th>التاريخ</th><th>اليوم</th><th>التاريخ الهجري</th></tr></thead>
@@ -3056,38 +3053,15 @@ const DLV_DAYS_ = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأر
 function dlvIso_(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
 function dlvGreg_(iso) { const d = dlvParse_(iso); return d ? new Intl.DateTimeFormat('ar-SA-u-ca-gregory', { day: 'numeric', month: 'numeric', year: 'numeric' }).format(d) + ' م' : ''; }
 function dlvParse_(s) { const p = String(s || '').split('-'); return p.length === 3 ? new Date(+p[0], +p[1] - 1, +p[2]) : null; }
-/* تحويل تاريخ هجري (أم القرى) إلى ميلادي بالبحث اليومي حول التقدير */
-function hijriToIso_(hy, hm, hd) {
-  const fmt = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'numeric', year: 'numeric' });
-  const est = new Date(Math.round((hy - 1) * 354.367 * 86400000 + (hm - 1) * 29.53 * 86400000) + Date.UTC(622, 6, 16));
-  for (let i = -45; i <= 45; i++) {
-    const d = new Date(est.getFullYear(), est.getMonth(), est.getDate() + i);
-    const m = /(\d+)\D+(\d+)\D+(\d+)/.exec(fmt.format(d));
-    if (m && +m[1] === hm && +m[2] === hd && +m[3] === hy) return dlvIso_(d);
-  }
-  return '';
-}
-function dlvStartIso_() {
-  return hijriToIso_(+document.getElementById('dlvHY').value, +document.getElementById('dlvHM').value, +document.getElementById('dlvHD').value);
-}
-function dlvStartInfo_() {
-  const iso = dlvStartIso_(), box = document.getElementById('dlvStartInfo');
-  if (!iso) { box.textContent = 'تاريخ هجري غير صالح'; return ''; }
-  const d = dlvParse_(iso);
-  box.textContent = DLV_DAYS_[d.getDay()] + ' — الموافق ' + dlvGreg_(iso);
-  return iso;
-}
 function loadDelivery_() {
   const go = function () {
     callApi('getDeliverySchedule', { _t: Date.now() }).then(function (r) {
       const s = (r && r.schedule) || {};
       dlvState_.map = s.map || {};
       if (s.perDay) document.getElementById('dlvPerDay').value = s.perDay;
-      if (s.skipWeekend !== undefined) document.getElementById('dlvSkipWk').checked = s.skipWeekend !== false;
-      if (s.startH) { const q = String(s.startH).split('/'); if (q.length === 3) { document.getElementById('dlvHD').value = q[0]; document.getElementById('dlvHM').value = q[1]; document.getElementById('dlvHY').value = q[2]; } }
       dlvState_.sel = {};
       Object.keys(dlvState_.map).forEach(function (k) { dlvState_.sel[k] = true; });
-      dlvRender_(); dlvStartInfo_();
+      dlvRender_();
     });
   };
   if (centersListCache.length) { go(); return; }
@@ -3096,14 +3070,16 @@ function loadDelivery_() {
 function dlvRender_() {
   const tb = document.getElementById('dlvTbody');
   tb.innerHTML = '';
+  const onlyRest = document.getElementById('dlvOnlyRest').checked;
   centersListCache.forEach(function (c, i) {
+    if (onlyRest && dlvState_.map[c]) return;
     const tr = document.createElement('tr');
     const td0 = document.createElement('td'); const cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'dlv-cb'; cb.checked = !!dlvState_.sel[c];
     cb.onchange = function () { dlvState_.sel[c] = cb.checked; };
     td0.appendChild(cb);
     const td1 = document.createElement('td'); td1.textContent = c;
     const td2 = document.createElement('td'); const inp = document.createElement('input'); inp.type = 'date'; inp.id = 'dlvD' + i; inp.value = dlvState_.map[c] || ''; inp.style.margin = '0';
-    inp.onchange = function () { dlvState_.map[c] = inp.value; if (inp.value) { dlvState_.sel[c] = true; cb.checked = true; } dlvRow_(i); dlvSummary_(); };
+    inp.onchange = function () { dlvState_.map[c] = inp.value; dlvRow_(i); dlvSummary_(); dlvDirty_(); };
     td2.appendChild(inp);
     const td3 = document.createElement('td'); td3.id = 'dlvDay' + i;
     const td4 = document.createElement('td'); td4.id = 'dlvH' + i;
@@ -3119,24 +3095,35 @@ function dlvRow_(i) {
   document.getElementById('dlvH' + i).textContent = d ? toHijriStr(v) : '';
 }
 function dlvToggleAll_(on) { centersListCache.forEach(function (c) { dlvState_.sel[c] = on; }); document.querySelectorAll('.dlv-cb').forEach(function (cb) { cb.checked = on; }); }
-function dlvAuto_() {
-  const start = dlvStartInfo_();
-  if (!start) { alert('أدخلي تاريخ بداية هجريًا صحيحًا'); return; }
+function dlvDirty_() { document.getElementById('dlvSaveBtn').textContent = 'حفظ الجدول (توجد تعديلات غير محفوظة)'; }
+function dlvPickChanged_() {
+  const v = document.getElementById('dlvPick').value, box = document.getElementById('dlvPickInfo');
+  const d = dlvParse_(v);
+  if (!d) { box.textContent = ''; return; }
   const per = Math.max(1, Number(document.getElementById('dlvPerDay').value) || 10);
-  const skip = document.getElementById('dlvSkipWk').checked;
-  const list = centersListCache.filter(function (c) { return dlvState_.sel[c]; });
-  if (!list.length) { alert('حدّدي المراكز المطلوبة أولاً'); return; }
-  let d = dlvParse_(start), n = 0;
-  const adv = function () { d.setDate(d.getDate() + 1); };
-  const ok = function () { return !(skip && (d.getDay() === 5 || d.getDay() === 6)); };
-  while (!ok()) adv();
-  list.forEach(function (c) {
-    if (n === per) { n = 0; adv(); while (!ok()) adv(); }
-    dlvState_.map[c] = dlvIso_(d); n++;
-  });
-  dlvRender_();
+  let n = 0; centersListCache.forEach(function (c) { if (dlvState_.map[c] === v) n++; });
+  box.textContent = DLV_DAYS_[d.getDay()] + ' — ' + toHijriStr(v) + ' — محدد لهذا اليوم حالياً: ' + toArabicDigits(n) + ' من ' + toArabicDigits(per);
 }
-function dlvClear_() { dlvState_.map = {}; dlvRender_(); }
+function dlvApply_() {
+  const v = document.getElementById('dlvPick').value;
+  if (!dlvParse_(v)) { alert('اكتبي تاريخ التسليم أولاً'); return; }
+  const list = centersListCache.filter(function (c) { return dlvState_.sel[c]; });
+  if (!list.length) { alert('حدّدي المراكز أولاً'); return; }
+  const per = Math.max(1, Number(document.getElementById('dlvPerDay').value) || 10);
+  let n = 0; centersListCache.forEach(function (c) { if (dlvState_.map[c] === v && !dlvState_.sel[c]) n++; });
+  if (n + list.length > per && !confirm('عدد المراكز في هذا اليوم سيصبح ' + toArabicDigits(n + list.length) + ' وهو أكثر من ' + toArabicDigits(per) + '. هل تريدين المتابعة؟')) return;
+  list.forEach(function (c) { dlvState_.map[c] = v; dlvState_.sel[c] = false; });
+  document.getElementById('dlvAll').checked = false;
+  dlvRender_(); dlvPickChanged_();
+  dlvSave_(true);
+}
+function dlvClearSel_() {
+  const list = centersListCache.filter(function (c) { return dlvState_.sel[c]; });
+  if (!list.length) { alert('حدّدي المراكز أولاً'); return; }
+  list.forEach(function (c) { delete dlvState_.map[c]; dlvState_.sel[c] = false; });
+  document.getElementById('dlvAll').checked = false;
+  dlvRender_(); dlvPickChanged_(); dlvSave_(true);
+}
 function dlvSummary_() {
   const per = Math.max(1, Number(document.getElementById('dlvPerDay').value) || 10);
   const cnt = {};
@@ -3148,16 +3135,16 @@ function dlvSummary_() {
       DLV_DAYS_[dlvParse_(v).getDay()] + ' ' + toHijriNumericStr(v) + ': ' + toArabicDigits(cnt[v]) + (over ? ' (يتجاوز العدد المحدد)' : '') + '</span>';
   }).join('') : '';
 }
-function dlvSave_() {
+function dlvSave_(quiet) {
   const pw = aevPw_(true); if (!pw) return;
   const btn = document.getElementById('dlvSaveBtn'); setBtnBusy(btn, true);
   const map = {};
   centersListCache.forEach(function (c) { if (dlvState_.map[c]) map[c] = dlvState_.map[c]; });
   callApi('setDeliverySchedule', { adminPw: pw, schedule: {
-    perDay: Number(document.getElementById('dlvPerDay').value) || 10, skipWeekend: document.getElementById('dlvSkipWk').checked,
-    startH: document.getElementById('dlvHD').value + '/' + document.getElementById('dlvHM').value + '/' + document.getElementById('dlvHY').value, map: map } }).then(function (r) {
+    perDay: Number(document.getElementById('dlvPerDay').value) || 10, skipWeekend: true, startH: '', map: map } }).then(function (r) {
     setBtnBusy(btn, false);
     if (!r || !r.ok) { aevAuthFailed_(r); alert('تعذّر الحفظ: ' + ((r && r.error) || 'تأكدي من نشر أحدث Code.gs')); return; }
+    btn.textContent = 'حفظ الجدول';
     const ok = document.getElementById('dlvOk'); ok.style.display = 'block'; setTimeout(function () { ok.style.display = 'none'; }, 2500);
   });
 }
@@ -3171,7 +3158,6 @@ function dlvPrint_() {
   const r = dlvRows_(); if (!r.length) { alert('لا توجد مواعيد لطباعتها'); return; }
   printReport('جدول مواعيد تسليم المديرات', '', ['م', 'المركز', 'اليوم', 'التاريخ الهجري', 'التاريخ الميلادي'].map(function (k) { return { key: k, label: k }; }), r);
 }
-['dlvHY', 'dlvHM', 'dlvHD'].forEach(function (id) { document.addEventListener('input', function (ev) { if (ev.target && ev.target.id === id) dlvStartInfo_(); }); });
 
 /* تسجيل قيد (فاتورة/مشتريات/مصروفات) من الإدارة نيابةً عن المركز المختار */
 function admInvTypeChanged_() {
