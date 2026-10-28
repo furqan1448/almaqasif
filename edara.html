@@ -3055,14 +3055,20 @@ const DLV_DAYS_ = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأر
 function dlvIso_(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
 function dlvGreg_(iso) { const d = dlvParse_(iso); return d ? new Intl.DateTimeFormat('ar-SA-u-ca-gregory', { day: 'numeric', month: 'numeric', year: 'numeric' }).format(d) + ' م' : ''; }
 function dlvParse_(s) { const p = String(s || '').split('-'); return p.length === 3 ? new Date(+p[0], +p[1] - 1, +p[2]) : null; }
+function dlvKey_(s) { return String(s).replace(/\s+/g, ' ').trim(); }
 function loadDelivery_() {
   const go = function () {
     callApi('getDeliverySchedule', { _t: Date.now() }).then(function (r) {
       const s = (r && r.schedule) || {};
-      dlvState_.map = s.map || {};
+      /* مطابقة الأسماء بعد توحيد المسافات (اختلاف مسافة واحدة كان يُظهر المركز كأنه بلا موعد) */
+      const saved = {};
+      Object.keys(s.map || {}).forEach(function (k) { saved[dlvKey_(k)] = s.map[k]; });
+      dlvState_.map = {}; const used = {};
+      centersListCache.forEach(function (c) { const k = dlvKey_(c); if (saved[k]) { dlvState_.map[c] = saved[k]; used[k] = true; } });
+      dlvState_.orphans = {};
+      Object.keys(saved).forEach(function (k) { if (!used[k]) dlvState_.orphans[k] = saved[k]; });
       if (s.perDay) document.getElementById('dlvPerDay').value = s.perDay;
       dlvState_.sel = {};
-      Object.keys(dlvState_.map).forEach(function (k) { dlvState_.sel[k] = true; });
       dlvRender_();
     });
   };
@@ -3126,6 +3132,11 @@ function dlvRender_() {
   const st = dlvStats_(centersListCache.filter(function (c) { return dlvState_.map[c]; }));
   document.getElementById('dlvDoneCount').textContent = done ? '(' + toArabicDigits(st.centers) + ' مركزاً' + (st.two ? '، منها ' + toArabicDigits(st.two) + ' بفترتين' : '') + ' — ' + toArabicDigits(st.periods) + ' فترة)' : '(٠)';
   document.getElementById('dlvAll').checked = false;
+  const on = Object.keys(dlvState_.orphans || {});
+  let ob = document.getElementById('dlvOrphans');
+  if (!ob) { ob = document.createElement('div'); ob.id = 'dlvOrphans'; ob.style.cssText = 'margin-top:10px;padding:8px 12px;border:1px solid #e0c36a;background:#fff8e1;border-radius:10px;font-size:0.85rem;'; box.parentNode.insertBefore(ob, box.nextSibling); }
+  ob.style.display = on.length ? '' : 'none';
+  ob.textContent = on.length ? 'مواعيد محفوظة لأسماء غير موجودة الآن في قائمة المراكز (محفوظة ولم تُحذف): ' + on.join('، ') : '';
   dlvFilter_();
 }
 function dlvFilter_() {
@@ -3185,13 +3196,16 @@ function dlvClearSel_() {
   dlvRender_(); dlvPickChanged_(); dlvSave_(true);
 }
 function dlvSummary_() {}
+let dlvSaveChain_ = Promise.resolve();
 function dlvSave_(quiet) {
   const pw = aevPw_(true); if (!pw) return;
   const btn = document.getElementById('dlvSaveBtn'); setBtnBusy(btn, true);
   const map = {};
-  centersListCache.forEach(function (c) { if (dlvState_.map[c]) map[c] = dlvState_.map[c]; });
-  callApi('setDeliverySchedule', { adminPw: pw, schedule: {
-    perDay: Number(document.getElementById('dlvPerDay').value) || 10, skipWeekend: true, startH: '', map: map } }).then(function (r) {
+  Object.keys(dlvState_.orphans || {}).forEach(function (k) { map[k] = dlvState_.orphans[k]; });
+  centersListCache.forEach(function (c) { if (dlvState_.map[c]) map[dlvKey_(c)] = dlvState_.map[c]; });
+  /* الحفظ يتم بالتسلسل لمنع تداخل طلبين وكتابة نسخة أقدم فوق الأحدث */
+  dlvSaveChain_ = dlvSaveChain_.then(function () { return callApi('setDeliverySchedule', { adminPw: pw, schedule: {
+    perDay: Number(document.getElementById('dlvPerDay').value) || 10, skipWeekend: true, startH: '', map: map } }); }).catch(function () { return { ok: false, error: 'تعذّر الاتصال بالخادم' }; }).then(function (r) {
     setBtnBusy(btn, false);
     if (!r || !r.ok) { aevAuthFailed_(r); alert('تعذّر الحفظ: ' + ((r && r.error) || 'تأكدي من نشر أحدث Code.gs')); return; }
     btn.textContent = 'حفظ الجدول';
