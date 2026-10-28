@@ -129,6 +129,10 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h2M4 12h2M4 18h2"/><path d="M9 6h11M9 12h11M9 18h11"/></svg></div>
           <span class="label">الحضور</span>
         </div>
+        <div class="icon-btn" onclick="showAdminTab('deliveryTab')">
+          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8 15l2.5 2.5L16 13"/></svg></div>
+          <span class="label">مواعيد التسليم</span>
+        </div>
         <div class="icon-btn" onclick="showAdminTab('statsTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="12" width="4" height="8"/><rect x="10" y="7" width="4" height="13"/><rect x="16" y="3" width="4" height="17"/></svg></div>
           <span class="label">الإحصائيات</span>
@@ -569,6 +573,42 @@
         <div class="export-row">
           <button class="btn outline" onclick="exportCurrentInvoices()">⬇️ Excel</button>
           <button class="btn outline" onclick="printCurrentInvoices()">🖨️ PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== تبويب: مواعيد التسليم ===== -->
+    <div id="deliveryTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <h3 style="margin-top:0;color:var(--maroon);">جدول مواعيد تسليم المديرات</h3>
+        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">حدّدي المراكز المطلوبة، ثم اكتبي لكل مركز تاريخ التسليم (يظهر اليوم والتاريخ الهجري تلقائياً)، أو استخدمي «التوزيع التلقائي» لتوزيع المراكز المحددة على الأيام بالتسلسل.</p>
+        <div class="select-row">
+          <div><label>بداية التسليم (هجري)</label>
+            <div style="display:flex;gap:6px;direction:ltr;">
+              <input type="number" id="dlvHY" value="1448" min="1400" max="1500" style="width:90px;margin:0;" title="السنة">
+              <input type="number" id="dlvHM" value="7" min="1" max="12" style="width:70px;margin:0;" title="الشهر">
+              <input type="number" id="dlvHD" value="8" min="1" max="30" style="width:70px;margin:0;" title="اليوم">
+            </div>
+            <div id="dlvStartInfo" style="font-size:0.82rem;color:#8a7d76;margin-top:4px;"></div>
+          </div>
+          <div><label>عدد المديرات في اليوم</label><input type="number" id="dlvPerDay" value="10" min="1" max="100"></div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:normal;margin:8px 0;"><input type="checkbox" id="dlvSkipWk" checked> <span>تجاوز يومي الجمعة والسبت</span></label>
+        <div class="export-row" style="margin:8px 0;">
+          <button class="btn outline" onclick="dlvAuto_()">توزيع تلقائي للمراكز المحددة</button>
+          <button class="btn outline" onclick="dlvClear_()">مسح التواريخ</button>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-bottom:8px;"><input type="checkbox" id="dlvAll" onchange="dlvToggleAll_(this.checked)"> <span>تحديد الكل</span></label>
+        <div class="table-scroll"><table class="log-table" id="dlvTable">
+          <thead><tr><th></th><th>المركز</th><th>التاريخ</th><th>اليوم</th><th>التاريخ الهجري</th></tr></thead>
+          <tbody id="dlvTbody"><tr><td colspan="5">جاري التحميل...</td></tr></tbody>
+        </table></div>
+        <div id="dlvSummary" style="margin-top:8px;font-size:0.88rem;"></div>
+        <button class="btn" id="dlvSaveBtn" onclick="dlvSave_()" style="margin-top:10px;">حفظ الجدول</button>
+        <div class="success-msg" id="dlvOk">تم حفظ الجدول ✅</div>
+        <div class="export-row">
+          <button class="btn outline" onclick="dlvExcel_()">⬇️ Excel</button>
+          <button class="btn outline" onclick="dlvPrint_()">🖨️ PDF</button>
         </div>
       </div>
     </div>
@@ -1546,6 +1586,7 @@ function showAdminTab(tabId) {
   if (tabId === 'notesTab') loadAdminNotes_();
   if (tabId === 'noticesTab') loadPending();
   if (tabId === 'attendanceTab') loadAttendanceChecklist();
+  if (tabId === 'deliveryTab') loadDelivery_();
   if (tabId === 'salesTab') { loadCenterSales(); loadRewardSummary_(); }
   if (tabId === 'returnsTab') loadCenterReturns();
   if (tabId === 'ordersAdminTab') loadCanteenOrdersAdmin();
@@ -3008,6 +3049,129 @@ function saveExpenseCenters() {
 }
 
 /* -------- الفواتير لكل مركز -------- */
+
+/* ======== مواعيد تسليم المديرات ======== */
+let dlvState_ = { map: {}, sel: {} };
+const DLV_DAYS_ = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+function dlvIso_(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+function dlvGreg_(iso) { const d = dlvParse_(iso); return d ? new Intl.DateTimeFormat('ar-SA-u-ca-gregory', { day: 'numeric', month: 'numeric', year: 'numeric' }).format(d) + ' م' : ''; }
+function dlvParse_(s) { const p = String(s || '').split('-'); return p.length === 3 ? new Date(+p[0], +p[1] - 1, +p[2]) : null; }
+/* تحويل تاريخ هجري (أم القرى) إلى ميلادي بالبحث اليومي حول التقدير */
+function hijriToIso_(hy, hm, hd) {
+  const fmt = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'numeric', year: 'numeric' });
+  const est = new Date(Math.round((hy - 1) * 354.367 * 86400000 + (hm - 1) * 29.53 * 86400000) + Date.UTC(622, 6, 16));
+  for (let i = -45; i <= 45; i++) {
+    const d = new Date(est.getFullYear(), est.getMonth(), est.getDate() + i);
+    const m = /(\d+)\D+(\d+)\D+(\d+)/.exec(fmt.format(d));
+    if (m && +m[1] === hm && +m[2] === hd && +m[3] === hy) return dlvIso_(d);
+  }
+  return '';
+}
+function dlvStartIso_() {
+  return hijriToIso_(+document.getElementById('dlvHY').value, +document.getElementById('dlvHM').value, +document.getElementById('dlvHD').value);
+}
+function dlvStartInfo_() {
+  const iso = dlvStartIso_(), box = document.getElementById('dlvStartInfo');
+  if (!iso) { box.textContent = 'تاريخ هجري غير صالح'; return ''; }
+  const d = dlvParse_(iso);
+  box.textContent = DLV_DAYS_[d.getDay()] + ' — الموافق ' + dlvGreg_(iso);
+  return iso;
+}
+function loadDelivery_() {
+  const go = function () {
+    callApi('getDeliverySchedule', { _t: Date.now() }).then(function (r) {
+      const s = (r && r.schedule) || {};
+      dlvState_.map = s.map || {};
+      if (s.perDay) document.getElementById('dlvPerDay').value = s.perDay;
+      if (s.skipWeekend !== undefined) document.getElementById('dlvSkipWk').checked = s.skipWeekend !== false;
+      if (s.startH) { const q = String(s.startH).split('/'); if (q.length === 3) { document.getElementById('dlvHD').value = q[0]; document.getElementById('dlvHM').value = q[1]; document.getElementById('dlvHY').value = q[2]; } }
+      dlvState_.sel = {};
+      Object.keys(dlvState_.map).forEach(function (k) { dlvState_.sel[k] = true; });
+      dlvRender_(); dlvStartInfo_();
+    });
+  };
+  if (centersListCache.length) { go(); return; }
+  callApi('getCenters').then(function (r) { centersListCache = r.centers || []; go(); });
+}
+function dlvRender_() {
+  const tb = document.getElementById('dlvTbody');
+  tb.innerHTML = '';
+  centersListCache.forEach(function (c, i) {
+    const tr = document.createElement('tr');
+    const td0 = document.createElement('td'); const cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'dlv-cb'; cb.checked = !!dlvState_.sel[c];
+    cb.onchange = function () { dlvState_.sel[c] = cb.checked; };
+    td0.appendChild(cb);
+    const td1 = document.createElement('td'); td1.textContent = c;
+    const td2 = document.createElement('td'); const inp = document.createElement('input'); inp.type = 'date'; inp.id = 'dlvD' + i; inp.value = dlvState_.map[c] || ''; inp.style.margin = '0';
+    inp.onchange = function () { dlvState_.map[c] = inp.value; if (inp.value) { dlvState_.sel[c] = true; cb.checked = true; } dlvRow_(i); dlvSummary_(); };
+    td2.appendChild(inp);
+    const td3 = document.createElement('td'); td3.id = 'dlvDay' + i;
+    const td4 = document.createElement('td'); td4.id = 'dlvH' + i;
+    [td0, td1, td2, td3, td4].forEach(function (t) { tr.appendChild(t); });
+    tb.appendChild(tr);
+    dlvRow_(i);
+  });
+  dlvSummary_();
+}
+function dlvRow_(i) {
+  const v = document.getElementById('dlvD' + i).value, d = dlvParse_(v);
+  document.getElementById('dlvDay' + i).textContent = d ? DLV_DAYS_[d.getDay()] : '';
+  document.getElementById('dlvH' + i).textContent = d ? toHijriStr(v) : '';
+}
+function dlvToggleAll_(on) { centersListCache.forEach(function (c) { dlvState_.sel[c] = on; }); document.querySelectorAll('.dlv-cb').forEach(function (cb) { cb.checked = on; }); }
+function dlvAuto_() {
+  const start = dlvStartInfo_();
+  if (!start) { alert('أدخلي تاريخ بداية هجريًا صحيحًا'); return; }
+  const per = Math.max(1, Number(document.getElementById('dlvPerDay').value) || 10);
+  const skip = document.getElementById('dlvSkipWk').checked;
+  const list = centersListCache.filter(function (c) { return dlvState_.sel[c]; });
+  if (!list.length) { alert('حدّدي المراكز المطلوبة أولاً'); return; }
+  let d = dlvParse_(start), n = 0;
+  const adv = function () { d.setDate(d.getDate() + 1); };
+  const ok = function () { return !(skip && (d.getDay() === 5 || d.getDay() === 6)); };
+  while (!ok()) adv();
+  list.forEach(function (c) {
+    if (n === per) { n = 0; adv(); while (!ok()) adv(); }
+    dlvState_.map[c] = dlvIso_(d); n++;
+  });
+  dlvRender_();
+}
+function dlvClear_() { dlvState_.map = {}; dlvRender_(); }
+function dlvSummary_() {
+  const per = Math.max(1, Number(document.getElementById('dlvPerDay').value) || 10);
+  const cnt = {};
+  centersListCache.forEach(function (c) { const v = dlvState_.map[c]; if (v) cnt[v] = (cnt[v] || 0) + 1; });
+  const days = Object.keys(cnt).sort();
+  document.getElementById('dlvSummary').innerHTML = days.length ? days.map(function (v) {
+    const over = cnt[v] > per;
+    return '<span style="display:inline-block;margin:2px 4px;padding:3px 10px;border-radius:14px;border:1px solid ' + (over ? '#c0392b' : '#d9c9c0') + ';color:' + (over ? '#c0392b' : 'inherit') + ';">' +
+      DLV_DAYS_[dlvParse_(v).getDay()] + ' ' + toHijriNumericStr(v) + ': ' + toArabicDigits(cnt[v]) + (over ? ' (يتجاوز العدد المحدد)' : '') + '</span>';
+  }).join('') : '';
+}
+function dlvSave_() {
+  const pw = aevPw_(true); if (!pw) return;
+  const btn = document.getElementById('dlvSaveBtn'); setBtnBusy(btn, true);
+  const map = {};
+  centersListCache.forEach(function (c) { if (dlvState_.map[c]) map[c] = dlvState_.map[c]; });
+  callApi('setDeliverySchedule', { adminPw: pw, schedule: {
+    perDay: Number(document.getElementById('dlvPerDay').value) || 10, skipWeekend: document.getElementById('dlvSkipWk').checked,
+    startH: document.getElementById('dlvHD').value + '/' + document.getElementById('dlvHM').value + '/' + document.getElementById('dlvHY').value, map: map } }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (!r || !r.ok) { aevAuthFailed_(r); alert('تعذّر الحفظ: ' + ((r && r.error) || 'تأكدي من نشر أحدث Code.gs')); return; }
+    const ok = document.getElementById('dlvOk'); ok.style.display = 'block'; setTimeout(function () { ok.style.display = 'none'; }, 2500);
+  });
+}
+function dlvRows_() {
+  return centersListCache.filter(function (c) { return dlvState_.map[c]; })
+    .sort(function (a, b) { return dlvState_.map[a] < dlvState_.map[b] ? -1 : dlvState_.map[a] > dlvState_.map[b] ? 1 : 0; })
+    .map(function (c, i) { const v = dlvState_.map[c]; return { 'م': i + 1, 'المركز': c, 'اليوم': DLV_DAYS_[dlvParse_(v).getDay()], 'التاريخ الهجري': toHijriStr(v), 'التاريخ الميلادي': dlvGreg_(v) }; });
+}
+function dlvExcel_() { const r = dlvRows_(); if (!r.length) { alert('لا توجد مواعيد لتصديرها'); return; } exportToExcel(r, 'مواعيد-تسليم-المديرات', 'مواعيد التسليم'); }
+function dlvPrint_() {
+  const r = dlvRows_(); if (!r.length) { alert('لا توجد مواعيد لطباعتها'); return; }
+  printReport('جدول مواعيد تسليم المديرات', '', ['م', 'المركز', 'اليوم', 'التاريخ الهجري', 'التاريخ الميلادي'].map(function (k) { return { key: k, label: k }; }), r);
+}
+['dlvHY', 'dlvHM', 'dlvHD'].forEach(function (id) { document.addEventListener('input', function (ev) { if (ev.target && ev.target.id === id) dlvStartInfo_(); }); });
 
 /* تسجيل قيد (فاتورة/مشتريات/مصروفات) من الإدارة نيابةً عن المركز المختار */
 function admInvTypeChanged_() {

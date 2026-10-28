@@ -1489,6 +1489,9 @@ function dispatch_(p, T0_) {
     case 'getPriceListManager': return (getPriceListManager_());
     case 'setPriceListManager': return (setPriceListManager_(p));
 
+    case 'getDeliverySchedule': return (getDeliverySchedule_());
+    case 'setDeliverySchedule': return (setDeliverySchedule_(p));
+
     case 'ping': return ({ ok: true, serverMs: Date.now() - T0_, version: '2026-10-22-batch', batch: true, invoiceReturns: typeof cleanInvoiceReturn_ === 'function', canteenOrders: typeof submitCanteenOrder_ === 'function', lightNotices: typeof getNoticeCenterSignature_ === 'function' });
     case 'getPurchaseCenters': return (getPurchaseCenters_());
     case 'setPurchaseCenters': return (setPurchaseCenters_(p));
@@ -2321,6 +2324,28 @@ function setExpenseCenters_(p) {
   if (p.actor !== 'admin') return { ok: false, error: 'لا تملكين صلاحية تعديل مراكز المصروفات' };
   const list = (p.centers || []).map(function (x) { return String(x).trim(); }).filter(Boolean);
   setSettingValue_('مراكز المصروفات', JSON.stringify(list));
+  return { ok: true };
+}
+
+/* جدول مواعيد تسليم المديرات (تحدده الإدارة): لكل مركز تاريخ التسليم + إعدادات التوزيع */
+const DELIVERY_SCHED_KEY_ = 'جدول مواعيد التسليم';
+function getDeliverySchedule_() {
+  let d = {};
+  try { d = JSON.parse(getSettingValue_(DELIVERY_SCHED_KEY) || '{}') || {}; } catch (e) { d = {}; }
+  return { ok: true, schedule: d };
+}
+function setDeliverySchedule_(p) {
+  const a = loginAdmin_({ password: p && p.adminPw });
+  if (!a.ok) return { ok: false, auth: true, error: a.error };
+  const s = p.schedule || {};
+  const map = {};
+  Object.keys(s.map || {}).forEach(function (k) {
+    const v = String(s.map[k] || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) map[String(k).trim()] = v;
+  });
+  const out = { perDay: Math.max(1, Math.min(100, Number(s.perDay) || 10)), skipWeekend: s.skipWeekend !== false,
+                startH: String(s.startH || '').slice(0, 20), map: map };
+  setSettingValue_(DELIVERY_SCHED_KEY, JSON.stringify(out));
   return { ok: true };
 }
 
