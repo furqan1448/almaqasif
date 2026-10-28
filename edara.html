@@ -3130,7 +3130,7 @@ function dlvRender_() {
   if (!done) box.innerHTML = '<div style="color:#8a7d76;">لا توجد مواعيد بعد</div>';
   document.getElementById('dlvRestCount').textContent = '(' + toArabicDigits(rest) + ')';
   const st = dlvStats_(centersListCache.filter(function (c) { return dlvState_.map[c]; }));
-  document.getElementById('dlvDoneCount').textContent = done ? '(' + toArabicDigits(st.centers) + ' مركزاً' + (st.two ? '، منها ' + toArabicDigits(st.two) + ' بفترتين' : '') + ' — ' + toArabicDigits(st.periods) + ' فترة)' : '(٠)';
+  document.getElementById('dlvDoneCount').textContent = '(' + toArabicDigits(st.periods) + ')';
   document.getElementById('dlvAll').checked = false;
   const on = Object.keys(dlvState_.orphans || {});
   let ob = document.getElementById('dlvOrphans');
@@ -3235,7 +3235,7 @@ async function dlvPdf_(btn) {
     centersListCache.filter(function (c) { return dlvState_.map[c]; }).forEach(function (c) { const v = dlvState_.map[c]; if (!groups[v]) { groups[v] = []; order.push(v); } groups[v].push(c); });
     order.sort();
     /* ترتيب الصفحات: الأيام بالتسلسل، وإن لم يتّسع اليوم يُكمل بالصفحة التالية */
-    const PH = 1123, LH = 139, TOP = 14, FOOT = 34, BAND = 40, THEAD = 30, ROW = 32, GAP = 12, HEAD1 = 104;
+    const PH = 1123, LH = 139, TOP = 14, FOOT = 34, BAND = 40, THEAD = 30, ROW = 32, GAP = 12, HEAD1 = 84;
     const st = dlvStats_(centersListCache.filter(function (c) { return dlvState_.map[c]; }));
     const pages = [[]];
     let used = HEAD1;
@@ -3258,7 +3258,7 @@ async function dlvPdf_(btn) {
     const css = '<style>.dp{width:794px;height:1123px;background:#fff;position:relative;overflow:hidden;direction:rtl;font-family:"Tajawal",sans-serif;color:#2b2321}' +
       '.dp .lh{width:794px;height:' + LH + 'px;display:block}.dp .ct{padding:' + TOP + 'px 28px 0}' +
       '.dp h1{font-family:"Amiri",serif;color:#8C1A2C;font-size:25px;margin:0 0 6px;line-height:1.3}' +
-      '.dp .meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;height:50px;align-content:flex-start}.dp .chip{border:1px solid #e3d3c9;background:#fbf6f3;border-radius:16px;padding:3px 12px;font-size:12.5px;color:#6e1523}' +
+      '.dp .meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;height:30px;align-content:flex-start}.dp .chip{border:1px solid #e3d3c9;background:#fbf6f3;border-radius:16px;padding:3px 12px;font-size:12.5px;color:#6e1523}' +
       '.dp .day{margin-bottom:' + GAP + 'px;border:1px solid #d9c3b8;border-radius:10px;overflow:hidden}' +
       '.dp .band{height:' + BAND + 'px;background:#8C1A2C;color:#fff;padding:0 14px;display:flex;gap:12px;align-items:center;font-weight:700;font-size:15px}.dp .band .gr{font-weight:400;font-size:12px;opacity:.92}.dp .band .cnt{margin-right:auto;background:rgba(255,255,255,.22);border-radius:12px;padding:1px 10px;font-size:12px}' +
       '.dp table{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}.dp th{height:' + THEAD + 'px;background:#f3e8e1;color:#6e1523;font-size:13px;border-bottom:1px solid #d9c3b8}' +
@@ -3269,8 +3269,7 @@ async function dlvPdf_(btn) {
     pages.forEach(function (pg, pi) {
       html += '<div class="dp">' + (lh ? '<img class="lh" crossorigin="anonymous" src="' + lh + '" alt="">' : '<div style="height:' + LH + 'px"></div>') + '<div class="ct">';
       if (pi === 0) {
-        html += '<h1>جدول مواعيد تسليم المديرات مبالغ المقاصف</h1><div class="meta"><span class="chip">عدد المراكز: <b>' + toArabicDigits(st.centers) + '</b></span>' + (st.two ? '<span class="chip">مراكز بفترتين: <b>' + toArabicDigits(st.two) + '</b></span>' : '') + '<span class="chip">إجمالي الفترات: <b>' + toArabicDigits(st.periods) + '</b></span><span class="chip">عدد الأيام: <b>' + toArabicDigits(order.length) + '</b></span>' +
-          '<span class="chip">من ' + toHijriStr(order[0]) + ' إلى ' + toHijriStr(order[order.length - 1]) + '</span><span class="chip">تاريخ الإصدار: ' + toHijriStr(todayStr()) + '</span></div>';
+        html += '<h1>جدول مواعيد تسليم المديرات مبالغ المقاصف</h1><div class="meta"><span class="chip">عدد المقاصف: <b>' + toArabicDigits(st.periods) + '</b></span></div>';
       }
       pg.forEach(function (s) {
         const d = dlvParse_(s.v);
