@@ -607,7 +607,7 @@
         <div class="success-msg" id="dlvOk">تم حفظ الجدول ✅</div>
         <div class="export-row">
           <button class="btn outline" onclick="dlvExcel_()">⬇️ Excel</button>
-          <button class="btn outline" onclick="dlvPrint_()">🖨️ PDF</button>
+          <button class="btn outline" onclick="dlvPdf_(this)">⬇️ PDF</button>
         </div>
       </div>
     </div>
@@ -3187,50 +3187,97 @@ function dlvRows_() {
     .map(function (c, i) { const v = dlvState_.map[c]; return { 'م': i + 1, 'المركز': c, 'اليوم': DLV_DAYS_[dlvParse_(v).getDay()], 'التاريخ الهجري': toHijriStr(v), 'التاريخ الميلادي': dlvGreg_(v) }; });
 }
 function dlvExcel_() { const r = dlvRows_(); if (!r.length) { alert('لا توجد مواعيد لتصديرها'); return; } exportToExcel(r, 'مواعيد-تسليم-المديرات', 'مواعيد التسليم'); }
-function dlvPrint_() {
+/* ملف PDF مباشر (تنزيل تلقائي بلا نافذة طباعة): كل صفحة A4 عليها الكليشة كاملة العرض أعلاها */
+async function dlvPdf_(btn) {
   const rows = dlvRows_();
-  if (!rows.length) { alert('لا توجد مواعيد لطباعتها'); return; }
-  const lh = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
-  const groups = {}, order = [];
-  centersListCache.filter(function (c) { return dlvState_.map[c]; }).forEach(function (c) { const v = dlvState_.map[c]; if (!groups[v]) { groups[v] = []; order.push(v); } groups[v].push(c); });
-  order.sort();
-  const esc = function (s) { return String(s).replace(/[&<>]/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]; }); };
-  let secs = '';
-  order.forEach(function (v) {
-    const g = groups[v], d = dlvParse_(v);
-    secs += '<section class="day"><div class="band" onclick="this.parentNode.classList.toggle(\'closed\')"><span class="dn">' + DLV_DAYS_[d.getDay()] + '</span><span>' + toHijriStr(v) + '</span><span class="gr">الموافق ' + dlvGreg_(v) + '</span><span class="cnt">' + toArabicDigits(g.length) + ' مديرات</span></div>' +
-      '<table><thead><tr><th style="width:7%">م</th><th>المركز</th><th style="width:22%">الفترة</th><th style="width:20%">التوقيع</th></tr></thead><tbody>' +
-      g.map(function (c, k) {
-        const m = /^(.*?)\s*[-–]\s*(الفترة.*)$/.exec(c);
-        return '<tr><td>' + toArabicDigits(k + 1) + '</td><td class="nm">' + esc(m ? m[1] : c) + '</td><td>' + esc(m ? m[2] : '') + '</td><td></td></tr>';
-      }).join('') + '</tbody></table></section>';
-  });
-  const first = order[0], last = order[order.length - 1];
-  const html = '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>جدول مواعيد تسليم المديرات</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>' +
-    "@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Tajawal:wght@400;500;700;800&display=swap');" +
-    '@page{size:A4 portrait;margin:0 0 12mm}*{box-sizing:border-box}html,body{margin:0;padding:0}' +
-    'body{font-family:"Tajawal",sans-serif;color:#2b2321;background:#f6f1ee;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-    '.page{max-width:860px;margin:0 auto;background:#fff;min-height:100vh;padding-bottom:20px}' +
-    '.tools{position:sticky;top:0;z-index:5;background:#6e1523;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}' +
-    '.tools input{flex:1;min-width:160px;padding:8px 12px;border-radius:8px;border:0;font:inherit}.tools button{background:#fff;color:#6e1523;border:0;border-radius:8px;padding:8px 14px;font:inherit;font-weight:700;cursor:pointer}' +
-    '.lh{width:100%;display:block}.content{padding:0 26px}h1{font-family:"Amiri",serif;color:#8C1A2C;font-size:1.7rem;margin:16px 0 4px}' +
-    '.meta{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 16px}.chip{border:1px solid #e3d3c9;background:#fbf6f3;border-radius:20px;padding:4px 14px;font-size:.88rem;color:#6e1523}.chip b{font-size:1rem}' +
-    '.day{margin-bottom:16px;border:1px solid #d9c3b8;border-radius:10px;overflow:hidden;break-inside:avoid;page-break-inside:avoid}' +
-    '.band{background:linear-gradient(90deg,#8C1A2C,#a8283c);color:#fff;padding:9px 14px;display:flex;gap:14px;align-items:center;font-weight:700;cursor:pointer}.band .dn{font-size:1.1rem}.band .gr{font-weight:400;opacity:.9;font-size:.85rem}.band .cnt{margin-inline-start:auto;background:rgba(255,255,255,.2);border-radius:14px;padding:2px 12px;font-size:.85rem}' +
-    'table{width:100%;border-collapse:collapse;font-size:.92rem}th{background:#f3e8e1;color:#6e1523;padding:7px 8px;border-bottom:1px solid #d9c3b8}td{padding:8px;text-align:center;border-bottom:1px solid #eee2db;height:32px}td.nm{text-align:right;font-weight:500}tbody tr:nth-child(even){background:#fcf8f6}tbody tr:last-child td{border-bottom:0}' +
-    '.day.closed table{display:none}.hide{display:none!important}' +
-    '.foot{text-align:center;color:#8a7d76;font-size:.8rem;margin-top:10px}' +
-    '@media print{body{background:#fff}.tools{display:none}.page{max-width:none}.content{padding:0 14mm}.day.closed table{display:table}}' +
-    '</style></head><body><div class="page"><div class="tools"><input type="search" id="q" placeholder="🔍 ابحثي باسم المركز..." oninput="dlvPF()"><button onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>' +
-    (lh ? '<img class="lh" src="' + lh + '" alt="كليشة جمعية فرقان">' : '') +
-    '<div class="content"><h1>جدول مواعيد تسليم المديرات</h1><div class="meta">' +
-    '<span class="chip">عدد المراكز: <b>' + toArabicDigits(rows.length) + '</b></span><span class="chip">عدد الأيام: <b>' + toArabicDigits(order.length) + '</b></span>' +
-    '<span class="chip">من ' + toHijriStr(first) + ' إلى ' + toHijriStr(last) + '</span><span class="chip">تاريخ الإصدار: ' + toHijriStr(todayStr()) + '</span></div>' + secs +
-    '<div class="foot">اضغطي على شريط اليوم لطيّه أو فتحه، واستخدمي البحث لتصفية المراكز.</div></div></div>' +
-    '<script>function dlvPF(){var q=document.getElementById("q").value.trim();document.querySelectorAll(".day").forEach(function(s){var any=false;s.querySelectorAll("tbody tr").forEach(function(r){var m=!q||r.textContent.indexOf(q)>-1;r.classList.toggle("hide",!m);if(m)any=true});s.classList.toggle("hide",!any)})}<\/script></body></html>';
-  const win = window.open('', '_blank');
-  if (!win) { alert('يرجى السماح بالنوافذ المنبثقة لهذا الموقع'); return; }
-  win.document.write(html); win.document.close();
+  if (!rows.length) { alert('لا توجد مواعيد لتصديرها'); return; }
+  window.PDF_LIBS_ENABLED = true;
+  if (typeof html2pdf === 'undefined') { try { await ensurePdfLibs_(); } catch (x) {} }
+  if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة أخرى'); return; }
+  if (btn) setBtnBusy(btn, true, 'جارٍ التجهيز...');
+  const host = document.createElement('div');
+  try {
+    let lh = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
+    try { if (lh) lh = new URL(lh, location.href).href; } catch (x) {}
+    const esc = function (s) { return String(s).replace(/[&<>]/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]; }); };
+    const groups = {}, order = [];
+    centersListCache.filter(function (c) { return dlvState_.map[c]; }).forEach(function (c) { const v = dlvState_.map[c]; if (!groups[v]) { groups[v] = []; order.push(v); } groups[v].push(c); });
+    order.sort();
+    /* ترتيب الصفحات: الأيام بالتسلسل، وإن لم يتّسع اليوم يُكمل بالصفحة التالية */
+    const PH = 1123, LH = 139, TOP = 14, FOOT = 34, BAND = 40, THEAD = 30, ROW = 32, GAP = 12, HEAD1 = 104;
+    const pages = [[]];
+    let used = HEAD1;
+    const cap = function (pi) { return PH - LH - TOP - FOOT; };
+    order.forEach(function (v) {
+      let list = groups[v].slice(), cont = false;
+      const fullRows = Math.floor((cap() - BAND - THEAD - GAP) / ROW);
+      while (list.length) {
+        const left = cap() - used - BAND - THEAD - GAP;
+        const fit = Math.floor(left / ROW);
+        /* اليوم لا يُقسَّم بين صفحتين إلا إذا زاد عن صفحة كاملة */
+        if (fit < list.length && list.length <= fullRows && used > 0) { pages.push([]); used = 0; continue; }
+        if (fit < Math.min(3, list.length)) { pages.push([]); used = 0; continue; }
+        const take = list.splice(0, Math.min(fit, list.length));
+        pages[pages.length - 1].push({ v: v, rows: take, cont: cont, startNo: groups[v].length - list.length - take.length });
+        used += BAND + THEAD + take.length * ROW + GAP;
+        cont = true;
+      }
+    });
+    const css = '<style>.dp{width:794px;height:1123px;background:#fff;position:relative;overflow:hidden;direction:rtl;font-family:"Tajawal",sans-serif;color:#2b2321}' +
+      '.dp .lh{width:794px;height:' + LH + 'px;display:block}.dp .ct{padding:' + TOP + 'px 28px 0}' +
+      '.dp h1{font-family:"Amiri",serif;color:#8C1A2C;font-size:25px;margin:0 0 6px;line-height:1.3}' +
+      '.dp .meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;height:50px;align-content:flex-start}.dp .chip{border:1px solid #e3d3c9;background:#fbf6f3;border-radius:16px;padding:3px 12px;font-size:12.5px;color:#6e1523}' +
+      '.dp .day{margin-bottom:' + GAP + 'px;border:1px solid #d9c3b8;border-radius:10px;overflow:hidden}' +
+      '.dp .band{height:' + BAND + 'px;background:#8C1A2C;color:#fff;padding:0 14px;display:flex;gap:12px;align-items:center;font-weight:700;font-size:15px}.dp .band .gr{font-weight:400;font-size:12px;opacity:.92}.dp .band .cnt{margin-right:auto;background:rgba(255,255,255,.22);border-radius:12px;padding:1px 10px;font-size:12px}' +
+      '.dp table{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}.dp th{height:' + THEAD + 'px;background:#f3e8e1;color:#6e1523;font-size:13px;border-bottom:1px solid #d9c3b8}' +
+      '.dp td{height:' + ROW + 'px;text-align:center;border-bottom:1px solid #eee2db;padding:0 8px;overflow:hidden;white-space:nowrap}.dp td.nm{text-align:right;font-weight:500}.dp tbody tr:nth-child(even){background:#fcf8f6}.dp tbody tr:last-child td{border-bottom:0}' +
+      '.dp .pn{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:12px;color:#8a7d76}</style>';
+    host.style.cssText = 'position:fixed;left:-20000px;top:0;width:794px;pointer-events:none;';
+    let html = css;
+    pages.forEach(function (pg, pi) {
+      html += '<div class="dp">' + (lh ? '<img class="lh" crossorigin="anonymous" src="' + lh + '" alt="">' : '<div style="height:' + LH + 'px"></div>') + '<div class="ct">';
+      if (pi === 0) {
+        html += '<h1>جدول مواعيد تسليم المديرات مبالغ المقاصف</h1><div class="meta"><span class="chip">عدد المراكز: <b>' + toArabicDigits(rows.length) + '</b></span><span class="chip">عدد الأيام: <b>' + toArabicDigits(order.length) + '</b></span>' +
+          '<span class="chip">من ' + toHijriStr(order[0]) + ' إلى ' + toHijriStr(order[order.length - 1]) + '</span><span class="chip">تاريخ الإصدار: ' + toHijriStr(todayStr()) + '</span></div>';
+      }
+      pg.forEach(function (s) {
+        const d = dlvParse_(s.v);
+        html += '<div class="day"><div class="band"><span>' + DLV_DAYS_[d.getDay()] + (s.cont ? ' (تابع)' : '') + '</span><span>' + toHijriStr(s.v) + '</span><span class="gr">الموافق ' + dlvGreg_(s.v) + '</span><span class="cnt">' + toArabicDigits(groups[s.v].length) + ' مديرات</span></div>' +
+          '<table><thead><tr><th style="width:8%">م</th><th>المركز</th><th style="width:26%">الفترة</th></tr></thead><tbody>' +
+          s.rows.map(function (c, k) {
+            const m = /^(.*?)\s*[-–]\s*(الفترة.*)$/.exec(c);
+            return '<tr><td>' + toArabicDigits(s.startNo + k + 1) + '</td><td class="nm">' + esc(m ? m[1] : c) + '</td><td>' + esc(m ? m[2] : '') + '</td></tr>';
+          }).join('') + '</tbody></table></div>';
+      });
+      html += '</div><div class="pn">صفحة ' + toArabicDigits(pi + 1) + ' من ' + toArabicDigits(pages.length) + '</div></div>';
+    });
+    host.innerHTML = html;
+    document.body.appendChild(host);
+    await Promise.all(Array.from(host.querySelectorAll('img')).map(function (im) { return im.complete ? Promise.resolve() : new Promise(function (res) { im.onload = im.onerror = res; }); }));
+    const imgOpts = { pixelRatio: 2, backgroundColor: '#ffffff', width: 794, height: 1123, style: { margin: '0' },
+      imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' };
+    if (typeof vrFontEmbedCss_ === 'function') { const fc = await vrFontEmbedCss_(); if (fc) imgOpts.fontEmbedCSS = fc; }
+    const pdfOpts = { margin: 0, image: { type: 'jpeg', quality: 0.97 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    const els = Array.prototype.slice.call(host.querySelectorAll('.dp'));
+    const canvases = [];
+    for (let i = 0; i < els.length; i++) {
+      if (typeof htmlToImage !== 'undefined') canvases.push(await htmlToImage.toCanvas(els[i], imgOpts));
+      else canvases.push(await html2pdf().set({ html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 794 } }).from(els[i]).toCanvas().get('canvas'));
+    }
+    const pdf = await html2pdf().set(pdfOpts).from(canvases[0], 'canvas').toPdf().get('pdf');
+    while (pdf.getNumberOfPages() > 1) pdf.deletePage(pdf.getNumberOfPages());   // صفحة فائضة تُنشئها المكتبة
+    for (let i = 1; i < canvases.length; i++) {
+      pdf.addPage('a4', 'portrait');
+      pdf.addImage(canvases[i].toDataURL('image/jpeg', 0.97), 'JPEG', 0, 0, 210, 297);
+    }
+    vrDownloadBlob_(pdf.output('blob'), 'مواعيد-تسليم-المديرات.pdf');
+  } catch (err) {
+    console.error(err);
+    alert('تعذّر إنشاء ملف PDF، حاولي مرة أخرى');
+  } finally {
+    host.remove();
+    if (btn) setBtnBusy(btn, false);
+  }
 }
 
 /* تسجيل قيد (فاتورة/مشتريات/مصروفات) من الإدارة نيابةً عن المركز المختار */
