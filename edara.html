@@ -592,7 +592,7 @@
           <thead><tr><th>م</th><th>الاسم</th><th>المركز</th><th>الحالة الاجتماعية</th><th>رقم الجوال</th><th>تاريخ الميلاد</th><th>مكان الميلاد</th><th>مقدار الحفظ</th><th>المؤهل في القرآن</th><th>سنوات الخبرة</th><th>المؤهل العلمي</th><th>التخصص</th><th>الخبرات السابقة</th><th>آخر تحديث</th></tr></thead>
           <tbody id="prfAdminBody"><tr><td colspan="14">جاري التحميل...</td></tr></tbody>
         </table></div>
-        <div class="export-row"><button class="btn outline" onclick="prfAdminExcel_()">⬇️ Excel</button></div>
+        <div class="export-row"><button class="btn outline" onclick="prfAdminExcel_()">⬇️ Excel</button> <button class="btn outline" onclick="prfAdminPdf_(this)">⬇️ PDF</button></div>
       </div>
     </div>
 
@@ -3109,6 +3109,83 @@ function prfAdminExcel_() {
   });
   if (!rows.length) { alert('لا توجد بيانات لتصديرها'); return; }
   exportToExcel(rows, 'استبانة-المسؤولات', 'الاستبانة');
+}
+
+async function prfAdminPdf_(btn) {
+  const rows = prfAdminRows_().filter(function (x) { return x.p; });
+  if (!rows.length) { alert('لا توجد بيانات لتصديرها'); return; }
+  window.PDF_LIBS_ENABLED = true;
+  if (typeof html2pdf === 'undefined') { try { await ensurePdfLibs_(); } catch (x) {} }
+  if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة أخرى'); return; }
+  if (btn) setBtnBusy(btn, true, 'جارٍ التجهيز...');
+  const host = document.createElement('div');
+  try {
+    let lh = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
+    try { if (lh) lh = new URL(lh, location.href).href; } catch (x) {}
+    const esc = function (s) { return String(s === undefined || s === null || s === '' ? '—' : s).replace(/[&<>]/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]; }); };
+    const PH = 1123, LH = 139, TOP = 14, FOOT = 34, GAP = 10, HEAD1 = 84;
+    const css = '<style>.dp{width:794px;height:1123px;background:#fff;position:relative;overflow:hidden;direction:rtl;font-family:"Tajawal",sans-serif;color:#2b2321}' +
+      '.dp .lh{width:794px;height:' + LH + 'px;display:block}.dp .ct{padding:' + TOP + 'px 28px 0}' +
+      '.dp h1{font-family:"Amiri",serif;color:#8C1A2C;font-size:25px;margin:0 0 6px;line-height:1.3}' +
+      '.dp .meta{display:flex;gap:8px;margin-bottom:12px;height:30px}.dp .chip{border:1px solid #e3d3c9;background:#fbf6f3;border-radius:16px;padding:3px 12px;font-size:12.5px;color:#6e1523}' +
+      '.pc{margin-bottom:' + GAP + 'px;border:1px solid #d9c3b8;border-radius:10px;overflow:hidden;width:738px;box-sizing:border-box;direction:rtl}' +
+      '.pc .hd{background:#8C1A2C;color:#fff;padding:7px 14px;display:flex;gap:10px;align-items:center;font-weight:700;font-size:14.5px}.pc .hd .ce{font-weight:400;font-size:12.5px;opacity:.92;margin-right:auto}' +
+      '.pc .gd{display:grid;grid-template-columns:repeat(3,1fr);gap:0}.pc .gd div{padding:4px 12px;border-bottom:1px solid #eee2db;font-size:12.5px;line-height:1.5}' +
+      '.pc .gd span{display:inline;color:#8a7d76;font-size:11px;margin-left:5px}.pc .gd span:after{content:"\\3A"}.pc .gd b{font-weight:500}.pc .ex{padding:4px 12px;font-size:12.5px;line-height:1.5;white-space:pre-wrap}.pc .ex span{color:#8a7d76;font-size:11px}.pc .ex span:after{content:"\\3A"}' +
+      '.dp .pn{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:12px;color:#8a7d76}</style>';
+    const card = function (x) {
+      const p = x.p, f = function (l, v) { return '<div><span>' + l + '</span><b>' + esc(v) + '</b></div>'; };
+      return '<div class="pc"><div class="hd"><span>' + esc(x.name) + '</span><span class="ce">' + esc(x.center || p.center) + '</span></div><div class="gd">' +
+        f('الحالة الاجتماعية', p.marital) + f('رقم الجوال', p.phone) + f('تاريخ الميلاد', p.birth ? toHijriStr(p.birth) : '') +
+        f('مكان الميلاد', p.birthplace) + f('مقدار الحفظ', p.juz) + f('المؤهل في القرآن', p.quranQual) +
+        f('سنوات الخبرة', p.years) + f('المؤهل العلمي', p.edu) + f('التخصص', p.major) + '</div>' +
+        '<div class="ex"><span>الخبرات السابقة</span> ' + esc(p.expText) + '</div></div>';
+    };
+    /* قياس ارتفاع كل بطاقة فعلياً ثم توزيعها على الصفحات */
+    host.style.cssText = 'position:fixed;left:-20000px;top:0;width:794px;pointer-events:none;';
+    host.innerHTML = css + '<div id="pm" style="width:738px">' + rows.map(card).join('') + '</div>';
+    document.body.appendChild(host);
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (x) {} }
+    const hs = Array.prototype.map.call(host.querySelectorAll('.pc'), function (el) { return el.offsetHeight + GAP; });
+    const cap = PH - LH - TOP - FOOT;
+    const pages = [[]]; let used = HEAD1;
+    hs.forEach(function (h, i) {
+      if (used + h > cap && pages[pages.length - 1].length) { pages.push([]); used = 0; }
+      pages[pages.length - 1].push(i); used += h;
+    });
+    let html = css;
+    pages.forEach(function (pg, pi) {
+      html += '<div class="dp">' + (lh ? '<img class="lh" crossorigin="anonymous" src="' + lh + '" alt="">' : '<div style="height:' + LH + 'px"></div>') + '<div class="ct">';
+      if (pi === 0) html += '<h1>البيانات الشخصية لمسؤولات المقاصف</h1><div class="meta"><span class="chip">عدد المسؤولات: <b>' + toArabicDigits(rows.length) + '</b></span></div>';
+      html += pg.map(function (i) { return card(rows[i]); }).join('');
+      html += '</div><div class="pn">صفحة ' + toArabicDigits(pi + 1) + ' من ' + toArabicDigits(pages.length) + '</div></div>';
+    });
+    host.innerHTML = html;
+    await Promise.all(Array.from(host.querySelectorAll('img')).map(function (im) { return im.complete ? Promise.resolve() : new Promise(function (res) { im.onload = im.onerror = res; }); }));
+    const imgOpts = { pixelRatio: 2, backgroundColor: '#ffffff', width: 794, height: 1123, style: { margin: '0' },
+      imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' };
+    if (typeof vrFontEmbedCss_ === 'function') { const fc = await vrFontEmbedCss_(); if (fc) imgOpts.fontEmbedCSS = fc; }
+    const pdfOpts = { margin: 0, image: { type: 'jpeg', quality: 0.97 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    const els = Array.prototype.slice.call(host.querySelectorAll('.dp'));
+    const canvases = [];
+    for (let i = 0; i < els.length; i++) {
+      if (typeof htmlToImage !== 'undefined') canvases.push(await htmlToImage.toCanvas(els[i], imgOpts));
+      else canvases.push(await html2pdf().set({ html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 794 } }).from(els[i]).toCanvas().get('canvas'));
+    }
+    const pdf = await html2pdf().set(pdfOpts).from(canvases[0], 'canvas').toPdf().get('pdf');
+    while (pdf.getNumberOfPages() > 1) pdf.deletePage(pdf.getNumberOfPages());
+    for (let i = 1; i < canvases.length; i++) {
+      pdf.addPage('a4', 'portrait');
+      pdf.addImage(canvases[i].toDataURL('image/jpeg', 0.97), 'JPEG', 0, 0, 210, 297);
+    }
+    vrDownloadBlob_(pdf.output('blob'), 'البيانات-الشخصية-للمسؤولات.pdf');
+  } catch (err) {
+    console.error(err);
+    alert('تعذّر إنشاء ملف PDF، حاولي مرة أخرى');
+  } finally {
+    host.remove();
+    if (btn) setBtnBusy(btn, false);
+  }
 }
 
 /* ======== مواعيد تسليم المديرات ======== */
