@@ -589,7 +589,7 @@
         <input type="search" id="prfSearch" placeholder="🔍 بحث بالاسم أو المركز..." oninput="prfAdminRender_()" style="margin:0 0 8px;">
         <label style="display:flex;align-items:center;gap:6px;font-weight:normal;margin:6px 0;"><input type="checkbox" id="prfOnlyMissing" onchange="prfAdminRender_()"> <span>عرض من لم تعبّئ الاستبانة فقط</span></label>
         <div class="table-scroll"><table class="log-table">
-          <thead><tr><th>م</th><th>الاسم</th><th>المركز</th><th>الحالة الاجتماعية</th><th>رقم الجوال</th><th>محل الميلاد</th><th>مقدار الحفظ</th><th>سنوات الخبرة</th><th>المؤهل العلمي</th><th>التخصص</th><th>الخبرات السابقة</th><th>آخر تحديث</th></tr></thead>
+          <thead><tr><th>م</th><th>الاسم</th><th>المركز</th><th>الحالة الاجتماعية</th><th>رقم الجوال</th><th>تاريخ الميلاد</th><th>مقدار الحفظ</th><th>سنوات الخبرة</th><th>المؤهل العلمي</th><th>التخصص</th><th>الخبرات السابقة</th><th>آخر تحديث</th></tr></thead>
           <tbody id="prfAdminBody"><tr><td colspan="12">جاري التحميل...</td></tr></tbody>
         </table></div>
         <div class="export-row"><button class="btn outline" onclick="prfAdminExcel_()">⬇️ Excel</button></div>
@@ -3080,6 +3080,7 @@ function loadProfilesAdmin_() {
     prfAdminRender_();
   });
 }
+function prfBirthStr_(iso) { return iso ? toHijriStr(iso) + ' (' + dlvGreg_(iso) + ')' : '—'; }
 function prfAdminRows_() {
   const by = {}; prfAdminData_.profiles.forEach(function (p) { by[p.name.trim()] = p; });
   const rows = [], seen = {};
@@ -3097,7 +3098,7 @@ function prfAdminRender_() {
   const esc = function (s) { return String(s === undefined || s === null ? '' : s).replace(/[&<>]/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]; }); };
   list.forEach(function (x, i) {
     const p = x.p, tr = document.createElement('tr');
-    tr.innerHTML = p ? '<td>' + toArabicDigits(i + 1) + '</td><td>' + esc(x.name) + '</td><td>' + esc(x.center || p.center) + '</td><td>' + esc(p.marital) + '</td><td dir="ltr">' + esc(p.phone) + '</td><td>' + esc(p.birthplace) + '</td><td>' + esc(p.juz || '—') + '</td><td>' + esc(p.years) + '</td><td>' + esc(p.edu) + '</td><td>' + esc(p.major || '—') + '</td><td style="white-space:pre-wrap;text-align:right;">' + esc(p.expText || '—') + '</td><td>' + (p.updatedDate ? toHijriStr(p.updatedDate) : '') + '</td>'
+    tr.innerHTML = p ? '<td>' + toArabicDigits(i + 1) + '</td><td>' + esc(x.name) + '</td><td>' + esc(x.center || p.center) + '</td><td>' + esc(p.marital) + '</td><td dir="ltr">' + esc(p.phone) + '</td><td>' + prfBirthStr_(p.birth) + '</td><td>' + esc(p.juz || '—') + '</td><td>' + esc(p.years) + '</td><td>' + esc(p.edu) + '</td><td>' + esc(p.major || '—') + '</td><td style="white-space:pre-wrap;text-align:right;">' + esc(p.expText || '—') + '</td><td>' + (p.updatedDate ? toHijriStr(p.updatedDate) : '') + '</td>'
       : '<td>' + toArabicDigits(i + 1) + '</td><td>' + esc(x.name) + '</td><td>' + esc(x.center) + '</td><td colspan="9" style="color:#c0392b;">لم تعبّئ الاستبانة بعد</td>';
     body.appendChild(tr);
   });
@@ -3105,7 +3106,7 @@ function prfAdminRender_() {
 function prfAdminExcel_() {
   const rows = prfAdminRows_().filter(function (x) { return x.p; }).map(function (x, i) {
     const p = x.p;
-    return { 'م': i + 1, 'الاسم': x.name, 'المركز': x.center || p.center, 'الحالة الاجتماعية': p.marital, 'رقم الجوال': p.phone, 'محل الميلاد': p.birthplace,
+    return { 'م': i + 1, 'الاسم': x.name, 'المركز': x.center || p.center, 'الحالة الاجتماعية': p.marital, 'رقم الجوال': p.phone, 'تاريخ الميلاد': prfBirthStr_(p.birth),
       'مقدار الحفظ في القرآن الكريم': p.juz, 'سنوات الخبرة كمسؤولة مقصف': p.years, 'المؤهل العلمي': p.edu, 'التخصص': p.major, 'الخبرات السابقة': p.expText };
   });
   if (!rows.length) { alert('لا توجد بيانات لتصديرها'); return; }

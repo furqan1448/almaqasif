@@ -193,9 +193,9 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
           <select id="prfMarital"><option value="">اختاري</option><option>عزباء</option><option>متزوجة</option><option>مطلقة</option><option>أرملة</option></select>
           <label>رقم الجوال <b style="color:#c0392b;">*</b></label>
           <input type="text" id="prfPhone" inputmode="tel" dir="ltr" style="text-align:right;" placeholder="05XXXXXXXX">
-          <label>محل الميلاد <b style="color:#c0392b;">*</b></label>
-          <input type="text" id="prfBirth">
-          <label>مقدار الحفظ في القرآن الكريم (اختياري)</label>
+          <label>تاريخ الميلاد <b style="color:#c0392b;">*</b></label>
+          <input type="date" id="prfBirth" max="2020-12-31" min="1920-01-01">
+          <label>مقدار الحفظ في القرآن الكريم</label>
           <input type="text" id="prfJuz" placeholder="مثال: القرآن كاملاً، أو ١٥ جزءاً">
           <label>سنوات الخبرة كمسؤولة مقصف <b style="color:#c0392b;">*</b></label>
           <input type="number" id="prfYears" class="no-spin" inputmode="decimal" min="0" step="0.5">
@@ -205,7 +205,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
             <label>التخصص <b style="color:#c0392b;">*</b></label>
             <input type="text" id="prfMajor" placeholder="مثال: الشريعة، اللغة العربية...">
           </div>
-          <label style="margin-top:14px;">الخبرات السابقة (اختياري)</label>
+          <label style="margin-top:14px;">الخبرات السابقة</label>
           <div id="prfExpBox"></div>
           <button type="button" class="btn outline" onclick="prfAddExp_()" style="margin-top:6px;">＋ إضافة خبرة</button>
           <div style="margin-top:14px;"><button class="btn" id="prfSaveBtn" onclick="prfSave_()">حفظ الاستبانة</button></div>
@@ -2212,7 +2212,7 @@ function initProfile_() {
     document.getElementById('prfExpBox').innerHTML = '';
     document.getElementById('prfMarital').value = p ? p.marital : '';
     document.getElementById('prfPhone').value = p ? p.phone : '';
-    document.getElementById('prfBirth').value = p ? p.birthplace : '';
+    document.getElementById('prfBirth').value = p ? p.birth : '';
     document.getElementById('prfJuz').value = p ? p.juz : '';
     document.getElementById('prfYears').value = p ? p.years : '';
     document.getElementById('prfEdu').value = p ? p.edu : '';
@@ -2229,7 +2229,7 @@ function prfSave_() {
   const edu = v('prfEdu');
   if (!v('prfMarital')) { alert('اختاري الحالة الاجتماعية'); return; }
   if (!v('prfPhone')) { alert('اكتبي رقم الجوال'); return; }
-  if (!v('prfBirth')) { alert('اكتبي محل الميلاد'); return; }
+  if (!v('prfBirth')) { alert('اكتبي تاريخ الميلاد'); return; }
   if (v('prfYears') === '') { alert('اكتبي سنوات الخبرة كمسؤولة مقصف'); return; }
   if (!edu) { alert('اختاري المؤهل العلمي'); return; }
   if (edu === 'جامعي' && !v('prfMajor')) { alert('اكتبي التخصص'); return; }
@@ -2239,7 +2239,7 @@ function prfSave_() {
   if (exps.some(function (x) { return !x.place; })) { alert('اكتبي جهة العمل في كل خبرة سابقة، أو احذفي الصف الفارغ'); return; }
   const btn = document.getElementById('prfSaveBtn');
   setBtnBusy(btn, true);
-  callApi('saveMasoulaProfile', { name: currentName, center: currentCenter, marital: v('prfMarital'), phone: v('prfPhone'), birthplace: v('prfBirth'),
+  callApi('saveMasoulaProfile', { name: currentName, center: currentCenter, marital: v('prfMarital'), phone: v('prfPhone'), birth: v('prfBirth'),
     juz: v('prfJuz'), years: v('prfYears'), edu: edu, major: edu === 'جامعي' ? v('prfMajor') : '', experiences: exps }).then(function (r) {
     setBtnBusy(btn, false);
     if (!r || !r.ok) { alert((r && r.error) || 'تعذّر الحفظ، حاولي مرة أخرى'); return; }

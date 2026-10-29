@@ -4428,9 +4428,10 @@ function adminSignMasoulaEval_(p) {
 
 /* ------------------- استبانة البيانات الشخصية للمسؤولات -------------------
    تعبّئها كل مسؤولة من صفحتها (صف واحد لكل مسؤولة، وتحديثها يعدّل الصف نفسه)، وتطّلع عليها الإدارة وتصدّرها.
-   الشيت يُنشأ تلقائياً عند أول استخدام، فلا حاجة لتشغيل setup. */
+   الشيت يُنشأ تلقائياً عند أول استخدام، فلا حاجة لتشغيل setup.
+   ملاحظة: هذا الشيت غير مدرج في أرشفة الفصل (archiveCurrentTerm_)، فبيانات المسؤولات تبقى محفوظة كما هي بعد الأرشفة. */
 const PROFILE_SHEET_ = 'استبانة المسؤولات';
-const PROFILE_HEADERS_ = ['الاسم', 'المركز', 'الحالة الاجتماعية', 'رقم الجوال', 'محل الميلاد', 'مقدار الحفظ في القرآن الكريم',
+const PROFILE_HEADERS_ = ['الاسم', 'المركز', 'الحالة الاجتماعية', 'رقم الجوال', 'تاريخ الميلاد', 'مقدار الحفظ في القرآن الكريم',
   'سنوات الخبرة كمسؤولة مقصف', 'المؤهل العلمي', 'التخصص', 'الخبرات السابقة', 'تفاصيل الخبرات', 'تاريخ آخر تحديث', 'وقت آخر تحديث'];
 const PROFILE_MARITAL_ = ['عزباء', 'متزوجة', 'مطلقة', 'أرملة'];
 const PROFILE_EDU_ = ['ابتدائي', 'متوسط', 'ثانوي', 'دبلوم', 'جامعي'];
@@ -4445,6 +4446,11 @@ function profileSheet_() {
     sh.setRightToLeft(true);
     sh.getRange(2, 4, Math.max(sh.getMaxRows() - 1, 1), 1).setNumberFormat('@');   // رقم الجوال نص (يحفظ الصفر الأول)
     sh.getRange(2, 12, Math.max(sh.getMaxRows() - 1, 1), 2).setNumberFormat('@');  // التاريخ والوقت نصاً (بلا تحويل تلقائي)
+  } else if (sh.getLastRow() >= 1) {
+    const have = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (h) { return String(h).trim(); });
+    PROFILE_HEADERS_.forEach(function (h) {
+      if (have.indexOf(h) === -1) { sh.getRange(1, sh.getLastColumn() + 1).setValue(h).setFontWeight('bold'); have.push(h); }
+    });
   }
   return sh;
 }
@@ -4459,7 +4465,7 @@ function profileFromRow_(r) {
   try { exps = JSON.parse(String(r['تفاصيل الخبرات'] || '[]')) || []; } catch (e) { exps = []; }
   return {
     name: String(r['الاسم'] || ''), center: String(r['المركز'] || ''), marital: String(r['الحالة الاجتماعية'] || ''),
-    phone: String(r['رقم الجوال'] || ''), birthplace: String(r['محل الميلاد'] || ''), juz: String(r['مقدار الحفظ في القرآن الكريم'] !== undefined ? r['مقدار الحفظ في القرآن الكريم'] : (r['الأجزاء المحفوظة'] === undefined ? '' : r['الأجزاء المحفوظة'])),
+    phone: String(r['رقم الجوال'] || ''), birth: String(r['تاريخ الميلاد'] || ''), juz: String(r['مقدار الحفظ في القرآن الكريم'] !== undefined ? r['مقدار الحفظ في القرآن الكريم'] : (r['الأجزاء المحفوظة'] === undefined ? '' : r['الأجزاء المحفوظة'])),
     years: String(r['سنوات الخبرة كمسؤولة مقصف'] === undefined ? '' : r['سنوات الخبرة كمسؤولة مقصف']), edu: String(r['المؤهل العلمي'] || ''),
     major: String(r['التخصص'] || ''), experiences: exps, expText: String(r['الخبرات السابقة'] || ''),
     updatedDate: String(r['تاريخ آخر تحديث'] || ''), updatedTime: String(r['وقت آخر تحديث'] || '')
@@ -4483,8 +4489,10 @@ function saveMasoulaProfile_(p) {
   if (PROFILE_MARITAL_.indexOf(marital) === -1) return { ok: false, error: 'اختاري الحالة الاجتماعية' };
   const phone = profileDigits_(p.phone).replace(/[\s\-]/g, '');
   if (!/^\+?\d{9,15}$/.test(phone)) return { ok: false, error: 'رقم الجوال غير صحيح' };
-  const birthplace = String(p.birthplace || '').trim();
-  if (!birthplace) return { ok: false, error: 'اكتبي محل الميلاد' };
+  const birth = String(p.birth || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(birth) || isNaN(new Date(birth).getTime())) return { ok: false, error: 'اكتبي تاريخ الميلاد' };
+  const by = Number(birth.slice(0, 4));
+  if (by < 1920 || by > new Date().getFullYear() - 10) return { ok: false, error: 'تاريخ الميلاد غير صحيح' };
   const juz = String(p.juz === undefined || p.juz === null ? '' : p.juz).trim().slice(0, 100);   // اختياري، نص حر (مثال: القرآن كاملاً / ١٥ جزءاً)
   const yearsRaw = profileDigits_(p.years);
   if (!/^\d+(\.\d+)?$/.test(yearsRaw) || Number(yearsRaw) > 60) return { ok: false, error: 'اكتبي سنوات الخبرة كمسؤولة مقصف' };
@@ -4506,7 +4514,7 @@ function saveMasoulaProfile_(p) {
     const sh = profileSheet_();
     const now = nowParts_();
     const vals = {
-      'الاسم': name, 'المركز': String(p.center || '').trim(), 'الحالة الاجتماعية': marital, 'رقم الجوال': phone, 'محل الميلاد': birthplace,
+      'الاسم': name, 'المركز': String(p.center || '').trim(), 'الحالة الاجتماعية': marital, 'رقم الجوال': phone, 'تاريخ الميلاد': birth,
       'مقدار الحفظ في القرآن الكريم': juz, 'الأجزاء المحفوظة': juz, 'سنوات الخبرة كمسؤولة مقصف': Number(yearsRaw), 'المؤهل العلمي': edu, 'التخصص': major,
       'الخبرات السابقة': expText, 'تفاصيل الخبرات': JSON.stringify(exps), 'تاريخ آخر تحديث': now.date, 'وقت آخر تحديث': now.time
     };
@@ -4524,6 +4532,7 @@ function saveMasoulaProfile_(p) {
       sh.getRange(rowIdx, 1, 1, rowArr.length).setValues([rowArr]);
     }
     sh.getRange(rowIdx, headers.indexOf('رقم الجوال') + 1).setNumberFormat('@').setValue(phone);
+    sh.getRange(rowIdx, headers.indexOf('تاريخ الميلاد') + 1).setNumberFormat('@').setValue(birth);
     invalidateCache_(PROFILE_SHEET_);
   } finally {
     lock.releaseLock();
