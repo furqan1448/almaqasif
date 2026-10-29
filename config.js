@@ -629,73 +629,97 @@ async function exportToExcel(data, filename, sheetName, totals) {
   XLSX.writeFile(wb, filename + '.xlsx');
 }
 
-/* -------- تصدير/طباعة تقرير كـ PDF --------
-   تفتح نافذة جديدة بتنسيق مرتب وتشغّل حوار الطباعة تلقائياً؛
-   المستخدمة تقدر تختار "حفظ كـ PDF" من نافذة الطباعة نفسها (يعمل على الجوال وسطح المكتب).
+/* -------- تقرير جدولي كملف PDF يُنزَّل مباشرة (بلا نافذة طباعة) --------
+   كل صفحة A4 عليها الكليشة كاملة العرض، ويتكرر رأس الجدول في كل صفحة، ولا يُقطع أي صف بين صفحتين.
    columns: مصفوفة [{key, label}], rows: مصفوفة كائنات بيانات */
-function printReport(title, subtitle, columns, rows, totals) {
+async function furqanPagesToPdf_(host, fileName) {
+  await Promise.all(Array.from(host.querySelectorAll('img')).map(function (im) { return im.complete ? Promise.resolve() : new Promise(function (res) { im.onload = im.onerror = res; }); }));
+  const imgOpts = { pixelRatio: 2, backgroundColor: '#ffffff', width: 794, height: 1123, style: { margin: '0' },
+    imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' };
+  if (typeof vrFontEmbedCss_ === 'function') { try { const fc = await vrFontEmbedCss_(); if (fc) imgOpts.fontEmbedCSS = fc; } catch (e) {} }
+  const pdfOpts = { margin: 0, image: { type: 'jpeg', quality: 0.97 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+  const els = Array.prototype.slice.call(host.querySelectorAll('.fp-page'));
+  const canvases = [];
+  for (let i = 0; i < els.length; i++) {
+    if (typeof htmlToImage !== 'undefined') canvases.push(await htmlToImage.toCanvas(els[i], imgOpts));
+    else canvases.push(await html2pdf().set({ html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 794 } }).from(els[i]).toCanvas().get('canvas'));
+  }
+  const pdf = await html2pdf().set(pdfOpts).from(canvases[0], 'canvas').toPdf().get('pdf');
+  while (pdf.getNumberOfPages() > 1) pdf.deletePage(pdf.getNumberOfPages());
+  for (let i = 1; i < canvases.length; i++) {
+    pdf.addPage('a4', 'portrait');
+    pdf.addImage(canvases[i].toDataURL('image/jpeg', 0.97), 'JPEG', 0, 0, 210, 297);
+  }
+  vrDownloadBlob_(pdf.output('blob'), fileName);
+}
+
+async function printReport(title, subtitle, columns, rows, totals) {
   if (!rows || !rows.length) {
-    alert('لا يوجد بيانات لطباعتها');
+    alert('لا يوجد بيانات لتصديرها');
     return;
   }
-  const win = window.open('', '_blank');
-  if (!win) {
-    alert('يرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع عشان تقدري تطبعي التقرير');
-    return;
-  }
-  let html = '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">';
-  html += '<title>' + title + '</title>';
-  html += '<style>';
-  html += '@import url(\'https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Tajawal:wght@400;700;800&display=swap\');';
-  html += '@page { margin: 0; }';
-  html += '*{box-sizing:border-box;}';
-  html += 'html,body{margin:0;padding:0;}';
-  html += 'body{font-family:"Tajawal",sans-serif;direction:rtl;color:#2b2321;}';
-  html += '.content{padding:0 28px 28px;}';
-  html += 'h1{font-family:"Amiri",serif;color:#8C1A2C;margin:0 0 2px;font-size:1.5rem;}';
-  html += '.sub{color:#8a7d76;margin:16px 0 22px;font-size:0.9rem;}';
-  html += 'table{width:100%;border-collapse:collapse;font-size:0.88rem;}';
-  html += 'th,td{border:1px solid #C2AA85;padding:8px 10px;text-align:center;}';
-  html += 'th{background:#e8dcc8;color:#6e1523;}';
-  html += '.report-total{margin-top:14px;text-align:left;font-weight:800;font-size:1.05rem;color:#6e1523;}';
-  html += '.letterhead{width:100%;display:block;}';
-  html += '@media print{ .letterhead{ -webkit-print-color-adjust:exact; print-color-adjust:exact; } }';
-  html += '</style></head><body>';
-  const letterheadUrl = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
-  if (letterheadUrl) {
-    html += '<img class="letterhead" src="' + letterheadUrl + '" alt="كليشة جمعية فرقان">';
-    html += '<div class="content"><h1 style="margin-top:18px;">' + title + '</h1>';
-  } else {
-    const logoUrl = (typeof FURQAN_LOGO_URL !== 'undefined') ? FURQAN_LOGO_URL : '';
-    html += '<div class="content" style="padding-top:20px;">';
-    html += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:6px;">';
-    if (logoUrl) html += '<img src="' + logoUrl + '" alt="شعار فرقان" style="width:56px;height:56px;border-radius:50%;object-fit:cover;">';
-    html += '<h1 style="margin:0;">جمعية فرقان لتحفيظ القرآن الكريم</h1>';
-    html += '</div>';
-    html += '<h1 style="font-size:1.2rem;">' + title + '</h1>';
-  }
-  html += '<div class="sub">' + (subtitle || '') + ' &middot; ' + toHijriStr(todayStr()) + '</div>';
-  html += '<table><thead><tr>';
-  columns.forEach(function (c) { html += '<th>' + c.label + '</th>'; });
-  html += '</tr></thead><tbody>';
-  rows.forEach(function (r) {
-    html += '<tr>';
-    columns.forEach(function (c) {
-      const v = r[c.key];
-      html += '<td>' + (v === undefined || v === null ? '' : v) + '</td>';
+  window.PDF_LIBS_ENABLED = true;
+  if (typeof html2pdf === 'undefined') { try { await ensurePdfLibs_(); } catch (e) {} }
+  if (typeof html2pdf === 'undefined') { alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة أخرى'); return; }
+  const host = document.createElement('div');
+  try {
+    const PH = 1123, LH = 139, TOP = 14, FOOT = 34;
+    let lh = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
+    try { if (lh) lh = new URL(lh, location.href).href; } catch (x) {}
+    const fs = columns.length > 9 ? 10.5 : (columns.length > 6 ? 12 : 13.5);
+    const css = '<style>.fp-page{width:794px;height:1123px;background:#fff;position:relative;overflow:hidden;direction:rtl;font-family:"Tajawal",sans-serif;color:#2b2321}' +
+      '.fp-page .lh{width:794px;height:' + LH + 'px;display:block}.fp-page .ct{padding:' + TOP + 'px 28px 0}' +
+      '.fp-page h1{font-family:"Amiri",serif;color:#8C1A2C;margin:0 0 2px;font-size:25px;line-height:1.4}' +
+      '.fp-page .sub{color:#8a7d76;margin:4px 0 12px;font-size:13px;line-height:1.5}' +
+      '.fp-page table{width:100%;border-collapse:collapse;font-size:' + fs + 'px;table-layout:auto}' +
+      '.fp-page th,.fp-page td{border:1px solid #C2AA85;padding:7px 8px;text-align:center;line-height:1.5}' +
+      '.fp-page th{background:#e8dcc8;color:#6e1523}.fp-page tbody tr:nth-child(even){background:#fcf8f6}' +
+      '.fp-page .tot{margin-top:12px;text-align:left;font-weight:800;font-size:16px;color:#6e1523}' +
+      '.fp-page .pn{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:12px;color:#8a7d76}</style>';
+    const head = '<tr>' + columns.map(function (c) { return '<th>' + c.label + '</th>'; }).join('') + '</tr>';
+    const trs = rows.map(function (r) {
+      return '<tr>' + columns.map(function (c) { const v = r[c.key]; return '<td>' + (v === undefined || v === null ? '' : v) + '</td>'; }).join('') + '</tr>';
     });
-    html += '</tr>';
-  });
-  html += '</tbody></table>';
-  if (totals && totals.key) {
-    const sum = rows.reduce(function (s, r) { return s + (Number(r[totals.key]) || 0); }, 0);
-    html += '<div class="report-total">' + (totals.label || 'الإجمالي') + ': ' + sum.toFixed(2) + '</div>';
+    const titleHtml = '<h1>' + title + '</h1><div class="sub">' + (subtitle || '') + ' &middot; ' + toHijriStr(todayStr()) + '</div>';
+    let totHtml = '';
+    if (totals && totals.key) {
+      const sum = rows.reduce(function (s, r) { return s + (Number(r[totals.key]) || 0); }, 0);
+      totHtml = '<div class="tot">' + (totals.label || 'الإجمالي') + ': ' + sum.toFixed(2) + '</div>';
+    }
+    /* قياس الأحجام الفعلية ثم توزيع الصفوف على الصفحات */
+    host.style.cssText = 'position:fixed;left:-20000px;top:0;width:794px;pointer-events:none;';
+    host.innerHTML = css + '<div class="fp-page" style="height:auto"><div class="ct" style="width:794px;box-sizing:border-box"><div id="fpT">' + titleHtml + '</div><table><thead>' + head + '</thead><tbody>' + trs.join('') + '</tbody></table><div id="fpS">' + totHtml + '</div></div></div>';
+    document.body.appendChild(host);
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (x) {} }
+    const titleH = host.querySelector('#fpT').offsetHeight + 4;
+    const theadH = host.querySelector('thead').offsetHeight;
+    const rowH = Array.prototype.map.call(host.querySelectorAll('tbody tr'), function (t) { return t.offsetHeight; });
+    const totH = totHtml ? host.querySelector('#fpS').offsetHeight + 12 : 0;
+    const cap = PH - LH - TOP - FOOT;
+    const pages = [[]]; let used = titleH + theadH;
+    rowH.forEach(function (h, i) {
+      if (used + h > cap && pages[pages.length - 1].length) { pages.push([]); used = theadH; }
+      pages[pages.length - 1].push(i); used += h;
+    });
+    const totOnLast = used + totH <= cap;
+    if (totHtml && !totOnLast) pages.push([]);
+    let html = css;
+    pages.forEach(function (pg, pi) {
+      html += '<div class="fp-page">' + (lh ? '<img class="lh" crossorigin="anonymous" src="' + lh + '" alt="">' : '<div style="height:' + LH + 'px"></div>') + '<div class="ct">';
+      if (pi === 0) html += titleHtml;
+      if (pg.length) html += '<table><thead>' + head + '</thead><tbody>' + pg.map(function (i) { return trs[i]; }).join('') + '</tbody></table>';
+      if (totHtml && pi === pages.length - 1) html += totHtml;
+      html += '</div><div class="pn">صفحة ' + toArabicDigits(pi + 1) + ' من ' + toArabicDigits(pages.length) + '</div></div>';
+    });
+    host.innerHTML = html;
+    const safe = String(title).replace(/<[^>]*>/g, '').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '-').trim() || 'تقرير';
+    await furqanPagesToPdf_(host, safe + '-' + todayStr() + '.pdf');
+  } catch (err) {
+    console.error(err);
+    alert('تعذّر إنشاء ملف PDF، حاولي مرة أخرى');
+  } finally {
+    host.remove();
   }
-  html += '</div>';
-  html += '<script>window.onload = function(){ setTimeout(function(){ window.print(); }, 350); };<\/script>';
-  html += '</body></html>';
-  win.document.write(html);
-  win.document.close();
 }
 
 /* -------- بناء محتوى "تقرير الزيارة اليومي" كـ HTML (يُستخدم بالطباعة، وبحفظ/مشاركة PDF) --------
@@ -813,25 +837,20 @@ function fitVisitReportToPage_(root, done) {
    ونفتحه بتبويب جديد، ومنه تطبعين بـ Ctrl+P. هذا يتجنب هوامش نافذة الطباعة اللي كانت تسبب مسافة فاضية فوق الكليشة.
    لو مكتبة الـPDF ما اشتغلت نرجع للطباعة المباشرة القديمة. */
 async function printVisitReportWindow(opts) {
+  /* تنزيل PDF مباشر (بلا نافذة طباعة) */
+  window.PDF_LIBS_ENABLED = true;
   if (typeof html2pdf === 'undefined') { try { await ensurePdfLibs_(); } catch (e) {} }
   if (typeof html2pdf === 'undefined' || !document.getElementById('vrPdfHost')) {
-    printVisitReportWindowLegacy_(opts);
+    alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة أخرى');
     return;
   }
-  const win = window.open('', '_blank');
-  if (!win) {
-    alert('يرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع عشان تقدري تطبعي التقرير');
-    return;
-  }
-  try { win.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>جاري تجهيز التقرير</title></head><body style="font-family:sans-serif;text-align:center;padding-top:80px;">جاري تجهيز التقرير للطباعة...</body></html>'); } catch (e) {}
   try {
     const host = renderVisitReportToHost_(opts);
-    if (!host) { win.close(); return; }
+    if (!host) return;
     const blob = await visitReportPdfBlob_(host, visitReportFileName_(opts));
-    win.location.href = URL.createObjectURL(blob);
+    vrDownloadBlob_(blob, visitReportFileName_(opts));
   } catch (e) {
-    try { win.close(); } catch (e2) {}
-    printVisitReportWindowLegacy_(opts);
+    alert('تعذّر إنشاء ملف PDF، حاولي مرة أخرى');
   }
 }
 
@@ -1135,6 +1154,7 @@ async function canteenOrderPdfBlob_(o) {
 
 /* mode: 'save' حفظ بالجهاز، 'share' مشاركة (واتساب وغيره)، 'print' فتح للطباعة */
 async function canteenOrderPdf(o, mode, btn) {
+  if (mode === 'print') mode = 'save';   // لا طباعة: تنزيل PDF مباشر
   let win = null;
   if (mode === 'print') {
     win = window.open('', '_blank');
@@ -1372,25 +1392,20 @@ async function meetingMinutesPdfBlob_(host, fileName) {
 
 /* معاينة وطباعة (نفس أسلوب تقرير الزيارة: نجهّز PDF ونفتحه بتبويب جديد) */
 async function printMeetingMinutesWindow(opts) {
+  /* تنزيل PDF مباشر (بلا نافذة طباعة) */
+  window.PDF_LIBS_ENABLED = true;
   if (typeof html2pdf === 'undefined') { try { await ensurePdfLibs_(); } catch (e) {} }
   if (typeof html2pdf === 'undefined' || !document.getElementById('mmPdfHost')) {
-    printMeetingMinutesWindowLegacy_(opts);
+    alert('تعذّر تحميل أداة إنشاء PDF، تأكدي من اتصالك بالإنترنت وحاولي مرة أخرى');
     return;
   }
-  const win = window.open('', '_blank');
-  if (!win) {
-    alert('يرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع عشان تقدري تطبعي المحضر');
-    return;
-  }
-  try { win.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>جاري تجهيز المحضر</title></head><body style="font-family:sans-serif;text-align:center;padding-top:80px;">جاري تجهيز المحضر للطباعة...</body></html>'); } catch (e) {}
   try {
     const host = renderMeetingMinutesToHost_(opts);
-    if (!host) { win.close(); return; }
+    if (!host) return;
     const blob = await meetingMinutesPdfBlob_(host, meetingMinutesFileName_(opts));
-    win.location.href = URL.createObjectURL(blob);
+    vrDownloadBlob_(blob, meetingMinutesFileName_(opts));
   } catch (e) {
-    try { win.close(); } catch (e2) {}
-    printMeetingMinutesWindowLegacy_(opts);
+    alert('تعذّر إنشاء ملف PDF، حاولي مرة أخرى');
   }
 }
 
@@ -2422,6 +2437,7 @@ async function masoulaEvalPdfBlob_(ev, sigs) {
 
 /* mode: 'print' فتح للعرض والطباعة، 'save' حفظ بالجهاز، 'share' مشاركة (واتساب وغيره) */
 async function masoulaEvalPdf(ev, sigs, mode, btn) {
+  if (mode === 'print') mode = 'save';   // لا طباعة: تنزيل PDF مباشر
   let win = null;
   if (mode === 'print') {
     win = window.open('', '_blank');

@@ -308,7 +308,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportSalesReport()">⬇️ Excel</button>
-          <button class="btn outline" onclick="printSalesReport()">🖨️ PDF</button>
+          <button class="btn outline" onclick="printSalesReport()">⬇️ PDF</button>
         </div>
       </div>
     </div>
@@ -370,7 +370,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         <div id="invoicesSummary"></div>
         <div class="export-row">
           <button class="btn outline" onclick="exportInvoicesReport()">⬇️ Excel</button>
-          <button class="btn outline" onclick="printInvoicesReport()">🖨️ PDF</button>
+          <button class="btn outline" onclick="printInvoicesReport()">⬇️ PDF</button>
         </div>
       </div>
     </div>
@@ -400,7 +400,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportReturnsReport()">⬇️ Excel</button>
-          <button class="btn outline" onclick="printReturnsReport()">🖨️ PDF</button>
+          <button class="btn outline" onclick="printReturnsReport()">⬇️ PDF</button>
         </div>
       </div>
     </div>
@@ -442,7 +442,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportCardDeliverReport()">⬇️ Excel</button>
-          <button class="btn outline" onclick="printCardDeliverReport()">🖨️ PDF</button>
+          <button class="btn outline" onclick="printCardDeliverReport()">⬇️ PDF</button>
         </div>
       </div>
     </div>
@@ -485,7 +485,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportCardReceiveReport()">⬇️ Excel</button>
-          <button class="btn outline" onclick="printCardReceiveReport()">🖨️ PDF</button>
+          <button class="btn outline" onclick="printCardReceiveReport()">⬇️ PDF</button>
         </div>
       </div>
     </div>
@@ -589,7 +589,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         <div id="noticesList">جاري التحميل...</div>
         <div class="export-row">
           <button class="btn outline" onclick="exportNoticesReport()">⬇️ Excel</button>
-          <button class="btn outline" onclick="printNoticesReport()">🖨️ PDF</button>
+          <button class="btn outline" onclick="printNoticesReport()">⬇️ PDF</button>
         </div>
       </div>
     </div>
@@ -1977,7 +1977,7 @@ function loadMeetingMinutesList() {
           '<div>محضر اجتماع رقم ' + toArabicDigits(m['رقم الاجتماع'] || '') + '</div>' +
           '<div class="meta">' + (m['يوم الاجتماع'] || '') + ' ' + (m['تاريخ الاجتماع الهجري'] || '') + '</div>' +
           '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;gap:12px;">' +
-            '<a href="#" onclick="printMeetingMinutesFromList_(' + i + '); return false;">🖨️ عرض/طباعة</a>' +
+            '<a href="#" onclick="printMeetingMinutesFromList_(' + i + '); return false;">📄 تحميل PDF</a>' +
             '<a href="#" onclick="saveMeetingMinutesFromList_(' + i + '); return false;">📄 حفظ PDF</a>' +
           '</div>' +
         '</div>';

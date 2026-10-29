@@ -424,7 +424,7 @@
           </table>
           <div class="export-row">
             <button class="btn outline" onclick="exportRewardSummary_()">⬇️ Excel</button>
-            <button class="btn outline" onclick="printRewardSummary_()">🖨️ PDF</button>
+            <button class="btn outline" onclick="printRewardSummary_()">⬇️ PDF</button>
           </div>
           </div>
         </details>
@@ -452,7 +452,7 @@
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportCurrentSales()">⬇️ Excel</button>
-          <button class="btn outline" onclick="printCurrentSales()">🖨️ PDF</button>
+          <button class="btn outline" onclick="printCurrentSales()">⬇️ PDF</button>
         </div>
       </div>
     </div>
@@ -507,7 +507,7 @@
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportCurrentReturns()">⬇️ Excel</button>
-          <button class="btn outline" onclick="printCurrentReturns()">🖨️ PDF</button>
+          <button class="btn outline" onclick="printCurrentReturns()">⬇️ PDF</button>
         </div>
       </div>
     </div>
@@ -576,7 +576,7 @@
         <div id="invoicesSummary"></div>
         <div class="export-row">
           <button class="btn outline" onclick="exportCurrentInvoices()">⬇️ Excel</button>
-          <button class="btn outline" onclick="printCurrentInvoices()">🖨️ PDF</button>
+          <button class="btn outline" onclick="printCurrentInvoices()">⬇️ PDF</button>
         </div>
       </div>
     </div>
@@ -1058,7 +1058,7 @@
           <thead><tr><th>المركز</th><th>المسؤولة</th><th>الفصل</th><th>المديرة</th><th>الوحدة</th><th>الكلي</th><th>الحالة</th><th></th></tr></thead>
           <tbody id="aevTbody"><tr><td colspan="8">جارٍ التحميل...</td></tr></tbody>
         </table>
-        <div class="export-row"><button class="btn outline" onclick="exportAdminEvalsExcel_()">⬇️ Excel (مختصر)</button><button class="btn outline" onclick="exportAdminEvalsExcel_(true)">⬇️ Excel تفصيلي</button><button class="btn outline" onclick="printAdminEvals_()">🖨️ PDF</button></div>
+        <div class="export-row"><button class="btn outline" onclick="exportAdminEvalsExcel_()">⬇️ Excel (مختصر)</button><button class="btn outline" onclick="exportAdminEvalsExcel_(true)">⬇️ Excel تفصيلي</button><button class="btn outline" onclick="printAdminEvals_()">⬇️ PDF</button></div>
       </div>
 
       <div class="card hidden" id="aevDetailCard">
@@ -1223,7 +1223,6 @@
           ارفعي صورة التوقيع هنا وبتظهر تحت اسمها بهذا التقرير فقط. أو، عشان تظهر تلقائيًا بكل التقارير بدون ما ترفعيها كل مرة، ارفعي الصورة مرة وحدة بمستودع GitHub باسم fatima-signature.png جنب باقي صور الموقع.
         </p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
-          <button class="btn outline" onclick="printVisitReport()">🖨️ معاينة وطباعة</button>
           <button class="btn outline" onclick="saveVisitReport()">📄 حفظ PDF</button>
           <button class="btn" id="vrSendDirectorBtn" onclick="sendVisitReportToDirector()" style="background:#1f8f4e;border-color:#1f8f4e;">📲 إرسال للمديرة مباشرة</button>
         </div>
@@ -1364,7 +1363,6 @@
         </div>
 
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
-          <button class="btn outline" onclick="printMeetingMinutes()">🖨️ معاينة وطباعة</button>
           <button class="btn outline" onclick="saveMeetingMinutes()">📄 حفظ PDF</button>
           <button class="btn outline" onclick="shareMeetingMinutes()">📤 إرسال واتساب</button>
         </div>
@@ -1780,6 +1778,7 @@ function adminSignEval_() {
 }
 
 function adminEvalPdf_(mode, btn) {
+  if (mode === 'print') mode = 'save';
   if (!aevCurrent_) return;
   const pw = aevPw_(true);
   if (!pw) return;
@@ -2245,7 +2244,6 @@ function renderCanteenOrdersAdmin_() {
         '<button type="button" class="btn outline" onclick="copyCanteenOrder_(' + idx + ', this)">نسخ نص الطلب</button>' +
         '<button type="button" class="btn outline" onclick="canteenOrderPdf(canteenOrdersAdmin_[' + idx + '], \'save\', this)">📄 حفظ PDF</button>' +
         '<button type="button" class="btn outline" onclick="canteenOrderPdf(canteenOrdersAdmin_[' + idx + '], \'share\', this)">مشاركة</button>' +
-        '<button type="button" class="btn outline" onclick="canteenOrderPdf(canteenOrdersAdmin_[' + idx + '], \'print\', this)">🖨️ طباعة</button>' +
         '<button type="button" class="btn' + (isNew ? '' : ' outline') + '" onclick="toggleCanteenOrderStatus_(' + idx + ', this)">' + (isNew ? '✔ تم التنفيذ' : 'إرجاعه إلى جديد') + '</button>' +
       '</div>' +
     '</details>';
@@ -4172,7 +4170,7 @@ function renderGrades_() {
     '<div class="grade-toolbar">' +
       '<button class="btn" id="gradesSaveBtn" onclick="saveGrades_()">حفظ الدرجات</button>' +
       '<button class="btn secondary" onclick="exportGradesExcel_()">Excel</button>' +
-      '<button class="btn secondary" onclick="printGrades_()">PDF / طباعة</button>' +
+      '<button class="btn secondary" onclick="printGrades_()">⬇️ PDF</button>' +
     '</div></div>';
   list.forEach(function (m, i) {
     html += '<div class="grade-card" id="gradeCard_' + i + '" data-search="' + gradesEsc_((m.name + ' ' + m.center).toLowerCase()) + '">' + gradeCardInner_(i) + '</div>';
@@ -5185,7 +5183,7 @@ function renderVrSaved_() {
       '<td>' + toArabicDigits(rep.data.visitNumber || '') + '</td>' +
       '<td>' + vrStatusHtml_(rep) + '</td>' +
       '<td><div class="row-actions">' +
-        '<a href="#" onclick="printSavedVisitReport(\'' + rep.id + '\'); return false;">عرض/طباعة</a>' +
+        '<a href="#" onclick="printSavedVisitReport(\'' + rep.id + '\'); return false;">تحميل PDF</a>' +
         (rep.status === 'تم التوقيع'
           ? '<a href="#" onclick="amendSavedVisitReport(\'' + rep.id + '\'); return false;">تعديل التاريخ/النوع</a>' +
             '<a href="#" onclick="editSavedVisitReport(\'' + rep.id + '\'); return false;">تعديل كامل</a>'
@@ -6322,7 +6320,7 @@ function renderAmounts_() {
     (hidden.length ? ' أُخفي ' + hidden.length + ' مركز لا مقصف فيه حسب «حصر المقاصف».' : '') + '</p>' +
     '<div class="export-row" style="margin-top:12px;">' +
       '<button class="btn outline" onclick="exportAmountsExcel_()">⬇️ Excel</button>' +
-      '<button class="btn outline" onclick="printAmounts_()">🖨️ طباعة</button>' +
+      '<button class="btn outline" onclick="printAmounts_()">⬇️ PDF</button>' +
     '</div></div>';
 }
 
@@ -6652,7 +6650,7 @@ function renderRegStats_(r) {
     '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;line-height:1.8;">«أيام المبيعات» = عدد الأيام المسجّل فيها مبالغ بسجل البيع اليومي. «مبالغ بدون فواتير» = المركز سجّل مبيعات ولم يُدخل أي فاتورة في نفس الفترة، و«فواتير بدون مبالغ» العكس. «مكتمل جزئي» = ما فيه نقص ظاهر بالأرقام، ولا تصير «مكتمل» إلا بعد ما تحطين ✔ في خانة «اعتماد» (الاعتماد خاص بالفصل الحالي ويتفرّغ عند أرشفة الفصل).</p>' +
     '<div class="export-row" style="margin-top:12px;">' +
       '<button class="btn outline" onclick="exportRegStatsExcel()">⬇️ Excel</button>' +
-      '<button class="btn outline" onclick="printRegStats()">🖨️ طباعة</button>' +
+      '<button class="btn outline" onclick="printRegStats()">⬇️ PDF</button>' +
     '</div></div>';
   out.innerHTML = html;
   applyRsFilter_();
@@ -7044,24 +7042,11 @@ function printRegStats() {
   if (!rsData_) return;
   const rows = rsExportRows_();
   const cols = ['المركز', 'إشعار استلام', 'إشعار تسليم المكافأة', 'إشعار تسليم رسوم الحفل', 'عدد الفواتير', 'أيام المبيعات', 'الحالة', 'اعتماد'];
-  const heads = {};
-  // عدد + مبلغ بين قوسين لكل خانة
-  const cellTxt = function (r, c) { return r[c]; };
   const t = rsData_.totals;
-  const w = window.open('', '_blank');
-  if (!w) { alert('اسمحي بالنوافذ المنبثقة للطباعة'); return; }
-  const lh = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
-  w.document.write('<html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>إحصائيات التسجيل</title>' +
-    '<style>@page{margin:0}body{font-family:Tajawal,Arial,sans-serif;padding:0 20px 20px;margin:0;color:#222}.lh{display:block;width:calc(100% + 40px);margin:0 -20px 14px;-webkit-print-color-adjust:exact;print-color-adjust:exact}h2{color:#6e1523;margin:0 0 4px}' +
-    '.sub{color:#777;font-size:13px;margin-bottom:12px}table{width:100%;border-collapse:collapse;font-size:12px}' +
-    'th,td{border:1px solid #c9b79c;padding:6px;text-align:center}th{background:#6e1523;color:#fff}td:first-child{text-align:right;font-weight:700}</style></head><body>' +
-    (lh ? '<img class="lh" src="' + lh + '" alt="كليشة جمعية فرقان">' : '') +
-    '<h2>إحصائيات التسجيل</h2><div class="sub">' + rsEsc_(rsPeriodLabel_()) +
-    ' — استلام: ' + t.receive + ' · تسليم المكافأة: ' + t.reward + ' · رسوم الحفل: ' + t.fee + ' · الفواتير: ' + t.invoices + '</div>' +
-    '<table><thead><tr>' + cols.map(function (c) { return '<th>' + (heads[c] || c) + '</th>'; }).join('') + '</tr></thead><tbody>' +
-    rows.map(function (r) { return '<tr>' + cols.map(function (c) { return '<td>' + rsEsc_(cellTxt(r, c)) + '</td>'; }).join('') + '</tr>'; }).join('') +
-    '</tbody></table><script>window.onload=function(){window.print();}<\/script></body></html>');
-  w.document.close();
+  printReport('إحصائيات التسجيل', rsEsc_(rsPeriodLabel_()) +
+    ' — استلام: ' + t.receive + ' · تسليم المكافأة: ' + t.reward + ' · رسوم الحفل: ' + t.fee + ' · الفواتير: ' + t.invoices,
+    cols.map(function (c) { return { key: c, label: c }; }),
+    rows.map(function (r) { const o = {}; cols.forEach(function (c) { o[c] = rsEsc_(r[c]); }); return o; }));
 }
 
 </script>
