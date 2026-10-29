@@ -3408,11 +3408,11 @@ async function dlvPdf_(btn) {
     pages.forEach(function (pg, pi) {
       html += '<div class="dp">' + (lh ? '<img class="lh" crossorigin="anonymous" src="' + lh + '" alt="">' : '<div style="height:' + LH + 'px"></div>') + '<div class="ct">';
       if (pi === 0) {
-        html += '<h1>جدول مواعيد تسليم المديرات مبالغ المقاصف</h1><div class="meta"><span class="chip">عدد المقاصف: <b>' + toArabicDigits(st.periods) + '</b></span><span class="chip">عدد الأيام: <b>' + toArabicDigits(order.length) + '</b></span><span class="chip">من ' + toHijriStr(order[0]) + ' إلى ' + toHijriStr(order[order.length - 1]) + '</span></div>';
+        html += '<h1>جدول مواعيد تسليم المديرات ومسؤولات المقاصف مبالغ المقاصف</h1><div class="meta"><span class="chip">عدد المقاصف: <b>' + toArabicDigits(st.periods) + '</b></span><span class="chip">عدد الأيام: <b>' + toArabicDigits(order.length) + '</b></span><span class="chip">من ' + toHijriStr(order[0]) + ' إلى ' + toHijriStr(order[order.length - 1]) + '</span></div>';
       }
       pg.forEach(function (s) {
         const d = dlvParse_(s.v);
-        html += '<div class="day"><div class="band"><span>' + DLV_DAYS_[d.getDay()] + (s.cont ? ' (تابع)' : '') + '</span><span>' + toHijriStr(s.v) + '</span><span class="gr">الموافق ' + dlvGreg_(s.v) + '</span><span class="cnt">' + toArabicDigits(groups[s.v].length) + ' مديرات</span></div>' +
+        html += '<div class="day"><div class="band"><span>' + DLV_DAYS_[d.getDay()] + (s.cont ? ' (تابع)' : '') + '</span><span>' + toHijriStr(s.v) + '</span><span class="gr">الموافق ' + dlvGreg_(s.v) + '</span><span class="cnt">' + toArabicDigits(groups[s.v].length) + ' مراكز</span></div>' +
           '<table><thead><tr><th style="width:8%">م</th><th>المركز</th><th style="width:26%">الفترة</th></tr></thead><tbody>' +
           s.rows.map(function (c, k) {
             const m = /^(.*?)\s*[-–]\s*(الفترة.*)$/.exec(c);
