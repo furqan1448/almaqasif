@@ -3140,10 +3140,10 @@ async function prfAdminPdf_(btn) {
     let lh = (typeof FURQAN_LETTERHEAD_URL !== 'undefined') ? FURQAN_LETTERHEAD_URL : '';
     try { if (lh) lh = new URL(lh, location.href).href; } catch (x) {}
     const esc = function (s) { return String(s === undefined || s === null || s === '' ? '—' : s).replace(/[&<>]/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]; }); };
-    const PH = 1123, LH = 139, TOP = 14, FOOT = 34, GAP = 10, HEAD1 = 84;
+    const PH = 1123, LH = 139, TOP = 14, FOOT = 34, GAP = 10, HEAD1 = 104;
     const css = '<style>.dp{width:794px;height:1123px;background:#fff;position:relative;overflow:hidden;direction:rtl;font-family:"Tajawal",sans-serif;color:#2b2321}' +
       '.dp .lh{width:794px;height:' + LH + 'px;display:block}.dp .ct{padding:' + TOP + 'px 28px 0}' +
-      '.dp h1{font-family:"Amiri",serif;color:#8C1A2C;font-size:25px;margin:0 0 6px;line-height:1.3}' +
+      '.dp h1{font-family:"Amiri",serif;color:#8C1A2C;font-size:25px;margin:0 0 16px;line-height:1.4}' +
       '.dp .meta{display:flex;gap:8px;margin-bottom:12px;height:30px}.dp .chip{border:1px solid #e3d3c9;background:#fbf6f3;border-radius:16px;padding:3px 12px;font-size:12.5px;color:#6e1523}' +
       '.pc{margin-bottom:' + GAP + 'px;border:1px solid #d9c3b8;border-radius:10px;overflow:hidden;width:738px;box-sizing:border-box;direction:rtl}' +
       '.pc .hd{background:#8C1A2C;color:#fff;padding:7px 14px;display:flex;gap:10px;align-items:center;font-weight:700;font-size:14.5px}.pc .hd .ce{font-weight:400;font-size:12.5px;opacity:.92;margin-right:auto}' +
