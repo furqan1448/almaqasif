@@ -3304,8 +3304,8 @@ function dlvRender_() {
   ob.textContent = on.length ? 'مواعيد محفوظة لأسماء غير موجودة الآن في قائمة المراكز (محفوظة ولم تُحذف): ' + on.join('، ') : '';
   dlvFilter_();
 }
-/* العدد مع المعدود: ١ مركز، ٢ مركزان، ٣–١٠ مراكز، وما فوق العشرة مفرد (١٢ مركز) */
-function dlvCnt_(n) { return n === 1 ? 'مركز واحد' : (n === 2 ? 'مركزان' : toArabicDigits(n) + (n <= 10 ? ' مراكز' : ' مركز')); }
+/* العدد مع المعدود: ١ مركز، ٢ مركزان، ٣–١٠ مراكز، وما فوق العشرة تمييز منصوب (١٢ مركزًا) */
+function dlvCnt_(n) { return n === 1 ? 'مركز واحد' : (n === 2 ? 'مركزان' : toArabicDigits(n) + (n <= 10 ? ' مراكز' : ' مركزًا')); }
 let dlvEdit_ = false;
 function dlvEditCount_() {
   const n = centersListCache.filter(function (c) { return dlvState_.sel[c] && dlvState_.map[c]; }).length;
