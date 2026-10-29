@@ -618,6 +618,24 @@
           <thead><tr><th></th><th>المركز</th></tr></thead>
           <tbody id="dlvTbody"><tr><td colspan="2">جاري التحميل...</td></tr></tbody>
         </table></div>
+        <details id="dlvQuick" style="border:1px solid #e3d3c9;border-radius:12px;margin:16px 0 6px;background:#fbf6f3;">
+          <summary style="cursor:pointer;padding:10px 14px;font-weight:bold;color:var(--maroon);">⚡ تعديل سريع للمواعيد</summary>
+          <div style="padding:6px 14px 14px;">
+            <label>1) تغيير بداية الجدول (ينتقل الجدول كاملاً مع بقاء ترتيب الأيام، وتُتخطّى الجمعة والسبت)</label>
+            <div class="select-row" style="align-items:flex-end;">
+              <div><label style="font-weight:normal;">يبدأ الجدول من</label><input type="date" id="dlvShiftTo" onchange="dlvShiftPreview_()"></div>
+              <div style="display:flex;align-items:flex-end;"><button class="btn" onclick="dlvShiftAll_()">نقل كل المواعيد</button></div>
+            </div>
+            <div id="dlvShiftInfo" style="font-size:0.85rem;color:var(--maroon);margin:4px 0 12px;min-height:1.2em;"></div>
+            <label>2) نقل يوم كامل إلى تاريخ آخر (إن كان التاريخ الجديد مستخدماً تُدمج المراكز معاً)</label>
+            <div class="select-row" style="align-items:flex-end;">
+              <div><label style="font-weight:normal;">اليوم الحالي</label><select id="dlvMoveFrom"></select></div>
+              <div><label style="font-weight:normal;">التاريخ الجديد</label><input type="date" id="dlvMoveTo"></div>
+              <div style="display:flex;align-items:flex-end;"><button class="btn outline" onclick="dlvMoveDay_()">نقل اليوم</button></div>
+            </div>
+            <div id="dlvQuickMsg" style="font-size:0.85rem;color:#1f6b40;margin-top:8px;min-height:1.2em;"></div>
+          </div>
+        </details>
         <h4 style="margin:16px 0 6px;color:var(--maroon);">المواعيد المحددة <span id="dlvDoneCount"></span></h4>
         <input type="search" id="dlvSearch" placeholder="🔍 بحث باسم المركز..." oninput="dlvFilter_()" style="margin:0 0 8px;">
         <div id="dlvDoneBox"><div style="color:#8a7d76;">لا توجد مواعيد بعد</div></div>
@@ -3281,7 +3299,65 @@ function dlvRender_() {
   if (!ob) { ob = document.createElement('div'); ob.id = 'dlvOrphans'; ob.style.cssText = 'margin-top:10px;padding:8px 12px;border:1px solid #e0c36a;background:#fff8e1;border-radius:10px;font-size:0.85rem;'; box.parentNode.insertBefore(ob, box.nextSibling); }
   ob.style.display = on.length ? '' : 'none';
   ob.textContent = on.length ? 'مواعيد محفوظة لأسماء غير موجودة الآن في قائمة المراكز (محفوظة ولم تُحذف): ' + on.join('، ') : '';
+  dlvFillMoveFrom_(); dlvShiftPreview_();
   dlvFilter_();
+}
+/* ===== تعديل سريع: نقل بداية الجدول كاملاً، أو نقل يوم كامل ===== */
+function dlvIsWork_(d) { return d.getDay() <= 4; }   // الأحد–الخميس
+function dlvNextWork_(d) { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); while (!dlvIsWork_(x)) x.setDate(x.getDate() + 1); return x; }
+function dlvAllDates_() {
+  const set = {};
+  centersListCache.forEach(function (c) { if (dlvState_.map[c]) set[dlvState_.map[c]] = true; });
+  Object.keys(dlvState_.orphans || {}).forEach(function (k) { set[dlvState_.orphans[k]] = true; });
+  return Object.keys(set).sort();
+}
+/* يبني خريطة (تاريخ قديم ← تاريخ جديد) مع الحفاظ على الفواصل بين الأيام محسوبةً بأيام العمل */
+function dlvShiftMap_(newStartIso) {
+  const olds = dlvAllDates_(), s = dlvParse_(newStartIso);
+  if (!olds.length || !s) return null;
+  const first = dlvParse_(olds[0]), out = {};
+  olds.forEach(function (o) {
+    const od = dlvParse_(o); let n = 0;
+    const x = new Date(first.getFullYear(), first.getMonth(), first.getDate());
+    while (x < od) { x.setDate(x.getDate() + 1); if (dlvIsWork_(x)) n++; }
+    const t = dlvNextWork_(s);
+    while (n > 0) { t.setDate(t.getDate() + 1); if (dlvIsWork_(t)) n--; }
+    out[o] = dlvIso_(t);
+  });
+  return { map: out, olds: olds };
+}
+function dlvShiftPreview_() {
+  const box = document.getElementById('dlvShiftInfo'), v = document.getElementById('dlvShiftTo').value;
+  const r = dlvShiftMap_(v);
+  if (!r) { box.textContent = ''; return; }
+  const a = r.olds[0], z = r.olds[r.olds.length - 1];
+  const lab = function (iso) { return DLV_DAYS_[dlvParse_(iso).getDay()] + ' ' + toHijriStr(iso); };
+  box.textContent = 'سيبدأ الجدول من ' + lab(r.map[a]) + ' وينتهي في ' + lab(r.map[z]) + ' (كان من ' + toHijriStr(a) + ' إلى ' + toHijriStr(z) + ')';
+}
+function dlvShiftAll_() {
+  const r = dlvShiftMap_(document.getElementById('dlvShiftTo').value);
+  if (!r) { alert(dlvAllDates_().length ? 'اكتبي تاريخ البداية الجديد أولاً' : 'لا توجد مواعيد لنقلها'); return; }
+  Object.keys(dlvState_.map).forEach(function (c) { if (r.map[dlvState_.map[c]]) dlvState_.map[c] = r.map[dlvState_.map[c]]; });
+  Object.keys(dlvState_.orphans || {}).forEach(function (k) { if (r.map[dlvState_.orphans[k]]) dlvState_.orphans[k] = r.map[dlvState_.orphans[k]]; });
+  dlvRender_(); dlvPickChanged_(); dlvSave_(true);
+  document.getElementById('dlvQuickMsg').textContent = 'تم نقل الجدول وحفظه ✅ — يبدأ الآن من ' + toHijriStr(r.map[r.olds[0]]) + ' وينتهي في ' + toHijriStr(r.map[r.olds[r.olds.length - 1]]);
+}
+function dlvFillMoveFrom_() {
+  const sel = document.getElementById('dlvMoveFrom'); if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = dlvAllDates_().map(function (d) { return '<option value="' + d + '">' + DLV_DAYS_[dlvParse_(d).getDay()] + ' — ' + toHijriStr(d) + '</option>'; }).join('');
+  if (cur) sel.value = cur;
+}
+function dlvMoveDay_() {
+  const from = document.getElementById('dlvMoveFrom').value, to = document.getElementById('dlvMoveTo').value;
+  if (!from) { alert('لا توجد مواعيد لنقلها'); return; }
+  if (!dlvParse_(to)) { alert('اكتبي التاريخ الجديد أولاً'); return; }
+  if (from === to) { alert('التاريخ الجديد مطابق للحالي'); return; }
+  let n = 0;
+  Object.keys(dlvState_.map).forEach(function (c) { if (dlvState_.map[c] === from) { dlvState_.map[c] = to; n++; } });
+  Object.keys(dlvState_.orphans || {}).forEach(function (k) { if (dlvState_.orphans[k] === from) dlvState_.orphans[k] = to; });
+  dlvRender_(); dlvPickChanged_(); dlvSave_(true);
+  document.getElementById('dlvQuickMsg').textContent = 'تم نقل ' + toArabicDigits(n) + ' مركزاً إلى ' + DLV_DAYS_[dlvParse_(to).getDay()] + ' ' + toHijriStr(to) + ' وحُفظ التعديل ✅';
 }
 function dlvFilter_() {
   const q = (document.getElementById('dlvSearch').value || '').trim();
