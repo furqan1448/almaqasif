@@ -1492,6 +1492,7 @@ function dispatch_(p, T0_) {
     case 'getDeliverySchedule': return (getDeliverySchedule_());
     case 'setDeliverySchedule': return (setDeliverySchedule_(p));
 
+    case 'getMasoulaProfileForEval': return (getMasoulaProfileForEval_(p));
     case 'getMasoulaProfile': return (getMasoulaProfile_(p));
     case 'saveMasoulaProfile': return (saveMasoulaProfile_(p));
     case 'getMasoulaProfilesAdmin': return (getMasoulaProfilesAdmin_(p));
@@ -4288,9 +4289,21 @@ function submitMasoulaEval_(p) {
     name: masoula, phone: String(d.phone || ''), juz: String(d.juz || ''), marital: String(d.marital || ''),
     birthplace: String(d.birthplace || ''), experience: String(d.experience || ''),
     quranQual: String(d.quranQual || ''), eduQual: String(d.eduQual || ''), evalDate: String(d.evalDate || ''),
+    birth: String(d.birth || '').slice(0, 10), major: String(d.major || ''), expText: String(d.expText || '').slice(0, 1500),
     dirScores: chk.scores, headScores: [],
     positives: String(d.positives || ''), improvements: String(d.improvements || '')
   };
+  /* البيانات الشخصية: ما عبّأته المسؤولة بنفسها في «البيانات الشخصية» له الأولوية ويتحدّث بتحديثها،
+     وما كان فارغاً عندها تكتبه المديرة. وتُحفظ لقطةً مع التقييم. (مكان الميلاد والمؤهل في القرآن تكتبهما المديرة) */
+  const prof = profileByName_(masoula);
+  if (prof) {
+    const pick = function (cur, v) { return String(v === undefined || v === null ? '' : v).trim() !== '' ? String(v) : cur; };
+    data.phone = pick(data.phone, prof.phone); data.juz = pick(data.juz, prof.juz); data.marital = pick(data.marital, prof.marital);
+    data.birth = pick(data.birth, prof.birth); data.experience = pick(data.experience, prof.years); data.eduQual = pick(data.eduQual, prof.edu);
+    data.major = pick(data.major, prof.major); data.expText = pick(data.expText, prof.expText);
+    data.birthplace = pick(data.birthplace, prof.birthplace); data.quranQual = pick(data.quranQual, prof.quranQual);
+  }
+  if (data.eduQual !== 'جامعي' && /^(ابتدائي|متوسط|ثانوي|دبلوم)$/.test(data.eduQual)) data.major = '';
   const json = JSON.stringify(data);
   if (json.length > 45000) return { ok: false, error: 'النص المكتوب طويل جداً' };
 
@@ -4431,7 +4444,7 @@ function adminSignMasoulaEval_(p) {
    الشيت يُنشأ تلقائياً عند أول استخدام، فلا حاجة لتشغيل setup.
    ملاحظة: هذا الشيت غير مدرج في أرشفة الفصل (archiveCurrentTerm_)، فبيانات المسؤولات تبقى محفوظة كما هي بعد الأرشفة. */
 const PROFILE_SHEET_ = 'استبانة المسؤولات';
-const PROFILE_HEADERS_ = ['الاسم', 'المركز', 'الحالة الاجتماعية', 'رقم الجوال', 'تاريخ الميلاد', 'مقدار الحفظ في القرآن الكريم',
+const PROFILE_HEADERS_ = ['الاسم', 'المركز', 'الحالة الاجتماعية', 'رقم الجوال', 'تاريخ الميلاد', 'مكان الميلاد', 'مقدار الحفظ في القرآن الكريم', 'المؤهل في القرآن',
   'سنوات الخبرة كمسؤولة مقصف', 'المؤهل العلمي', 'التخصص', 'الخبرات السابقة', 'تفاصيل الخبرات', 'تاريخ آخر تحديث', 'وقت آخر تحديث'];
 const PROFILE_MARITAL_ = ['عزباء', 'متزوجة', 'مطلقة', 'أرملة'];
 const PROFILE_EDU_ = ['ابتدائي', 'متوسط', 'ثانوي', 'دبلوم', 'جامعي'];
@@ -4444,8 +4457,9 @@ function profileSheet_() {
     sh.appendRow(PROFILE_HEADERS_);
     sh.getRange(1, 1, 1, PROFILE_HEADERS_.length).setFontWeight('bold');
     sh.setRightToLeft(true);
-    sh.getRange(2, 4, Math.max(sh.getMaxRows() - 1, 1), 1).setNumberFormat('@');   // رقم الجوال نص (يحفظ الصفر الأول)
-    sh.getRange(2, 12, Math.max(sh.getMaxRows() - 1, 1), 2).setNumberFormat('@');  // التاريخ والوقت نصاً (بلا تحويل تلقائي)
+    ['رقم الجوال', 'تاريخ الميلاد', 'تاريخ آخر تحديث', 'وقت آخر تحديث'].forEach(function (h) {   // نصاً (يحفظ الصفر الأول ويمنع التحويل التلقائي للتاريخ)
+      sh.getRange(2, PROFILE_HEADERS_.indexOf(h) + 1, Math.max(sh.getMaxRows() - 1, 1), 1).setNumberFormat('@');
+    });
   } else if (sh.getLastRow() >= 1) {
     const have = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (h) { return String(h).trim(); });
     PROFILE_HEADERS_.forEach(function (h) {
@@ -4465,7 +4479,7 @@ function profileFromRow_(r) {
   try { exps = JSON.parse(String(r['تفاصيل الخبرات'] || '[]')) || []; } catch (e) { exps = []; }
   return {
     name: String(r['الاسم'] || ''), center: String(r['المركز'] || ''), marital: String(r['الحالة الاجتماعية'] || ''),
-    phone: String(r['رقم الجوال'] || ''), birth: String(r['تاريخ الميلاد'] || ''), juz: String(r['مقدار الحفظ في القرآن الكريم'] !== undefined ? r['مقدار الحفظ في القرآن الكريم'] : (r['الأجزاء المحفوظة'] === undefined ? '' : r['الأجزاء المحفوظة'])),
+    phone: String(r['رقم الجوال'] || ''), birth: String(r['تاريخ الميلاد'] || ''), birthplace: String(r['مكان الميلاد'] || ''), quranQual: String(r['المؤهل في القرآن'] || ''), juz: String(r['مقدار الحفظ في القرآن الكريم'] !== undefined ? r['مقدار الحفظ في القرآن الكريم'] : (r['الأجزاء المحفوظة'] === undefined ? '' : r['الأجزاء المحفوظة'])),
     years: String(r['سنوات الخبرة كمسؤولة مقصف'] === undefined ? '' : r['سنوات الخبرة كمسؤولة مقصف']), edu: String(r['المؤهل العلمي'] || ''),
     major: String(r['التخصص'] || ''), experiences: exps, expText: String(r['الخبرات السابقة'] || ''),
     updatedDate: String(r['تاريخ آخر تحديث'] || ''), updatedTime: String(r['وقت آخر تحديث'] || '')
@@ -4494,6 +4508,8 @@ function saveMasoulaProfile_(p) {
   const by = Number(birth.slice(0, 4));
   if (by < 1920 || by > new Date().getFullYear() - 10) return { ok: false, error: 'تاريخ الميلاد غير صحيح' };
   const juz = String(p.juz === undefined || p.juz === null ? '' : p.juz).trim().slice(0, 100);   // اختياري، نص حر (مثال: القرآن كاملاً / ١٥ جزءاً)
+  const birthplace = String(p.birthplace || '').trim().slice(0, 100);
+  const quranQual = String(p.quranQual || '').trim().slice(0, 100);
   const yearsRaw = profileDigits_(p.years);
   if (!/^\d+(\.\d+)?$/.test(yearsRaw) || Number(yearsRaw) > 60) return { ok: false, error: 'اكتبي سنوات الخبرة كمسؤولة مقصف' };
   const edu = String(p.edu || '').trim();
@@ -4514,7 +4530,7 @@ function saveMasoulaProfile_(p) {
     const sh = profileSheet_();
     const now = nowParts_();
     const vals = {
-      'الاسم': name, 'المركز': String(p.center || '').trim(), 'الحالة الاجتماعية': marital, 'رقم الجوال': phone, 'تاريخ الميلاد': birth,
+      'الاسم': name, 'المركز': String(p.center || '').trim(), 'الحالة الاجتماعية': marital, 'رقم الجوال': phone, 'تاريخ الميلاد': birth, 'مكان الميلاد': birthplace, 'المؤهل في القرآن': quranQual,
       'مقدار الحفظ في القرآن الكريم': juz, 'الأجزاء المحفوظة': juz, 'سنوات الخبرة كمسؤولة مقصف': Number(yearsRaw), 'المؤهل العلمي': edu, 'التخصص': major,
       'الخبرات السابقة': expText, 'تفاصيل الخبرات': JSON.stringify(exps), 'تاريخ آخر تحديث': now.date, 'وقت آخر تحديث': now.time
     };
@@ -4538,6 +4554,23 @@ function saveMasoulaProfile_(p) {
     lock.releaseLock();
   }
   return { ok: true };
+}
+
+function profileByName_(name) {
+  const sh = profileSheet_();
+  if (sh.getLastRow() < 2) return null;
+  const n = String(name || '').trim();
+  const found = readSheetObjectsRaw_(PROFILE_SHEET_).filter(function (r) { return String(r['الاسم']).trim() === n; })[0];
+  return found ? profileFromRow_(found) : null;
+}
+
+/* تجلبها مديرة المركز عند تعبئة التقييم (بكلمة مرور المركز، ولمسؤولات مركزها فقط) */
+function getMasoulaProfileForEval_(p) {
+  const auth = evalCenterAuth_(p);
+  if (!auth.ok) return auth;
+  const name = String(p.name || '').trim();
+  if (evalMasoulatOf_(p.center).indexOf(name) === -1) return { ok: false, error: 'المسؤولة ليست ضمن هذا المركز' };
+  return { ok: true, profile: profileByName_(name) };
 }
 
 function getMasoulaProfilesAdmin_(p) {

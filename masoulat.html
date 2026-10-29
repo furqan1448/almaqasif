@@ -168,7 +168,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         </div>
         <div class="icon-btn" onclick="showView('profileView')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="9.5" r="2.5"/><path d="M7.5 17c.8-2.2 2.5-3.2 4.5-3.2s3.7 1 4.5 3.2"/></svg></div>
-          <span class="label">استبانة بياناتي</span>
+          <span class="label">بياناتي الشخصية</span>
         </div>
         <div class="icon-btn" onclick="showView('faqView')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.2 1-1.2 1.8"/><circle cx="12" cy="16.8" r="0.5" fill="currentColor"/></svg></div>
@@ -181,7 +181,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
     <div id="profileView" class="hidden">
       <a class="back-link" onclick="showView('homeView')">⟵ رجوع</a>
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">استبانة البيانات الشخصية</h3>
+        <h3 style="margin-top:0;color:var(--maroon);">البيانات الشخصية</h3>
         <p style="color:#8a7d76;font-size:0.88rem;margin-top:0;">يُرجى تعبئة البيانات التالية بدقّة. الحقول المعلَّمة بـ <b style="color:#c0392b;">*</b> مطلوبة، ويمكنك تحديث بياناتك في أي وقت.</p>
         <div id="prfLoading" style="color:#8a7d76;">جاري تحميل بياناتك...</div>
         <div id="prfForm" class="hidden">
@@ -195,8 +195,13 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
           <input type="text" id="prfPhone" inputmode="tel" dir="ltr" style="text-align:right;" placeholder="05XXXXXXXX">
           <label>تاريخ الميلاد <b style="color:#c0392b;">*</b></label>
           <input type="date" id="prfBirth" max="2020-12-31" min="1920-01-01">
+          <label>مكان الميلاد</label>
+          <input type="text" id="prfBirthplace">
           <label>مقدار الحفظ في القرآن الكريم</label>
           <input type="text" id="prfJuz" placeholder="مثال: القرآن كاملاً، أو ١٥ جزءاً">
+          <label>المؤهل في القرآن</label>
+          <select id="prfQuran" onchange="document.getElementById('prfQuranOther').classList.toggle('hidden', this.value !== 'أخرى')"></select>
+          <input type="text" id="prfQuranOther" class="hidden" placeholder="اكتبي المؤهل" style="margin-top:6px;">
           <label>سنوات الخبرة كمسؤولة مقصف <b style="color:#c0392b;">*</b></label>
           <input type="number" id="prfYears" class="no-spin" inputmode="decimal" min="0" step="0.5">
           <label>المؤهل العلمي <b style="color:#c0392b;">*</b></label>
@@ -2213,6 +2218,13 @@ function initProfile_() {
     document.getElementById('prfMarital').value = p ? p.marital : '';
     document.getElementById('prfPhone').value = p ? p.phone : '';
     document.getElementById('prfBirth').value = p ? p.birth : '';
+    document.getElementById('prfBirthplace').value = p ? p.birthplace : '';
+    const qs = document.getElementById('prfQuran');
+    qs.innerHTML = '<option value="">اختاري</option>' + EVAL_QURAN_QUALS.concat(['أخرى']).map(function (o) { return '<option>' + o + '</option>'; }).join('');
+    const qv = p ? p.quranQual : '', qk = EVAL_QURAN_QUALS.indexOf(qv) !== -1;
+    qs.value = qv ? (qk ? qv : 'أخرى') : '';
+    document.getElementById('prfQuranOther').value = qv && !qk ? qv : '';
+    document.getElementById('prfQuranOther').classList.toggle('hidden', !(qv && !qk));
     document.getElementById('prfJuz').value = p ? p.juz : '';
     document.getElementById('prfYears').value = p ? p.years : '';
     document.getElementById('prfEdu').value = p ? p.edu : '';
@@ -2239,7 +2251,7 @@ function prfSave_() {
   if (exps.some(function (x) { return !x.place; })) { alert('اكتبي جهة العمل في كل خبرة سابقة، أو احذفي الصف الفارغ'); return; }
   const btn = document.getElementById('prfSaveBtn');
   setBtnBusy(btn, true);
-  callApi('saveMasoulaProfile', { name: currentName, center: currentCenter, marital: v('prfMarital'), phone: v('prfPhone'), birth: v('prfBirth'),
+  callApi('saveMasoulaProfile', { name: currentName, center: currentCenter, marital: v('prfMarital'), phone: v('prfPhone'), birth: v('prfBirth'), birthplace: v('prfBirthplace'), quranQual: v('prfQuran') === 'أخرى' ? v('prfQuranOther') : v('prfQuran'),
     juz: v('prfJuz'), years: v('prfYears'), edu: edu, major: edu === 'جامعي' ? v('prfMajor') : '', experiences: exps }).then(function (r) {
     setBtnBusy(btn, false);
     if (!r || !r.ok) { alert((r && r.error) || 'تعذّر الحفظ، حاولي مرة أخرى'); return; }

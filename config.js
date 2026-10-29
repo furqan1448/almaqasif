@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbzmBbtoTjkjDWoiSKLnstC58WkGt2YU3EmSDfpUtDWet0BOVN9N4kJwafeTLgb6Z8ON/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbykzb8-fH9vWnW7nDJzjnc7ZMDFpiFrgX_mASXJc32ku79VY14iraK7TJFuLEZvRjEy/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -2204,6 +2204,24 @@ function prefetchForCenter_(center) {
   }, 400);
 }
 
+/* بيانات المسؤولة الشخصية كما تُعرض بالاستمارة (PDF/Excel/لوحة الإدارة): تأتي من «البيانات الشخصية» وتُحفظ لقطةً مع التقييم.
+   تدعم التقييمات القديمة (محل الميلاد/المؤهل في القرآن). تُرجع {rows: [[ [التسمية, القيمة] x3 ]...], exp: نص الخبرات} */
+function evalPersonalRows_(d) {
+  d = d || {};
+  const ad = function (v) { return toArabicDigits(v === undefined || v === null ? '' : v); };
+  let birth = '';
+  if (d.birth) {
+    birth = toHijriStr(d.birth);
+    try { birth += ' (' + new Intl.DateTimeFormat('ar-SA-u-ca-gregory', { day: 'numeric', month: 'numeric', year: 'numeric' }).format(new Date(d.birth + 'T00:00:00')) + ' م)'; } catch (e) {}
+  }
+  return { rows: [
+    [['الاسم', d.name], ['رقم الجوال', ad(d.phone)], ['مقدار الحفظ في القرآن الكريم', ad(d.juz)]],
+    [['الحالة الاجتماعية', d.marital], ['تاريخ الميلاد', birth], ['مكان الميلاد', d.birthplace]],
+    [['المؤهل في القرآن', d.quranQual], ['المؤهل العلمي', d.eduQual], ['التخصص', d.major || '']],
+    [['سنوات الخبرة كمسؤولة مقصف', ad(d.experience)], ['تاريخ التقييم', ad(d.evalDate)]]
+  ], exp: d.expText || '' };
+}
+
 /* ======================= تقييم مسؤولة المقصف =======================
    البنود والدرجات المستحقة (نفس الاستمارة الورقية)، وتُستخدم بصفحة المراكز ولوحة الإدارة وملف الـPDF.
    ملاحظة: هذه الاستمارة لا تظهر في صفحة المسؤولات إطلاقاً. */
@@ -2314,10 +2332,10 @@ function buildMasoulaEvalHTML(ev, sigs) {
   h += '<table class="ev-tbl"><tr>' + kv('اسم المركز', ev.center || d.center) + kv('الفترة', d.period) + '</tr>' +
     '<tr>' + kv('الفصل الدراسي', d.term) + kv('العام', d.year ? toArabicDigits(d.year) : '') + '</tr></table>';
 
+  const pr = evalPersonalRows_(d);
   h += '<table class="ev-tbl"><tr><th colspan="6">المعلومات الشخصية</th></tr>' +
-    '<tr>' + kv('الاسم', d.name) + kv('رقم الجوال', toArabicDigits(d.phone || '')) + kv('الأجزاء المحفوظة', toArabicDigits(d.juz || '')) + '</tr>' +
-    '<tr>' + kv('الحالة الاجتماعية', d.marital) + kv('محل الميلاد', d.birthplace) + kv('سنوات الخبرة كمسؤولة مقصف', toArabicDigits(d.experience || '')) + '</tr>' +
-    '<tr>' + kv('المؤهل في القرآن', d.quranQual) + kv('المؤهل العلمي', d.eduQual) + kv('تاريخ التقييم', toArabicDigits(d.evalDate || '')) + '</tr></table>';
+    pr.rows.map(function (r) { return '<tr>' + r.map(function (x, i) { return kv(x[0], x[1], r.length === 2 && i === 1 ? 3 : 0); }).join('') + '</tr>'; }).join('') +
+    (pr.exp ? '<tr>' + kv('الخبرات السابقة', pr.exp, 5) + '</tr>' : '') + '</table>';
 
   h += '<table class="ev-tbl"><tr><th colspan="2">البيان</th><th style="width:14%">الدرجة المستحقة</th><th style="width:14%">الدرجة المكتسبة</th></tr>';
   EVAL_DIR_ITEMS.forEach(function (it, i) {
@@ -2620,9 +2638,13 @@ async function exportMasoulaEvalExcel(ev, sigs) {
     });
     ws.getRow(r).height = 34; r++;
   };
-  trio(['الاسم', d.name], ['رقم الجوال', ad(d.phone)], ['الأجزاء المحفوظة', ad(d.juz)]);
-  trio(['الحالة الاجتماعية', d.marital], ['محل الميلاد', d.birthplace], ['سنوات الخبرة كمسؤولة مقصف', ad(d.experience)]);
-  trio(['المؤهل في القرآن', d.quranQual], ['المؤهل العلمي', d.eduQual], ['تاريخ التقييم', ad(d.evalDate)]);
+  const pr = evalPersonalRows_(d);
+  pr.rows.forEach(function (row) { trio(row[0], row[1], row[2] || ['', '']); });
+  if (pr.exp) {
+    ws.getCell(r, 1).value = 'الخبرات السابقة'; xlStyle_(ws.getCell(r, 1), { bold: true, fill: XL_CREAM_, wrap: true });
+    merge(r, 2, 6); ws.getCell(r, 2).value = pr.exp; xlStyle_(ws.getCell(r, 2), { bold: true, color: XL_MAROON_, wrap: true });
+    ws.getRow(r).height = Math.max(34, 18 * pr.exp.split('\n').length); r++;
+  }
   r++;
 
   // جدول البنود: القسم | البيان (٣ أعمدة) | المستحقة | المكتسبة

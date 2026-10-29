@@ -161,25 +161,29 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
 
         <h4 style="color:var(--maroon);margin:16px 0 6px;">المعلومات الشخصية</h4>
         <label>اسم مسؤولة المقصف</label>
-        <input type="text" id="evName" list="evNamesDl" placeholder="اسم المسؤولة" autocomplete="off">
+        <input type="text" id="evName" list="evNamesDl" placeholder="اسم المسؤولة" autocomplete="off" oninput="evProfileLookup_()" onchange="evProfileLookup_()">
         <datalist id="evNamesDl"></datalist>
+        <div id="evProfileNote" class="hidden" style="color:#1f8f4e;font-size:0.85rem;margin:6px 0;">✅ البيانات المظلّلة جُلبت من «البيانات الشخصية» التي عبّأتها المسؤولة، وتتحدّث بتحديثها. وما كان فارغاً تكتبينه هنا.</div>
         <div class="select-row">
           <div><label>رقم الجوال</label><input type="text" id="evPhone" inputmode="tel"></div>
-          <div><label>الأجزاء المحفوظة</label><input type="text" id="evJuz"></div>
+          <div><label>مقدار الحفظ في القرآن الكريم</label><input type="text" id="evJuz"></div>
         </div>
         <div class="select-row">
           <div><label>الحالة الاجتماعية</label><select id="evMarital"><option value="">اختاري...</option><option>عزباء</option><option>متزوجة</option><option>مطلقة</option><option>أرملة</option></select></div>
-          <div><label>محل الميلاد</label><input type="text" id="evBirthplace"></div>
+          <div><label>تاريخ الميلاد</label><input type="date" id="evBirth" min="1920-01-01" max="2020-12-31"></div>
         </div>
         <div class="select-row">
+          <div><label>مكان الميلاد</label><input type="text" id="evBirthplace"></div>
           <div><label>سنوات الخبرة كمسؤولة مقصف</label><input type="text" id="evExperience" inputmode="numeric"></div>
-          <div><label>تاريخ التقييم</label><input type="text" id="evEvalDate"></div>
         </div>
         <div class="select-row">
           <div><label>المؤهل في القرآن</label><select id="evQuranQual" onchange="document.getElementById('evQuranQualOther').classList.toggle('hidden', this.value !== 'أخرى')"></select>
             <input type="text" id="evQuranQualOther" class="hidden" placeholder="اكتبي المؤهل" style="margin-top:6px;"></div>
-          <div><label>المؤهل العلمي</label><input type="text" id="evEduQual"></div>
+          <div><label>المؤهل العلمي</label><select id="evEduQual" onchange="document.getElementById('evMajorWrap').classList.toggle('hidden', this.value !== 'جامعي')"><option value="">اختاري...</option><option>ابتدائي</option><option>متوسط</option><option>ثانوي</option><option>دبلوم</option><option>جامعي</option></select></div>
         </div>
+        <div id="evMajorWrap" class="hidden"><label>التخصص</label><input type="text" id="evMajor"></div>
+        <label>الخبرات السابقة</label><textarea id="evExpText" rows="2"></textarea>
+        <label>تاريخ التقييم</label><input type="text" id="evEvalDate">
 
         <h4 style="color:var(--maroon);margin:16px 0 6px;">بنود خاصة بمديرة المركز</h4>
         <div id="evDirScoresBox" style="overflow-x:auto;"></div>
@@ -2330,6 +2334,58 @@ function loadEvals_() {
   }).catch(function () { tbody.innerHTML = '<tr><td colspan="5">تعذّر التحميل، حاولي مرة أخرى</td></tr>'; });
 }
 
+
+/* بيانات المسؤولة الشخصية: تُجلب من «البيانات الشخصية» التي عبّأتها المسؤولة وتُقفل (تتحدّث بتحديثها)؛ وما كان فارغاً تكتبه المديرة */
+let evProfileCache_ = {};
+let evProfileReq_ = 0;
+const EV_PROFILE_FIELDS_ = [['evPhone', 'phone'], ['evJuz', 'juz'], ['evMarital', 'marital'], ['evBirth', 'birth'], ['evExperience', 'experience'], ['evEduQual', 'eduQual'], ['evMajor', 'major'], ['evExpText', 'expText'], ['evBirthplace', 'birthplace']];
+function evUnlockProfileFields_() {
+  EV_PROFILE_FIELDS_.forEach(function (f) { const el = document.getElementById(f[0]); if (el) { el.disabled = false; el.style.background = ''; } });
+  ['evQuranQual', 'evQuranQualOther'].forEach(function (i) { const el = document.getElementById(i); if (el) { el.disabled = false; el.style.background = ''; } });
+  document.getElementById('evProfileNote').classList.add('hidden');
+}
+function evApplyProfile_(p) {
+  const any = EV_PROFILE_FIELDS_.some(function (f) { return String(p[f[1]] || '').trim() !== ''; });
+  EV_PROFILE_FIELDS_.forEach(function (f) {
+    const el = document.getElementById(f[0]); const v = String(p[f[1]] === undefined || p[f[1]] === null ? '' : p[f[1]]).trim();
+    if (!el || v === '') return;
+    el.value = v; el.disabled = true; el.style.background = '#f3ede8';
+  });
+  const qv = String(p.quranQual || '').trim();
+  if (qv) {
+    const qk = EVAL_QURAN_QUALS.indexOf(qv) !== -1, qs = document.getElementById('evQuranQual'), qo = document.getElementById('evQuranQualOther');
+    qs.value = qk ? qv : 'أخرى'; qs.disabled = true; qs.style.background = '#f3ede8';
+    qo.value = qk ? '' : qv; qo.disabled = true; qo.classList.toggle('hidden', qk);
+  }
+  document.getElementById('evMajorWrap').classList.toggle('hidden', document.getElementById('evEduQual').value !== 'جامعي');
+  document.getElementById('evProfileNote').classList.toggle('hidden', !(any || qv));
+}
+let evLastName_ = '';
+function evProfileLookup_() {
+  const name = (document.getElementById('evName').value || '').trim();
+  evUnlockProfileFields_();
+  /* تغيير الاسم إلى مسؤولة أخرى: نفرّغ بيانات السابقة حتى لا تبقى في الحقول */
+  if (evLastName_ && name !== evLastName_) {
+    EV_PROFILE_FIELDS_.forEach(function (f) { const el = document.getElementById(f[0]); if (el) el.value = ''; });
+    ['evBirthplace', 'evQuranQual', 'evQuranQualOther'].forEach(function (i) { const el = document.getElementById(i); if (el) el.value = ''; });
+    document.getElementById('evQuranQualOther').classList.add('hidden');
+    document.getElementById('evMajorWrap').classList.add('hidden');
+  }
+  evLastName_ = name;
+  if (!name || evMasoulat_.indexOf(name) === -1) return;
+  const use = function (p) { if (p && my === evProfileReq_) evApplyProfile_(p); };
+  const my = ++evProfileReq_;
+  if (evProfileCache_[name]) { use(evProfileCache_[name]); return; }
+  const pw = evalCenterPw_(false); if (!pw) return;
+  callApi('getMasoulaProfileForEval', { center: currentCenter, password: pw, name: name, _t: Date.now() }).then(function (r) {
+    if (!r || !r.ok || !r.profile) return;
+    const p = r.profile;
+    const d = { phone: p.phone, juz: p.juz, marital: p.marital, birth: p.birth, experience: p.years, eduQual: p.edu, major: p.major, expText: p.expText, birthplace: p.birthplace, quranQual: p.quranQual };
+    evProfileCache_[name] = d;
+    use(d);
+  }).catch(function () {});
+}
+
 function evalLiveDir_() { evalLiveTotal_(EVAL_DIR_ITEMS, 'evDir', 'evDirTotal'); }
 
 function openEvalForm_(id) {
@@ -2338,7 +2394,6 @@ function openEvalForm_(id) {
   evEditId_ = ev ? ev.id : '';
   document.getElementById('evFormTitle').textContent = ev ? 'تعديل تقييم مسؤولة المقصف' : 'استمارة تقييم مسؤولة المقصف';
   fillYearSelect('evYear', 1);
-  fillSelect('evQuranQual', EVAL_QURAN_QUALS.concat(['أخرى']), 'اختاري...');
   document.getElementById('evNamesDl').innerHTML = evMasoulat_.map(function (n) { return '<option value="' + vrdEsc_(n) + '">'; }).join('');
   const setv = function (elId, v) { const el = document.getElementById(elId); if (el) el.value = v || ''; };
   setv('evPeriod', d.period || 'صباحية');
@@ -2351,14 +2406,19 @@ function openEvalForm_(id) {
     sel.value = d.year;
   }
   setv('evName', d.name || (evMasoulat_.length === 1 ? evMasoulat_[0] : ''));
-  setv('evPhone', d.phone); setv('evJuz', d.juz); setv('evMarital', d.marital); setv('evBirthplace', d.birthplace);
-  setv('evExperience', d.experience); setv('evEduQual', d.eduQual);
   setv('evEvalDate', d.evalDate || toHijriNumericStr(todayStr()));
+  fillSelect('evQuranQual', EVAL_QURAN_QUALS.concat(['أخرى']), 'اختاري...');
+  setv('evPhone', d.phone); setv('evJuz', d.juz); setv('evMarital', d.marital); setv('evBirth', d.birth);
+  setv('evBirthplace', d.birthplace); setv('evExperience', d.experience); setv('evEduQual', d.eduQual); setv('evMajor', d.major); setv('evExpText', d.expText);
+  document.getElementById('evMajorWrap').classList.toggle('hidden', d.eduQual !== 'جامعي');
   const q = d.quranQual || '';
   const known = EVAL_QURAN_QUALS.indexOf(q) !== -1;
   setv('evQuranQual', q ? (known ? q : 'أخرى') : '');
   setv('evQuranQualOther', known ? '' : q);
   document.getElementById('evQuranQualOther').classList.toggle('hidden', !(q && !known));
+  evUnlockProfileFields_();
+  evLastName_ = d.name || '';
+  if (d.name || evMasoulat_.length === 1) setTimeout(evProfileLookup_, 0);
   document.getElementById('evDirScoresBox').innerHTML = evalScoresTableHtml_(EVAL_DIR_ITEMS, 'evDir', d.dirScores || [], false);
   document.querySelectorAll('#evDirScoresBox .ev-score').forEach(function (el) { el.addEventListener('input', evalLiveDir_); });
   evalLiveDir_();
@@ -2384,17 +2444,18 @@ function submitEval_() {
   if (!name) { alert('يُرجى كتابة اسم مسؤولة المقصف'); return; }
   const sc = evalReadScores_(EVAL_DIR_ITEMS, 'evDir');
   if (!sc.ok) { alert(sc.error); if (sc.el) sc.el.focus(); return; }
+  const quran = val('evQuranQual') === 'أخرى' ? val('evQuranQualOther') : val('evQuranQual');
   const directorName = val('evDirectorName');
   if (!directorName) { alert('يُرجى كتابة اسم مديرة المركز'); return; }
   if (!evalSigFilled_('evSig')) { alert('يُرجى التوقيع أولاً'); return; }
   const rawSig = getSignatureDataUrl('evSig');
   const pw = evalCenterPw_(true);
   if (!pw) return;
-  const quran = val('evQuranQual') === 'أخرى' ? val('evQuranQualOther') : val('evQuranQual');
   const data = {
     period: val('evPeriod'), term: val('evTerm'), year: val('evYear'),
-    name: name, phone: val('evPhone'), juz: val('evJuz'), marital: val('evMarital'), birthplace: val('evBirthplace'),
-    experience: val('evExperience'), quranQual: quran, eduQual: val('evEduQual'), evalDate: val('evEvalDate'),
+    name: name, evalDate: val('evEvalDate'),
+    phone: val('evPhone'), juz: val('evJuz'), marital: val('evMarital'), birth: val('evBirth'), birthplace: val('evBirthplace'),
+    experience: val('evExperience'), quranQual: quran, eduQual: val('evEduQual'), major: val('evEduQual') === 'جامعي' ? val('evMajor') : '', expText: val('evExpText'),
     dirScores: sc.scores, positives: val('evPositives'), improvements: val('evImprovements')
   };
   const btn = document.getElementById('evSubmitBtn');
