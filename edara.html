@@ -446,9 +446,9 @@
           </div>
         </div>
         <table class="log-table" id="salesTable">
-          <thead><tr><th>المركز</th><th>اليوم</th><th>التاريخ</th><th>الوقت</th><th>المبلغ</th><th>ملاحظات</th></tr></thead>
-          <tbody id="salesTbody"><tr><td colspan="6">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
-          <tfoot><tr><td colspan="4">الإجمالي</td><td id="salesTotal">0</td><td></td></tr></tfoot>
+          <thead><tr><th>المركز</th><th>اليوم</th><th>التاريخ</th><th>الوقت</th><th>المبلغ</th><th>ملاحظات</th><th>إجراء</th></tr></thead>
+          <tbody id="salesTbody"><tr><td colspan="7">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
+          <tfoot><tr><td colspan="4">الإجمالي</td><td id="salesTotal">0</td><td colspan="2"></td></tr></tfoot>
         </table>
         <div class="export-row">
           <button class="btn outline" onclick="exportCurrentSales()">⬇️ Excel</button>
@@ -2878,23 +2878,30 @@ function sortSalesNewestFirst_(list) {
 function loadCenterSales() {
   const center = document.getElementById('salesCenterSelect').value;
   const tbody = document.getElementById('salesTbody');
-  tbody.innerHTML = '<tr><td colspan="6">جاري التحميل...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
   populateTermFilter_('salesTermFilter');
   const term = document.getElementById('salesTermFilter').value;
   callApi('getSales', { center: center, term: term }).then(function (r) {
     currentSales = r.sales || [];
     if (!r.ok || !currentSales.length) {
-      tbody.innerHTML = '<tr><td colspan="6">لا يوجد سجل بعد</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7">لا يوجد سجل بعد</td></tr>';
       document.getElementById('salesTotal').textContent = '0';
       return;
     }
     tbody.innerHTML = '';
     sortSalesNewestFirst_(currentSales).forEach(function (s) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (s['اسم المركز'] || '') + '</td><td>' + (s['اليوم'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td><td>' + (s['ملاحظات'] || '') + '</td>';
+      tr.innerHTML = '<td>' + (s['اسم المركز'] || '') + '</td><td>' + (s['اليوم'] || '') + '</td><td>' + toHijriStr(s['التاريخ']) + '</td><td>' + (s['الوقت'] || '') + '</td><td>' + Number(s['المبلغ']).toFixed(2) + '</td><td>' + (s['ملاحظات'] || '') + '</td><td><div class="row-actions"><a href="#" onclick="adminDeleteSale_(' + Number(s._row) + '); return false;">حذف</a></div></td>';
       tbody.appendChild(tr);
     });
     document.getElementById('salesTotal').textContent = r.total.toFixed(2);
+  });
+}
+
+function adminDeleteSale_(row) {
+  if (!row || !confirm('حذف هذا السجل من المبيعات نهائيًا؟')) return;
+  callApi('deleteSale', { row: row }).then(function (r) {
+    if (r && r.ok) loadCenterSales(); else alert((r && r.error) || 'تعذّر الحذف');
   });
 }
 
