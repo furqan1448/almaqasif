@@ -3304,10 +3304,12 @@ function dlvRender_() {
   ob.textContent = on.length ? 'مواعيد محفوظة لأسماء غير موجودة الآن في قائمة المراكز (محفوظة ولم تُحذف): ' + on.join('، ') : '';
   dlvFilter_();
 }
+/* العدد مع المعدود: ١ مركز، ٢ مركزان، ٣–١٠ مراكز، وما فوق العشرة مفرد (١٢ مركز) */
+function dlvCnt_(n) { return n === 1 ? 'مركز واحد' : (n === 2 ? 'مركزان' : toArabicDigits(n) + (n <= 10 ? ' مراكز' : ' مركز')); }
 let dlvEdit_ = false;
 function dlvEditCount_() {
   const n = centersListCache.filter(function (c) { return dlvState_.sel[c] && dlvState_.map[c]; }).length;
-  document.getElementById('dlvEditCount').textContent = n ? 'المحدد الآن: ' + toArabicDigits(n) + ' مركز' : '';
+  document.getElementById('dlvEditCount').textContent = n ? 'المحدد الآن: ' + dlvCnt_(n) : '';
 }
 function dlvEditToggle_() {
   dlvEdit_ = !dlvEdit_;
@@ -3468,7 +3470,7 @@ async function dlvPdf_(btn) {
       }
       pg.forEach(function (s) {
         const d = dlvParse_(s.v);
-        html += '<div class="day"><div class="band"><span>' + DLV_DAYS_[d.getDay()] + (s.cont ? ' (تابع)' : '') + '</span><span>' + toHijriStr(s.v) + '</span><span class="gr">الموافق ' + dlvGreg_(s.v) + '</span><span class="cnt">' + toArabicDigits(groups[s.v].length) + ' مراكز</span></div>' +
+        html += '<div class="day"><div class="band"><span>' + DLV_DAYS_[d.getDay()] + (s.cont ? ' (تابع)' : '') + '</span><span>' + toHijriStr(s.v) + '</span><span class="gr">الموافق ' + dlvGreg_(s.v) + '</span><span class="cnt">' + dlvCnt_(groups[s.v].length) + '</span></div>' +
           '<table><thead><tr><th style="width:8%">م</th><th class="nm">المركز</th><th style="width:26%">الفترة</th></tr></thead><tbody>' +
           s.rows.map(function (c, k) {
             const m = /^(.*?)\s*[-–]\s*(الفترة.*)$/.exec(c);
