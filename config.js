@@ -3032,3 +3032,46 @@ function renderToSignBanner_(list) {
   card.appendChild(row);
   box.appendChild(card);
 }
+
+
+/* ------------------- مؤشر «جارٍ التنزيل...» لكل أزرار PDF -------------------
+   تجهيز ملف PDF قد يستغرق عدة ثوانٍ، فيظهر مؤشر واضح فور الضغطة ويختفي عند بدء التنزيل.
+   تُغلَّف الدوال بعد اكتمال تحميل الصفحة (لأن بعضها معرَّف داخل الصفحة نفسها). */
+(function () {
+  let depth = 0, box = null;
+  function ensureBox() {
+    if (box) return box;
+    const st = document.createElement('style');
+    st.textContent = '#pdfBusyBox{position:fixed;inset:0;z-index:99999;background:rgba(43,35,33,.45);display:none;align-items:center;justify-content:center;direction:rtl;font-family:Tajawal,sans-serif}' +
+      '#pdfBusyBox .pb{background:#fff;border-radius:14px;padding:22px 30px;display:flex;align-items:center;gap:14px;box-shadow:0 10px 40px rgba(0,0,0,.25);color:#6e1523;font-weight:700;font-size:1.05rem}' +
+      '#pdfBusyBox .sp{width:26px;height:26px;border:3px solid #e8dcc8;border-top-color:#8C1A2C;border-radius:50%;animation:pdfspin .8s linear infinite}@keyframes pdfspin{to{transform:rotate(360deg)}}';
+    document.head.appendChild(st);
+    box = document.createElement('div');
+    box.id = 'pdfBusyBox';
+    box.innerHTML = '<div class="pb"><div class="sp"></div><span id="pdfBusyTxt">جارٍ التنزيل...</span></div>';
+    document.body.appendChild(box);
+    return box;
+  }
+  function show(text) { try { const b = ensureBox(); document.getElementById('pdfBusyTxt').textContent = text; b.style.display = 'flex'; depth++; } catch (e) {} }
+  function hide() { try { depth = Math.max(0, depth - 1); if (!depth && box) box.style.display = 'none'; } catch (e) {} }
+  function wrap(owner, name) {
+    const fn = owner && owner[name];
+    if (typeof fn !== 'function' || fn.__pdfBusy) return;
+    const w = async function () {
+      const args = arguments;
+      const share = Array.prototype.some.call(args, function (a) { return a === 'share'; });
+      show(share ? 'جارٍ التجهيز...' : 'جارٍ التنزيل...');
+      try {
+        await new Promise(function (r) { requestAnimationFrame(function () { setTimeout(r, 30); }); });
+        return await fn.apply(this, args);
+      } finally { hide(); }
+    };
+    w.__pdfBusy = true;
+    owner[name] = w;
+  }
+  window.addEventListener('load', function () {
+    ['printReport', 'printVisitReportWindow', 'printMeetingMinutesWindow', 'saveVisitReportPdf', 'shareVisitReportPdf',
+     'saveMeetingMinutesPdf', 'shareMeetingMinutesPdf', 'canteenOrderPdf', 'masoulaEvalPdf', 'prfAdminPdf_', 'dlvPdf_'].forEach(function (n) { wrap(window, n); });
+    if (window.PriceMenu) wrap(window.PriceMenu, 'exportPdf');
+  });
+})();

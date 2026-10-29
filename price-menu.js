@@ -619,7 +619,7 @@
       if (!RAW.length) return;
       var lbl = b.querySelector('span'), old = lbl.textContent;
       b.disabled = true; lbl.textContent = 'جارٍ التجهيز...';
-      Promise.resolve(b.getAttribute('data-a') === 'pdf' ? exportPdf(RAW) : exportExcel(RAW))
+      Promise.resolve(b.getAttribute('data-a') === 'pdf' ? window.PriceMenu.exportPdf(RAW) : exportExcel(RAW))
         .then(function () { b.disabled = false; lbl.textContent = old; }, function () { b.disabled = false; lbl.textContent = old; });
     });
 
