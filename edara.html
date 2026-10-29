@@ -623,7 +623,7 @@
         <div id="dlvEditBar" class="hidden" style="border:1px solid #e0c36a;background:#fff8e1;border-radius:12px;padding:10px 12px;margin-bottom:10px;">
           <div style="font-size:0.85rem;color:#6e1523;margin-bottom:8px;">ضعي علامة ✔ بجانب المراكز المطلوب تغيير موعدها (أو علامة اليوم كاملاً)، ثم اختاري التاريخ الجديد واضغطي «تغيير الموعد». <b id="dlvEditCount"></b></div>
           <div class="select-row" style="align-items:flex-end;">
-            <div><label style="font-weight:normal;">التاريخ الجديد</label><input type="date" id="dlvEditDate" onchange="document.getElementById('dlvPick').value = this.value; dlvPickChanged_();"></div>
+            <div><label style="font-weight:normal;">التاريخ الجديد</label><input type="date" id="dlvEditDate" onchange="document.getElementById('dlvPick').value = this.value; dlvPickChanged_();"><div id="dlvEditInfo" style="font-size:0.85rem;color:var(--maroon);margin-top:4px;min-height:1.2em;"></div></div>
             <div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;">
               <button class="btn" onclick="dlvEditApply_()" style="width:auto;padding:10px 18px;">تغيير الموعد للمحددة</button>
               <button class="btn outline" onclick="dlvEditCancel_()" style="width:auto;padding:10px 18px;">إلغاء موعد المحددة</button>
@@ -3364,6 +3364,7 @@ function dlvPickChanged_() {
   const v = document.getElementById('dlvPick').value, box = document.getElementById('dlvPickInfo');
   const d = dlvParse_(v);
   const ed = document.getElementById('dlvEditDate'); if (ed && v) ed.value = v;
+  const ei = document.getElementById('dlvEditInfo'); if (ei) ei.textContent = d ? DLV_DAYS_[d.getDay()] + ' — ' + toHijriStr(v) : '';
   if (!d) { box.textContent = ''; return; }
   const per = Math.max(1, Number(document.getElementById('dlvPerDay').value) || 10);
   let n = 0; centersListCache.forEach(function (c) { if (dlvState_.map[c] === v) n++; });
@@ -3456,7 +3457,7 @@ async function dlvPdf_(btn) {
       '.dp .day{margin-bottom:' + GAP + 'px;border:1px solid #d9c3b8;border-radius:10px;overflow:hidden}' +
       '.dp .band{height:' + BAND + 'px;background:#8C1A2C;color:#fff;padding:0 14px;display:flex;gap:12px;align-items:center;font-weight:700;font-size:15px}.dp .band .gr{font-weight:400;font-size:12px;opacity:.92}.dp .band .cnt{margin-right:auto;background:rgba(255,255,255,.22);border-radius:12px;padding:1px 10px;font-size:12px}' +
       '.dp table{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}.dp th{height:' + THEAD + 'px;background:#f3e8e1;color:#6e1523;font-size:13px;border-bottom:1px solid #d9c3b8}' +
-      '.dp td{height:' + ROW + 'px;text-align:center;border-bottom:1px solid #eee2db;padding:0 8px;overflow:hidden;white-space:nowrap}.dp td.nm{text-align:right;font-weight:500}.dp tbody tr:nth-child(even){background:#fcf8f6}.dp tbody tr:last-child td{border-bottom:0}' +
+      '.dp td{height:' + ROW + 'px;text-align:center;border-bottom:1px solid #eee2db;padding:0 8px;overflow:hidden;white-space:nowrap}.dp td.nm{text-align:right;font-weight:500}.dp th.nm{text-align:right;padding:0 8px}.dp tbody tr:nth-child(even){background:#fcf8f6}.dp tbody tr:last-child td{border-bottom:0}' +
       '.dp .pn{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:12px;color:#8a7d76}</style>';
     host.style.cssText = 'position:fixed;left:-20000px;top:0;width:794px;pointer-events:none;';
     let html = css;
@@ -3468,7 +3469,7 @@ async function dlvPdf_(btn) {
       pg.forEach(function (s) {
         const d = dlvParse_(s.v);
         html += '<div class="day"><div class="band"><span>' + DLV_DAYS_[d.getDay()] + (s.cont ? ' (تابع)' : '') + '</span><span>' + toHijriStr(s.v) + '</span><span class="gr">الموافق ' + dlvGreg_(s.v) + '</span><span class="cnt">' + toArabicDigits(groups[s.v].length) + ' مراكز</span></div>' +
-          '<table><thead><tr><th style="width:8%">م</th><th>المركز</th><th style="width:26%">الفترة</th></tr></thead><tbody>' +
+          '<table><thead><tr><th style="width:8%">م</th><th class="nm">المركز</th><th style="width:26%">الفترة</th></tr></thead><tbody>' +
           s.rows.map(function (c, k) {
             const m = /^(.*?)\s*[-–]\s*(الفترة.*)$/.exec(c);
             return '<tr><td>' + toArabicDigits(s.startNo + k + 1) + '</td><td class="nm">' + esc(m ? m[1] : c) + '</td><td>' + esc(m ? m[2] : '') + '</td></tr>';
