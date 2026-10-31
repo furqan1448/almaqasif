@@ -213,7 +213,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
           <label style="margin-top:14px;">الخبرات السابقة</label>
           <div id="prfExpBox"></div>
           <button type="button" class="btn outline" onclick="prfAddExp_()" style="margin-top:6px;">＋ إضافة خبرة</button>
-          <div style="margin-top:14px;"><button class="btn" id="prfSaveBtn" onclick="prfSave_()">حفظ البيانات</button></div>
+          <div style="margin-top:14px;"><button class="btn" id="prfSaveBtn" onclick="prfSave_()">حفظ الاستبانة</button></div>
           <div class="success-msg" id="prfOk">تم حفظ بياناتك بنجاح ✅</div>
           <div id="prfUpdated" style="color:#8a7d76;font-size:0.82rem;margin-top:8px;"></div>
         </div>
@@ -848,6 +848,7 @@ function doLogin() {
 }
 
 function logout() {
+  if (typeof deliveryNoticeReset_ === 'function') deliveryNoticeReset_();
   sessionStorage.removeItem('maqasif_masoula');
   sessionStorage.removeItem('maqasif_masoula_email');
   sessionStorage.removeItem('maqasif_masoula_center');
@@ -879,6 +880,7 @@ function showDashboard() {
   loadDashboardData();
   loadHomeAnnouncements();
   prefetchForCenter_(currentCenter);
+  deliveryNoticeInit_('مسؤولة', currentName, currentCenter);
 }
 
 /* تجيب كل بيانات اللوحة (الحضور + التعهد + المهام + عدد الإشعارات المعلّقة) بطلب واحد

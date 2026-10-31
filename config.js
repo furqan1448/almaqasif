@@ -3075,3 +3075,77 @@ function renderToSignBanner_(list) {
     if (window.PriceMenu) wrap(window.PriceMenu, 'exportPdf');
   });
 })();
+
+
+/* ------------------- موعد تسليم المركز: بطاقة وإقرار «تم الاطلاع» -------------------
+   تُستدعى بعد الدخول من صفحة المديرة (role = مديرة) أو المسؤولة (role = مسؤولة).
+   تعرض موعد المركز نفسه فقط (لا الجدول كاملاً)، وتطلب تأكيد الاطلاع عليه؛ ويظهر للإدارة من اطّلع ومن لم يطّلع. */
+(function () {
+  const DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+  function parse(s) { const p = String(s || '').split('-'); return p.length === 3 ? new Date(+p[0], +p[1] - 1, +p[2]) : null; }
+  function greg(d) { try { return new Intl.DateTimeFormat('ar-SA-u-ca-gregory', { day: 'numeric', month: 'numeric', year: 'numeric' }).format(d) + ' م'; } catch (e) { return ''; } }
+  let ctx = null;
+
+  function ensureStyle() {
+    if (document.getElementById('dlvNoticeStyle')) return;
+    const st = document.createElement('style'); st.id = 'dlvNoticeStyle';
+    st.textContent = '#dlvNoticeOv{position:fixed;inset:0;z-index:99998;background:rgba(43,35,33,.55);display:flex;align-items:center;justify-content:center;padding:16px;direction:rtl;font-family:Tajawal,sans-serif}' +
+      '#dlvNoticeOv .dn{background:#fff;border-radius:18px;max-width:420px;width:100%;overflow:hidden;box-shadow:0 14px 50px rgba(0,0,0,.3)}' +
+      '#dlvNoticeOv .dn-h{background:linear-gradient(90deg,#8C1A2C,#a8283c);color:#fff;padding:14px 18px;font-weight:800;font-size:1.05rem}' +
+      '#dlvNoticeOv .dn-b{padding:18px;text-align:center}#dlvNoticeOv .dn-c{color:#6e1523;font-weight:700;margin-bottom:10px}' +
+      '#dlvNoticeOv .dn-d{font-family:Amiri,serif;font-size:1.7rem;color:#8C1A2C;font-weight:700;line-height:1.5}#dlvNoticeOv .dn-g{color:#8a7d76;font-size:.9rem;margin-top:4px}' +
+      '#dlvNoticeOv .dn-k{display:flex;align-items:center;justify-content:center;gap:10px;margin:18px 0 12px;font-weight:700;color:#2b2321;cursor:pointer}#dlvNoticeOv .dn-k input{width:22px;height:22px;margin:0}' +
+      '#dlvNoticeOv .dn-e{color:#b3261e;font-size:.85rem;min-height:1.2em;margin-top:6px}' +
+      '.dlv-home-card{border:1px solid #e3d3c9;border-right:5px solid #8C1A2C;background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;direction:rtl}' +
+      '.dlv-home-card .t{color:#6e1523;font-weight:800;margin-bottom:4px}.dlv-home-card .d{font-weight:700;color:#2b2321}.dlv-home-card .s{margin-top:6px;font-size:.88rem}' +
+      '.dlv-home-card .ok{color:#1f6b40;font-weight:700}.dlv-home-card .no{color:#b3261e;font-weight:700}';
+    document.head.appendChild(st);
+  }
+  function dateText(iso) { const d = parse(iso); return DAYS[d.getDay()] + ' ' + toHijriStr(iso); }
+
+  function renderCard() {
+    const home = document.getElementById('homeView'); if (!home) return;
+    let c = document.getElementById('dlvHomeCard');
+    if (!ctx || !ctx.date) { if (c) c.remove(); return; }
+    if (!c) { c = document.createElement('div'); c.id = 'dlvHomeCard'; c.className = 'dlv-home-card'; home.insertBefore(c, home.firstChild); }
+    const d = parse(ctx.date);
+    c.innerHTML = '<div class="t">📅 موعد تسليم مبالغ المقصف</div><div class="d">' + dateText(ctx.date) + ' <span style="font-weight:400;color:#8a7d76;font-size:.85rem;">(الموافق ' + greg(d) + ')</span></div>' +
+      '<div class="s">' + (ctx.acked ? '<span class="ok">✔ تم الاطلاع على الموعد</span>' : '<span class="no">لم يُؤكَّد الاطلاع بعد</span> — <a href="#" id="dlvHomeAck" style="color:#8C1A2C;font-weight:700;">تأكيد الاطلاع</a>') + '</div>';
+    const a = document.getElementById('dlvHomeAck'); if (a) a.onclick = function (e) { e.preventDefault(); showModal(); };
+  }
+  function closeModal() { const o = document.getElementById('dlvNoticeOv'); if (o) o.remove(); }
+  function showModal() {
+    if (!ctx || !ctx.date) return;
+    ensureStyle(); closeModal();
+    const d = parse(ctx.date);
+    const o = document.createElement('div'); o.id = 'dlvNoticeOv';
+    o.innerHTML = '<div class="dn"><div class="dn-h">📅 موعد تسليم مبالغ المقصف</div><div class="dn-b">' +
+      '<div class="dn-c">' + String(ctx.center).replace(/[&<>]/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]; }) + '</div>' +
+      '<div class="dn-d">' + DAYS[d.getDay()] + '<br>' + toHijriStr(ctx.date) + '</div><div class="dn-g">الموافق ' + greg(d) + '</div>' +
+      '<label class="dn-k"><input type="checkbox" id="dlvNoticeCk"> <span>تم الاطلاع على الموعد المحدد</span></label>' +
+      '<button class="btn" id="dlvNoticeBtn" disabled style="opacity:.55">تأكيد</button><div class="dn-e" id="dlvNoticeErr"></div></div></div>';
+    document.body.appendChild(o);
+    const ck = document.getElementById('dlvNoticeCk'), bt = document.getElementById('dlvNoticeBtn'), er = document.getElementById('dlvNoticeErr');
+    ck.onchange = function () { bt.disabled = !ck.checked; bt.style.opacity = ck.checked ? '1' : '.55'; };
+    bt.onclick = function () {
+      bt.disabled = true; bt.textContent = 'جارٍ الحفظ...'; er.textContent = '';
+      callApi('ackCenterDelivery', { center: ctx.center, role: ctx.role, name: ctx.name || '', date: ctx.date }).then(function (r) {
+        if (r && r.ok) { ctx.acked = true; closeModal(); renderCard(); return; }
+        er.textContent = (r && r.error) || 'تعذّر الحفظ، حاولي مرة أخرى';
+        bt.disabled = false; bt.textContent = 'تأكيد';
+        if (r && /تغيّر الموعد/.test(r.error || '')) { er.innerHTML += ' <a href="#" id="dlvNoticeReload" style="color:#8C1A2C;font-weight:700;">تحديث</a>'; document.getElementById('dlvNoticeReload').onclick = function (e) { e.preventDefault(); closeModal(); window.deliveryNoticeInit_(ctx.role, ctx.name, ctx.center); }; }
+      }).catch(function () { er.textContent = 'تعذّر الاتصال بالخادم'; bt.disabled = false; bt.textContent = 'تأكيد'; });
+    };
+  }
+  window.deliveryNoticeInit_ = function (role, name, center) {
+    center = String(center || '').trim();
+    if (!center) return Promise.resolve();
+    return callApi('getCenterDelivery', { center: center, role: role, _t: Date.now() }).then(function (r) {
+      if (!r || !r.ok || !r.date) { ctx = null; renderCard(); closeModal(); return; }
+      ctx = { center: center, role: role, name: name || '', date: r.date, acked: !!r.acked };
+      ensureStyle(); renderCard();
+      if (!ctx.acked) showModal();
+    }).catch(function () {});
+  };
+  window.deliveryNoticeReset_ = function () { ctx = null; closeModal(); const c = document.getElementById('dlvHomeCard'); if (c) c.remove(); };
+})();

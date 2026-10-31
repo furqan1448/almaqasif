@@ -634,6 +634,16 @@
         <input type="search" id="dlvSearch" placeholder="🔍 بحث باسم المركز..." oninput="dlvFilter_()" style="margin:0 0 8px;">
         <div id="dlvDoneBox"><div style="color:#8a7d76;">لا توجد مواعيد بعد</div></div>
         <div id="dlvSummary"></div>
+        <h4 style="margin:18px 0 6px;color:var(--maroon);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">الاطلاع على المواعيد <span id="dlvAckCount"></span>
+          <button class="btn outline" onclick="dlvAckLoad_(true)" style="width:auto;padding:6px 16px;margin:0;">🔄 تحديث</button></h4>
+        <div class="select-row">
+          <div><select id="dlvAckFilter" onchange="dlvAckRender_()"><option value="all">الكل</option><option value="no">لم يطّلعوا بعد</option><option value="yes">اطّلعوا</option></select></div>
+          <div><input type="search" id="dlvAckSearch" placeholder="🔍 بحث باسم المركز..." oninput="dlvAckRender_()" style="margin:0;"></div>
+        </div>
+        <div class="table-scroll"><table class="log-table" style="min-width:0;">
+          <thead><tr><th>المركز</th><th>الموعد</th><th>الحالة</th></tr></thead>
+          <tbody id="dlvAckBody"><tr><td colspan="3">لا توجد مواعيد بعد</td></tr></tbody>
+        </table></div>
         <button class="btn" id="dlvSaveBtn" onclick="dlvSave_()" style="margin-top:10px;">حفظ الجدول</button>
         <div class="success-msg" id="dlvOk">تم حفظ الجدول ✅</div>
         <div class="export-row">
@@ -3226,6 +3236,7 @@ function loadDelivery_() {
       if (s.perDay) document.getElementById('dlvPerDay').value = s.perDay;
       dlvState_.sel = {};
       dlvRender_();
+      dlvAckLoad_();
     });
   };
   if (centersListCache.length) { go(); return; }
@@ -3303,6 +3314,7 @@ function dlvRender_() {
   ob.style.display = on.length ? '' : 'none';
   ob.textContent = on.length ? 'مواعيد محفوظة لأسماء غير موجودة الآن في قائمة المراكز (محفوظة ولم تُحذف): ' + on.join('، ') : '';
   dlvFilter_();
+  dlvAckRender_();
 }
 /* العدد مع المعدود: ١ مركز، ٢ مركزان، ٣–١٠ مراكز، وما فوق العشرة تمييز منصوب (١٢ مركزًا) */
 function dlvCnt_(n) { return n === 1 ? 'مركز واحد' : (n === 2 ? 'مركزان' : toArabicDigits(n) + (n <= 10 ? ' مراكز' : ' مركزًا')); }
@@ -3333,6 +3345,41 @@ function dlvEditCancel_() {
   if (!list.length) { alert('حدّدي المراكز أولاً'); return; }
   list.forEach(function (c) { delete dlvState_.map[c]; dlvState_.sel[c] = false; });
   dlvRender_(); dlvPickChanged_(); dlvEditCount_(); dlvSave_(true);
+}
+let dlvAck_ = {};
+function dlvAckLoad_(force) {
+  const pw = aevPw_(true); if (!pw) return;
+  callApi('getDeliveryAcksAdmin', { adminPw: pw, _t: Date.now() }).then(function (r) {
+    if (!r || !r.ok) { aevAuthFailed_(r); document.getElementById('dlvAckBody').innerHTML = '<tr><td colspan="3">' + ((r && r.error) || 'تعذّر التحميل (تأكدي من نشر أحدث Code.gs)') + '</td></tr>'; return; }
+    dlvAck_ = r.acks || {};
+    dlvAckRender_();
+  });
+}
+function dlvAckRows_() {
+  return centersListCache.filter(function (c) { return dlvState_.map[c]; }).map(function (c) {
+    const v = dlvState_.map[c], a = dlvAck_[dlvKey_(c)] || {}, who = [], when = [];
+    ['مديرة', 'مسؤولة'].forEach(function (role) {
+      const x = a[role];
+      if (x && x.date === v) { who.push(role); when.push((x.at || '').slice(0, 10)); }
+    });
+    return { c: c, v: v, who: who, at: when[0] || '', done: who.length > 0 };
+  });
+}
+function dlvAckRender_() {
+  const body = document.getElementById('dlvAckBody'); if (!body) return;
+  const all = dlvAckRows_(), f = document.getElementById('dlvAckFilter').value, q = (document.getElementById('dlvAckSearch').value || '').trim();
+  const yes = all.filter(function (x) { return x.done; }).length;
+  document.getElementById('dlvAckCount').textContent = all.length ? '(اطّلع ' + toArabicDigits(yes) + ' من ' + toArabicDigits(all.length) + ' — المتبقي ' + toArabicDigits(all.length - yes) + ')' : '';
+  const list = all.filter(function (x) { return (f === 'all' || (f === 'yes') === x.done) && (!q || x.c.indexOf(q) !== -1); });
+  list.sort(function (a, b) { return (a.done - b.done) || (a.v < b.v ? -1 : a.v > b.v ? 1 : 0); });
+  if (!list.length) { body.innerHTML = '<tr><td colspan="3">' + (all.length ? 'لا توجد نتائج' : 'لا توجد مواعيد بعد') + '</td></tr>'; return; }
+  const esc = function (s) { return String(s).replace(/[&<>]/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]; }); };
+  body.innerHTML = list.map(function (x) {
+    const d = dlvParse_(x.v);
+    return '<tr><td>' + esc(x.c) + '</td><td>' + DLV_DAYS_[d.getDay()] + ' ' + toHijriStr(x.v) + '</td><td>' +
+      (x.done ? '<span style="color:#1f6b40;font-weight:700;">✔ اطّلعت ' + x.who.map(function (w) { return 'ال' + w; }).join(' و') + '</span>' + (x.at ? '<br><small style="color:#8a7d76;">' + toHijriStr(x.at) + '</small>' : '')
+              : '<span style="color:#b3261e;font-weight:700;">⏳ لم تطّلع بعد</span>') + '</td></tr>';
+  }).join('');
 }
 function dlvFilter_() {
   const q = (document.getElementById('dlvSearch').value || '').trim();

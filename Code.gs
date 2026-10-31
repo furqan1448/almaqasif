@@ -1491,6 +1491,9 @@ function dispatch_(p, T0_) {
 
     case 'getDeliverySchedule': return (getDeliverySchedule_());
     case 'setDeliverySchedule': return (setDeliverySchedule_(p));
+    case 'getCenterDelivery': return (getCenterDelivery_(p));
+    case 'ackCenterDelivery': return (ackCenterDelivery_(p));
+    case 'getDeliveryAcksAdmin': return (getDeliveryAcksAdmin_(p));
 
     case 'getMasoulaProfileForEval': return (getMasoulaProfileForEval_(p));
     case 'getMasoulaProfile': return (getMasoulaProfile_(p));
@@ -2338,6 +2341,53 @@ function getDeliverySchedule_() {
   let d = {};
   try { d = JSON.parse(getSettingValue_(DELIVERY_SCHED_KEY_) || '{}') || {}; } catch (e) { d = {}; }
   return { ok: true, schedule: d };
+}
+/* ===== اطلاع المراكز على موعد التسليم =====
+   تظهر للمديرة/المسؤولة عند الدخول بطاقة بموعد مركزها فقط، وتؤكد «تم الاطلاع». يُحفظ الإقرار مع التاريخ الذي اطّلعت عليه،
+   فإذا غيّرت الإدارة الموعد لاحقاً عاد الإقرار «غير مؤكد» وظهر لها الموعد الجديد. */
+const DELIVERY_ACK_KEY_ = 'إقرارات مواعيد التسليم';
+function dlvNorm_(s) { return String(s === undefined || s === null ? '' : s).replace(/\s+/g, ' ').trim(); }
+function dlvDateOf_(center) {
+  let d = {};
+  try { d = JSON.parse(getSettingValue_(DELIVERY_SCHED_KEY_) || '{}') || {}; } catch (e) { d = {}; }
+  const key = dlvNorm_(center), map = d.map || {};
+  let found = '';
+  Object.keys(map).forEach(function (k) { if (dlvNorm_(k) === key) found = map[k]; });
+  return found;
+}
+function dlvReadAcks_() {
+  let a = {};
+  try { a = JSON.parse(getSettingValue_(DELIVERY_ACK_KEY_) || '{}') || {}; } catch (e) { a = {}; }
+  return a;
+}
+function getCenterDelivery_(p) {
+  const center = dlvNorm_(p && p.center), role = dlvNorm_(p && p.role);
+  if (!center) return { ok: true, date: '' };
+  const date = dlvDateOf_(center);
+  if (!date) return { ok: true, date: '' };
+  const a = (dlvReadAcks_()[center] || {})[role] || null;
+  return { ok: true, date: date, acked: !!(a && a.date === date), ackAt: a && a.date === date ? (a.at || '') : '' };
+}
+function ackCenterDelivery_(p) {
+  const center = dlvNorm_(p && p.center), role = dlvNorm_(p && p.role) === 'مسؤولة' ? 'مسؤولة' : 'مديرة';
+  const date = dlvDateOf_(center);
+  if (!center || !date) return { ok: false, error: 'لا يوجد موعد محدد لهذا المركز' };
+  if (String(p.date || '') !== date) return { ok: false, error: 'تغيّر الموعد، حدّثي الصفحة ثم أكّدي الاطلاع' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const acks = dlvReadAcks_();
+    acks[center] = acks[center] || {};
+    const n = nowParts_();
+    acks[center][role] = { date: date, at: n.date + ' ' + n.time, name: String(p.name || '').slice(0, 80) };
+    setSettingValue_(DELIVERY_ACK_KEY_, JSON.stringify(acks));
+  } finally { lock.releaseLock(); }
+  return { ok: true };
+}
+function getDeliveryAcksAdmin_(p) {
+  const a = loginAdmin_({ password: p && p.adminPw });
+  if (!a.ok) return { ok: false, auth: true, error: a.error };
+  return { ok: true, acks: dlvReadAcks_() };
 }
 function setDeliverySchedule_(p) {
   const a = loginAdmin_({ password: p && p.adminPw });

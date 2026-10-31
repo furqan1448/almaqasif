@@ -877,6 +877,7 @@ function doLogin() {
 }
 
 function logout() {
+  if (typeof deliveryNoticeReset_ === 'function') deliveryNoticeReset_();
   sessionStorage.removeItem('maqasif_center');
   sessionStorage.removeItem('maqasif_center_readonly');
   try { sessionStorage.removeItem('maqasif_center_pw'); } catch (e) {}
@@ -899,6 +900,7 @@ function showDashboard() {
   loadHomeAnnouncements();
   initEvalTile_();
   prefetchForCenter_(currentCenter);
+  deliveryNoticeInit_('مديرة', '', currentCenter);
 }
 
 /* لو المركز محدد كـ"وضع العرض فقط" بشيت المراكز: نخفي أيقونات الإشعارات
