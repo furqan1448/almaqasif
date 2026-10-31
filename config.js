@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbxKxmbTsxuhzyeofbCEFAWQAvVPen0SD-wK0NTufA5AemX9zS_gSvPeIH6ZQprzfvVT/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyi9_aId4pdhewxTvx9BM755JRMEf98gABkJtN34h_uNmylTvqQi6xoGn8mNEccNsjr/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -3120,7 +3120,7 @@ function renderToSignBanner_(list) {
     const d = parse(ctx.date);
     const o = document.createElement('div'); o.id = 'dlvNoticeOv';
     o.innerHTML = '<div class="dn"><div class="dn-h">📅 موعد تسليم مبالغ المقصف</div><div class="dn-b">' +
-      '<div class="dn-c">' + String(ctx.center).replace(/[&<>]/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]; }) + '</div>' +
+      '<div class="dn-c">' + (/^مركز\s/.test(ctx.center) ? '' : 'مركز ') + String(ctx.center).replace(/[&<>]/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]; }) + '</div>' +
       '<div class="dn-d">' + DAYS[d.getDay()] + '<br>' + toHijriStr(ctx.date) + '</div><div class="dn-g">الموافق ' + greg(d) + '</div>' +
       '<label class="dn-k"><input type="checkbox" id="dlvNoticeCk"> <span>تم الاطلاع على الموعد المحدد</span></label>' +
       '<button class="btn" id="dlvNoticeBtn" disabled style="opacity:.55">تأكيد</button><div class="dn-e" id="dlvNoticeErr"></div></div></div>';
