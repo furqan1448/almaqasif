@@ -34,6 +34,7 @@
 .grade-foot .ok { color:var(--success); }
 .grade-foot .miss { color:#b3261e; }
 .grade-foot .unsaved { color:#8a7d76; font-weight:500; font-size:0.75rem; margin-right:8px; }
+.am-link{color:var(--maroon);text-decoration:underline;text-underline-offset:3px;cursor:pointer;}
 </style>
 <style id="canteenSurveyStyles">
 .vs-unv-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 4px; border-bottom: 1px dashed var(--gold-light); font-size: 0.88rem; }
@@ -546,6 +547,13 @@
         <button class="btn" id="admInvBtn" onclick="adminRecordInvoice()" style="margin-top:10px;">حفظ القيد</button>
         <div class="success-msg" id="admInvOk">تم تسجيل القيد ✅</div>
       </details>
+      <div id="amBackBar" class="card" style="display:none;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+        <b id="amBackName" style="color:var(--maroon);"></b>
+        <span style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn outline" style="width:auto;padding:6px 14px;" onclick="amGoSales_()">📊 مبيعات المركز</button>
+          <button class="btn outline" style="width:auto;padding:6px 14px;" onclick="amBack_()">↩ مبالغ المقصف</button>
+        </span>
+      </div>
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">بيان الفواتير لكل مركز</h3>
         <div class="select-row">
@@ -1615,6 +1623,7 @@ function showDashboard() {
 
 /* -------- التبويبات -------- */
 function showAdminTab(tabId) {
+  if (tabId !== 'invoicesTab' && tabId !== 'salesTab') { const b = document.getElementById('amBackBar'); if (b) b.style.display = 'none'; }
   document.getElementById('adminHomeView').classList.toggle('hidden', !!tabId);
   document.getElementById('adminBackLink').classList.toggle('hidden', !tabId);
   document.querySelectorAll('.admin-tab-panel').forEach(function (el) {
@@ -6414,7 +6423,7 @@ function renderAmounts_() {
   let body = '';
   rows.forEach(function (m) {
     AM_COLS_.forEach(function (c) { tot[c.key] += Number(m[c.key]) || 0; });
-    body += '<tr><td style="text-align:right;font-weight:700;">' + rsEsc_(m.center) + '</td>' +
+    body += '<tr><td style="text-align:right;font-weight:700;"><a href="#" class="am-link" data-c="' + rsEsc_(m.center) + '" onclick="return amOpenCenter_(this)">' + rsEsc_(m.center) + '</a></td>' +
       AM_COLS_.map(function (c) { return '<td>' + amCell_(m[c.key]) + '</td>'; }).join('') + '</tr>';
   });
   if (!rows.length) body = '<tr><td colspan="6" style="color:#8a7d76;padding:18px;">لا توجد مراكز مطابقة للبحث</td></tr>';
@@ -6436,6 +6445,34 @@ function renderAmounts_() {
 }
 
 /* البحث يعيد رسم الجدول فقط (دون فقدان التركيز في خانة البحث) */
+/* فتح حساب المركز من جدول مبالغ المقصف */
+let amOpenName_ = '';
+function amOpenCenter_(el) {
+  const c = el.getAttribute('data-c') || '';
+  amOpenName_ = c;
+  showAdminTab('invoicesTab');
+  const sel = document.getElementById('invoicesCenterSelect');
+  if (sel) { sel.value = c; if (sel.value !== c) { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); sel.value = c; } }
+  loadCenterInvoices();
+  const bar = document.getElementById('amBackBar');
+  document.getElementById('amBackName').textContent = 'حساب مركز: ' + c;
+  bar.style.display = 'flex';
+  window.scrollTo(0, 0);
+  return false;
+}
+function amGoSales_() {
+  const c = amOpenName_;
+  showAdminTab('salesTab');
+  const sel = document.getElementById('salesCenterSelect');
+  if (sel) { sel.value = c; if (sel.value !== c) { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); sel.value = c; } }
+  loadCenterSales();
+  window.scrollTo(0, 0);
+}
+function amBack_() {
+  document.getElementById('amBackBar').style.display = 'none';
+  showAdminTab('amountsTab');
+}
+
 function onAmSearch(v) {
   amQuery_ = v;
   const rows = amRows_();
@@ -6444,7 +6481,7 @@ function onAmSearch(v) {
   let body = '';
   rows.forEach(function (m) {
     AM_COLS_.forEach(function (c) { tot[c.key] += Number(m[c.key]) || 0; });
-    body += '<tr><td style="text-align:right;font-weight:700;">' + rsEsc_(m.center) + '</td>' +
+    body += '<tr><td style="text-align:right;font-weight:700;"><a href="#" class="am-link" data-c="' + rsEsc_(m.center) + '" onclick="return amOpenCenter_(this)">' + rsEsc_(m.center) + '</a></td>' +
       AM_COLS_.map(function (c) { return '<td>' + amCell_(m[c.key]) + '</td>'; }).join('') + '</tr>';
   });
   if (!rows.length) body = '<tr><td colspan="6" style="color:#8a7d76;padding:18px;">لا توجد مراكز مطابقة للبحث</td></tr>';
