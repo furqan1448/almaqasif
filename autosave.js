@@ -3,7 +3,7 @@
    أو أُغلق المتصفح ثم فتحت النموذج نفسه من جديد، يرجع ما كتبته كما هو مع شريط أخضر يوضّح ذلك.
    تُحذف المسودة تلقائياً بعد الحفظ أو الإرسال الناجح.
    - يعمل في marakez.html و masoulat.html و edara.html (يُضاف بعد config.js).
-   - لا يحفظ: كلمات المرور، الملفات المرفوعة، التواقيع المرسومة، خانات البحث والتصفية.
+   - لا يحفظ: كلمات المرور، الملفات المرفوعة، التواقيع المرسومة، وأي خانة بحث أو تصفية (بالنوع أو التلميح أو الاسم أو الحاوية).
    - لا يعمل أثناء «تعديل» سجل محفوظ (عند ظهور زر «إلغاء التعديل»)، حتى لا يختلط التعديل بمسودة جديدة. */
 (function () {
   'use strict';
@@ -71,8 +71,13 @@
     var t = (el.type || '').toLowerCase();
     if (/^(password|file|hidden|button|submit|reset|image|search)$/.test(t)) return false;
     if (/search|filter/i.test(el.id) || /filter|search/i.test(el.className || '')) return false;
-    var h = (el.getAttribute('onchange') || '') + (el.getAttribute('oninput') || '');
-    if (/load|render|filter|search/i.test(h)) return false;   // قوائم تصفية العرض، وليست جزءاً من النموذج
+    var h = (el.getAttribute('onchange') || '') + (el.getAttribute('oninput') || '') + (el.getAttribute('onkeyup') || '');
+    if (/load|render|filter|search|find|query|lookup/i.test(h)) return false;   // قوائم تصفية العرض، وليست جزءاً من النموذج
+    /* خانات البحث بكل صورها: نوعها، أو تلميحها، أو وصفها، أو حاويتها، أو أنها تبحث وتتصفّح لا تُدخل بيانات */
+    var hint = (el.getAttribute('placeholder') || '') + ' ' + (el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('title') || '');
+    if (/بحث|ابحث|🔍|search|find/i.test(hint)) return false;
+    if (/search/i.test(el.getAttribute('enterkeyhint') || '') || /search/i.test(el.getAttribute('role') || '')) return false;
+    if (el.closest('[role="search"],[class*="search"],[class*="Search"],[class*="filter"],.rs-search-wrap,.as-wrap')) return false;
     return true;
   }
   function valOf(el) { return (el.type === 'checkbox' || el.type === 'radio') ? !!el.checked : el.value; }
