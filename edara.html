@@ -532,7 +532,9 @@
       </details>
       <details class="card collapse-card">
         <summary><span>تسجيل قيد نيابةً عن المركز</span></summary>
-        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">يُسجَّل القيد في المركز المختار أعلاه، ويظهر لديه موسومًا بعبارة «تم تسجيلها من قبل الإدارة».</p>
+        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">يُسجَّل القيد في المركز الذي تختارينه من القائمة أدناه، ويظهر لديه موسومًا بعبارة «تم تسجيلها من قبل الإدارة».</p>
+        <label>المركز</label>
+        <select id="admInvCenter"><option value="">اختاري المركز</option></select>
         <label>نوع القيد</label>
         <select id="admInvType" onchange="admInvTypeChanged_()"><option value="فاتورة">فاتورة</option><option value="مشتريات">مشتريات</option><option value="مصروفات">مصروفات</option></select>
         <label>رقم الفاتورة</label><input type="text" id="admInvNo">
@@ -2161,6 +2163,7 @@ function loadCentersDropdowns() {
     fillCenterSelect('returnsCenterSelect');
     fillCenterSelect('ordersCenterSelect');
     fillCenterSelect('invoicesCenterSelect');
+    fillCenterSelect('admInvCenter');
     fillCenterSelect('noticeCenterFilter');
   });
   callApi('getMasoulat').then(function (r) {
@@ -2182,7 +2185,7 @@ function fillNameSelect(id) {
 
 function fillCenterSelect(id) {
   const sel = document.getElementById(id);
-  const placeholder = id === 'noticeCenterFilter' ? 'كل المراكز' : 'عرض جميع المراكز';
+  const placeholder = id === 'noticeCenterFilter' ? 'كل المراكز' : (id === 'admInvCenter' ? 'اختاري المركز' : 'عرض جميع المراكز');
   sel.innerHTML = '<option value="">' + placeholder + '</option>';
   centersListCache.forEach(function (c) {
     const opt = document.createElement('option');
@@ -3562,8 +3565,8 @@ function admInvTypeChanged_() {
   document.getElementById('admInvPrfWrap').style.display = t === 'مصروفات' ? 'none' : '';
 }
 function adminRecordInvoice() {
-  const center = document.getElementById('invoicesCenterSelect').value;
-  if (!center) { alert('اختاري المركز أولاً من القائمة أدناه'); return; }
+  const center = document.getElementById('admInvCenter').value;
+  if (!center) { alert('اختاري المركز أولاً'); return; }
   const type = document.getElementById('admInvType').value;
   const amt = Number(document.getElementById('admInvAmt').value);
   const date = document.getElementById('admInvDate').value || todayStr();
@@ -3582,6 +3585,7 @@ function adminRecordInvoice() {
     if (!r || !r.ok) { aevAuthFailed_(r); alert('تعذّر الحفظ: ' + ((r && r.error) || 'خطأ غير معروف')); return; }
     ['admInvNo', 'admInvSrc', 'admInvAmt', 'admInvPrf', 'admInvNotes'].forEach(function (i) { document.getElementById(i).value = ''; });
     const ok = document.getElementById('admInvOk'); ok.style.display = 'block'; setTimeout(function () { ok.style.display = ''; }, 2500);
+    const vs = document.getElementById('invoicesCenterSelect'); if (vs) vs.value = center;   // عرض بيان المركز الذي سُجّل له القيد
     loadCenterInvoices();
   });
 }
