@@ -395,6 +395,13 @@
 
     <!-- ===== تبويب: المبيعات ===== -->
     <div id="salesTab" class="admin-tab-panel hidden">
+      <div id="amBackBar2" class="card" style="display:none;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+        <b id="amBackName2" style="color:var(--maroon);"></b>
+        <span style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn outline" style="width:auto;padding:6px 14px;" onclick="amOpenCenter_({getAttribute:function(){return amOpenName_;}})">🧾 فواتير المركز</button>
+          <button class="btn outline" style="width:auto;padding:6px 14px;" onclick="amBack_()">↩ مبالغ المقصف</button>
+        </span>
+      </div>
       <!-- مكافآت متعاونات المقاصف: ١٠٪ من مبيعات كل مركز في الفصل المختار، مع حالة إشعار تسليم المكافأة -->
       <div class="card vs-fold-card">
         <details class="vs-fold">
@@ -1623,7 +1630,7 @@ function showDashboard() {
 
 /* -------- التبويبات -------- */
 function showAdminTab(tabId) {
-  if (tabId !== 'invoicesTab' && tabId !== 'salesTab') { const b = document.getElementById('amBackBar'); if (b) b.style.display = 'none'; }
+  if (tabId !== 'invoicesTab' && tabId !== 'salesTab') { ['amBackBar','amBackBar2'].forEach(function (i) { const b = document.getElementById(i); if (b) b.style.display = 'none'; }); }
   document.getElementById('adminHomeView').classList.toggle('hidden', !!tabId);
   document.getElementById('adminBackLink').classList.toggle('hidden', !tabId);
   document.querySelectorAll('.admin-tab-panel').forEach(function (el) {
@@ -6466,10 +6473,13 @@ function amGoSales_() {
   const sel = document.getElementById('salesCenterSelect');
   if (sel) { sel.value = c; if (sel.value !== c) { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); sel.value = c; } }
   loadCenterSales();
+  document.getElementById('amBackName2').textContent = 'حساب مركز: ' + c;
+  document.getElementById('amBackBar2').style.display = 'flex';
   window.scrollTo(0, 0);
 }
 function amBack_() {
   document.getElementById('amBackBar').style.display = 'none';
+  document.getElementById('amBackBar2').style.display = 'none';
   showAdminTab('amountsTab');
 }
 
