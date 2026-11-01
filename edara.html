@@ -6805,7 +6805,7 @@ function renderRegStats_(r) {
     '<div class="rs-scroll"><table class="log-table rs-table"><thead><tr>' +
       '<th>المركز</th><th>استلام</th><th>تسليم المكافأة</th><th>رسوم الحفل</th><th>الفواتير</th><th>أيام المبيعات</th><th>الحالة</th><th>اعتماد</th><th>مراسلة</th>' +
     '</tr></thead><tbody>' + rows + '<tr id="rsNoMatch" class="hidden"><td colspan="9" style="color:#8a7d76;padding:18px;">لا توجد مراكز مطابقة للبحث</td></tr></tbody></table></div>' +
-    '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;line-height:1.8;">«أيام المبيعات» = عدد الأيام المسجّل فيها مبالغ بسجل البيع اليومي. «مبالغ بدون فواتير» = المركز سجّل مبيعات ولم يُدخل أي فاتورة في نفس الفترة، و«فواتير بدون مبالغ» العكس. «مكتمل جزئي» = ما فيه نقص ظاهر بالأرقام، ولا تصير «مكتمل» إلا بعد ما تحطين ✔ في خانة «اعتماد» (الاعتماد خاص بالفصل الحالي ويتفرّغ عند أرشفة الفصل).</p>' +
+    '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;line-height:1.8;">«أيام المبيعات» = عدد الأيام المسجّل فيها مبالغ بسجل البيع اليومي. «مبالغ بدون فواتير» = المركز سجّل مبيعات ولم يُدخل أي فاتورة في نفس الفترة، و«فواتير بدون مبالغ» العكس. «لا نقص» = ما فيه نقص ظاهر بالأرقام، ولا تصير «مكتمل» إلا بعد ما تحطين ✔ في خانة «اعتماد» (الاعتماد خاص بالفصل الحالي ويتفرّغ عند أرشفة الفصل).</p>' +
     '<div class="export-row" style="margin-top:12px;">' +
       '<button class="btn outline" onclick="exportRegStatsExcel()">⬇️ Excel</button>' +
       '<button class="btn outline" onclick="printRegStats()">⬇️ PDF</button>' +
@@ -6841,7 +6841,6 @@ const RS_FILTERS_ = [
   { key: 'all',        label: 'الكل',           test: function (m) { return true; } },
   { key: 'missing',    label: 'فيه نقص',        test: function (m) { return !m.verified && m.issues.length > 0 && m.issues.indexOf('nothing') === -1; } },
   { key: 'nothing',    label: 'لم يسجّل شيئاً',  test: function (m) { return !m.verified && m.issues.indexOf('nothing') !== -1; } },
-  { key: 'partial',    label: 'مكتمل جزئي',     test: function (m) { return !m.verified && !m.issues.length; } },
   { key: 'done',       label: 'مكتمل',          test: function (m) { return !!m.verified; } },
   { key: 'unverified', label: 'غير معتمد',      test: function (m) { return !m.verified; } }
 ];
@@ -6908,17 +6907,17 @@ function applyRsFilter_() {
   if (sh) sh.textContent = 'يظهر ' + shown + ' من ' + rsData_.centers.length + ' مركز';
 }
 
-/* الحالة: «مكتمل» فقط بعد اعتماد الإدارة (✔)، وبدون نقص ظاهر = «مكتمل جزئي» */
+/* الحالة: «مكتمل» فقط بعد اعتماد الإدارة (✔)، وبدون نقص ظاهر = «لا نقص» */
 function rsStatusText_(m) {
   if (m.verified) return 'مكتمل';
   if (m.issues.length) return m.issues.map(function (k) { return RS_ISSUES_[k].label; }).join(' ، ');
-  return 'مكتمل جزئي';
+  return 'لا نقص';
 }
 
 function rsStatusHtml_(m) {
   if (m.verified) return '<span class="rs-pill ok">مكتمل</span>';
   if (m.issues.length) return m.issues.map(function (k) { return '<span class="rs-pill ' + RS_ISSUES_[k].cls + '">' + RS_ISSUES_[k].label + '</span>'; }).join(' ');
-  return '<span class="rs-pill part">مكتمل جزئي</span>';
+  return '<span class="rs-pill part">لا نقص</span>';
 }
 
 /* ---- مراسلة مديرة المركز بالنقص (واتساب) ---- */
