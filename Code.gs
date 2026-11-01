@@ -3827,6 +3827,7 @@ function getRegistrationStats_(p) {
   centers.forEach(function (c) { const e = entryFor_(visitBaseName_(c)); if (e && matchedEntries.indexOf(e) === -1) matchedEntries.push(e); });
   const unmatchedNoCanteen = surveyItems.filter(function (it) { return !it.has && matchedEntries.indexOf(surveyBy[visitBaseName_(it.center)]) === -1; })
     .map(function (it) { return it.center + (it.period ? ' - ' + it.period : ''); });
+  const todayKey = Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd');
   const list = centers.filter(function (c) { return hiddenNoCanteen.indexOf(c) === -1; }).map(function (c) {
     const m = st[c];
     const days = Object.keys(m.salesDays).length;
@@ -3834,6 +3835,10 @@ function getRegistrationStats_(p) {
     if (m.salesEntries > 0 && m.invoices === 0) issues.push('salesNoInvoices');
     if (m.invoices > 0 && m.salesEntries === 0) issues.push('invoicesNoSales');
     if (m.salesEntries === 0 && m.invoices === 0) issues.push('nothing');
+    // حلّ موعد التسليم المحدد للمركز ولا يوجد إشعار استلام → «ناقص إشعار الاستلام»
+    let dlvDate = '';
+    try { dlvDate = String(dlvDateOf_(c) || ''); } catch (e) { dlvDate = ''; }
+    if (!useDates && dlvDate && dlvDate <= todayKey && m.receive === 0) issues.push('noReceive');
     return {
       center: c,
       receive: m.receive, reward: m.reward, fee: m.fee, other: m.other,
@@ -3848,6 +3853,7 @@ function getRegistrationStats_(p) {
       salesDays: days,
       salesTotal: Math.round(m.salesTotal * 100) / 100,
       issues: issues,
+      deliveryDate: dlvDate,
       verified: !!verified[c]
     };
   });

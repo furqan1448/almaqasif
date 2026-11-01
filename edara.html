@@ -6337,7 +6337,8 @@ let rsData_ = null;
 const RS_ISSUES_ = {
   salesNoInvoices: { label: 'مبالغ بدون فواتير', cls: 'warn' },
   invoicesNoSales: { label: 'فواتير بدون مبالغ', cls: 'warn' },
-  nothing:         { label: 'لا فواتير ولا مبالغ', cls: 'bad' }
+  nothing:         { label: 'لا فواتير ولا مبالغ', cls: 'bad' },
+  noReceive:       { label: 'ناقص إشعار الاستلام', cls: 'warn' }
 };
 
 function rsEsc_(s) {
@@ -6757,7 +6758,7 @@ function renderRegStats_(r) {
   if (t.pending) html += '<div class="rs-note-line">⏳ إشعارات بانتظار الاطلاع: <b>' + t.pending + '</b></div>';
 
   // ---- النواقص ----
-  const groups = { salesNoInvoices: [], invoicesNoSales: [], nothing: [] };
+  const groups = { salesNoInvoices: [], invoicesNoSales: [], noReceive: [], nothing: [] };
   r.centers.forEach(function (m) { m.issues.forEach(function (k) { if (groups[k]) groups[k].push(m); }); });
   const anyIssue = groups.salesNoInvoices.length || groups.invoicesNoSales.length || groups.nothing.length;
   html += '<div class="card"><h3 style="margin-top:0;color:var(--maroon);font-size:1rem;">النواقص</h3>';
@@ -6772,6 +6773,7 @@ function renderRegStats_(r) {
           let extra = '';
           if (k === 'salesNoInvoices') extra = ' · ' + m.salesDays + ' يوم مبيعات';
           if (k === 'invoicesNoSales') extra = ' · ' + m.invoices + ' فاتورة';
+          if (k === 'noReceive') extra = ' · موعد التسليم ' + rsEsc_(m.deliveryDate || '');
           return '<span class="rs-chip">' + rsEsc_(m.center) + '<small>' + extra + '</small></span>';
         }).join('') + '</div></div>';
     });
@@ -6826,6 +6828,7 @@ const RS_SUBFILTERS_ = [
   { key: 'any',             label: 'كل حالات النقص' },
   { key: 'salesNoInvoices', label: 'مبالغ بدون فواتير' },
   { key: 'invoicesNoSales', label: 'فواتير بدون مبالغ' },
+  { key: 'noReceive',       label: 'ناقص إشعار الاستلام' },
   { key: 'nothing',         label: 'لا فواتير ولا مبالغ' }
 ];
 
@@ -6969,6 +6972,7 @@ function rsIssueLines_(m) {
   m.issues.forEach(function (k) {
     if (k === 'salesNoInvoices') lines.push('- تسجيل مبالغ المبيعات (عدد الأيام: ' + m.salesDays + ') دون إدخال أي فاتورة في بيان الفواتير.');
     if (k === 'invoicesNoSales') lines.push('- إدخال فواتير (عدد الفواتير: ' + m.invoices + ') دون تسجيل مبالغ المبيعات في سجل البيع اليومي.');
+    if (k === 'noReceive') lines.push('- عدم تسجيل إشعار الاستلام رغم حلول موعد التسليم المحدد للمركز (' + (m.deliveryDate || '') + ').');
     if (k === 'nothing') lines.push('- عدم وجود أي فواتير أو مبالغ مبيعات مسجّلة للمقصف في النظام خلال هذه الفترة.');
   });
   return lines.join('\n');
