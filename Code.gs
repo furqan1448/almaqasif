@@ -3833,7 +3833,7 @@ function getRegistrationStats_(p) {
     const issues = [];
     if (m.salesEntries > 0 && m.invoices === 0) issues.push('salesNoInvoices');
     if (m.invoices > 0 && m.salesEntries === 0) issues.push('invoicesNoSales');
-    if (m.salesEntries === 0 && m.invoices === 0 && (m.receive + m.reward + m.fee + m.other) === 0) issues.push('nothing');
+    if (m.salesEntries === 0 && m.invoices === 0) issues.push('nothing');
     return {
       center: c,
       receive: m.receive, reward: m.reward, fee: m.fee, other: m.other,

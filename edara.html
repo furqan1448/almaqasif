@@ -6337,7 +6337,7 @@ let rsData_ = null;
 const RS_ISSUES_ = {
   salesNoInvoices: { label: 'مبالغ بدون فواتير', cls: 'warn' },
   invoicesNoSales: { label: 'فواتير بدون مبالغ', cls: 'warn' },
-  nothing:         { label: 'لا يوجد أي تسجيل', cls: 'bad' }
+  nothing:         { label: 'لا فواتير ولا مبالغ', cls: 'bad' }
 };
 
 function rsEsc_(s) {
@@ -6714,6 +6714,10 @@ function loadRegStats(force) {
         '<br><span style="font-size:0.8rem;color:#8a7d76;">تأكدي أنك نشرتِ إصداراً جديداً من Apps Script بعد تحديث Code.gs.</span></div>';
       return;
     }
+    (r.centers || []).forEach(function (m) {   // لا فواتير ولا مبيعات = نقص، حتى لو سلّم المركز إشعارًا
+      m.issues = m.issues || [];
+      if (!m.salesEntries && !m.invoices && m.issues.indexOf('nothing') === -1) m.issues.push('nothing');
+    });
     rsData_ = r;
     renderRegStats_(r);
   }).catch(function () {
@@ -6821,7 +6825,8 @@ let rsFilter_ = { q: '', f: 'all', sub: 'any' };
 const RS_SUBFILTERS_ = [
   { key: 'any',             label: 'كل حالات النقص' },
   { key: 'salesNoInvoices', label: 'مبالغ بدون فواتير' },
-  { key: 'invoicesNoSales', label: 'فواتير بدون مبالغ' }
+  { key: 'invoicesNoSales', label: 'فواتير بدون مبالغ' },
+  { key: 'nothing',         label: 'لا فواتير ولا مبالغ' }
 ];
 
 function rsSubOk_(m) {
@@ -6839,8 +6844,8 @@ function setRsSubFilter(key) {
 
 const RS_FILTERS_ = [
   { key: 'all',        label: 'الكل',           test: function (m) { return true; } },
-  { key: 'missing',    label: 'فيه نقص',        test: function (m) { return !m.verified && m.issues.length > 0 && m.issues.indexOf('nothing') === -1; } },
-  { key: 'nothing',    label: 'لم يسجّل شيئاً',  test: function (m) { return !m.verified && m.issues.indexOf('nothing') !== -1; } },
+  { key: 'missing',    label: 'فيه نقص',        test: function (m) { return !m.verified && m.issues.length > 0; } },
+  { key: 'nothing',    label: 'لا فواتير ولا مبالغ',  test: function (m) { return !m.verified && m.issues.indexOf('nothing') !== -1; } },
   { key: 'done',       label: 'مكتمل',          test: function (m) { return !!m.verified; } },
   { key: 'unverified', label: 'غير معتمد',      test: function (m) { return !m.verified; } }
 ];
@@ -6964,7 +6969,7 @@ function rsIssueLines_(m) {
   m.issues.forEach(function (k) {
     if (k === 'salesNoInvoices') lines.push('- تسجيل مبالغ المبيعات (عدد الأيام: ' + m.salesDays + ') دون إدخال أي فاتورة في بيان الفواتير.');
     if (k === 'invoicesNoSales') lines.push('- إدخال فواتير (عدد الفواتير: ' + m.invoices + ') دون تسجيل مبالغ المبيعات في سجل البيع اليومي.');
-    if (k === 'nothing') lines.push('- عدم وجود أي تسجيل للمقصف في النظام خلال هذه الفترة.');
+    if (k === 'nothing') lines.push('- عدم وجود أي فواتير أو مبالغ مبيعات مسجّلة للمقصف في النظام خلال هذه الفترة.');
   });
   return lines.join('\n');
 }
