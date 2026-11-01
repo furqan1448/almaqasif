@@ -721,6 +721,26 @@
     </div>
 
     <!-- ===== تبويب: مبالغ المقاصف (جدول مبالغ لكل مقصف؛ يُحمَّل عند الفتح فقط ويشارك بيانات «إحصائيات التسجيل» دون طلب إضافي ثقيل) ===== -->
+    <div id="centerAcctTab" class="admin-tab-panel hidden">
+      <div class="card">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+          <h3 style="margin:0;color:var(--maroon);" id="caTitle">حساب المركز</h3>
+          <button class="btn outline" style="width:auto;padding:6px 14px;" onclick="caBack_()">↩ مبالغ المقصف</button>
+        </div>
+        <div class="select-row" style="margin-top:10px;">
+          <div><label>الفصل الدراسي</label>
+            <select id="caTerm" onchange="caLoad_()"><option value="current">الفصل الحالي</option><option value="all">كل الفصول</option></select></div>
+        </div>
+        <p style="color:#8a7d76;font-size:0.8rem;margin:8px 0 0;line-height:1.8;">هنا تُعدَّل أو تُحذف سجلات المركز مباشرة (المبيعات، الفواتير، الإشعارات) كأنك تفتحين حساب المركز بنفسك.</p>
+      </div>
+      <div class="card"><h3 style="margin-top:0;color:var(--maroon);font-size:1rem;">🧾 إشعارات المركز <span id="caNtCount" style="color:#8a7d76;font-size:0.8rem;"></span></h3>
+        <div class="table-scroll"><table class="log-table"><thead><tr><th>النوع</th><th>المبلغ</th><th>المسلّمة</th><th>التاريخ</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody id="caNtBody"></tbody></table></div></div>
+      <div class="card"><h3 style="margin-top:0;color:var(--maroon);font-size:1rem;">📄 الفواتير <span id="caInvCount" style="color:#8a7d76;font-size:0.8rem;"></span></h3>
+        <div class="table-scroll"><table class="log-table"><thead><tr><th>النوع</th><th>رقم الفاتورة</th><th>المصدر</th><th>التاريخ</th><th>رأس المال</th><th>الربح</th><th>ملاحظات</th><th>إجراء</th></tr></thead><tbody id="caInvBody"></tbody></table></div></div>
+      <div class="card"><h3 style="margin-top:0;color:var(--maroon);font-size:1rem;">📊 المبيعات <span id="caSalesCount" style="color:#8a7d76;font-size:0.8rem;"></span></h3>
+        <div class="table-scroll"><table class="log-table"><thead><tr><th>اليوم</th><th>التاريخ</th><th>المبلغ</th><th>ملاحظات</th><th>إجراء</th></tr></thead><tbody id="caSalesBody"></tbody></table></div></div>
+    </div>
+
     <div id="amountsTab" class="admin-tab-panel hidden">
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">مبالغ المقاصف</h3>
@@ -6453,19 +6473,120 @@ function renderAmounts_() {
 }
 
 /* البحث يعيد رسم الجدول فقط (دون فقدان التركيز في خانة البحث) */
+/* ---- حساب المركز (من جدول مبالغ المقصف): تعديل/حذف المبيعات والفواتير والإشعارات ---- */
+let caCenter_ = '', caNt_ = [], caInv_ = [], caSales_ = [];
+function caEsc_(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function caDate_(v) { const m = String(v || '').match(/\d{4}-\d{2}-\d{2}/); return m ? m[0] : ''; }
+function caShowCenter_(c) {
+  caCenter_ = c;
+  showAdminTab('centerAcctTab');
+  document.getElementById('caTitle').textContent = 'حساب مركز: ' + c;
+  caLoad_();
+  window.scrollTo(0, 0);
+}
+function caBack_() { showAdminTab('amountsTab'); }
+function caLoad_() {
+  const c = caCenter_, term = document.getElementById('caTerm').value || 'current';
+  const wait = function (id, n) { document.getElementById(id).innerHTML = '<tr><td colspan="' + n + '">جاري التحميل...</td></tr>'; };
+  wait('caNtBody', 6); wait('caInvBody', 8); wait('caSalesBody', 5);
+  callApi('getCenterNotices', { center: c, term: term }).then(function (r) { caNt_ = (r && r.notices) || []; caRenderNt_(); });
+  callApi('getInvoices', { center: c, term: term }).then(function (r) { caInv_ = (r && r.invoices) || []; caRenderInv_(); });
+  callApi('getSales', { center: c, term: term }).then(function (r) { caSales_ = (r && r.sales) || []; caRenderSales_(); });
+}
+function caEmpty_(n, t) { return '<tr><td colspan="' + n + '" style="color:#8a7d76;">' + t + '</td></tr>'; }
+function caActs_(kind, i) {
+  return '<div class="row-actions"><a href="#" onclick="caEdit_(\'' + kind + '\',' + i + '); return false;">تعديل</a> <a href="#" onclick="caDel_(\'' + kind + '\',' + i + '); return false;">حذف</a></div>';
+}
+function caRenderNt_() {
+  document.getElementById('caNtCount').textContent = '(' + caNt_.length + ')';
+  document.getElementById('caNtBody').innerHTML = caNt_.length ? caNt_.map(function (n, i) {
+    const rsn = n['بيان مخصص'] ? ' (' + caEsc_(String(n['بيان مخصص']).replace(/^قيمة\s*/, '')) + ')' : '';
+    return '<tr><td>' + caEsc_(n['النوع']) + rsn + '</td><td>' + (Number(n['المبلغ']) || 0).toFixed(2) + '</td><td>' + caEsc_(n['اسم المسلّمة']) + '</td><td>' + caEsc_(toHijriStr(n['تاريخ الإرسال'])) + '</td><td>' + caEsc_(n['الحالة']) + '</td><td>' + caActs_('nt', i) + '</td></tr>';
+  }).join('') : caEmpty_(6, 'لا توجد إشعارات');
+}
+function caRenderInv_() {
+  document.getElementById('caInvCount').textContent = '(' + caInv_.length + ')';
+  document.getElementById('caInvBody').innerHTML = caInv_.length ? caInv_.map(function (v, i) {
+    const p = invoiceRowParts_(v);
+    return '<tr><td>' + caEsc_(p.type) + '</td><td>' + caEsc_(v['رقم الفاتورة'] || '—') + '</td><td>' + caEsc_(v['مصدر الفاتورة'] || '—') + '</td><td>' + caEsc_(toHijriStr(v['التاريخ'])) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + p.profit.toFixed(2) + '</td><td>' + caEsc_(v['ملاحظات'] || '') + '</td><td>' + caActs_('inv', i) + '</td></tr>';
+  }).join('') : caEmpty_(8, 'لا توجد فواتير');
+}
+function caRenderSales_() {
+  const list = sortSalesNewestFirst_(caSales_.slice());
+  caSales_ = list;
+  document.getElementById('caSalesCount').textContent = '(' + list.length + ')';
+  document.getElementById('caSalesBody').innerHTML = list.length ? list.map(function (v, i) {
+    return '<tr><td>' + caEsc_(v['اليوم']) + '</td><td>' + caEsc_(toHijriStr(v['التاريخ'])) + '</td><td>' + (Number(v['المبلغ']) || 0).toFixed(2) + '</td><td>' + caEsc_(v['ملاحظات'] || '') + '</td><td>' + caActs_('sale', i) + '</td></tr>';
+  }).join('') : caEmpty_(5, 'لا توجد مبيعات');
+}
+function caModalClose_() { document.getElementById('caModalOv').style.display = 'none'; }
+function caModal_(title, fields, onSave) {
+  document.getElementById('caModalTitle').textContent = title;
+  document.getElementById('caModalFields').innerHTML = fields.map(function (f) {
+    return '<label>' + f.label + '</label><input id="caF_' + f.id + '" type="' + (f.type || 'text') + '"' + (f.type === 'number' ? ' step="0.01" inputmode="decimal" class="no-spin"' : '') + ' value="' + caEsc_(f.value) + '">';
+  }).join('');
+  const err = document.getElementById('caModalErr'); err.style.display = 'none';
+  document.getElementById('caModalSave').onclick = function () {
+    const vals = {}; fields.forEach(function (f) { vals[f.id] = document.getElementById('caF_' + f.id).value; });
+    const btn = this; btn.disabled = true;
+    onSave(vals).then(function (r) {
+      btn.disabled = false;
+      if (r && r.ok) { caModalClose_(); caLoad_(); } else { err.textContent = (r && r.error) || 'تعذّر الحفظ'; err.style.display = 'block'; }
+    }).catch(function () { btn.disabled = false; err.textContent = 'تعذّر الاتصال بالخادم'; err.style.display = 'block'; });
+  };
+  document.getElementById('caModalOv').style.display = 'flex';
+}
+function caEdit_(kind, i) {
+  if (kind === 'sale') {
+    const v = caSales_[i];
+    caModal_('تعديل سجل مبيعات', [
+      { id: 'amt', label: 'المبلغ (ريال)', type: 'number', value: Number(v['المبلغ']) || 0 },
+      { id: 'date', label: 'التاريخ', type: 'date', value: caDate_(v['التاريخ']) },
+      { id: 'notes', label: 'ملاحظات', value: v['ملاحظات'] || '' }
+    ], function (f) {
+      if (!(Number(f.amt) >= 0) || f.amt === '') return Promise.resolve({ ok: false, error: 'أدخلي مبلغًا صحيحًا' });
+      return callApi('updateSale', { row: v._row, amount: f.amt, date: f.date, notes: f.notes });
+    });
+  } else if (kind === 'inv') {
+    const v = caInv_[i], t = invoiceRowParts_(v);
+    const fl = [
+      { id: 'no', label: 'رقم الفاتورة', value: v['رقم الفاتورة'] || '' },
+      { id: 'src', label: 'مصدر الفاتورة', value: v['مصدر الفاتورة'] || '' },
+      { id: 'date', label: 'التاريخ', type: 'date', value: caDate_(v['التاريخ']) },
+      { id: 'amt', label: 'رأس المال / المبلغ (ريال)', type: 'number', value: t.amount }
+    ];
+    if (t.type !== 'مصروفات') fl.push({ id: 'prf', label: 'الربح (ريال)', type: 'number', value: t.profit });
+    fl.push({ id: 'notes', label: 'ملاحظات', value: v['ملاحظات'] || '' });
+    caModal_('تعديل ' + t.type, fl, function (f) {
+      if (f.amt === '' || !(Number(f.amt) >= 0)) return Promise.resolve({ ok: false, error: 'أدخلي مبلغًا صحيحًا' });
+      const d = { row: v._row, invoiceNumber: f.no, invoiceSource: f.src, date: f.date, totalAmount: f.amt, notes: f.notes };
+      if (f.prf !== undefined) d.profit = f.prf === '' ? 0 : f.prf;
+      return callApi('updateInvoice', d);
+    });
+  } else {
+    const v = caNt_[i];
+    caModal_('تعديل إشعار ' + (v['النوع'] || ''), [
+      { id: 'amt', label: 'المبلغ (ريال)', type: 'number', value: Number(v['المبلغ']) || 0 },
+      { id: 'snd', label: 'اسم المسلّمة', value: v['اسم المسلّمة'] || '' }
+    ], function (f) {
+      if (!(Number(f.amt) > 0)) return Promise.resolve({ ok: false, error: 'أدخلي مبلغًا صحيحًا' });
+      return callApi('updateNotice', { row: v._row, amount: f.amt, senderName: f.snd });
+    });
+  }
+}
+function caDel_(kind, i) {
+  const map = { sale: ['deleteSale', caSales_, 'سجل المبيعات'], inv: ['deleteInvoice', caInv_, 'الفاتورة'], nt: ['deleteNotice', caNt_, 'الإشعار'] };
+  const m = map[kind], v = m[1][i];
+  if (!v || !confirm('حذف ' + m[2] + ' نهائيًا؟ لا يمكن التراجع.')) return;
+  callApi(m[0], { row: v._row }).then(function (r) { if (r && r.ok) caLoad_(); else alert((r && r.error) || 'تعذّر الحذف'); });
+}
+
 /* فتح حساب المركز من جدول مبالغ المقصف */
 let amOpenName_ = '';
 function amOpenCenter_(el) {
   const c = el.getAttribute('data-c') || '';
   amOpenName_ = c;
-  showAdminTab('invoicesTab');
-  const sel = document.getElementById('invoicesCenterSelect');
-  if (sel) { sel.value = c; if (sel.value !== c) { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); sel.value = c; } }
-  loadCenterInvoices();
-  const bar = document.getElementById('amBackBar');
-  document.getElementById('amBackName').textContent = 'حساب مركز: ' + c;
-  bar.style.display = 'flex';
-  window.scrollTo(0, 0);
+  caShowCenter_(c);
   return false;
 }
 function amGoSales_() {
@@ -7216,5 +7337,16 @@ function printRegStats() {
 }
 
 </script>
+      <div id="caModalOv" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;max-width:420px;width:100%;padding:18px;max-height:90vh;overflow:auto;">
+    <h3 id="caModalTitle" style="margin:0 0 10px;color:var(--maroon);"></h3>
+    <div id="caModalFields"></div>
+    <div class="error-msg" id="caModalErr" style="display:none;"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn" id="caModalSave" style="flex:1;">حفظ</button>
+      <button class="btn outline" style="flex:1;" onclick="caModalClose_()">إلغاء</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
