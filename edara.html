@@ -604,7 +604,7 @@
         <h3 style="margin-top:0;color:var(--maroon);">البيانات الشخصية للمسؤولات</h3>
         <div id="prfStat" style="margin-bottom:10px;font-weight:bold;"></div>
         <input type="search" id="prfSearch" placeholder="🔍 بحث بالاسم أو المركز..." oninput="prfAdminRender_()" style="margin:0 0 8px;">
-        <label style="display:flex;align-items:center;gap:6px;font-weight:normal;margin:6px 0;"><input type="checkbox" id="prfOnlyMissing" onchange="prfAdminRender_()"> <span>عرض من لم تعبّئ الاستبانة فقط</span></label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:normal;margin:6px 0;"><input type="checkbox" id="prfOnlyMissing" onchange="prfAdminRender_()"> <span>عرض من لم تعبّئ البيانات الشخصية فقط</span></label>
         <div class="table-scroll"><table class="log-table">
           <thead><tr><th>م</th><th>الاسم</th><th>المركز</th><th>الحالة الاجتماعية</th><th>رقم الجوال</th><th>تاريخ الميلاد</th><th>مكان الميلاد</th><th>مقدار الحفظ</th><th>المؤهل في القرآن</th><th>سنوات الخبرة</th><th>المؤهل العلمي</th><th>التخصص</th><th>الخبرات السابقة</th><th>آخر تحديث</th></tr></thead>
           <tbody id="prfAdminBody"><tr><td colspan="14">جاري التحميل...</td></tr></tbody>
@@ -3155,7 +3155,7 @@ function prfAdminRows_() {
 function prfAdminRender_() {
   const all = prfAdminRows_(), q = (document.getElementById('prfSearch').value || '').trim(), miss = document.getElementById('prfOnlyMissing').checked;
   const done = all.filter(function (x) { return x.p; }).length;
-  document.getElementById('prfStat').textContent = 'عبّأت الاستبانة ' + toArabicDigits(done) + ' من ' + toArabicDigits(all.length) + ' مسؤولة';
+  document.getElementById('prfStat').textContent = 'عبّأت البيانات الشخصية ' + toArabicDigits(done) + ' من ' + toArabicDigits(all.length) + ' مسؤولة';
   const list = all.filter(function (x) { return (!miss || !x.p) && (!q || (x.name + ' ' + x.center).indexOf(q) !== -1); });
   const body = document.getElementById('prfAdminBody'); body.innerHTML = '';
   if (!list.length) { body.innerHTML = '<tr><td colspan="14">لا توجد نتائج</td></tr>'; return; }
@@ -3163,7 +3163,7 @@ function prfAdminRender_() {
   list.forEach(function (x, i) {
     const p = x.p, tr = document.createElement('tr');
     tr.innerHTML = p ? '<td>' + toArabicDigits(i + 1) + '</td><td>' + esc(x.name) + '</td><td>' + esc(x.center || p.center) + '</td><td>' + esc(p.marital) + '</td><td dir="ltr">' + esc(p.phone) + '</td><td>' + prfBirthStr_(p.birth) + '</td><td>' + esc(p.birthplace || '—') + '</td><td>' + esc(p.juz || '—') + '</td><td>' + esc(p.quranQual || '—') + '</td><td>' + esc(p.years) + '</td><td>' + esc(p.edu) + '</td><td>' + esc(p.major || '—') + '</td><td style="white-space:pre-wrap;text-align:right;">' + esc(p.expText || '—') + '</td><td>' + (p.updatedDate ? toHijriStr(p.updatedDate) : '') + '</td>'
-      : '<td>' + toArabicDigits(i + 1) + '</td><td>' + esc(x.name) + '</td><td>' + esc(x.center) + '</td><td colspan="11" style="color:#c0392b;">لم تعبّئ الاستبانة بعد</td>';
+      : '<td>' + toArabicDigits(i + 1) + '</td><td>' + esc(x.name) + '</td><td>' + esc(x.center) + '</td><td colspan="11" style="color:#c0392b;">لم تعبّئ البيانات الشخصية بعد</td>';
     body.appendChild(tr);
   });
 }
@@ -3174,7 +3174,7 @@ function prfAdminExcel_() {
       'مقدار الحفظ في القرآن الكريم': p.juz, 'المؤهل في القرآن': p.quranQual, 'سنوات الخبرة كمسؤولة مقصف': p.years, 'المؤهل العلمي': p.edu, 'التخصص': p.major, 'الخبرات السابقة': p.expText };
   });
   if (!rows.length) { alert('لا توجد بيانات لتصديرها'); return; }
-  exportToExcel(rows, 'استبانة-المسؤولات', 'الاستبانة');
+  exportToExcel(rows, 'استبانة-المسؤولات', 'البيانات الشخصية');
 }
 
 async function prfAdminPdf_(btn) {
