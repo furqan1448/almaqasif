@@ -144,6 +144,80 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 .doc.t-center h1{border:0;padding:12px 0;text-align:center;color:var(--red);font-size:24px;background:linear-gradient(var(--red),var(--red)) center top/64px 3px no-repeat,linear-gradient(var(--red),var(--red)) center bottom/64px 3px no-repeat}
 .doc.t-center h1+p.sub{text-align:center;margin-top:-6px}
 .doc.t-band h1{border:0;background:linear-gradient(135deg,#9b2236,#6b111f);color:#fff;border-radius:12px;padding:14px 18px}
+
+/* ===== التصاميم الكاملة ===== */
+/* دليل تعريفي */
+.doc.th-guide h2{background:var(--soft);color:var(--red);border:0;border-right:6px solid var(--red);border-radius:10px;padding:8px 14px;margin:18px 0 10px}
+.doc.th-guide h3{color:var(--ink)}
+.doc.th-guide h3::before{content:"";display:inline-block;width:10px;height:10px;background:var(--red);border-radius:3px;margin-left:8px;vertical-align:1px}
+.doc.th-guide ol{list-style:none;padding:0;counter-reset:st}
+.doc.th-guide ol>li{counter-increment:st;position:relative;padding:3px 40px 3px 0;margin-bottom:8px;min-height:30px}
+.doc.th-guide ol>li::before{content:counter(st,arabic-indic);position:absolute;right:0;top:2px;width:28px;height:28px;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.9em}
+.doc.th-guide ul>li{padding-right:6px}
+.doc.th-guide ul>li::before{width:16px;height:16px;border-radius:50%;right:-20px;top:.45em;background:var(--red) url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center/12px no-repeat}
+.doc.th-guide blockquote{background:#fbf3e3;border-right-color:#b4882c;border-radius:12px}
+.doc.th-guide .card{border-radius:14px;box-shadow:0 4px 14px rgba(33,27,29,.07);border-color:#eadfe1}
+.doc.th-guide .stat{background:#fff;border:1px solid #eadfe1;box-shadow:0 3px 10px rgba(33,27,29,.05)}
+/* عصري */
+.doc.th-modern h2{color:var(--ink);border:0;padding:0;margin:20px 0 10px}
+.doc.th-modern h2::after{content:"";display:block;width:52px;height:4px;background:var(--red);border-radius:4px;margin-top:6px}
+.doc.th-modern h3{color:#5b5153}
+.doc.th-modern blockquote{background:#f5f3f3;border-right:4px solid #211b1d;border-radius:12px}
+.doc.th-modern th{background:#211b1d;border-color:#211b1d}
+.doc.th-modern ul li::before{background:#211b1d;border-radius:50%}
+.doc.th-modern .card>.ch{background:#211b1d}
+.doc.th-modern .card,.doc.th-modern .stage,.doc.th-modern .outline{border-radius:14px}
+.doc.th-modern .stat{background:#f5f3f3}.doc.th-modern .stat b{color:#211b1d}
+/* ذهبي فاخر */
+.doc.th-gold h2{color:var(--red);text-align:center;border:0;padding:0 0 10px;background:linear-gradient(#b4882c,#b4882c) center bottom/90px 2px no-repeat}
+.doc.th-gold h3{color:#9a6a17}
+.doc.th-gold blockquote{background:#fbf3e3;border-right-color:#b4882c}
+.doc.th-gold th{background:#b4882c;border-color:#b4882c}
+.doc.th-gold tr:nth-child(even) td{background:#fcf8ef}
+.doc.th-gold ul li::before{background:#b4882c;transform:rotate(45deg);border-radius:1px}
+.doc.th-gold ol li::marker{color:#9a6a17}
+.doc.th-gold .card>.ch{background:linear-gradient(135deg,#c49a3c,#8a6418)}
+.doc.th-gold .stat{background:#fbf3e3}.doc.th-gold .stat b{color:#9a6a17}
+/* بطاقات */
+.doc.th-cards h2{background:#fff;border:1px solid #e6d6d9;border-right:6px solid var(--red);border-radius:12px;padding:8px 14px;box-shadow:0 3px 10px rgba(33,27,29,.06);color:var(--red)}
+.doc.th-cards ul{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0}
+.doc.th-cards ul>li{border:1px solid #eadfe1;border-radius:10px;padding:6px 28px 6px 10px;background:#fff;margin:0}
+.doc.th-cards ul>li::before{right:12px;top:1.05em}
+.doc.th-cards blockquote{border-radius:14px}
+/* بسيط للطباعة */
+.doc.th-plain h1{color:#211b1d;border-right-color:#211b1d}
+.doc.th-plain h2,.doc.th-plain h3{color:#211b1d}
+.doc.th-plain h2{border-bottom:1px solid #999}
+.doc.th-plain blockquote{background:#f4f4f4;border-right-color:#555}
+.doc.th-plain th{background:#e9e9e9;color:#211b1d;border-color:#bbb}
+.doc.th-plain td{border-color:#ccc}
+.doc.th-plain ul li::before{background:#555}
+.doc.th-plain .card>.ch{background:#555}.doc.th-plain p.sub{color:#555}
+.doc.th-plain .stat{background:#f4f4f4}.doc.th-plain .stat b{color:#211b1d}
+/* صفحة الغلاف */
+.page .cover{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 90px}
+.cover .co-org{font-weight:700;color:#5b5153;font-size:16px;margin-bottom:26px}
+.cover .co-line{width:90px;height:4px;border-radius:4px;background:#8f1d2c;margin:0 auto}
+.cover .co-t{font-size:38px;font-weight:800;color:#8f1d2c;line-height:1.45;margin:26px 0 14px}
+.cover .co-s{font-size:18px;font-weight:700;color:#5b5153;margin-bottom:26px}
+.cover .co-d{margin-top:34px;display:inline-block;background:#f8eef0;color:#8f1d2c;border-radius:30px;padding:6px 22px;font-weight:700;font-size:14px}
+.cover.th-gold .co-line{background:#b4882c}.cover.th-gold .co-t{color:#8f1d2c}
+.cover.th-modern .co-line{background:#211b1d}.cover.th-modern .co-t{color:#211b1d}
+.cover.th-plain .co-line{background:#211b1d}.cover.th-plain .co-t{color:#211b1d}.cover.th-plain .co-d{background:#eee;color:#211b1d}
+.cover.th-guide .co-t{background:linear-gradient(135deg,#9b2236,#6b111f);color:#fff;border-radius:20px;padding:22px 30px}
+/* بطاقات اختيار التصميم */
+.ths{display:flex;gap:8px;flex-wrap:wrap}
+.th{border:2px solid var(--line);border-radius:12px;background:#fff;padding:6px;cursor:pointer;width:92px;text-align:center;font-size:12px;font-weight:700;color:var(--ink)}
+.th.on{border-color:var(--red);background:var(--soft);color:var(--red)}
+.th i{display:block;height:44px;border-radius:6px;margin-bottom:4px;background:#fff;border:1px solid #eee;position:relative;overflow:hidden}
+.th i::before,.th i::after{content:"";position:absolute;right:6px;left:6px;border-radius:3px}
+.th i::before{top:6px;height:9px}.th i::after{top:20px;height:4px;box-shadow:0 7px 0 #e6dfe0,0 14px 0 #e6dfe0;background:#e6dfe0}
+.th[data-th=""] i::before{background:transparent;border-bottom:2px solid #8f1d2c;border-radius:0;left:30px;color:#8f1d2c}
+.th[data-th=guide] i::before{background:#f8eef0;border-right:4px solid #8f1d2c}
+.th[data-th=modern] i::before{background:#211b1d;left:50px;height:4px;top:12px}
+.th[data-th=gold] i::before{background:#b4882c;left:28px;right:28px;height:3px;top:12px}
+.th[data-th=cards] i::before{background:#fff;border:1px solid #d9bfc4;border-right:4px solid #8f1d2c}
+.th[data-th=plain] i::before{background:#999;height:3px;top:12px}
 /* القوائم المنبثقة */
 .pop{display:none;position:absolute;background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:0 12px 34px rgba(0,0,0,.14);z-index:60;max-width:min(560px,94vw)}
 .pop.on{display:block}
@@ -226,6 +300,18 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
         <button type="button" class="lh" data-lh="custom"><div class="th" id="customTh"></div>كليشة أخرى</button>
         <button type="button" class="lh" data-lh="none"><div class="th"></div>بدون</button>
       </div>
+    </div>
+    <div class="grp">
+      <span class="lb">التصميم</span>
+      <div class="ths" id="ths">
+        <button type="button" class="th" data-th=""><i></i>رسمي</button>
+        <button type="button" class="th" data-th="guide"><i></i>دليل تعريفي</button>
+        <button type="button" class="th" data-th="modern"><i></i>عصري</button>
+        <button type="button" class="th" data-th="gold"><i></i>ذهبي فاخر</button>
+        <button type="button" class="th" data-th="cards"><i></i>بطاقات</button>
+        <button type="button" class="th" data-th="plain"><i></i>بسيط للطباعة</button>
+      </div>
+      <label class="chk" style="margin-top:4px"><input type="checkbox" id="cover">صفحة غلاف في البداية</label>
     </div>
     <div class="grp">
       <label for="tstyle">شكل عنوان المستند</label>
@@ -394,7 +480,7 @@ const $ = id => document.getElementById(id);
 const editor = $("editor"), pagesEl = $("pages");
 const AR = n => String(n).replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[d]);
 
-let state = { lh: "full", bar: "وحدة المقاصف", pnum: true, secnum: false, tstyle: "side", fname: "مستند", custom: { src: "", kind: "full", top: 45, bottom: 25 } };
+let state = { lh: "full", bar: "وحدة المقاصف", pnum: true, secnum: false, tstyle: "side", theme: "", cover: false, fname: "مستند", custom: { src: "", kind: "full", top: 45, bottom: 25 } };
 
 /* ===================== المحتوى الابتدائي ===================== */
 const SAMPLE = `<h1>عنوان المستند</h1>
@@ -720,7 +806,7 @@ const TEMPLATES = [
 <h2>جدول المواعيد</h2>
 <table><thead><tr><th>اليوم</th><th>الفترة الصباحية</th><th>الفترة المسائية</th></tr></thead><tbody>${rows(5, i => [DAYS5[i], "", ""])}</tbody></table>
 <section class="card"><div class="ch">الأثر المتوقع من تطبيق الخطة</div><div class="cb"><ul><li>الأثر الأول.</li><li>الأثر الثاني.</li><li>الأثر الثالث.</li></ul></div></section>` },
-  { id: "problem", name: "مشكلة وحل تطويري", hint: "وصف، جذور، مراحل، أسباب، أثر، حل، نتائج", title: "side", secnum: true, html:
+  { id: "problem", theme: "guide", name: "مشكلة وحل تطويري", hint: "وصف، جذور، مراحل، أسباب، أثر، حل، نتائج", title: "side", secnum: true, html:
 `<h1>المشكلات والحلول التطويرية</h1>
 <p class="sub">(اسم الوحدة أو المشروع)</p>
 <blockquote><p><b>وصف المشكلة:</b> اكتبي هنا وصفًا مختصرًا للمشكلة.</p></blockquote>
@@ -757,7 +843,7 @@ const TEMPLATES = [
 <p>اكتبي هنا نص الخطاب.</p>
 <p>وتقبّلوا خالص التحية والتقدير.</p>
 <div class="sign"><p><b>رئيسة وحدة المقاصف</b></p><p>الاسم:</p><p>التوقيع:</p></div>` },
-  { id: "report", name: "تقرير إنجاز", hint: "أرقام، ملخص، إنجازات، تحديات، توصيات", title: "band", secnum: true, html:
+  { id: "report", theme: "modern", name: "تقرير إنجاز", hint: "أرقام، ملخص، إنجازات، تحديات، توصيات", title: "band", secnum: true, html:
 `<h1>تقرير إنجاز (اكتبي الموضوع)</h1>
 <p class="sub">(الفترة: الفصل الدراسي ...)</p>
 <div class="stats"><div class="stat"><b>١٠</b><small>الوصف</small></div><div class="stat"><b>١٠</b><small>الوصف</small></div><div class="stat"><b>١٠</b><small>الوصف</small></div></div>
@@ -829,7 +915,7 @@ $("popTpl").addEventListener("click", e => {
   $("popTpl").classList.remove("on");
   if (editor.textContent.trim() && !confirm(`سيُستبدل المحتوى الحالي بقالب «${t.name}». هل تريدين المتابعة؟`)) return;
   editor.innerHTML = typeof t.html === "function" ? t.html() : t.html;
-  state.tstyle = t.title; state.secnum = t.secnum;
+  state.tstyle = t.title; state.secnum = t.secnum; state.theme = t.theme || "";
   if (!state.fname || state.fname === "مستند" || TEMPLATES.some(x => x.name === state.fname)) state.fname = t.id === "blank" ? "مستند" : t.name;
   syncUI(); changed(); editor.focus(); placeCaretEnd(editor.querySelector("h1,p") || editor);
 });
@@ -903,7 +989,7 @@ const IC = (name, cls) => `<img class="${cls || "ic"}" src="${iconSrc(ICONS.find
 const SIGN = t => `<div class="sign"><p><b>${t}</b></p><p>الاسم:</p><p>التوقيع:</p></div>`;
 const INFO = pairs => "<table><tbody>" + pairs.map(r => "<tr>" + r.map(([k, v]) => `<th>${k}</th><td>${v || "<br>"}</td>`).join("") + "</tr>").join("") + "</tbody></table>";
 TEMPLATES.splice(TEMPLATES.length - 1, 0,
-  { id: "profile", name: "ملف تعريفي", hint: "أرقام بأيقونات، نبذة، رؤية ورسالة، خدمات، تواصل", title: "band", secnum: false, html: () =>
+  { id: "profile", theme: "guide", name: "ملف تعريفي", hint: "أرقام بأيقونات، نبذة، رؤية ورسالة، خدمات، تواصل", title: "band", secnum: false, html: () =>
 `<h1>الملف التعريفي — (اسم الجهة)</h1>
 <p class="sub">جمعية فرقان لتحفيظ القرآن الكريم بالطائف</p>
 <div class="stats"><div class="stat">${IC("مبنى", "icb")}<b>١٠</b><small>الوصف</small></div><div class="stat">${IC("فريق", "icb")}<b>١٠</b><small>الوصف</small></div><div class="stat">${IC("تقويم", "icb")}<b>١٠</b><small>الوصف</small></div></div>
@@ -939,7 +1025,7 @@ ${SIGN("الزائرة")}` },
 `<h1>قائمة تحقق — (الموضوع)</h1>
 <p class="sub">(المركز / التاريخ)</p>
 <table class="tb-light"><thead><tr><th>م</th><th>البند</th><th>تم</th><th>ملاحظات</th></tr></thead><tbody>${rows(10, i => [AR(i + 1), "", "☐", ""])}</tbody></table>` },
-  { id: "thanks", name: "شهادة شكر", hint: "نص شكر في الوسط مع التوقيع", title: "center", secnum: false, html: () =>
+  { id: "thanks", theme: "gold", name: "شهادة شكر", hint: "نص شكر في الوسط مع التوقيع", title: "center", secnum: false, html: () =>
 `<h1>شهادة شكر وتقدير</h1>
 <p><br></p>
 <p class="al-c fs-l">تتقدّم وحدة المقاصف بجمعية فرقان لتحفيظ القرآن الكريم بالطائف</p>
@@ -1046,7 +1132,7 @@ function newPage(conf) {
     top = headH + conf.gap * MM; bottom = conf.bottom * MM;
   } else { top = conf.top * MM; bottom = conf.bottom * MM; }
   const body = document.createElement("div");
-  body.className = "pbody doc t-" + (state.tstyle || "side");
+  body.className = "pbody doc t-" + (state.tstyle || "side") + (state.theme ? " th-" + state.theme : "");
   body.style.top = top + "px"; body._h = PAGE_H - top - bottom - (state.pnum ? 14 : 0);   // الارتفاع المتاح (يُثبَّت بعد التقسيم)
   pg.appendChild(body);
   return { pg, body };
@@ -1076,7 +1162,7 @@ function splitList(node, body) {
   if (i === 0) { part.remove(); return null; }
   if (i >= items.length) return false;
   const rest = node.cloneNode(false);
-  if (node.tagName === "OL") rest.setAttribute("start", (+(node.getAttribute("start") || 1)) + i);
+  if (node.tagName === "OL") { const st = (+(node.getAttribute("start") || 1)) + i; rest.setAttribute("start", st); rest.style.counterReset = "st " + (st - 1); }
   items.slice(i).forEach(li => rest.appendChild(li.cloneNode(true)));
   return rest;
 }
@@ -1125,6 +1211,21 @@ async function render() {
   const next = () => { cur = newPage(conf); meas.appendChild(cur.pg); pages.push(cur); };
 
   const src = editor.cloneNode(true); normalize(src);
+  let hasCover = false;
+  if (state.cover) {
+    const h = src.querySelector(":scope > h1");
+    if (h) {
+      const sub = h.nextElementSibling && h.nextElementSibling.matches("p.sub") ? h.nextElementSibling : null;
+      let hij = ""; try { hij = new Date().toLocaleDateString("ar-SA-u-ca-islamic-umalqura-nu-arab", { year: "numeric", month: "long" }); } catch (e) {}
+      const cv = document.createElement("div");
+      cv.className = "cover" + (state.theme ? " th-" + state.theme : "");
+      cv.innerHTML = `<div class="co-org">جمعية فرقان لتحفيظ القرآن الكريم بالطائف</div><div class="co-line"></div><div class="co-t">${h.innerHTML}</div>` +
+        (sub ? `<div class="co-s">${sub.innerHTML}</div>` : "") + `<div class="co-line"></div>` + (hij ? `<div class="co-d">${hij}</div>` : "");
+      cur.body.remove(); cur.pg.appendChild(cv); cur.isCover = true; hasCover = true;
+      h.remove(); if (sub) sub.remove();
+      next();
+    }
+  }
   if (state.secnum) { let k = 0; src.querySelectorAll(":scope > h2").forEach(h => h.insertAdjacentHTML("afterbegin", `<i class="n">${AR(++k)}</i>`)); }
   const queue = Array.from(src.childNodes).map(n => {
     if (n.nodeType === 3) { if (!n.textContent.trim()) return null; const p = document.createElement("p"); p.textContent = n.textContent; return p; }
@@ -1157,9 +1258,10 @@ async function render() {
   if (pages.length > 1 && !pages[pages.length - 1].body.childNodes.length) { pages.pop().pg.remove(); }
 
   // ترقيم الصفحات وتثبيت ارتفاع منطقة النص
+  const off = hasCover ? 1 : 0, total = pages.length - off;
   pages.forEach((p, i) => {
     p.body.style.height = p.body._h + "px";
-    if (state.pnum) { const n = document.createElement("div"); n.className = "pnum"; n.textContent = `صفحة ${AR(i + 1)} من ${AR(pages.length)}`; p.pg.appendChild(n); }
+    if (state.pnum && !p.isCover) { const n = document.createElement("div"); n.className = "pnum"; n.textContent = `صفحة ${AR(i + 1 - off)} من ${AR(total)}`; p.pg.appendChild(n); }
   });
   // نقل الصفحات إلى المعاينة مع تصغيرها لتناسب العرض
   const avail = Math.min(pagesEl.clientWidth || 600, PAGE_W);
@@ -1263,7 +1365,9 @@ function syncUI() {
   $("grpBar").style.display = (state.lh === "full") ? "" : "none";
   $("barText").value = state.bar; $("pnum").checked = state.pnum; $("fname").value = state.fname;
   $("secnum").checked = !!state.secnum; $("tstyle").value = state.tstyle || "side";
-  editor.className = "doc t-" + (state.tstyle || "side");
+  editor.className = "doc t-" + (state.tstyle || "side") + (state.theme ? " th-" + state.theme : "");
+  document.querySelectorAll(".th").forEach(b => b.classList.toggle("on", (b.dataset.th || "") === (state.theme || "")));
+  $("cover").checked = !!state.cover;
   $("uplKind").value = state.custom.kind; $("uplTop").value = state.custom.top; $("uplBot").value = state.custom.bottom;
   $("customTh").style.backgroundImage = state.custom.src ? `url("${state.custom.src}")` : "";
 }
@@ -1271,6 +1375,8 @@ $("lhs").addEventListener("click", e => { const b = e.target.closest(".lh"); if 
 $("barText").addEventListener("input", e => { state.bar = e.target.value; changed(); });
 $("pnum").addEventListener("change", e => { state.pnum = e.target.checked; changed(); });
 $("secnum").addEventListener("change", e => { state.secnum = e.target.checked; changed(); });
+$("ths").addEventListener("click", e => { const b = e.target.closest(".th"); if (!b) return; state.theme = b.dataset.th || ""; syncUI(); changed(); });
+$("cover").addEventListener("change", e => { state.cover = e.target.checked; changed(); });
 $("tstyle").addEventListener("change", e => { state.tstyle = e.target.value; syncUI(); changed(); });
 $("fname").addEventListener("input", e => { state.fname = e.target.value; save(); });
 $("uplKind").addEventListener("change", e => { state.custom.kind = e.target.value; changed(); });
