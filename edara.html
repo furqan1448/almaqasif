@@ -3626,6 +3626,17 @@ function adminRecordInvoice() {
   });
 }
 
+/* قيمة مكافأة المتعاونة من بيان الفواتير: ١٠٪ من «المطلوب تسليمه» لنفس المركز والفلترة المختارة.
+   تظهر فقط لمركز محدد (مو «عرض جميع المراكز»، لأنها قيمة خاصة بكل متعاونة على حدة)، وما تظهر
+   أبدًا للمراكز التي فيها مسؤولة مقصف (نفس استثناء «مكافآت متعاونات المقاصف» في سجل البيع). */
+function invoiceRewardAmount_(s) { return Math.round((s.deliverable || 0) * REWARD_RATE_ * 100) / 100; }
+function invoiceRewardHtml_(center, s) {
+  if (!center || hasMasoula_(center)) return '';
+  return '<div style="margin-top:10px;padding:12px 14px;border:1px solid var(--maroon,#8C1A2C);border-radius:10px;background:#fff;">' +
+    '<div style="display:flex;justify-content:space-between;gap:12px;font-weight:800;color:var(--maroon,#8C1A2C);">' +
+    '<span>قيمة مكافأة المتعاونة (١٠٪ من المطلوب تسليمه)</span><span dir="ltr">' + invoiceRewardAmount_(s).toFixed(2) + ' ريال</span></div></div>';
+}
+
 function loadCenterInvoices() {
   const center = document.getElementById('invoicesCenterSelect').value;
   const tbody = document.getElementById('invoicesTbody');
@@ -3672,7 +3683,9 @@ function renderCenterInvoices_() {
     tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (invoiceReturnHtml_(inv) || '—') + '</td><td>' + invoiceNotesText_(inv) + '</td>';
     tbody.appendChild(tr);
   });
-  summaryBox.innerHTML = (f ? '<p style="color:var(--maroon);font-weight:bold;margin:10px 0 0;">عدد القيود المعروضة: ' + currentInvoices.length + ' من ' + allCenterInvoices_.length + '</p>' : '') + invoiceSummaryHtml_(invoiceSummary_(currentInvoices));
+  const invCenter_ = document.getElementById('invoicesCenterSelect').value;
+  const invSum_ = invoiceSummary_(currentInvoices);
+  summaryBox.innerHTML = (f ? '<p style="color:var(--maroon);font-weight:bold;margin:10px 0 0;">عدد القيود المعروضة: ' + currentInvoices.length + ' من ' + allCenterInvoices_.length + '</p>' : '') + invoiceSummaryHtml_(invSum_) + invoiceRewardHtml_(invCenter_, invSum_);
 }
 
 function invoicesFilterSuffix_(sep) {
@@ -3687,7 +3700,13 @@ function exportCurrentInvoices() {
     const p = invoiceRowParts_(inv);
     return { 'المركز': inv['اسم المركز'] || '', 'النوع': p.type, 'رقم الفاتورة': inv['رقم الفاتورة'] || '', 'مصدر الفاتورة': inv['مصدر الفاتورة'] || '', 'اليوم': inv['اليوم'] || '', 'التاريخ': inv['التاريخ'], 'رأس المال': p.amount, 'الربح': p.profit, 'المبلغ الإجمالي': p.effect, 'المرتجعات': invoiceReturnText_(inv), 'ملاحظات': invoiceNotesText_(inv) };
   });
-  appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoices), 'النوع', 'المبلغ الإجمالي', false);
+  const expSum_ = invoiceSummary_(currentInvoices);
+  appendInvoiceSummaryRows_(rows, expSum_, 'النوع', 'المبلغ الإجمالي', false);
+  if (center && !hasMasoula_(center)) {
+    const o = {}; Object.keys(rows[0]).forEach(function (k) { o[k] = ''; });
+    o['النوع'] = 'قيمة مكافأة المتعاونة (١٠٪)'; o['المبلغ الإجمالي'] = invoiceRewardAmount_(expSum_);
+    rows.push(o);
+  }
   exportToExcel(rows, 'فواتير-' + (center || 'كل-المراكز') + invoicesFilterSuffix_('-'), 'الفواتير');
 }
 
@@ -3698,7 +3717,13 @@ function printCurrentInvoices() {
     const p = invoiceRowParts_(inv);
     return { center: inv['اسم المركز'] || '', type: p.type, num: inv['رقم الفاتورة'] || '', source: inv['مصدر الفاتورة'] || '', day: inv['اليوم'] || '', date: toHijriStr(inv['التاريخ']), amount: p.amount.toFixed(2), profit: p.profit.toFixed(2), effect: '<span dir="ltr">' + p.effect.toFixed(2) + '</span>', returns: invoiceReturnText_(inv), notes: invoiceNotesText_(inv) };
   });
-  appendInvoiceSummaryRows_(rows, invoiceSummary_(currentInvoices), 'type', 'effect', true);
+  const prnSum_ = invoiceSummary_(currentInvoices);
+  appendInvoiceSummaryRows_(rows, prnSum_, 'type', 'effect', true);
+  if (center && !hasMasoula_(center)) {
+    const o = {}; Object.keys(rows[0]).forEach(function (k) { o[k] = ''; });
+    o.type = 'قيمة مكافأة المتعاونة (١٠٪)'; o.effect = '<span dir="ltr">' + invoiceRewardAmount_(prnSum_).toFixed(2) + '</span>';
+    rows.push(o);
+  }
   printReport('بيان الفواتير' + invoicesFilterSuffix_(' — '), center || 'كل المراكز', [
     { key: 'center', label: 'المركز' }, { key: 'type', label: 'النوع' }, { key: 'num', label: 'رقم الفاتورة' }, { key: 'source', label: 'مصدر الفاتورة' }, { key: 'day', label: 'اليوم' }, { key: 'date', label: 'التاريخ' },
     { key: 'amount', label: 'رأس المال' }, { key: 'profit', label: 'الربح' }, { key: 'effect', label: 'المبلغ الإجمالي' }, { key: 'returns', label: 'المرتجعات' }, { key: 'notes', label: 'ملاحظات' }
