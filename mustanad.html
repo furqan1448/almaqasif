@@ -55,10 +55,30 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 .note{font-size:12px;color:var(--muted)}
 
 /* المحرر */
-.tools{display:flex;flex-wrap:wrap;gap:4px;padding:8px 10px;border-bottom:1px solid var(--line);background:#fcfafa;position:sticky;top:62px;z-index:20;border-radius:16px 16px 0 0}
+.tools{display:block;padding:6px 10px 8px;border-bottom:1px solid var(--line);background:#fcfafa;position:sticky;top:62px;z-index:20;border-radius:16px 16px 0 0}
 .tb{display:inline-flex;align-items:center;gap:5px;border:1px solid transparent;background:transparent;border-radius:8px;padding:5px 8px;cursor:pointer;color:var(--ink);font-size:13.5px;font-weight:700;white-space:nowrap}
 .tb:hover{background:var(--soft);color:var(--red)}
-.sep{width:1px;background:var(--line);margin:2px 3px}
+.sep{width:1px;background:var(--line);margin:2px 3px;align-self:stretch}
+.tabs{display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--line);margin:0 -10px 6px;padding:0 10px}
+.tab{border:0;background:transparent;padding:6px 14px;font-weight:800;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tab.on{color:var(--red);border-bottom-color:var(--red)}
+.tab#tabTbl{color:#9a6a17}.tab#tabTbl.on{border-bottom-color:#b4882c}
+.trow{display:flex;flex-wrap:wrap;gap:3px;align-items:center}
+.trow[hidden]{display:none}
+.sw{display:inline-block;width:14px;height:5px;border-radius:2px;background:#8f1d2c;margin:0 -2px 0 2px;align-self:flex-end;margin-bottom:3px}
+#swBg{background:#fbe7b6}
+.tsw{display:inline-block;width:14px;height:14px;border-radius:4px}
+.colors{display:grid;grid-template-columns:repeat(9,28px);gap:6px}
+.colors button{width:28px;height:28px;border-radius:8px;border:1px solid rgba(0,0,0,.12);cursor:pointer}
+.colors button:hover{transform:scale(1.12)}
+.crow{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;flex-wrap:wrap}
+.crow input[type=color]{width:40px;height:30px;border:1px solid var(--line);border-radius:8px;padding:2px;background:#fff}
+.imgbar{display:none;position:absolute;z-index:55;background:#211b1d;color:#fff;border-radius:10px;padding:5px 7px;gap:4px;align-items:center;font-size:12.5px;box-shadow:0 8px 20px rgba(0,0,0,.25);flex-wrap:wrap;max-width:94vw}
+.imgbar.on{display:flex}
+.imgbar button{border:0;background:rgba(255,255,255,.12);color:#fff;border-radius:7px;padding:4px 8px;cursor:pointer;font-weight:700}
+.imgbar button:hover{background:#fff;color:var(--red)}
+.imgbar .sep{background:rgba(255,255,255,.3)}
+#editor img.pic.sel{outline:3px solid #b4882c;outline-offset:2px}
 .tblpop{display:none;position:absolute;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;box-shadow:0 10px 30px rgba(0,0,0,.12);z-index:50;gap:8px;align-items:center;font-size:13px}
 .tblpop.on{display:flex}
 .tblpop input{width:56px}
@@ -85,7 +105,23 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 .doc hr.pb{border:0;border-top:2px dashed #d3b9be;margin:14px 0;position:relative;overflow:visible;height:0}
 #editor hr.pb::after{content:"فاصل صفحة";position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#fff;color:#b28a91;font-size:11.5px;padding:0 8px}
 .doc b,.doc strong{font-weight:800}
-.doc .c{text-align:center}
+.doc .c,.doc .al-c{text-align:center}
+.doc .al-r{text-align:right}.doc .al-l{text-align:left}.doc .al-j{text-align:justify}
+.doc .fs-s{font-size:.85em}.doc .fs-l{font-size:1.2em}.doc .fs-xl{font-size:1.45em}.doc .fs-xxl{font-size:1.8em}
+.doc mark{background:transparent;color:inherit;padding:0 1px;border-radius:3px}
+.doc [data-fill]{border-radius:4px}
+.doc p[data-fill],.doc h1[data-fill],.doc h2[data-fill],.doc h3[data-fill],.doc li[data-fill]{padding:3px 8px}
+.doc img.pic{max-width:100%;height:auto;border-radius:6px;vertical-align:top}
+.doc img.pic.w25{width:25%}.doc img.pic.w50{width:50%}.doc img.pic.w75{width:75%}.doc img.pic.w100{width:100%}
+.doc img.pic.fr{border:3px solid #fff;box-shadow:0 0 0 1px #d9bfc4,0 4px 12px rgba(0,0,0,.12)}
+.page .pbody img.pic{max-height:760px;object-fit:contain}
+.doc table.tb-light th{background:var(--soft);color:var(--red);border-color:#e6d6d9}
+.doc table.tb-gold th{background:#b4882c;border-color:#b4882c}
+.doc table.tb-gold tr:nth-child(even) td{background:#fbf7ee}
+.doc table.tb-lines th{background:transparent;color:var(--ink);border:0;border-bottom:2px solid var(--red)}
+.doc table.tb-lines td{border:0;border-bottom:1px solid #e6d9db}
+.doc table.tb-lines tr:nth-child(even) td{background:transparent}
+.doc tbody th{background:var(--soft);color:var(--red);border-color:#e6d9db;width:1%;white-space:nowrap}
 /* عناصر إضافية */
 .doc p.sub{color:var(--red);font-weight:700;margin:-8px 0 14px}
 .doc .card{border:1px solid #e6d6d9;border-radius:10px;margin:8px 0 14px;overflow:hidden;background:#fff}
@@ -127,6 +163,23 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 .pop .icb-btn small{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px}
 .pop .icb-btn:hover{background:var(--soft);border-color:var(--red)}
 .pop .ichead{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 2px 8px;font-size:13px}
+#popTpl .grid2{grid-template-columns:repeat(3,1fr)}
+@media (max-width:640px){#popTpl .grid2{grid-template-columns:1fr 1fr}}
+.modal{display:none;position:fixed;inset:0;background:rgba(33,27,29,.45);z-index:100;align-items:flex-start;justify-content:center;padding:60px 14px;overflow:auto}
+.modal.on{display:flex}
+.mbox{background:#fff;border-radius:18px;width:min(560px,100%);padding:16px 18px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.mh{display:flex;justify-content:space-between;align-items:center;font-weight:800;color:var(--red);font-size:18px;margin-bottom:10px}
+.mx{border:0;background:var(--soft);color:var(--red);width:32px;height:32px;border-radius:50%;font-size:20px;cursor:pointer}
+.msave{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.msave .inp{flex:1;min-width:160px}
+.mlist{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto;margin-bottom:12px}
+.mi{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+.mi b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mi small{color:var(--muted);white-space:nowrap}
+.mi button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 10px;cursor:pointer;font-weight:700;color:var(--red)}
+.mi button.del{color:#b3261e}
+.mempty{text-align:center;color:var(--muted);padding:16px}
+.mfoot{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .pop .pt{font-size:12px;font-weight:700;color:var(--muted);margin:6px 4px 4px;grid-column:1/-1}
 
 /* المعاينة */
@@ -157,6 +210,7 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 
 <header class="top">
   <h1>محرر المستندات<small>جمعية فرقان لتحفيظ القرآن الكريم بالطائف</small></h1>
+  <button class="tbtn" id="btnDocs" type="button"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>مستنداتي</button>
   <button class="tbtn" id="btnNew" type="button"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/></svg>مستند جديد</button>
   <button class="tbtn main" id="btnPdf" type="button"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9 14l3 3 3-3"/></svg><span>تحميل PDF</span></button>
 </header>
@@ -208,29 +262,74 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 
   <section class="panel" aria-label="المحرر">
     <div class="tools" id="tools">
-      <button type="button" class="tb" data-cmd="tpl" id="btnTpl" title="قوالب جاهزة"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="15" width="7" height="6" rx="1.5"/></svg>قوالب</button>
+      <div class="tabs">
+        <button type="button" class="tab on" data-tab="fmt">تنسيق</button>
+        <button type="button" class="tab" data-tab="ins">إدراج</button>
+        <button type="button" class="tab" data-tab="tbl" id="tabTbl" hidden>الجدول</button>
+        <span style="flex:1"></span>
+        <button type="button" class="tb" data-cmd="undo" title="تراجع"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+        <button type="button" class="tb" data-cmd="redo" title="إعادة"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
+      </div>
+      <div class="trow" data-row="fmt">
+        <button type="button" class="tb" data-cmd="h1" title="عنوان المستند">عنوان المستند</button>
+        <button type="button" class="tb" data-cmd="h2" title="عنوان قسم">عنوان قسم</button>
+        <button type="button" class="tb" data-cmd="h3" title="عنوان فرعي">عنوان فرعي</button>
+        <button type="button" class="tb" data-cmd="p" title="فقرة">فقرة</button>
+        <span class="sep"></span>
+        <button type="button" class="tb" data-cmd="bold" title="عريض"><b>B</b></button>
+        <button type="button" class="tb" data-cmd="fsdown" title="تصغير الخط"><svg viewBox="0 0 24 24"><path d="M4 18l5-12 5 12M6 14h6M16 12h5"/></svg></button>
+        <button type="button" class="tb" data-cmd="fsup" title="تكبير الخط"><svg viewBox="0 0 24 24"><path d="M4 18l5-12 5 12M6 14h6M18.5 9.5v5M16 12h5"/></svg></button>
+        <span class="sep"></span>
+        <button type="button" class="tb" data-cmd="al-r" title="محاذاة لليمين"><svg viewBox="0 0 24 24"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>
+        <button type="button" class="tb" data-cmd="al-c" title="توسيط"><svg viewBox="0 0 24 24"><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></svg></button>
+        <button type="button" class="tb" data-cmd="al-l" title="محاذاة لليسار"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>
+        <button type="button" class="tb" data-cmd="al-j" title="ضبط النص"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg></button>
+        <span class="sep"></span>
+        <button type="button" class="tb" data-cmd="tc" id="btnTc" title="لون الخط"><svg viewBox="0 0 24 24"><path d="M6 16l6-12 6 12M8 12h8"/></svg><span class="sw" id="swTc"></span>لون الخط</button>
+        <button type="button" class="tb" data-cmd="bg" id="btnBg" title="لون التعبئة"><svg viewBox="0 0 24 24"><path d="M5 13l7-7 6 6-7 7H5z"/><path d="M19 15s2 2.4 2 3.5a2 2 0 0 1-4 0c0-1.1 2-3.5 2-3.5z"/></svg><span class="sw" id="swBg"></span>التعبئة</button>
+        <button type="button" class="tb" data-cmd="clear" title="مسح التنسيق"><svg viewBox="0 0 24 24"><path d="M5 19h7M8 15l7-11M4 4l16 16"/></svg>مسح التنسيق</button>
+        <span class="sep"></span>
+        <button type="button" class="tb" data-cmd="ul" title="نقاط"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><rect x="3.5" y="5" width="2.5" height="2.5" rx=".5"/><rect x="3.5" y="11" width="2.5" height="2.5" rx=".5"/><rect x="3.5" y="17" width="2.5" height="2.5" rx=".5"/></svg>نقاط</button>
+        <button type="button" class="tb" data-cmd="ol" title="ترقيم"><svg viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10M4 5l1.5-1V9M3.5 13.5c.4-.7 2.5-.9 2.4.5-.1 1-2.4 1.6-2.4 3h2.6"/></svg>ترقيم</button>
+        <button type="button" class="tb" data-cmd="box" title="مربع مميز"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M21 5v14"/></svg>مربع مميز</button>
+      </div>
+      <div class="trow" data-row="ins" hidden>
+        <button type="button" class="tb" data-cmd="tpl" id="btnTpl" title="قوالب جاهزة"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="15" width="7" height="6" rx="1.5"/></svg>قوالب</button>
+        <button type="button" class="tb" data-cmd="blocks" id="btnBlocks" title="عناصر وتنسيقات"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="8" height="6" rx="1.5"/><rect x="13" y="14" width="8" height="6" rx="1.5"/></svg>تنسيقات</button>
+        <button type="button" class="tb" data-cmd="icons" id="btnIcons" title="أيقونات مرسومة"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>أيقونات</button>
+        <button type="button" class="tb" data-cmd="sym" id="btnSym" title="رموز"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg>رموز</button>
+        <button type="button" class="tb" data-cmd="img" title="صورة"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>صورة</button>
+        <button type="button" class="tb" data-cmd="table" id="btnTable" title="جدول"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></svg>جدول</button>
+        <button type="button" class="tb" data-cmd="pb" title="فاصل صفحة"><svg viewBox="0 0 24 24"><path d="M4 4v5h16V4M4 20v-5h16v5M2 12h3M8 12h3M13 12h3M19 12h3"/></svg>فاصل صفحة</button>
+      </div>
+      <div class="trow" data-row="tbl" hidden>
+        <button type="button" class="tb" data-cmd="rowup" title="صف فوق">+ صف فوق</button>
+        <button type="button" class="tb" data-cmd="rowdown" title="صف تحت">+ صف تحت</button>
+        <button type="button" class="tb" data-cmd="delrow" title="حذف الصف">− حذف الصف</button>
+        <span class="sep"></span>
+        <button type="button" class="tb" data-cmd="colright" title="عمود يمين">+ عمود يمين</button>
+        <button type="button" class="tb" data-cmd="colleft" title="عمود يسار">+ عمود يسار</button>
+        <button type="button" class="tb" data-cmd="delcol" title="حذف العمود">− حذف العمود</button>
+        <span class="sep"></span>
+        <button type="button" class="tb" data-cmd="thead" title="صف العناوين">صف العناوين</button>
+        <button type="button" class="tb" data-cmd="tstyle" data-v="" title="جدول عنابي"><span class="tsw" style="background:#8f1d2c"></span>عنابي</button>
+        <button type="button" class="tb" data-cmd="tstyle" data-v="tb-light" title="جدول فاتح"><span class="tsw" style="background:#f8eef0;border:1px solid #d9bfc4"></span>فاتح</button>
+        <button type="button" class="tb" data-cmd="tstyle" data-v="tb-gold" title="جدول ذهبي"><span class="tsw" style="background:#b4882c"></span>ذهبي</button>
+        <button type="button" class="tb" data-cmd="tstyle" data-v="tb-lines" title="خطوط فقط"><span class="tsw" style="background:#fff;border:1px solid #999"></span>خطوط فقط</button>
+        <span class="sep"></span>
+        <button type="button" class="tb" data-cmd="deltable" title="حذف الجدول" style="color:#b3261e">حذف الجدول</button>
+      </div>
+    </div>
+    <div class="pop" id="popColor"></div>
+    <input type="file" id="imgFile" accept="image/*" hidden>
+    <div class="imgbar" id="imgbar">
+      <span>العرض:</span>
+      <button type="button" data-w="w25">ربع</button><button type="button" data-w="w50">نصف</button><button type="button" data-w="w75">ثلاثة أرباع</button><button type="button" data-w="w100">كامل</button>
       <span class="sep"></span>
-      <button type="button" class="tb" data-cmd="h1" title="عنوان المستند">عنوان المستند</button>
-      <button type="button" class="tb" data-cmd="h2" title="عنوان قسم">عنوان قسم</button>
-      <button type="button" class="tb" data-cmd="h3" title="عنوان فرعي">عنوان فرعي</button>
-      <button type="button" class="tb" data-cmd="p" title="فقرة">فقرة</button>
+      <button type="button" data-a="al-r">يمين</button><button type="button" data-a="al-c">وسط</button><button type="button" data-a="al-l">يسار</button>
       <span class="sep"></span>
-      <button type="button" class="tb" data-cmd="ul" title="نقاط"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><rect x="3.5" y="5" width="2.5" height="2.5" rx=".5"/><rect x="3.5" y="11" width="2.5" height="2.5" rx=".5"/><rect x="3.5" y="17" width="2.5" height="2.5" rx=".5"/></svg>نقاط</button>
-      <button type="button" class="tb" data-cmd="ol" title="ترقيم"><svg viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10M4 5l1.5-1V9M3.5 13.5c.4-.7 2.5-.9 2.4.5-.1 1-2.4 1.6-2.4 3h2.6"/></svg>ترقيم</button>
-      <button type="button" class="tb" data-cmd="box" title="مربع مميز"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M21 5v14"/></svg>مربع مميز</button>
-      <button type="button" class="tb" data-cmd="blocks" id="btnBlocks" title="عناصر وتنسيقات"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="8" height="6" rx="1.5"/><rect x="13" y="14" width="8" height="6" rx="1.5"/></svg>تنسيقات</button>
-      <button type="button" class="tb" data-cmd="icons" id="btnIcons" title="أيقونات مرسومة"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>أيقونات</button>
-      <button type="button" class="tb" data-cmd="sym" id="btnSym" title="رموز"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg>رموز</button>
-      <button type="button" class="tb" data-cmd="table" id="btnTable" title="جدول"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></svg>جدول</button>
-      <button type="button" class="tb" data-cmd="row" title="إضافة صف للجدول">+ صف</button>
-      <button type="button" class="tb" data-cmd="delrow" title="حذف صف من الجدول">− صف</button>
-      <span class="sep"></span>
-      <button type="button" class="tb" data-cmd="bold" title="عريض"><b>B</b></button>
-      <button type="button" class="tb" data-cmd="center" title="توسيط">توسيط</button>
-      <button type="button" class="tb" data-cmd="pb" title="فاصل صفحة">فاصل صفحة</button>
-      <span class="sep"></span>
-      <button type="button" class="tb" data-cmd="undo" title="تراجع"><svg viewBox="0 0 24 24"><path d="M15 7H9a5 5 0 0 0 0 10h6"/><path d="M13 4l3 3-3 3" transform="matrix(-1 0 0 1 29 0)"/></svg></button>
-      <button type="button" class="tb" data-cmd="redo" title="إعادة"><svg viewBox="0 0 24 24"><path d="M9 7h6a5 5 0 0 1 0 10H9"/><path d="M11 4l-3 3 3 3" transform="matrix(-1 0 0 1 19 0)"/></svg></button>
+      <button type="button" data-r="1">إطار</button>
+      <button type="button" data-del="1" style="color:#b3261e">حذف</button>
     </div>
     <div class="pop" id="popTpl"></div>
     <div class="pop" id="popBlocks"></div>
@@ -258,6 +357,22 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
     </div>
   </section>
 
+</div>
+
+<div class="modal" id="docsModal" role="dialog" aria-label="مستنداتي">
+  <div class="mbox">
+    <div class="mh">مستنداتي<button type="button" class="mx" id="docsClose" aria-label="إغلاق">×</button></div>
+    <div class="msave">
+      <input class="inp" id="docName" type="text" placeholder="اسم المستند">
+      <button type="button" class="tbtn main" id="docSave" style="border-color:var(--red)">حفظ نسخة من المستند الحالي</button>
+    </div>
+    <div class="mlist" id="docsList"></div>
+    <div class="mfoot">
+      <button type="button" class="tbtn" id="docExport" style="color:var(--red);border-color:var(--line)">تنزيل المستند الحالي كملف</button>
+      <label class="tbtn" style="color:var(--red);border-color:var(--line)">فتح ملف من الجهاز<input type="file" id="docImport" accept=".json,application/json" hidden></label>
+    </div>
+    <div class="note">النسخ المحفوظة هنا تبقى في هذا الجهاز وهذا المتصفح فقط. لنقل مستند إلى جهاز آخر استخدمي «تنزيل المستند الحالي كملف» ثم «فتح ملف من الجهاز».</div>
+  </div>
 </div>
 
 <script>
@@ -292,7 +407,8 @@ const SAMPLE = `<h1>عنوان المستند</h1>
 
 /* ===================== الحفظ التلقائي ===================== */
 function save() {
-  try { localStorage.setItem(STORE, JSON.stringify({ html: editor.innerHTML, state })); } catch (e) {}
+  try { localStorage.setItem(STORE, JSON.stringify({ html: editor.innerHTML, state })); save.warned = false; }
+  catch (e) { if (!save.warned) { save.warned = true; alert("لم يُحفظ المستند تلقائيًا لكبر حجم الصور. نزّليه كملف من «مستنداتي» حتى لا يضيع."); } }
 }
 function load() {
   try {
@@ -315,10 +431,25 @@ const BLOCKS = "P,UL,OL,TABLE,BLOCKQUOTE,H1,H2,H3,DIV,HR,SECTION";
 const KEEP = ["card", "ch", "cb", "outline", "notebox", "stage", "sg", "stats", "stat", "sign"];
 function unwrap(el) { el.replaceWith(...el.childNodes); }
 function normalize(root) {
-  root.querySelectorAll("[style]").forEach(el => el.removeAttribute("style"));
+  // الألوان: span/font الملوّن يصبح mark، وما سواه يُزال تنسيقه
+  root.querySelectorAll("font[color]").forEach(f => { const m = document.createElement("mark"); m.style.color = f.getAttribute("color"); while (f.firstChild) m.appendChild(f.firstChild); f.replaceWith(m); });
+  root.querySelectorAll("span[style]").forEach(sp => {
+    const c = sp.style.color, b = sp.style.backgroundColor;
+    if (!c && !(b && b !== "transparent")) return;
+    const m = document.createElement("mark"); if (c) m.style.color = c; if (b && b !== "transparent") m.style.backgroundColor = b;
+    while (sp.firstChild) m.appendChild(sp.firstChild); sp.replaceWith(m);
+  });
+  root.querySelectorAll("[style]").forEach(el => {
+    const keepC = el.tagName === "MARK" || el.hasAttribute("data-tc"), keepB = el.tagName === "MARK" || el.hasAttribute("data-fill");
+    const c = keepC ? el.style.color : "", b = keepB ? el.style.backgroundColor : "";
+    el.removeAttribute("style");
+    if (c) el.style.color = c; if (b) el.style.backgroundColor = b;
+  });
   root.querySelectorAll("span,font").forEach(unwrap);
+  root.querySelectorAll("mark").forEach(m => { if (!m.getAttribute("style") || !m.textContent) unwrap(m); });
   root.querySelectorAll("div").forEach(d => { if (KEEP.some(k => d.classList.contains(k))) return; const p = document.createElement("p"); while (d.firstChild) p.appendChild(d.firstChild); d.replaceWith(p); });
   root.querySelectorAll("i.n").forEach(x => x.remove());
+  root.querySelectorAll(".sel").forEach(x => { x.classList.remove("sel"); if (!x.className) x.removeAttribute("class"); });
   // فقرة أو عنوان بداخله عناصر كتلية (مثل قائمة داخل فقرة)
   let again = true, guard = 0;
   while (again && guard++ < 20) {
@@ -364,20 +495,187 @@ let savedRange = null;
 editor.addEventListener("blur", () => { const s = getSelection(); if (s.rangeCount && editor.contains(s.anchorNode)) savedRange = s.getRangeAt(0).cloneRange(); });
 function restore() { editor.focus(); if (savedRange) { const s = getSelection(); s.removeAllRanges(); s.addRange(savedRange); } }
 
-$("tools").addEventListener("mousedown", e => { if (e.target.closest(".tb")) e.preventDefault(); });
+$("tools").addEventListener("mousedown", e => { if (e.target.closest(".tb,.tab")) e.preventDefault(); });
+/* التبويبات */
+function showTab(t) {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x.dataset.tab === t));
+  document.querySelectorAll(".trow").forEach(x => x.hidden = x.dataset.row !== t);
+}
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => showTab(t.dataset.tab)));
+
+/* الكتل المحددة (لتطبيق المحاذاة والحجم على أكثر من سطر) */
+function selectedBlocks() {
+  const s = getSelection(); if (!s.rangeCount) return [];
+  const r = s.getRangeAt(0);
+  const all = Array.from(editor.querySelectorAll("p,h1,h2,h3,li,td,th")).filter(b => r.intersectsNode(b));
+  if (all.length) return all;
+  const b = blockOf(currentBlock()); return b ? [b] : [];
+}
+const AL = ["al-r", "al-c", "al-l", "al-j"], FS = ["fs-s", "", "fs-l", "fs-xl", "fs-xxl"];
+function setAlign(cls) {
+  selectedBlocks().forEach(b => { b.classList.remove(...AL, "c"); b.classList.add(cls); });
+  changed();
+}
+function stepFont(d) {
+  selectedBlocks().forEach(b => {
+    const cur = FS.findIndex(f => f && b.classList.contains(f)); const i = cur < 0 ? 1 : cur;
+    const ni = Math.max(0, Math.min(FS.length - 1, i + d));
+    b.classList.remove(...FS.filter(Boolean)); if (FS[ni]) b.classList.add(FS[ni]); if (!b.className) b.removeAttribute("class");
+  });
+  changed();
+}
+function clearFormat() {
+  const s = getSelection();
+  if (s.rangeCount && !s.isCollapsed) {
+    const r = s.getRangeAt(0);
+    editor.querySelectorAll("mark,b,strong").forEach(m => { if (r.intersectsNode(m)) unwrap(m); });
+  }
+  selectedBlocks().forEach(b => { b.classList.remove(...AL, ...FS.filter(Boolean), "c"); b.removeAttribute("data-fill"); b.removeAttribute("data-tc"); b.removeAttribute("style"); b.querySelectorAll("mark").forEach(unwrap); if (!b.className) b.removeAttribute("class"); });
+  changed();
+}
+
+/* الألوان */
+const TEXT_COLORS = ["#8f1d2c", "#c0392b", "#b4882c", "#1e7d4f", "#1f5f99", "#6b3fa0", "#211b1d", "#6b6b6b", "#ffffff"];
+const FILL_COLORS = ["#f8eef0", "#fbe7b6", "#fbf3e3", "#e3f4ea", "#e3eef9", "#efe8f7", "#eeeeee", "#8f1d2c", "#211b1d"];
+let colorMode = "tc";
+function openColors(mode, btn) {
+  colorMode = mode;
+  const list = mode === "tc" ? TEXT_COLORS : FILL_COLORS;
+  $("popColor").innerHTML = `<div class="pt" style="margin:0 2px 8px;font-weight:800;color:var(--red)">${mode === "tc" ? "لون الخط" : "لون التعبئة (الخلفية)"}</div>
+    <div class="colors">${list.map(c => `<button type="button" data-c="${c}" style="background:${c}" title="${c}"></button>`).join("")}</div>
+    <div class="crow"><label>لون آخر <input type="color" id="cCustom" value="${mode === "tc" ? "#8f1d2c" : "#fbe7b6"}"></label>
+    <button type="button" class="tbtn" style="color:var(--red);border-color:var(--line)" data-c="custom">تطبيق</button>
+    <button type="button" class="tbtn" style="color:var(--ink);border-color:var(--line)" data-c="none">بلا لون</button></div>
+    <div class="note" style="margin-top:6px">${mode === "tc" ? "حدّدي النص أولًا، أو ضعي المؤشر في السطر لتلوينه كله." : "حدّدي نصًا لتظليله، أو ضعي المؤشر في خانة جدول أو سطر لتعبئته كله."}</div>`;
+  showPop($("popColor"), btn);
+}
+function applyColor(c) {
+  restore();
+  const s = getSelection(); const collapsed = !s.rangeCount || s.isCollapsed;
+  if (c === "none") {
+    if (!collapsed) { const r = s.getRangeAt(0); editor.querySelectorAll("mark").forEach(m => { if (r.intersectsNode(m)) { if (colorMode === "tc") m.style.color = ""; else m.style.backgroundColor = ""; if (!m.getAttribute("style")) unwrap(m); } }); }
+    selectedBlocks().forEach(b => { if (colorMode === "tc") { b.style.color = ""; b.removeAttribute("data-tc"); } else { b.style.backgroundColor = ""; b.removeAttribute("data-fill"); } if (!b.getAttribute("style")) b.removeAttribute("style"); });
+    changed(); return;
+  }
+  if (collapsed) {
+    selectedBlocks().forEach(b => { if (colorMode === "tc") { b.style.color = c; b.setAttribute("data-tc", ""); } else { b.style.backgroundColor = c; b.setAttribute("data-fill", ""); } });
+    changed(); return;
+  }
+  document.execCommand("styleWithCSS", false, true);
+  document.execCommand(colorMode === "tc" ? "foreColor" : "hiliteColor", false, c);
+  document.execCommand("styleWithCSS", false, false);
+  normalize(editor); changed();
+  $(colorMode === "tc" ? "swTc" : "swBg").style.background = c;
+}
+$("popColor").addEventListener("mousedown", e => { if (e.target.closest("button")) e.preventDefault(); });
+$("popColor").addEventListener("click", e => {
+  const b = e.target.closest("[data-c]"); if (!b) return;
+  const c = b.dataset.c === "custom" ? $("cCustom").value : b.dataset.c;
+  applyColor(c);
+});
+
+/* أدوات الجدول */
+function curCell() { const n = currentBlock(); return n && n.closest("td,th"); }
+function cellIndex(cell) { return Array.from(cell.parentNode.children).indexOf(cell); }
+function tableOp(c, v) {
+  const cell = curCell(); if (!cell) { alert("ضعي المؤشر داخل الجدول أولًا"); return; }
+  const tr = cell.parentNode, table = tr.closest("table"), idx = cellIndex(cell);
+  const emptyRow = () => { const r = document.createElement("tr"); r.innerHTML = Array.from(tr.children).map(() => "<td><br></td>").join(""); return r; };
+  if (c === "rowup" || c === "rowdown") {
+    const nr = emptyRow();
+    if (tr.parentNode.tagName === "THEAD") { const tb = table.tBodies[0] || table.appendChild(document.createElement("tbody")); tb.insertBefore(nr, tb.firstChild); }
+    else if (c === "rowup") tr.before(nr); else tr.after(nr);
+    placeCaretEnd(nr.children[Math.min(idx, nr.children.length - 1)]);
+  } else if (c === "delrow") {
+    const rows = table.querySelectorAll("tr"); if (rows.length <= 1) { table.remove(); }
+    else { const next = tr.nextElementSibling || tr.previousElementSibling; tr.remove(); if (next && next.children[idx]) placeCaretEnd(next.children[idx]); if (table.tHead && !table.tHead.rows.length) table.tHead.remove(); }
+  } else if (c === "colright" || c === "colleft") {
+    table.querySelectorAll("tr").forEach(r => {
+      const ref = r.children[idx]; const isH = r.parentNode.tagName === "THEAD";
+      const nc = document.createElement(isH ? "th" : "td"); nc.innerHTML = isH ? "عمود" : "<br>";
+      if (!ref) r.appendChild(nc); else if (c === "colright") ref.before(nc); else ref.after(nc);
+    });
+  } else if (c === "delcol") {
+    const cols = tr.children.length;
+    if (cols <= 1) table.remove(); else table.querySelectorAll("tr").forEach(r => { if (r.children[idx]) r.children[idx].remove(); });
+  } else if (c === "thead") {
+    if (table.tHead) {
+      const tb = table.tBodies[0] || table.appendChild(document.createElement("tbody"));
+      Array.from(table.tHead.rows).reverse().forEach(r => { Array.from(r.children).forEach(th => { const td = document.createElement("td"); td.innerHTML = th.innerHTML; th.replaceWith(td); }); tb.insertBefore(r, tb.firstChild); });
+      table.tHead.remove();
+    } else {
+      const first = table.querySelector("tr"); const th = document.createElement("thead"); table.insertBefore(th, table.firstChild);
+      Array.from(first.children).forEach(td => { const h = document.createElement("th"); h.innerHTML = td.innerHTML; td.replaceWith(h); }); th.appendChild(first);
+    }
+  } else if (c === "tstyle") {
+    table.classList.remove("tb-light", "tb-gold", "tb-lines"); if (v) table.classList.add(v); if (!table.className) table.removeAttribute("class");
+  } else if (c === "deltable") {
+    if (!confirm("هل تريدين حذف الجدول كاملًا؟")) return;
+    const p = document.createElement("p"); p.innerHTML = "<br>"; table.replaceWith(p); placeCaretEnd(p);
+  }
+  changed();
+}
+document.addEventListener("selectionchange", () => {
+  const n = currentBlock(); const inT = !!(n && n.closest("td,th"));
+  const t = $("tabTbl"); if (t.hidden === inT) { t.hidden = !inT; if (!inT && t.classList.contains("on")) showTab("fmt"); }
+});
+
+/* الصور */
+function insertImage(file) {
+  const fr = new FileReader();
+  fr.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      const max = 1400, k = Math.min(1, max / Math.max(im.width, im.height));
+      const cv = document.createElement("canvas"); cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k);
+      const ctx = cv.getContext("2d");
+      const png = /png|gif|svg/.test(file.type) && file.size < 600000;
+      if (!png) { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height); }
+      ctx.drawImage(im, 0, 0, cv.width, cv.height);
+      const src = png ? fr.result : cv.toDataURL("image/jpeg", 0.85);
+      insertBlock(`<p class="al-c"><img class="pic w75" src="${src}" alt=""></p>`);
+    };
+    im.src = fr.result;
+  };
+  fr.readAsDataURL(file);
+}
+$("imgFile").addEventListener("change", e => { const f = e.target.files[0]; if (f) insertImage(f); e.target.value = ""; });
+let selImg = null;
+function hideImgBar() { $("imgbar").classList.remove("on"); if (selImg) selImg.classList.remove("sel"); selImg = null; }
+editor.addEventListener("click", e => {
+  const im = e.target.closest("img.pic");
+  if (!im) { hideImgBar(); return; }
+  if (selImg) selImg.classList.remove("sel");
+  selImg = im; im.classList.add("sel");
+  $("imgbar").classList.add("on"); placeImgBar();
+});
+$("imgbar").addEventListener("mousedown", e => e.preventDefault());
+$("imgbar").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || !selImg) return;
+  if (b.dataset.w) { selImg.classList.remove("w25", "w50", "w75", "w100"); selImg.classList.add(b.dataset.w); }
+  if (b.dataset.a) { const p = selImg.closest("p,td,th,li") || selImg.parentNode; p.classList.remove(...AL, "c"); p.classList.add(b.dataset.a); }
+  if (b.dataset.r) selImg.classList.toggle("fr");
+  if (b.dataset.del) { const p = selImg.parentNode; selImg.remove(); if (p && p.tagName === "P" && !p.textContent.trim() && !p.querySelector("img")) p.innerHTML = "<br>"; hideImgBar(); }
+  changed();
+  placeImgBar();
+});
+function placeImgBar() { if (!selImg || !document.contains(selImg)) { hideImgBar(); return; } const r = selImg.getBoundingClientRect(), bar = $("imgbar"); bar.style.top = Math.max(scrollY + 4, r.top + scrollY - bar.offsetHeight - 8) + "px"; bar.style.right = Math.max(8, innerWidth - r.right) + "px"; }
+addEventListener("scroll", () => { if (selImg) placeImgBar(); }, { passive: true });
+
 $("tools").addEventListener("click", e => {
   const b = e.target.closest(".tb"); if (!b) return;
   const c = b.dataset.cmd;
-  restore();
+  if (["tpl", "blocks", "sym", "icons", "tc", "bg", "table"].includes(c) === false) restore();
   if (["h1", "h2", "h3", "p"].includes(c)) setBlock(c);
   else if (c === "ul") exec("insertUnorderedList");
   else if (c === "ol") exec("insertOrderedList");
   else if (c === "box") toggleBox();
   else if (c === "bold") exec("bold");
-  else if (c === "center") {
-    const n = currentBlock(); const blk = n && n.closest("p,h1,h2,h3,li,blockquote,td,th");
-    if (blk) { blk.classList.toggle("c"); if (!blk.className) blk.removeAttribute("class"); changed(); }
-  }
+  else if (AL.includes(c)) setAlign(c);
+  else if (c === "fsup") stepFont(1);
+  else if (c === "fsdown") stepFont(-1);
+  else if (c === "clear") clearFormat();
+  else if (c === "tc" || c === "bg") openColors(c, b);
   else if (c === "pb") exec("insertHTML", '<hr class="pb"><p><br></p>');
   else if (c === "undo") exec("undo");
   else if (c === "redo") exec("redo");
@@ -385,23 +683,14 @@ $("tools").addEventListener("click", e => {
   else if (c === "blocks") showPop($("popBlocks"), b);
   else if (c === "sym") showPop($("popSym"), b);
   else if (c === "icons") showPop($("popIcons"), b);
+  else if (c === "img") $("imgFile").click();
   else if (c === "table") {
     document.querySelectorAll(".pop.on").forEach(x => x.classList.remove("on"));
     const pop = $("tblpop"), r = b.getBoundingClientRect();
     pop.style.top = (r.bottom + scrollY + 6) + "px"; pop.style.right = (innerWidth - r.right) + "px";
     pop.classList.toggle("on");
   }
-  else if (c === "row" || c === "delrow") {
-    const n = currentBlock(); const tr = n && n.closest("tr");
-    if (!tr) { alert("ضعي المؤشر داخل الجدول أولًا"); return; }
-    if (c === "row") {
-      const nr = document.createElement("tr");
-      nr.innerHTML = Array.from(tr.children).map(() => "<td><br></td>").join("");
-      const tb = tr.closest("table").tBodies[0] || tr.parentNode;
-      if (tr.parentNode.tagName === "THEAD") tb.insertBefore(nr, tb.firstChild); else tr.after(nr);
-    } else if (tr.parentNode.tagName !== "THEAD") tr.remove();
-    changed();
-  }
+  else if (["rowup", "rowdown", "delrow", "colright", "colleft", "delcol", "thead", "tstyle", "deltable"].includes(c)) tableOp(c, b.dataset.v || "");
 });
 $("tIns").addEventListener("click", () => {
   const cols = Math.min(8, Math.max(1, +$("tCols").value || 3)), rows = Math.min(60, Math.max(1, +$("tRows").value || 3));
@@ -413,7 +702,7 @@ $("tIns").addEventListener("click", () => {
 });
 document.addEventListener("click", e => {
   if (!e.target.closest("#tblpop,#btnTable")) $("tblpop").classList.remove("on");
-  if (!e.target.closest(".pop,#btnTpl,#btnBlocks,#btnSym,#btnIcons")) document.querySelectorAll(".pop.on").forEach(x => x.classList.remove("on"));
+  if (!e.target.closest(".pop,#btnTpl,#btnBlocks,#btnSym,#btnIcons,#btnTc,#btnBg")) document.querySelectorAll(".pop.on").forEach(x => x.classList.remove("on"));
 });
 
 /* ===================== القوالب والعناصر والرموز ===================== */
@@ -539,7 +828,7 @@ $("popTpl").addEventListener("click", e => {
   const t = TEMPLATES[+b.dataset.t];
   $("popTpl").classList.remove("on");
   if (editor.textContent.trim() && !confirm(`سيُستبدل المحتوى الحالي بقالب «${t.name}». هل تريدين المتابعة؟`)) return;
-  editor.innerHTML = t.html;
+  editor.innerHTML = typeof t.html === "function" ? t.html() : t.html;
   state.tstyle = t.title; state.secnum = t.secnum;
   if (!state.fname || state.fname === "مستند" || TEMPLATES.some(x => x.name === state.fname)) state.fname = t.id === "blank" ? "مستند" : t.name;
   syncUI(); changed(); editor.focus(); placeCaretEnd(editor.querySelector("h1,p") || editor);
@@ -610,6 +899,68 @@ function buildIconPop() {
 }
 
 buildIconPop();
+const IC = (name, cls) => `<img class="${cls || "ic"}" src="${iconSrc(ICONS.findIndex(x => x[0] === name), "#8f1d2c")}" alt="">`;
+const SIGN = t => `<div class="sign"><p><b>${t}</b></p><p>الاسم:</p><p>التوقيع:</p></div>`;
+const INFO = pairs => "<table><tbody>" + pairs.map(r => "<tr>" + r.map(([k, v]) => `<th>${k}</th><td>${v || "<br>"}</td>`).join("") + "</tr>").join("") + "</tbody></table>";
+TEMPLATES.splice(TEMPLATES.length - 1, 0,
+  { id: "profile", name: "ملف تعريفي", hint: "أرقام بأيقونات، نبذة، رؤية ورسالة، خدمات، تواصل", title: "band", secnum: false, html: () =>
+`<h1>الملف التعريفي — (اسم الجهة)</h1>
+<p class="sub">جمعية فرقان لتحفيظ القرآن الكريم بالطائف</p>
+<div class="stats"><div class="stat">${IC("مبنى", "icb")}<b>١٠</b><small>الوصف</small></div><div class="stat">${IC("فريق", "icb")}<b>١٠</b><small>الوصف</small></div><div class="stat">${IC("تقويم", "icb")}<b>١٠</b><small>الوصف</small></div></div>
+<section class="card"><div class="ch">نبذة تعريفية</div><div class="cb"><p>اكتبي هنا نبذة مختصرة عن الجهة وعملها.</p></div></section>
+<div class="outline"><p>${IC("هدف")} <b>الرؤية:</b> اكتبي الرؤية.</p></div>
+<div class="outline"><p>${IC("علم")} <b>الرسالة:</b> اكتبي الرسالة.</p></div>
+<h2>خدماتنا</h2>
+<ul><li>${IC("تم")} الخدمة الأولى.</li><li>${IC("تم")} الخدمة الثانية.</li><li>${IC("تم")} الخدمة الثالثة.</li></ul>
+<h2>أبرز الإنجازات</h2>
+<ul><li>${IC("كأس")} الإنجاز الأول.</li><li>${IC("نمو")} الإنجاز الثاني.</li></ul>
+<section class="card"><div class="ch">للتواصل</div><div class="cb"><p>${IC("هاتف")} الهاتف:</p><p>${IC("بريد")} البريد الإلكتروني:</p><p>${IC("موقع")} العنوان: الطائف</p></div></section>` },
+  { id: "circular", name: "تعميم", hint: "بيانات التعميم، النص، البنود، التوقيع", title: "center", secnum: false, html: () =>
+`<h1>تعميم</h1>
+<p class="sub">(موضوع التعميم)</p>
+${INFO([[["رقم التعميم"], ["التاريخ", "&nbsp; / &nbsp; / ١٤٤٨هـ"]], [["إلى"], ["المرفقات"]]])}
+<p>السلام عليكم ورحمة الله وبركاته، وبعد:</p>
+<p>اكتبي هنا نص التعميم.</p>
+<ol><li>البند الأول.</li><li>البند الثاني.</li></ol>
+<div class="notebox"><p><b>ملاحظة:</b> اكتبي أي ملاحظة.</p></div>
+<p>شاكرين لكم تعاونكم.</p>
+${SIGN("رئيسة وحدة المقاصف")}` },
+  { id: "visit", name: "تقرير زيارة", hint: "بيانات الزيارة، البنود، الإيجابيات، التوصيات", title: "side", secnum: false, html: () =>
+`<h1>تقرير زيارة</h1>
+<p class="sub">(اسم المركز)</p>
+${INFO([[["المركز"], ["التاريخ"]], [["الزائرة"], ["الغرض من الزيارة"]]])}
+<h2>بنود الزيارة</h2>
+<table><thead><tr><th>م</th><th>البند</th><th>الحالة</th><th>ملاحظات</th></tr></thead><tbody>${rows(5, i => [AR(i + 1), "", "", ""])}</tbody></table>
+<h2>الإيجابيات</h2><ul><li>الإيجابية الأولى.</li></ul>
+<h2>الملاحظات</h2><ul><li>الملاحظة الأولى.</li></ul>
+<h2>التوصيات</h2><ol><li>التوصية الأولى.</li></ol>
+${SIGN("الزائرة")}` },
+  { id: "checklist", name: "قائمة تحقق", hint: "جدول بنود مع خانة تم", title: "side", secnum: false, html: () =>
+`<h1>قائمة تحقق — (الموضوع)</h1>
+<p class="sub">(المركز / التاريخ)</p>
+<table class="tb-light"><thead><tr><th>م</th><th>البند</th><th>تم</th><th>ملاحظات</th></tr></thead><tbody>${rows(10, i => [AR(i + 1), "", "☐", ""])}</tbody></table>` },
+  { id: "thanks", name: "شهادة شكر", hint: "نص شكر في الوسط مع التوقيع", title: "center", secnum: false, html: () =>
+`<h1>شهادة شكر وتقدير</h1>
+<p><br></p>
+<p class="al-c fs-l">تتقدّم وحدة المقاصف بجمعية فرقان لتحفيظ القرآن الكريم بالطائف</p>
+<p class="al-c fs-l">بخالص الشكر والتقدير إلى</p>
+<p class="al-c fs-xxl"><b><mark style="color:#8f1d2c">(الاسم)</mark></b></p>
+<p class="al-c fs-l">على جهودها المتميزة في (اكتبي المجال)، سائلين الله لها دوام التوفيق والسداد.</p>
+<p><br></p>
+${SIGN("رئيسة وحدة المقاصف")}` },
+  { id: "operational", name: "خطة تشغيلية", hint: "أهداف، أنشطة، مسؤول، موعد، مؤشر", title: "side", secnum: false, html: () =>
+`<h1>الخطة التشغيلية — (العام / الفصل)</h1>
+<p class="sub">وحدة المقاصف</p>
+<table><thead><tr><th>م</th><th>الهدف</th><th>النشاط</th><th>المسؤول</th><th>الموعد</th><th>مؤشر القياس</th></tr></thead><tbody>${rows(6, i => [AR(i + 1), "", "", "", "", ""])}</tbody></table>
+<div class="notebox"><p><b>ملاحظة:</b> اكتبي أي ملاحظة.</p></div>` },
+  { id: "request", name: "نموذج طلب", hint: "بيانات الطلب والتفاصيل والتوقيع", title: "side", secnum: false, html: () =>
+`<h1>نموذج طلب</h1>
+<p class="sub">(نوع الطلب)</p>
+${INFO([[["الاسم"]], [["المركز"]], [["الفترة"]], [["تاريخ الطلب"]], [["تفاصيل الطلب"]]])}
+<div class="outline"><p><b>للاستخدام الرسمي:</b></p><p>القرار:</p></div>
+${SIGN("مقدّمة الطلب")}` }
+);
+buildPops();
 document.addEventListener("keydown", e => { if (e.key === "Escape") document.querySelectorAll(".pop.on,.tblpop.on").forEach(x => x.classList.remove("on")); });
 $("icColor").addEventListener("change", buildIconPop);
 $("popIcons").addEventListener("mousedown", e => { if (e.target.closest(".icb-btn")) e.preventDefault(); });
@@ -934,6 +1285,61 @@ $("uplFile").addEventListener("change", e => {
 $("btnNew").addEventListener("click", () => {
   if (!confirm("هل تريدين بدء مستند جديد؟ سيُحذف المحتوى الحالي.")) return;
   editor.innerHTML = "<h1>عنوان المستند</h1><p><br></p>"; changed(); editor.focus();
+});
+
+/* ===================== مستنداتي ===================== */
+const DOCS = "furqan_doc_editor_docs_v1";
+function getDocs() { try { return JSON.parse(localStorage.getItem(DOCS) || "[]"); } catch (e) { return []; } }
+function putDocs(list) { try { localStorage.setItem(DOCS, JSON.stringify(list)); return true; } catch (e) { alert("تعذّر الحفظ؛ قد تكون مساحة التخزين في المتصفح ممتلئة بسبب الصور. احذفي نسخًا قديمة أو نزّلي المستند كملف."); return false; } }
+const fmtDate = t => { try { return new Date(t).toLocaleDateString("ar-SA-u-ca-gregory-nu-arab", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }); } catch (e) { return ""; } };
+function renderDocs() {
+  const list = getDocs().sort((a, b) => b.t - a.t);
+  $("docsList").innerHTML = list.length ? list.map(d => `<div class="mi"><b title="${esc(d.name)}">${esc(d.name)}</b><small>${fmtDate(d.t)}</small><button type="button" data-open="${d.id}">فتح</button><button type="button" class="del" data-del="${d.id}">حذف</button></div>`).join("")
+    : '<div class="mempty">لا توجد نسخ محفوظة بعد.</div>';
+}
+$("btnDocs").addEventListener("click", () => { $("docName").value = state.fname || ""; renderDocs(); $("docsModal").classList.add("on"); });
+$("docsClose").addEventListener("click", () => $("docsModal").classList.remove("on"));
+$("docsModal").addEventListener("click", e => { if (e.target.id === "docsModal") $("docsModal").classList.remove("on"); });
+$("docSave").addEventListener("click", () => {
+  const name = ($("docName").value || state.fname || "مستند").trim();
+  const list = getDocs(); const ex = list.find(d => d.name === name);
+  if (ex && !confirm(`يوجد مستند محفوظ باسم «${name}». هل تريدين استبداله؟`)) return;
+  const rec = { id: ex ? ex.id : Date.now().toString(36), name, t: Date.now(), html: editor.innerHTML, state: JSON.parse(JSON.stringify(state)) };
+  const out = ex ? list.map(d => d.id === ex.id ? rec : d) : list.concat(rec);
+  if (putDocs(out)) renderDocs();
+});
+$("docsList").addEventListener("click", e => {
+  const o = e.target.closest("[data-open]"), d = e.target.closest("[data-del]");
+  if (o) {
+    const rec = getDocs().find(x => x.id === o.dataset.open); if (!rec) return;
+    if (editor.textContent.trim() && !confirm(`سيُفتح «${rec.name}» مكان المستند الحالي. هل تريدين المتابعة؟`)) return;
+    editor.innerHTML = rec.html; state = Object.assign(state, rec.state || {}); syncUI(); changed();
+    $("docsModal").classList.remove("on");
+  }
+  if (d) {
+    const rec = getDocs().find(x => x.id === d.dataset.del); if (!rec || !confirm(`حذف «${rec.name}» نهائيًا؟`)) return;
+    putDocs(getDocs().filter(x => x.id !== rec.id)); renderDocs();
+  }
+});
+$("docExport").addEventListener("click", () => {
+  const data = JSON.stringify({ app: "furqan-doc-editor", v: 1, name: state.fname, html: editor.innerHTML, state });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([data], { type: "application/json" }));
+  a.download = ((state.fname || "مستند").trim() || "مستند") + ".json"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+$("docImport").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  const fr = new FileReader();
+  fr.onload = () => {
+    try {
+      const d = JSON.parse(fr.result);
+      if (!d || typeof d.html !== "string") throw 0;
+      if (editor.textContent.trim() && !confirm("سيُفتح الملف مكان المستند الحالي. هل تريدين المتابعة؟")) return;
+      editor.innerHTML = d.html; state = Object.assign(state, d.state || {}); normalize(editor); syncUI(); changed();
+      $("docsModal").classList.remove("on");
+    } catch (err) { alert("هذا الملف ليس من ملفات محرر المستندات."); }
+  };
+  fr.readAsText(f); e.target.value = "";
 });
 
 load(); normalize(editor); syncUI(); render();
