@@ -86,6 +86,48 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 #editor hr.pb::after{content:"فاصل صفحة";position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#fff;color:#b28a91;font-size:11.5px;padding:0 8px}
 .doc b,.doc strong{font-weight:800}
 .doc .c{text-align:center}
+/* عناصر إضافية */
+.doc p.sub{color:var(--red);font-weight:700;margin:-8px 0 14px}
+.doc .card{border:1px solid #e6d6d9;border-radius:10px;margin:8px 0 14px;overflow:hidden;background:#fff}
+.doc .card>.ch{background:linear-gradient(135deg,#9b2236,#6b111f);color:#fff;font-weight:800;padding:7px 14px;font-size:1.05em}
+.doc .card>.cb{padding:10px 16px 4px}
+.doc .outline{border:1.5px solid #d9bfc4;border-radius:10px;padding:10px 16px 2px;margin:8px 0 14px}
+.doc .notebox{background:#fbf3e3;border-right:6px solid #c49a3c;border-radius:8px;padding:10px 16px 2px;margin:8px 0 14px}
+.doc .stage{border:1px solid #e6d6d9;border-radius:10px;padding:10px 16px 4px;margin:8px 0 12px;background:#fff}
+.doc .stage .sg{display:inline-block;background:var(--soft);color:var(--red);font-weight:800;font-size:.8em;border-radius:20px;padding:1px 12px;margin-bottom:4px}
+.doc .stage h3{margin:2px 0 4px}
+.doc .stats{display:flex;gap:10px;margin:8px 0 14px}
+.doc .stat{flex:1;background:var(--soft);border-radius:10px;padding:10px 8px;text-align:center}
+.doc .stat b{display:block;color:var(--red);font-size:1.6em;line-height:1.3}
+.doc .stat small{color:#5b5153;font-size:.85em}
+.doc .sign{width:45%;margin:14px auto 6px 0;text-align:center}
+.doc .sign p{margin:0 0 6px;text-align:center}
+.doc hr.dv{border:0;border-top:2px solid var(--line);margin:16px 0}
+.doc h2 i.n{font-style:normal;display:inline-flex;align-items:center;justify-content:center;background:var(--red);color:#fff;border-radius:50%;width:1.55em;height:1.55em;font-size:.78em;margin-left:8px;vertical-align:2px}
+/* أشكال عنوان المستند */
+.doc.t-center h1{border:0;padding:12px 0;text-align:center;color:var(--red);font-size:24px;background:linear-gradient(var(--red),var(--red)) center top/64px 3px no-repeat,linear-gradient(var(--red),var(--red)) center bottom/64px 3px no-repeat}
+.doc.t-center h1+p.sub{text-align:center;margin-top:-6px}
+.doc.t-band h1{border:0;background:linear-gradient(135deg,#9b2236,#6b111f);color:#fff;border-radius:12px;padding:14px 18px}
+/* القوائم المنبثقة */
+.pop{display:none;position:absolute;background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:0 12px 34px rgba(0,0,0,.14);z-index:60;max-width:min(560px,94vw)}
+.pop.on{display:block}
+.pop .it{display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;border:0;background:transparent;border-radius:10px;padding:8px 10px;cursor:pointer;text-align:right;font-weight:800;color:var(--ink)}
+.pop .it small{font-weight:500;color:var(--muted);font-size:12px}
+.pop .it:hover{background:var(--soft);color:var(--red)}
+.pop .grid2{display:grid;grid-template-columns:1fr 1fr;gap:2px}
+.pop .syms{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:4px;width:min(500px,90vw)}
+.pop .sy{border:1px solid var(--line);background:#fff;border-radius:8px;height:38px;cursor:pointer;font-size:19px;line-height:1}
+.pop .sy:hover{background:var(--soft);border-color:var(--red)}
+.doc img.ic{width:1.35em;height:1.35em;vertical-align:-.28em;margin:0 2px}
+.doc img.icb{width:44px;height:44px;padding:8px;background:var(--soft);border-radius:12px;vertical-align:middle;margin:0 0 0 8px}
+.doc .stat img.icb{display:block;margin:0 auto 4px}
+.pop .icgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;width:min(520px,90vw);max-height:340px;overflow:auto;padding:2px}
+.pop .icb-btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 2px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.pop .icb-btn img{width:28px;height:28px}
+.pop .icb-btn small{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px}
+.pop .icb-btn:hover{background:var(--soft);border-color:var(--red)}
+.pop .ichead{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 2px 8px;font-size:13px}
+.pop .pt{font-size:12px;font-weight:700;color:var(--muted);margin:6px 4px 4px;grid-column:1/-1}
 
 /* المعاينة */
 .pv{padding:14px;overflow:hidden}
@@ -131,6 +173,14 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
         <button type="button" class="lh" data-lh="none"><div class="th"></div>بدون</button>
       </div>
     </div>
+    <div class="grp">
+      <label for="tstyle">شكل عنوان المستند</label>
+      <select class="inp" id="tstyle">
+        <option value="side">شريط جانبي</option>
+        <option value="center">في الوسط</option>
+        <option value="band">شريط عنابي</option>
+      </select>
+    </div>
     <div class="grp" id="grpBar">
       <label for="barText">النص في الشريط العنابي</label>
       <input class="inp" id="barText" type="text" value="وحدة المقاصف" placeholder="مثال: وحدة المقاصف">
@@ -139,6 +189,7 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
     <div class="grp">
       <span class="lb">إعدادات أخرى</span>
       <label class="chk"><input type="checkbox" id="pnum" checked>ترقيم الصفحات</label>
+      <label class="chk"><input type="checkbox" id="secnum">ترقيم عناوين الأقسام</label>
       <label for="fname" class="note" style="margin-top:4px">اسم الملف</label>
       <input class="inp" id="fname" type="text" value="مستند" style="width:190px">
     </div>
@@ -157,6 +208,8 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 
   <section class="panel" aria-label="المحرر">
     <div class="tools" id="tools">
+      <button type="button" class="tb" data-cmd="tpl" id="btnTpl" title="قوالب جاهزة"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="15" width="7" height="6" rx="1.5"/></svg>قوالب</button>
+      <span class="sep"></span>
       <button type="button" class="tb" data-cmd="h1" title="عنوان المستند">عنوان المستند</button>
       <button type="button" class="tb" data-cmd="h2" title="عنوان قسم">عنوان قسم</button>
       <button type="button" class="tb" data-cmd="h3" title="عنوان فرعي">عنوان فرعي</button>
@@ -165,6 +218,9 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
       <button type="button" class="tb" data-cmd="ul" title="نقاط"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><rect x="3.5" y="5" width="2.5" height="2.5" rx=".5"/><rect x="3.5" y="11" width="2.5" height="2.5" rx=".5"/><rect x="3.5" y="17" width="2.5" height="2.5" rx=".5"/></svg>نقاط</button>
       <button type="button" class="tb" data-cmd="ol" title="ترقيم"><svg viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10M4 5l1.5-1V9M3.5 13.5c.4-.7 2.5-.9 2.4.5-.1 1-2.4 1.6-2.4 3h2.6"/></svg>ترقيم</button>
       <button type="button" class="tb" data-cmd="box" title="مربع مميز"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M21 5v14"/></svg>مربع مميز</button>
+      <button type="button" class="tb" data-cmd="blocks" id="btnBlocks" title="عناصر وتنسيقات"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="8" height="6" rx="1.5"/><rect x="13" y="14" width="8" height="6" rx="1.5"/></svg>تنسيقات</button>
+      <button type="button" class="tb" data-cmd="icons" id="btnIcons" title="أيقونات مرسومة"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>أيقونات</button>
+      <button type="button" class="tb" data-cmd="sym" id="btnSym" title="رموز"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg>رموز</button>
       <button type="button" class="tb" data-cmd="table" id="btnTable" title="جدول"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></svg>جدول</button>
       <button type="button" class="tb" data-cmd="row" title="إضافة صف للجدول">+ صف</button>
       <button type="button" class="tb" data-cmd="delrow" title="حذف صف من الجدول">− صف</button>
@@ -175,6 +231,16 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
       <span class="sep"></span>
       <button type="button" class="tb" data-cmd="undo" title="تراجع"><svg viewBox="0 0 24 24"><path d="M15 7H9a5 5 0 0 0 0 10h6"/><path d="M13 4l3 3-3 3" transform="matrix(-1 0 0 1 29 0)"/></svg></button>
       <button type="button" class="tb" data-cmd="redo" title="إعادة"><svg viewBox="0 0 24 24"><path d="M9 7h6a5 5 0 0 1 0 10H9"/><path d="M11 4l-3 3 3 3" transform="matrix(-1 0 0 1 19 0)"/></svg></button>
+    </div>
+    <div class="pop" id="popTpl"></div>
+    <div class="pop" id="popBlocks"></div>
+    <div class="pop" id="popSym"></div>
+    <div class="pop" id="popIcons">
+      <div class="ichead">
+        <label>اللون <select class="inp" id="icColor"><option value="red">عنابي</option><option value="gold">ذهبي</option><option value="dark">داكن</option></select></label>
+        <label>الحجم <select class="inp" id="icSize"><option value="ic">داخل السطر</option><option value="icb">كبيرة بخلفية</option></select></label>
+      </div>
+      <div class="icgrid"></div>
     </div>
     <div class="tblpop" id="tblpop">
       أعمدة <input class="inp" type="number" id="tCols" min="1" max="8" value="3">
@@ -213,7 +279,7 @@ const $ = id => document.getElementById(id);
 const editor = $("editor"), pagesEl = $("pages");
 const AR = n => String(n).replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[d]);
 
-let state = { lh: "full", bar: "وحدة المقاصف", pnum: true, fname: "مستند", custom: { src: "", kind: "full", top: 45, bottom: 25 } };
+let state = { lh: "full", bar: "وحدة المقاصف", pnum: true, secnum: false, tstyle: "side", fname: "مستند", custom: { src: "", kind: "full", top: 45, bottom: 25 } };
 
 /* ===================== المحتوى الابتدائي ===================== */
 const SAMPLE = `<h1>عنوان المستند</h1>
@@ -245,12 +311,14 @@ function exec(c, v) { document.execCommand(c, false, v); editor.focus(); normali
 try { document.execCommand("defaultParagraphSeparator", false, "p"); } catch (e) {}
 
 /* تنظيف المحتوى: إزالة التنسيقات المنقولة تلقائيًا، وتصحيح تداخل العناصر */
-const BLOCKS = "P,UL,OL,TABLE,BLOCKQUOTE,H1,H2,H3,DIV,HR";
+const BLOCKS = "P,UL,OL,TABLE,BLOCKQUOTE,H1,H2,H3,DIV,HR,SECTION";
+const KEEP = ["card", "ch", "cb", "outline", "notebox", "stage", "sg", "stats", "stat", "sign"];
 function unwrap(el) { el.replaceWith(...el.childNodes); }
 function normalize(root) {
   root.querySelectorAll("[style]").forEach(el => el.removeAttribute("style"));
   root.querySelectorAll("span,font").forEach(unwrap);
-  root.querySelectorAll("div").forEach(d => { const p = document.createElement("p"); while (d.firstChild) p.appendChild(d.firstChild); d.replaceWith(p); });
+  root.querySelectorAll("div").forEach(d => { if (KEEP.some(k => d.classList.contains(k))) return; const p = document.createElement("p"); while (d.firstChild) p.appendChild(d.firstChild); d.replaceWith(p); });
+  root.querySelectorAll("i.n").forEach(x => x.remove());
   // فقرة أو عنوان بداخله عناصر كتلية (مثل قائمة داخل فقرة)
   let again = true, guard = 0;
   while (again && guard++ < 20) {
@@ -313,7 +381,12 @@ $("tools").addEventListener("click", e => {
   else if (c === "pb") exec("insertHTML", '<hr class="pb"><p><br></p>');
   else if (c === "undo") exec("undo");
   else if (c === "redo") exec("redo");
+  else if (c === "tpl") showPop($("popTpl"), b);
+  else if (c === "blocks") showPop($("popBlocks"), b);
+  else if (c === "sym") showPop($("popSym"), b);
+  else if (c === "icons") showPop($("popIcons"), b);
   else if (c === "table") {
+    document.querySelectorAll(".pop.on").forEach(x => x.classList.remove("on"));
     const pop = $("tblpop"), r = b.getBoundingClientRect();
     pop.style.top = (r.bottom + scrollY + 6) + "px"; pop.style.right = (innerWidth - r.right) + "px";
     pop.classList.toggle("on");
@@ -338,8 +411,215 @@ $("tIns").addEventListener("click", () => {
   restore();
   exec("insertHTML", `<table><thead>${th}</thead><tbody>${tr}</tbody></table><p><br></p>`);
 });
-document.addEventListener("click", e => { if (!e.target.closest("#tblpop,#btnTable")) $("tblpop").classList.remove("on"); });
+document.addEventListener("click", e => {
+  if (!e.target.closest("#tblpop,#btnTable")) $("tblpop").classList.remove("on");
+  if (!e.target.closest(".pop,#btnTpl,#btnBlocks,#btnSym,#btnIcons")) document.querySelectorAll(".pop.on").forEach(x => x.classList.remove("on"));
+});
 
+/* ===================== القوالب والعناصر والرموز ===================== */
+const DAYS5 = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"];
+const rows = (n, cells) => Array.from({ length: n }, (_, i) => "<tr>" + cells(i).map(c => `<td>${c || "<br>"}</td>`).join("") + "</tr>").join("");
+const TEMPLATES = [
+  { id: "plan", name: "خطة", hint: "هدف، إجراءات، جدول مواعيد، أثر متوقع", title: "side", secnum: false, html:
+`<h1>الخطة المقترحة لـ (اكتبي موضوع الخطة)</h1>
+<p class="sub">(سطر توضيحي تحت العنوان)</p>
+<blockquote><p><b>الهدف من الخطة:</b> اكتبي هنا الهدف من الخطة.</p></blockquote>
+<section class="card"><div class="ch">الإجراءات المتخذة</div><div class="cb">
+<h3>١. الجهة الأولى</h3><ul><li>الإجراء الأول.</li><li>الإجراء الثاني.</li></ul>
+<h3>٢. الجهة الثانية</h3><ul><li>الإجراء الأول.</li></ul>
+</div></section>
+<h2>جدول المواعيد</h2>
+<table><thead><tr><th>اليوم</th><th>الفترة الصباحية</th><th>الفترة المسائية</th></tr></thead><tbody>${rows(5, i => [DAYS5[i], "", ""])}</tbody></table>
+<section class="card"><div class="ch">الأثر المتوقع من تطبيق الخطة</div><div class="cb"><ul><li>الأثر الأول.</li><li>الأثر الثاني.</li><li>الأثر الثالث.</li></ul></div></section>` },
+  { id: "problem", name: "مشكلة وحل تطويري", hint: "وصف، جذور، مراحل، أسباب، أثر، حل، نتائج", title: "side", secnum: true, html:
+`<h1>المشكلات والحلول التطويرية</h1>
+<p class="sub">(اسم الوحدة أو المشروع)</p>
+<blockquote><p><b>وصف المشكلة:</b> اكتبي هنا وصفًا مختصرًا للمشكلة.</p></blockquote>
+<h2>جذور المشكلة وبدايتها</h2>
+<p>اكتبي هنا كيف بدأت المشكلة.</p>
+<h2>تطور المشكلة ومراحلها</h2>
+<div class="stage"><div class="sg">المرحلة الأولى</div><h3>عنوان المرحلة</h3><p>وصف المرحلة.</p></div>
+<div class="stage"><div class="sg">المرحلة الثانية</div><h3>عنوان المرحلة</h3><p>وصف المرحلة.</p></div>
+<h2>الأسباب الجذرية للمشكلة</h2>
+<ul><li>السبب الأول.</li><li>السبب الثاني.</li></ul>
+<h2>أثر المشكلة على سير العمل</h2>
+<ul><li>الأثر الأول.</li><li>الأثر الثاني.</li></ul>
+<h2>الحل التطويري</h2>
+<section class="card"><div class="ch">الحل التطويري</div><div class="cb"><p>اكتبي هنا الحل.</p></div></section>
+<h2>النتائج بعد تطبيق الحل</h2>
+<ul><li>النتيجة الأولى.</li><li>النتيجة الثانية.</li></ul>` },
+  { id: "minutes", name: "محضر اجتماع", hint: "بيانات الاجتماع، الحاضرات، البنود، التوصيات", title: "center", secnum: false, html:
+`<h1>محضر اجتماع</h1>
+<p class="sub">(عنوان الاجتماع)</p>
+<table><tbody><tr><th>التاريخ</th><td><br></td><th>الوقت</th><td><br></td></tr><tr><th>المكان</th><td><br></td><th>رئيسة الاجتماع</th><td><br></td></tr></tbody></table>
+<h2>الحاضرات</h2><ol><li>الاسم.</li><li>الاسم.</li></ol>
+<h2>جدول الأعمال</h2><ol><li>البند الأول.</li><li>البند الثاني.</li></ol>
+<h2>ما تمت مناقشته</h2><p>اكتبي هنا ملخص النقاش.</p>
+<h2>التوصيات</h2>
+<table><thead><tr><th>م</th><th>التوصية</th><th>المسؤولة</th><th>موعد التنفيذ</th></tr></thead><tbody>${rows(3, i => [AR(i + 1), "", "", ""])}</tbody></table>
+<div class="sign"><p><b>رئيسة الاجتماع</b></p><p>الاسم:</p><p>التوقيع:</p></div>` },
+  { id: "letter", name: "خطاب رسمي", hint: "التاريخ، الموضوع، التحية، النص، التوقيع", title: "side", secnum: false, html:
+`<p class="c"><b>بسم الله الرحمن الرحيم</b></p>
+<p><b>التاريخ:</b> &nbsp; / &nbsp; / ١٤٤٨هـ</p>
+<p><b>الموضوع:</b> (اكتبي موضوع الخطاب)</p>
+<hr class="dv">
+<p><b>المكرمة/ (الاسم)&nbsp;&nbsp;&nbsp;&nbsp; حفظها الله</b></p>
+<p>السلام عليكم ورحمة الله وبركاته، وبعد:</p>
+<p>اكتبي هنا نص الخطاب.</p>
+<p>وتقبّلوا خالص التحية والتقدير.</p>
+<div class="sign"><p><b>رئيسة وحدة المقاصف</b></p><p>الاسم:</p><p>التوقيع:</p></div>` },
+  { id: "report", name: "تقرير إنجاز", hint: "أرقام، ملخص، إنجازات، تحديات، توصيات", title: "band", secnum: true, html:
+`<h1>تقرير إنجاز (اكتبي الموضوع)</h1>
+<p class="sub">(الفترة: الفصل الدراسي ...)</p>
+<div class="stats"><div class="stat"><b>١٠</b><small>الوصف</small></div><div class="stat"><b>١٠</b><small>الوصف</small></div><div class="stat"><b>١٠</b><small>الوصف</small></div></div>
+<blockquote><p><b>ملخص:</b> اكتبي هنا ملخص التقرير.</p></blockquote>
+<h2>الإنجازات</h2><ul><li>الإنجاز الأول.</li><li>الإنجاز الثاني.</li></ul>
+<h2>التحديات</h2><ul><li>التحدي الأول.</li></ul>
+<h2>التوصيات</h2><ol><li>التوصية الأولى.</li></ol>` },
+  { id: "schedule", name: "جدول مواعيد", hint: "عنوان، جدول، ملاحظة", title: "side", secnum: false, html:
+`<h1>جدول مواعيد (اكتبي الموضوع)</h1>
+<p class="sub">(سطر توضيحي)</p>
+<table><thead><tr><th>م</th><th>اليوم</th><th>المركز</th><th>الفترة</th></tr></thead><tbody>${rows(8, i => [AR(i + 1), "", "", ""])}</tbody></table>
+<div class="notebox"><p><b>ملاحظة:</b> اكتبي هنا أي ملاحظة.</p></div>` },
+  { id: "blank", name: "مستند فارغ", hint: "عنوان فقط", title: "side", secnum: false, html: `<h1>عنوان المستند</h1><p><br></p>` }
+];
+const BLOCKS_LIST = [
+  { name: "بطاقة بعنوان", hint: "شريط عنابي فوق المحتوى", html: `<section class="card"><div class="ch">عنوان البطاقة</div><div class="cb"><p>المحتوى.</p></div></section>` },
+  { name: "مربع مميز", hint: "خلفية وردية وشريط جانبي", html: `<blockquote><p><b>عنوان:</b> النص.</p></blockquote>` },
+  { name: "مربع بإطار", hint: "إطار خفيف دون خلفية", html: `<div class="outline"><p>النص.</p></div>` },
+  { name: "ملاحظة", hint: "خلفية ذهبية فاتحة", html: `<div class="notebox"><p><b>ملاحظة:</b> النص.</p></div>` },
+  { name: "مرحلة", hint: "بطاقة صغيرة برقم المرحلة", html: `<div class="stage"><div class="sg">المرحلة</div><h3>عنوان المرحلة</h3><p>الوصف.</p></div>` },
+  { name: "أرقام وإحصاءات", hint: "ثلاثة مربعات بالأرقام", html: `<div class="stats"><div class="stat"><b>١٠</b><small>الوصف</small></div><div class="stat"><b>١٠</b><small>الوصف</small></div><div class="stat"><b>١٠</b><small>الوصف</small></div></div>` },
+  { name: "سطر تحت العنوان", hint: "نص عنابي صغير", html: `<p class="sub">سطر توضيحي</p>` },
+  { name: "خانة توقيع", hint: "المسمى والاسم والتوقيع", html: `<div class="sign"><p><b>المسمى الوظيفي</b></p><p>الاسم:</p><p>التوقيع:</p></div>` },
+  { name: "خط فاصل", hint: "خط أفقي بين الأقسام", html: `<hr class="dv">` }
+];
+const SYMBOLS = [
+  ["رموز إسلامية", "ﷺ ﷻ ﴿ ﴾ ۞ ۩ ﷽"],
+  ["علامات", "✓ ✔ ✗ ✘ ☐ ☑ ☒ ★ ☆ ✦ ✧ ❖ ※ ✱ ❀ ✿"],
+  ["أشكال", "● ○ ◆ ◇ ■ □ ▲ △ ▼ ► ◄ • ◉ ◈"],
+  ["أسهم", "← → ↑ ↓ ⇐ ⇒ ⇦ ⇨ ➜ ➤ ↩ ↪"],
+  ["أرقام وعلامات عربية", "١ ٢ ٣ ٤ ٥ ٦ ٧ ٨ ٩ ٠ ٪ ٫ ؛ ؟ « » ـ —"],
+  ["أرقام في دوائر", "① ② ③ ④ ⑤ ⑥ ⑦ ⑧ ⑨ ⑩"],
+  ["إيموجي", "✅ ❌ ⭐ 📌 📎 📅 🗓️ 📊 📈 📝 📋 📞 📍 💡 ⚠️ 🔔 🎯 🏆 👍 👏 🌸 🌿 🌙 🕌 📖 💰 📦 🧾 🛒 🍪 🥤 ⏰ ✉️ 🔗"]
+];
+
+function showPop(pop, btn) {
+  document.querySelectorAll(".pop.on,.tblpop.on").forEach(x => { if (x !== pop) x.classList.remove("on"); });
+  const r = btn.getBoundingClientRect();
+  pop.style.top = (r.bottom + scrollY + 6) + "px";
+  pop.style.right = Math.max(8, innerWidth - r.right) + "px";
+  pop.classList.toggle("on");
+}
+function insertBlock(html) {
+  restore();
+  const n = currentBlock();
+  let top = n; while (top && top.parentNode !== editor) top = top.parentNode;
+  const tmp = document.createElement("div"); tmp.innerHTML = html;
+  const nodes = Array.from(tmp.childNodes);
+  if (top && top.tagName === "P" && !top.textContent.trim()) top.replaceWith(...nodes);
+  else if (top) top.after(...nodes);
+  else editor.append(...nodes);
+  const last = nodes[nodes.length - 1];
+  if (!last.nextSibling) { const p = document.createElement("p"); p.innerHTML = "<br>"; last.after(p); }
+  const first = nodes.find(x => x.nodeType === 1);
+  const target = first && (first.querySelector("p,h3,b") || first);
+  if (target) placeCaretEnd(target);
+  changed();
+}
+function buildPops() {
+  $("popTpl").innerHTML = '<div class="grid2">' + TEMPLATES.map((t, i) => `<button type="button" class="it" data-t="${i}">${t.name}<small>${t.hint}</small></button>`).join("") + "</div>";
+  $("popBlocks").innerHTML = '<div class="grid2">' + BLOCKS_LIST.map((b, i) => `<button type="button" class="it" data-b="${i}">${b.name}<small>${b.hint}</small></button>`).join("") + "</div>";
+  $("popSym").innerHTML = '<div class="syms">' + SYMBOLS.map(([t, list]) => `<div class="pt">${t}</div>` + list.split(" ").map(x => `<button type="button" class="sy" data-s="${x}">${x}</button>`).join("")).join("") + "</div>";
+}
+buildPops();
+document.querySelectorAll(".pop").forEach(p => p.addEventListener("mousedown", e => { if (e.target.closest("button")) e.preventDefault(); }));
+$("popTpl").addEventListener("click", e => {
+  const b = e.target.closest("[data-t]"); if (!b) return;
+  const t = TEMPLATES[+b.dataset.t];
+  $("popTpl").classList.remove("on");
+  if (editor.textContent.trim() && !confirm(`سيُستبدل المحتوى الحالي بقالب «${t.name}». هل تريدين المتابعة؟`)) return;
+  editor.innerHTML = t.html;
+  state.tstyle = t.title; state.secnum = t.secnum;
+  if (!state.fname || state.fname === "مستند" || TEMPLATES.some(x => x.name === state.fname)) state.fname = t.id === "blank" ? "مستند" : t.name;
+  syncUI(); changed(); editor.focus(); placeCaretEnd(editor.querySelector("h1,p") || editor);
+});
+$("popBlocks").addEventListener("click", e => {
+  const b = e.target.closest("[data-b]"); if (!b) return;
+  $("popBlocks").classList.remove("on");
+  insertBlock(BLOCKS_LIST[+b.dataset.b].html);
+});
+$("popSym").addEventListener("click", e => {
+  const b = e.target.closest("[data-s]"); if (!b) return;
+  restore(); document.execCommand("insertText", false, b.dataset.s); changed();
+});
+
+/* ===================== الأيقونات المرسومة ===================== */
+const ICONS = [
+  ["مال", '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/>'],
+  ["محفظة", '<path d="M3 7h15a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><path d="M3 7l12-3v3"/><circle cx="17" cy="13.5" r="1"/>'],
+  ["سلة", '<path d="M3 4h2l2.4 10.2a1 1 0 0 0 1 .8h8.8a1 1 0 0 0 1-.8L20 8H6.2"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>'],
+  ["صندوق", '<path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8"/>'],
+  ["فاتورة", '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>'],
+  ["توصيل", '<path d="M3 6h11v10H3z"/><path d="M14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>'],
+  ["مشروب", '<path d="M7 7h10l-1.4 13.2a1 1 0 0 1-1 .8H9.4a1 1 0 0 1-1-.8z"/><path d="M6 7h12M13 7l1.5-4H17"/>'],
+  ["بسكويت", '<circle cx="12" cy="12" r="8.5"/><path d="M9 9h.01M14.5 8.5h.01M15 14h.01M9.5 14.5h.01M12 11.5h.01"/>'],
+  ["تقويم", '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
+  ["ساعة", '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'],
+  ["فريق", '<circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5 5"/>'],
+  ["شخص", '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'],
+  ["مبنى", '<path d="M3 21h18M5 21V9l7-5 7 5v12M10 21v-5h4v5M9 11h.01M15 11h.01"/>'],
+  ["مسجد", '<path d="M3 21h18M5 21v-8a7 7 0 0 1 14 0v8M12 3v3M10 21v-4a2 2 0 0 1 4 0v4"/>'],
+  ["مصحف", '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7"/>'],
+  ["تخرّج", '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6"/>'],
+  ["قلم", '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'],
+  ["مستند", '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>'],
+  ["قائمة مهام", '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 13l2 2 4-4"/>'],
+  ["قائمة", '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>'],
+  ["تم", '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>'],
+  ["خطأ", '<circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/>'],
+  ["تنبيه", '<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/>'],
+  ["معلومة", '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/>'],
+  ["فكرة", '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>'],
+  ["هدف", '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>'],
+  ["إحصاء", '<path d="M4 20h16M7 16v-5M12 16V7M17 16v-8"/>'],
+  ["نمو", '<path d="M3 20h18M5 15l4-4 4 3 6-7M15 7h4v4"/>'],
+  ["كأس", '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M9 21h6"/>'],
+  ["نجمة", '<path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>'],
+  ["قلب", '<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/>'],
+  ["إعلان", '<path d="M3 10v4h3l6 4V6L6 10z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/>'],
+  ["جرس", '<path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>'],
+  ["علم", '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>'],
+  ["حماية", '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>'],
+  ["إعدادات", '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>'],
+  ["هاتف", '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>'],
+  ["بريد", '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>'],
+  ["موقع", '<path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>'],
+  ["رابط", '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'],
+  ["نبتة", '<path d="M5 19c0-9 6-14 15-14 0 9-5 15-14 15z"/><path d="M5 19l8-8"/>']
+];
+const ICON_COLORS = { red: "#8f1d2c", gold: "#b4882c", dark: "#211b1d" };
+function iconSrc(i, color) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[i][1]}</svg>`;
+  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+}
+function buildIconPop() {
+  const col = ICON_COLORS[$("icColor") ? $("icColor").value : "red"] || ICON_COLORS.red;
+  const grid = ICONS.map((ic, i) => `<button type="button" class="icb-btn" data-i="${i}" title="${ic[0]}"><img src="${iconSrc(i, col)}" alt=""><small>${ic[0]}</small></button>`).join("");
+  $("popIcons").querySelector(".icgrid").innerHTML = grid;
+}
+
+buildIconPop();
+document.addEventListener("keydown", e => { if (e.key === "Escape") document.querySelectorAll(".pop.on,.tblpop.on").forEach(x => x.classList.remove("on")); });
+$("icColor").addEventListener("change", buildIconPop);
+$("popIcons").addEventListener("mousedown", e => { if (e.target.closest(".icb-btn")) e.preventDefault(); });
+$("popIcons").addEventListener("click", e => {
+  const b = e.target.closest(".icb-btn"); if (!b) return;
+  const i = +b.dataset.i, col = ICON_COLORS[$("icColor").value], cls = $("icSize").value;
+  restore();
+  document.execCommand("insertHTML", false, `<img class="${cls}" src="${iconSrc(i, col)}" alt="">` + (cls === "ic" ? "&nbsp;" : ""));
+  changed();
+});
 /* لصق نظيف من Word أو غيره */
 const ALLOWED = { H1: 1, H2: 1, H3: 1, P: 1, UL: 1, OL: 1, LI: 1, TABLE: 1, THEAD: 1, TBODY: 1, TR: 1, TD: 1, TH: 1, B: 1, STRONG: 1, BR: 1, BLOCKQUOTE: 1 };
 function clean(node) {
@@ -375,9 +655,10 @@ editor.addEventListener("input", changed);
 /* ضغط Enter على سطر فارغ داخل المربع المميز يُخرج منه */
 editor.addEventListener("keydown", e => {
   if (e.key !== "Enter" || e.shiftKey) return;
-  const n = currentBlock(); const q = n && n.closest("blockquote"); if (!q) return;
+  const n = currentBlock(); const q = n && n.closest("blockquote,.outline,.notebox,.card,.stage,.sign"); if (!q) return;
   const blk = n.closest("p") || n;
-  if (blk !== q && !blk.textContent.trim() && blk.parentNode === q) {
+  const inner = q.classList.contains("card") ? q.querySelector(".cb") : q;
+  if (blk !== q && !blk.textContent.trim() && blk.parentNode === inner && blk === inner.lastElementChild) {
     e.preventDefault();
     blk.remove();
     const p = document.createElement("p"); p.innerHTML = "<br>"; q.after(p); placeCaretEnd(p); changed();
@@ -414,7 +695,7 @@ function newPage(conf) {
     top = headH + conf.gap * MM; bottom = conf.bottom * MM;
   } else { top = conf.top * MM; bottom = conf.bottom * MM; }
   const body = document.createElement("div");
-  body.className = "pbody doc";
+  body.className = "pbody doc t-" + (state.tstyle || "side");
   body.style.top = top + "px"; body._h = PAGE_H - top - bottom - (state.pnum ? 14 : 0);   // الارتفاع المتاح (يُثبَّت بعد التقسيم)
   pg.appendChild(body);
   return { pg, body };
@@ -462,6 +743,19 @@ function splitTable(node, body) {
   return rest;
 }
 
+function splitCard(node, body) {
+  const cb = node.querySelector(":scope > .cb"); if (!cb) return null;
+  const kids = Array.from(cb.children); if (kids.length < 2) return null;
+  const mk = cont => { const c = node.cloneNode(false); const h = node.querySelector(":scope > .ch"); if (h) { const hh = h.cloneNode(true); if (cont) hh.textContent += " (تابع)"; c.appendChild(hh); } const b = document.createElement("div"); b.className = "cb"; c.appendChild(b); return [c, b]; };
+  const [part, pb] = mk(false); body.appendChild(part);
+  let i = 0;
+  for (; i < kids.length; i++) { pb.appendChild(kids[i].cloneNode(true)); if (!fits(body)) { pb.lastChild.remove(); break; } }
+  if (i === 0) { part.remove(); return null; }
+  if (i >= kids.length) return false;
+  const [rest, rb] = mk(true); kids.slice(i).forEach(k => rb.appendChild(k.cloneNode(true)));
+  return rest;
+}
+
 let renderTimer = null, rendering = false;
 function changed() { save(); clearTimeout(renderTimer); renderTimer = setTimeout(render, 350); }
 
@@ -480,6 +774,7 @@ async function render() {
   const next = () => { cur = newPage(conf); meas.appendChild(cur.pg); pages.push(cur); };
 
   const src = editor.cloneNode(true); normalize(src);
+  if (state.secnum) { let k = 0; src.querySelectorAll(":scope > h2").forEach(h => h.insertAdjacentHTML("afterbegin", `<i class="n">${AR(++k)}</i>`)); }
   const queue = Array.from(src.childNodes).map(n => {
     if (n.nodeType === 3) { if (!n.textContent.trim()) return null; const p = document.createElement("p"); p.textContent = n.textContent; return p; }
     return n.nodeType === 1 ? n.cloneNode(true) : null;
@@ -488,7 +783,7 @@ async function render() {
   let guard = 0;
   while (queue.length && guard++ < 5000) {
     const node = queue.shift();
-    if (node.tagName === "HR") { if (cur.body.childNodes.length) next(); continue; }
+    if (node.tagName === "HR" && node.classList.contains("pb")) { if (cur.body.childNodes.length) next(); continue; }
     if (node.tagName === "P" && !node.textContent.trim() && !node.querySelector("img") && !cur.body.childNodes.length) continue;
     cur.body.appendChild(node);
     if (fits(cur.body)) continue;
@@ -498,6 +793,7 @@ async function render() {
     if (/^(UL|OL)$/.test(node.tagName)) rest = splitList(node, cur.body);
     else if (node.tagName === "TABLE") rest = splitTable(node, cur.body);
     else if (/^(P|BLOCKQUOTE)$/.test(node.tagName)) rest = splitText(node, cur.body);
+    else if (node.classList && node.classList.contains("card")) rest = splitCard(node, cur.body);
     if (rest === false) continue;
     if (rest) { next(); queue.unshift(rest); continue; }
     // لا يمكن التقسيم: ينتقل كاملًا إلى صفحة جديدة، ومعه العنوان الذي قبله
@@ -615,12 +911,16 @@ function syncUI() {
   $("upl").classList.toggle("on", state.lh === "custom");
   $("grpBar").style.display = (state.lh === "full") ? "" : "none";
   $("barText").value = state.bar; $("pnum").checked = state.pnum; $("fname").value = state.fname;
+  $("secnum").checked = !!state.secnum; $("tstyle").value = state.tstyle || "side";
+  editor.className = "doc t-" + (state.tstyle || "side");
   $("uplKind").value = state.custom.kind; $("uplTop").value = state.custom.top; $("uplBot").value = state.custom.bottom;
   $("customTh").style.backgroundImage = state.custom.src ? `url("${state.custom.src}")` : "";
 }
 $("lhs").addEventListener("click", e => { const b = e.target.closest(".lh"); if (!b) return; state.lh = b.dataset.lh; syncUI(); changed(); });
 $("barText").addEventListener("input", e => { state.bar = e.target.value; changed(); });
 $("pnum").addEventListener("change", e => { state.pnum = e.target.checked; changed(); });
+$("secnum").addEventListener("change", e => { state.secnum = e.target.checked; changed(); });
+$("tstyle").addEventListener("change", e => { state.tstyle = e.target.value; syncUI(); changed(); });
 $("fname").addEventListener("input", e => { state.fname = e.target.value; save(); });
 $("uplKind").addEventListener("change", e => { state.custom.kind = e.target.value; changed(); });
 $("uplTop").addEventListener("input", e => { state.custom.top = +e.target.value; changed(); });
