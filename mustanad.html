@@ -264,6 +264,14 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 @media (max-width:640px){#popTpl .grid2{grid-template-columns:1fr 1fr}}
 .modal{display:none;position:fixed;inset:0;background:rgba(33,27,29,.45);z-index:100;align-items:flex-start;justify-content:center;padding:60px 14px;overflow:auto}
 .modal.on{display:flex}
+.erwrap{margin-top:10px;background:#f3eeee;border:1px solid var(--line);border-radius:12px;padding:8px;max-height:62vh;overflow:auto;text-align:center}
+.erwrap canvas{width:100%;max-width:520px;height:auto;touch-action:none;cursor:crosshair;background:#fff;box-shadow:0 0 0 1px var(--line);display:block;margin:0 auto}
+.erbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.erbar .tbtn2{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:7px 13px;cursor:pointer;font-weight:700;font-size:13.5px;font-family:inherit}
+.erbar .tbtn2:hover{border-color:var(--red);color:var(--red)}
+.erbar .tbtn2.main{background:var(--red);color:#fff;border-color:var(--red)}
+.erbar .tbtn2:disabled{opacity:.45;cursor:default}
+
 .mbox{background:#fff;border-radius:18px;width:min(560px,100%);padding:16px 18px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
 .mh{display:flex;justify-content:space-between;align-items:center;font-weight:800;color:var(--red);font-size:18px;margin-bottom:10px}
 .mx{border:0;background:var(--soft);color:var(--red);width:32px;height:32px;border-radius:50%;font-size:20px;cursor:pointer}
@@ -379,6 +387,7 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
         </select>
         <label class="note">بداية النص من الأعلى (مم)</label><input class="inp" id="uplTop" type="number" min="0" max="120" value="45" style="width:70px">
         <label class="note">من الأسفل (مم)</label><input class="inp" id="uplBot" type="number" min="0" max="80" value="25" style="width:70px">
+        <button type="button" class="linkbtn" id="btnEraser">محو جزء غير مرغوب من التصميم</button>
       </div>
     </div>
   </section>
@@ -482,6 +491,23 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 
 </div>
 
+<div class="modal" id="erModal" role="dialog" aria-label="محو جزء من التصميم">
+  <div class="mbox" style="width:min(640px,100%)">
+    <div class="mh">محو جزء من التصميم<button type="button" class="mx" id="erClose" aria-label="إغلاق">×</button></div>
+    <div class="note">اسحبي بالإصبع أو بالفأرة على المكان الذي تريدين حذفه من التصميم، وسيُمحى فور الإفلات. يمكنكِ التراجع عن أي خطوة.</div>
+    <div class="erbar">
+      <label class="chk"><input type="radio" name="erFill" value="auto" checked>لون مطابق لما حوله</label>
+      <label class="chk"><input type="radio" name="erFill" value="white">أبيض</label>
+    </div>
+    <div class="erwrap"><canvas id="erCv"></canvas></div>
+    <div class="erbar">
+      <button type="button" class="tbtn2" id="erUndo" disabled>تراجع</button>
+      <button type="button" class="tbtn2" id="erReset" disabled>استعادة التصميم الأصلي</button>
+      <span style="flex:1"></span>
+      <button type="button" class="tbtn2 main" id="erDone">تطبيق</button>
+    </div>
+  </div>
+</div>
 <div class="modal" id="impModal" role="dialog" aria-label="نموذج من ملف">
   <div class="mbox">
     <div class="mh">نموذج من ملف<button type="button" class="mx" id="impClose" aria-label="إغلاق">×</button></div>
@@ -1959,12 +1985,70 @@ async function importFile(file) {
     }
     normalize(editor); syncUI(); changed();
     prog(""); $("impModal").classList.remove("on");
-    if (designSet) setTimeout(() => alert("نُسخ تصميم الصفحة وصار كليشة «كليشة أخرى». إن بدأ النص فوق الترويسة أو تحت التذييل فعدّلي «بداية النص من الأعلى» و«من الأسفل» في الإعدادات."), 50);
+    if (designSet) setTimeout(() => alert("نُسخ تصميم الصفحة وصار كليشة «كليشة أخرى». إن بدأ النص فوق الترويسة أو تحت التذييل فعدّلي «بداية النص من الأعلى» و«من الأسفل» في الإعدادات. ولمحو أي جزء لا تريدينه من التصميم استخدمي «محو جزء غير مرغوب من التصميم»."), 50);
   } catch (e) {
     console.error(e);
     prog("تعذّرت قراءة الملف. تأكدي من الاتصال بالإنترنت، أو أن الملف غير محمي بكلمة مرور.");
   }
 }
+
+
+/* ===================== محو جزء من التصميم ===================== */
+(function () {
+  const cv = $("erCv"), ctx = cv.getContext("2d", { willReadFrequently: true });
+  let hist = [], base = null, mime = "image/jpeg", drag = null;
+  const open = () => $("erModal").classList.add("on"), close = () => $("erModal").classList.remove("on");
+  const refresh = () => { $("erUndo").disabled = !hist.length; $("erReset").disabled = !hist.length; };
+  $("btnEraser").addEventListener("click", () => {
+    if (!state.custom.src) { alert("لا يوجد تصميم لمحو جزء منه. ارفعي كليشة أو انسخي تصميم ملف أولًا."); return; }
+    const im = new Image();
+    im.onload = () => {
+      cv.width = im.naturalWidth; cv.height = im.naturalHeight;
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height); ctx.drawImage(im, 0, 0);
+      mime = /^data:image\/png/.test(state.custom.src) ? "image/png" : "image/jpeg";
+      base = ctx.getImageData(0, 0, cv.width, cv.height); hist = []; refresh(); open();
+    };
+    im.onerror = () => alert("تعذّر فتح التصميم.");
+    im.src = state.custom.src;
+  });
+  const pos = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * cv.width / r.width, y: (e.clientY - r.top) * cv.height / r.height }; };
+  const rectOf = (a, b) => { const x = Math.max(0, Math.min(a.x, b.x)), y = Math.max(0, Math.min(a.y, b.y)); return { x: Math.round(x), y: Math.round(y), w: Math.round(Math.min(cv.width, Math.max(a.x, b.x)) - x), h: Math.round(Math.min(cv.height, Math.max(a.y, b.y)) - y) }; };
+  function ringColor(r) {
+    // متوسط ألوان شريط رفيع حول المستطيل
+    const m = 6, x0 = Math.max(0, r.x - m), y0 = Math.max(0, r.y - m), x1 = Math.min(cv.width, r.x + r.w + m), y1 = Math.min(cv.height, r.y + r.h + m);
+    const d = ctx.getImageData(x0, y0, x1 - x0, y1 - y0).data, W = x1 - x0; let R = 0, G = 0, B = 0, n = 0;
+    for (let y = 0; y < y1 - y0; y++) for (let x = 0; x < W; x++) {
+      const gx = x0 + x, gy = y0 + y;
+      if (gx >= r.x && gx < r.x + r.w && gy >= r.y && gy < r.y + r.h) continue;
+      const i = (y * W + x) * 4; R += d[i]; G += d[i + 1]; B += d[i + 2]; n++;
+    }
+    return n ? `rgb(${Math.round(R / n)},${Math.round(G / n)},${Math.round(B / n)})` : "#fff";
+  }
+  function drawGuide(r) { // معاينة مؤقتة للمنطقة المحددة
+    if (hist.length) ctx.putImageData(hist[hist.length - 1], 0, 0); else ctx.putImageData(base, 0, 0);
+    ctx.save(); ctx.fillStyle = "rgba(179,38,30,.18)"; ctx.strokeStyle = "#b3261e"; ctx.lineWidth = Math.max(2, cv.width / 300); ctx.setLineDash([10, 8]);
+    ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.restore();
+  }
+  const cur = () => hist.length ? hist[hist.length - 1] : base;
+  cv.addEventListener("pointerdown", e => { e.preventDefault(); cv.setPointerCapture(e.pointerId); drag = { a: pos(e), b: pos(e) }; });
+  cv.addEventListener("pointermove", e => { if (!drag) return; drag.b = pos(e); drawGuide(rectOf(drag.a, drag.b)); });
+  cv.addEventListener("pointerup", e => {
+    if (!drag) return; drag.b = pos(e); const r = rectOf(drag.a, drag.b); drag = null;
+    ctx.putImageData(cur(), 0, 0);
+    if (r.w < 6 || r.h < 6) return;
+    const white = document.querySelector("input[name=erFill]:checked").value === "white";
+    ctx.fillStyle = white ? "#fff" : ringColor(r); ctx.fillRect(r.x, r.y, r.w, r.h);
+    hist.push(ctx.getImageData(0, 0, cv.width, cv.height)); if (hist.length > 15) hist.shift(); refresh();
+  });
+  cv.addEventListener("pointercancel", () => { drag = null; ctx.putImageData(cur(), 0, 0); });
+  $("erUndo").addEventListener("click", () => { hist.pop(); ctx.putImageData(cur(), 0, 0); refresh(); });
+  $("erReset").addEventListener("click", () => { hist = []; ctx.putImageData(base, 0, 0); refresh(); });
+  $("erDone").addEventListener("click", () => {
+    if (hist.length) { state.custom.src = cv.toDataURL(mime, .92); syncUI(); changed(); }
+    close();
+  });
+  $("erClose").addEventListener("click", () => { if (!hist.length || confirm("سيُتجاهل ما محوتِه. هل تريدين الإغلاق؟")) close(); });
+})();
 
 /* ===================== مستنداتي ===================== */
 const DOCS = "furqan_doc_editor_docs_v1";
