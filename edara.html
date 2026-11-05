@@ -937,7 +937,7 @@
     <div id="gradesTab" class="admin-tab-panel hidden">
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">درجات المسؤولات (من ١٣)</h3>
-        <p class="grade-hint">كل البنود مكتملة افتراضياً. لكل بند اختاري مقدار النقص (ربع، نصف، ثلاثة أرباع، أو كامل) أو اكتبي الدرجة الممنوحة مباشرة، وتُحسب الدرجة تلقائياً. بعد المراجعة اضغطي «حفظ الدرجات».</p>
+        <p class="grade-hint">كل البنود مكتملة افتراضياً. اكتبي مقدار الخصم لكل بند (مثلاً ٠٫٢٥ أو ٠٫٥) وتُحسب الدرجة تلقائياً، ثم اضغطي «حفظ الدرجات». يُسجَّل المجموع تلقائياً في بند «تفعيل السجلات والبيانات الخاصة بالمقصف إلكترونياً» بتقييم مسؤولة المقصف.</p>
         <div class="select-row">
           <div>
             <label>الفصل الدراسي</label>
@@ -1145,6 +1145,7 @@
 
         <h4 style="color:var(--maroon);margin:16px 0 6px;">بنود خاصة برئيسة وحدة المقاصف</h4>
         <div id="aevHeadBox" style="overflow-x:auto;"></div>
+        <div id="aevLinkNote" class="grade-hint" style="margin-top:6px;"></div>
         <div style="margin-top:6px;font-weight:800;">المجموع: <span id="aevHeadTotal" style="color:var(--maroon);"></span></div>
 
         <label style="margin-top:14px;">الإيجابيات</label>
@@ -1798,6 +1799,7 @@ function openAdminEval_(id) {
   document.getElementById('aevHeadBox').innerHTML = evalScoresTableHtml_(EVAL_HEAD_ITEMS, 'aevHead', evalHeadExpand_(d.headScores || []), false);
   document.querySelectorAll('#aevHeadBox .ev-score').forEach(function (el) { el.addEventListener('input', aevLiveHead_); });
   aevLiveHead_();
+  aevLinkGrades_(e);
   document.getElementById('aevPositives').value = d.positives || '';
   document.getElementById('aevImprovements').value = d.improvements || '';
   document.getElementById('aevHeadName').value = e.headName || ((typeof FURQAN_CONTACTS !== 'undefined' && FURQAN_CONTACTS.headName) || 'فاطمة مبارك الكثيري');
@@ -1812,6 +1814,40 @@ function openAdminEval_(id) {
     else clearSignatureWidget('aevSig');
   }, 50);
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ربط بند «تفعيل السجلات والبيانات الخاصة بالمقصف إلكترونياً» بمجموع «درجات المسؤولات» لنفس المسؤولة والفصل */
+function aevLinkGrades_(ev) {
+  const note = document.getElementById('aevLinkNote');
+  const inp = document.getElementById('aevHead' + EVAL_HEAD_LINKED_INDEX);
+  if (!note || !inp) return;
+  const d = ev.data || {};
+  const num = String(d.term || '').trim();
+  const year = toArabicDigits(String(d.year || '').trim()).replace(/\s*هـ\s*$/, '');
+  note.textContent = '';
+  if (!num || !year) { note.textContent = 'تعذّر ربط بند التفعيل الإلكتروني بدرجات المسؤولات لعدم تحديد الفصل أو العام في التقييم؛ اكتبي الدرجة يدوياً.'; return; }
+  const label = 'الفصل الدراسي ' + num + ' ' + year + 'هـ';
+  note.textContent = 'جارٍ جلب درجة بند التفعيل الإلكتروني من «درجات المسؤولات»...';
+  callApi('getMasoulaGrades', { term: label }).then(function (r) {
+    if (!aevCurrent_ || aevCurrent_.id !== ev.id) return;
+    const name = String(ev.masoula || '').trim();
+    const m = r && r.ok && (r.list || []).find(function (x) { return String(x.name || '').trim() === name; });
+    if (!m || !m.saved) {
+      note.textContent = 'لم تُحفظ بعد «درجات المسؤولات» لـ «' + name + '» في ' + label + '؛ احفظيها من أيقونة «درجات المسؤولات» لتنتقل درجتها هنا تلقائياً، أو اكتبي الدرجة يدوياً.';
+      return;
+    }
+    const old = inp.value;
+    inp.value = m.score;
+    inp.readOnly = true;
+    inp.style.background = '#f4efe9';
+    inp.title = 'مرتبطة بدرجات المسؤولات';
+    aevLiveHead_();
+    note.textContent = 'درجة هذا البند (' + gradeNum_(m.score) + ' من ' + gradeNum_(GRADE_TOTAL_) + ') مرتبطة تلقائياً بمجموع «درجات المسؤولات» لـ ' + label +
+      '. لتعديلها غيّري مقدار الخصم هناك.' +
+      ((old !== '' && Number(old) !== Number(m.score)) ? ' (كانت محفوظة سابقاً ' + gradeNum_(old) + '، اضغطي زر الحفظ لتحديثها.)' : '');
+  }).catch(function () {
+    if (aevCurrent_ && aevCurrent_.id === ev.id) note.textContent = 'تعذّر جلب درجات المسؤولات الآن؛ يمكنكِ كتابة درجة البند يدوياً.';
+  });
 }
 
 function closeAdminEval_() {
@@ -4421,30 +4457,18 @@ function gradeCalc_(m) {
   return { score: Math.round(score * 100) / 100, missing: missing };
 }
 
-const GRADE_CUTS_ = [
-  { cut: 0, label: 'بلا نقص' },
-  { cut: 0.25, label: 'نقص ربع' },
-  { cut: 0.5, label: 'نقص نصف' },
-  { cut: 0.75, label: 'نقص ثلاثة أرباع' },
-  { cut: 1, label: 'نقص كامل' }
-];
-
 function gradeCardInner_(i) {
   const m = gradesState_.list[i];
   const c = gradeCalc_(m);
   const rows = GRADE_ITEMS_.map(function (it, k) {
     const a = gradeParse_(it, m.items[it.key]);
-    const btns = GRADE_CUTS_.map(function (q) {
-      const target = Math.round(it.max * (1 - q.cut) * 100) / 100;
-      const on = Math.abs(a - target) < 0.011;
-      const cls = 'gi-q' + (on ? ' on' + (q.cut === 0 ? '' : (q.cut === 1 ? ' zero' : ' part')) : '');
-      return '<button type="button" class="' + cls + '" onclick="setGradeCut_(' + i + ',' + k + ',' + q.cut + ')">' + q.label + '</button>';
-    }).join('');
+    const cutVal = Math.round((it.max - a) * 100) / 100;
     return '<div class="grade-item"><div class="gi-top"><span class="gi-name">' + gradesEsc_(it.label) + '</span>' +
       '<span class="gi-max">من ' + gradeNum_(it.max) + '</span></div>' +
-      '<div class="gi-ctl">' + btns +
-      '<span class="gi-lbl">الدرجة:</span>' +
-      '<input type="number" class="gi-val" inputmode="decimal" step="0.25" min="0" max="' + it.max + '" value="' + a + '" onchange="setGradeValue_(' + i + ',' + k + ',this.value)"></div></div>';
+      '<div class="gi-ctl">' +
+      '<span class="gi-lbl">مقدار الخصم:</span>' +
+      '<input type="number" class="gi-val" inputmode="decimal" step="0.25" min="0" max="' + it.max + '" value="' + cutVal + '" onchange="setGradeCutValue_(' + i + ',' + k + ',this.value)">' +
+      '<span class="gi-lbl">الدرجة: <b>' + gradeNum_(a) + '</b></span></div></div>';
   }).join('');
   const status = c.missing.length
     ? '<span class="miss">النقص: ' + c.missing.map(gradesEsc_).join('، ') + '</span>'
@@ -4499,13 +4523,11 @@ function setGradeAwarded_(i, k, n) {
   document.getElementById('gradesSummary').innerHTML = gradesSummaryHtml_();
 }
 
-function setGradeCut_(i, k, cut) {
-  setGradeAwarded_(i, k, GRADE_ITEMS_[k].max * (1 - cut));
-}
-
-function setGradeValue_(i, k, v) {
+function setGradeCutValue_(i, k, v) {
+  const it = GRADE_ITEMS_[k];
   const n = parseFloat(String(v).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[٫,،]/g, '.'));
-  setGradeAwarded_(i, k, isNaN(n) ? GRADE_ITEMS_[k].max : n);
+  const cutVal = isNaN(n) ? 0 : Math.min(it.max, Math.max(0, n));
+  setGradeAwarded_(i, k, it.max - cutVal);
 }
 
 function filterGrades_() {

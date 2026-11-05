@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbwHYOkwB0a8wbUDjO_w_2rKL_Xrx2V08Lvk-rHmgGH_2S1jyoSo4D84VjaSToyL38Pi/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwrclVQIBhDiz9sgSxLfrGneRLlKlKTOmaMplTaCbnKiqgekP7sMxZypTtiwiYTAsPx/exec";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
@@ -2251,8 +2251,21 @@ const EVAL_DIR_ITEMS = [
   ['تنفيذ ما يُسند إليها من مهام ضمن الاختصاص', 5],
   ['القيام بأعمال البيع وما يتعلق به بكفاءة وفاعلية', 5]
 ];
-/* بنود رئيسة وحدة المقاصف: بند «تفعيل السجلات والبيانات إلكترونياً» (١٣ درجة) مقسَّم إلى ستة بنود فرعية */
+/* بنود رئيسة وحدة المقاصف: بند «تفعيل السجلات والبيانات الخاصة بالمقصف إلكترونياً» (١٣ درجة) بند واحد غير مقسَّم،
+   وتُؤخذ درجته تلقائياً من مجموع «درجات المسؤولات» للفصل نفسه (لوحة الإدارة) */
 const EVAL_HEAD_ITEMS = [
+  ['المحافظة على نظافة المقصف', 5],
+  ['حضور الاجتماعات والدورات التدريبية', 10],
+  ['سرعة جرد الفواتير بدقة', 10],
+  ['السعي لتطوير أداء المقصف وابتكار حلول للتحديات', 2],
+  ['حسن التعامل مع الآخرين', 5],
+  ['تفعيل السجلات والبيانات الخاصة بالمقصف إلكترونياً', 13],
+  ['المحافظة على الواردات المالية وتسليمها دورياً', 5]
+];
+/* رقم البند المرتبط بدرجات المسؤولات داخل EVAL_HEAD_ITEMS */
+const EVAL_HEAD_LINKED_INDEX = 5;
+/* الصيغة المقسَّمة إلى ستة بنود فرعية (استُخدمت لفترة قصيرة) للتقييمات المحفوظة بها */
+const EVAL_HEAD_ITEMS_SPLIT = [
   ['المحافظة على نظافة المقصف', 5],
   ['حضور الاجتماعات والدورات التدريبية', 10],
   ['سرعة جرد الفواتير بدقة', 10],
@@ -2266,26 +2279,18 @@ const EVAL_HEAD_ITEMS = [
   ['تفعيل السجلات إلكترونياً: الالتزام بتنفيذ التوجيهات والتنبيهات خلال الوقت المحدد', 2],
   ['المحافظة على الواردات المالية وتسليمها دورياً', 5]
 ];
-/* الصيغة القديمة (سبعة بنود) للتقييمات المعتمدة سابقاً */
-const EVAL_HEAD_ITEMS_OLD = [
-  ['المحافظة على نظافة المقصف', 5],
-  ['حضور الاجتماعات والدورات التدريبية', 10],
-  ['سرعة جرد الفواتير بدقة', 10],
-  ['السعي لتطوير أداء المقصف وابتكار حلول للتحديات', 2],
-  ['حسن التعامل مع الآخرين', 5],
-  ['تفعيل السجلات والبيانات الخاصة بالمقصف إلكترونياً', 13],
-  ['المحافظة على الواردات المالية وتسليمها دورياً', 5]
-];
 function evalHeadItemsOf_(scores) {
-  return (scores && scores.length === EVAL_HEAD_ITEMS_OLD.length) ? EVAL_HEAD_ITEMS_OLD : EVAL_HEAD_ITEMS;
+  return (scores && scores.length === EVAL_HEAD_ITEMS_SPLIT.length) ? EVAL_HEAD_ITEMS_SPLIT : EVAL_HEAD_ITEMS;
 }
 function evalHeadDone_(scores) {
-  return !!scores && (scores.length === EVAL_HEAD_ITEMS.length || scores.length === EVAL_HEAD_ITEMS_OLD.length);
+  return !!scores && (scores.length === EVAL_HEAD_ITEMS.length || scores.length === EVAL_HEAD_ITEMS_SPLIT.length);
 }
-/* توسيع درجات قديمة إلى الصيغة الجديدة (البنود الفرعية الستة تُترك فارغة) */
+/* تحويل الدرجات المحفوظة بالصيغة المقسَّمة إلى الصيغة الحالية (تُجمع البنود الفرعية الستة في بند واحد) */
 function evalHeadExpand_(scores) {
-  if (scores && scores.length === EVAL_HEAD_ITEMS_OLD.length) {
-    return scores.slice(0, 5).concat(['', '', '', '', '', ''], [scores[6]]);
+  if (scores && scores.length === EVAL_HEAD_ITEMS_SPLIT.length) {
+    const sub = scores.slice(5, 11);
+    const blank = sub.every(function (v) { return v === '' || v === null || v === undefined; });
+    return scores.slice(0, 5).concat([blank ? '' : evalSum_(sub)], [scores[11]]);
   }
   return scores || [];
 }
