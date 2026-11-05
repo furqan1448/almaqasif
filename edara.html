@@ -941,7 +941,7 @@
             <input type="text" id="gradesTermYear" placeholder="مثال: ١٤٤٨" onchange="onGradesTermChange_()">
           </div>
         </div>
-        <div class="grade-legend">توزيع الدرجات: تسجيل المبيعات ٤ · الفواتير ٣ · إشعار الاستلام ٢ · توقيع التعهد ٢ · تأكيد الاطلاع على المهام ٢</div>
+        <div class="grade-legend">توزيع الدرجات: تسجيل الفواتير ٣ · توثيق إشعار الاستلام ٢ · الاطلاع على التعهد والالتزام به ١٫٥ · الاطلاع على المهام ١٫٥ · تسجيل المبيعات اليومية ٣ · الالتزام بتنفيذ التوجيهات والتنبيهات خلال الوقت المحدد ٢ (المجموع ١٣)</div>
       </div>
       <div id="gradesBody"></div>
     </div>
@@ -4314,12 +4314,14 @@ function loadTasksStatus() {
 
 /* ==================== درجات المسؤولات (تقييم نهاية الفصل من 13) ==================== */
 const GRADE_ITEMS_ = [
-  { key: 'تسجيل المبيعات', max: 4 },
-  { key: 'الفواتير', max: 4 },
-  { key: 'إشعار الاستلام', max: 3 },
-  { key: 'توقيع التعهد', max: 1 },
-  { key: 'تأكيد الاطلاع على المهام', max: 1 }
+  { key: 'الفواتير', label: 'تسجيل الفواتير', max: 3 },
+  { key: 'إشعار الاستلام', label: 'توثيق إشعار الاستلام', max: 2 },
+  { key: 'توقيع التعهد', label: 'الاطلاع على التعهد والالتزام به', max: 1.5 },
+  { key: 'تأكيد الاطلاع على المهام', label: 'الاطلاع على المهام', max: 1.5 },
+  { key: 'تسجيل المبيعات', label: 'تسجيل المبيعات اليومية', max: 3 },
+  { key: 'الالتزام بالتوجيهات', label: 'الالتزام بتنفيذ التوجيهات والتنبيهات خلال الوقت المحدد', max: 2 }
 ];
+function gradeNum_(n) { return toArabicDigits(String(n).replace('.', '٫')); }
 const GRADE_TOTAL_ = 13;
 let gradesState_ = { term: '', list: [], touched: false };
 
@@ -4388,7 +4390,7 @@ function gradeCalc_(m) {
   let score = GRADE_TOTAL_;
   const missing = [];
   GRADE_ITEMS_.forEach(function (it) {
-    if (m.items[it.key] === 'ناقص') { score -= it.max; missing.push(it.key); }
+    if (m.items[it.key] === 'ناقص') { score -= it.max; missing.push(it.label); }
   });
   return { score: score, missing: missing };
 }
@@ -4399,14 +4401,14 @@ function gradeCardInner_(i) {
   const chips = GRADE_ITEMS_.map(function (it, k) {
     const miss = m.items[it.key] === 'ناقص';
     return '<button type="button" class="grade-chip' + (miss ? ' miss' : '') + '" onclick="toggleGradeItem_(' + i + ',' + k + ')">' +
-      (miss ? '✗ ' : '✓ ') + gradesEsc_(it.key) + '<small>' + it.max + '</small></button>';
+      (miss ? '✗ ' : '✓ ') + gradesEsc_(it.label) + '<small>' + gradeNum_(it.max) + '</small></button>';
   }).join('');
   const status = c.missing.length
     ? '<span class="miss">الناقص: ' + c.missing.map(gradesEsc_).join('، ') + '</span>'
     : '<span class="ok">مكتمل</span>';
   return '<div class="grade-head"><div><div class="grade-name">' + gradesEsc_(m.name) + '</div>' +
     '<div class="grade-meta">' + gradesEsc_(m.center || 'بدون مركز') + '</div></div>' +
-    '<div class="grade-score' + (c.score < GRADE_TOTAL_ ? ' part' : '') + '">' + toArabicDigits(c.score) + '<small> / ' + toArabicDigits(GRADE_TOTAL_) + '</small></div></div>' +
+    '<div class="grade-score' + (c.score < GRADE_TOTAL_ ? ' part' : '') + '">' + gradeNum_(c.score) + '<small> / ' + toArabicDigits(GRADE_TOTAL_) + '</small></div></div>' +
     '<div class="grade-chips">' + chips + '</div>' +
     '<div class="grade-foot">' + status + (m.saved ? '' : '<span class="unsaved">● لم تُحفظ بعد</span>') + '</div>';
 }
@@ -4418,7 +4420,7 @@ function gradesSummaryHtml_() {
   const avg = scores.length ? (scores.reduce(function (a, b) { return a + b; }, 0) / scores.length) : 0;
   return '<div><div class="v">' + toArabicDigits(list.length) + '</div><div class="l">عدد المسؤولات</div></div>' +
     '<div><div class="v">' + toArabicDigits(complete) + '</div><div class="l">مكتملات (١٣/١٣)</div></div>' +
-    '<div><div class="v">' + toArabicDigits(avg.toFixed(1)) + '</div><div class="l">متوسط الدرجات</div></div>';
+    '<div><div class="v">' + gradeNum_(avg.toFixed(1)) + '</div><div class="l">متوسط الدرجات</div></div>';
 }
 
 function renderGrades_() {
@@ -4490,7 +4492,7 @@ function gradesRows_(forPrint) {
     const row = { 'م': i + 1, 'المسؤولة': m.name, 'المركز': m.center };
     GRADE_ITEMS_.forEach(function (it) {
       const miss = m.items[it.key] === 'ناقص';
-      row[it.key + ' (' + it.max + ')'] = forPrint ? (miss ? '✗' : '✓') : (miss ? 'ناقص' : 'مكتمل');
+      row[it.label + ' (' + it.max + ')'] = forPrint ? (miss ? '✗' : '✓') : (miss ? 'ناقص' : 'مكتمل');
     });
     row['الدرجة من ' + GRADE_TOTAL_] = c.score;
     row['الحالة'] = c.missing.length ? 'الناقص: ' + c.missing.join('، ') : 'مكتمل';
