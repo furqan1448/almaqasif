@@ -238,6 +238,9 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 .iopts{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
 .iprog{display:none;background:var(--soft);color:var(--red);border-radius:10px;padding:8px 12px;font-weight:700;margin-bottom:10px}
 .iprog.on{display:block}
+.isub{margin:0 26px 4px 0;padding:8px 10px;border-right:3px solid var(--line);display:flex;flex-direction:column;gap:6px;background:#fcfafa;border-radius:8px}
+.isub[hidden]{display:none}
+.inp.mini{width:64px;padding:3px 6px;display:inline-block}
 /* القوائم المنبثقة */
 .pop{display:none;position:absolute;background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:0 12px 34px rgba(0,0,0,.14);z-index:60;max-width:min(560px,94vw)}
 .pop.on{display:block}
@@ -484,13 +487,22 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
     <div class="mh">نموذج من ملف<button type="button" class="mx" id="impClose" aria-label="إغلاق">×</button></div>
     <label class="drop" id="impDrop"><b>اختاري ملفًا أو اسحبيه هنا</b>ملف Word (docx) أو PDF أو صورة (JPG / PNG)<input type="file" id="impFile" accept=".docx,.pdf,image/*" hidden></label>
     <div class="iopts">
+      <span class="lb">ماذا يُنسخ من الملف؟</span>
+      <label class="chk"><input type="radio" name="impWhat" value="both" checked>المحتوى مع تصميم الملف وتنسيقه</label>
+      <label class="chk"><input type="radio" name="impWhat" value="text">المحتوى فقط، بتصميم المحرر</label>
+      <label class="chk"><input type="radio" name="impWhat" value="design">التصميم فقط، لأكتب عليه محتوى جديدًا (PDF أو صورة)</label>
+      <div class="isub" id="impBgOpts">
+        <label class="chk"><input type="checkbox" id="impKeepEdges" checked>الإبقاء على الترويسة والتذييل ومسح ما بينهما</label>
+        <span class="note">ارتفاع الترويسة <input class="inp mini" id="impTop" type="number" min="0" max="150" value="45"> مم، والتذييل <input class="inp mini" id="impBot" type="number" min="0" max="100" value="25"> مم</span>
+      </div>
+      <span class="lb" style="margin-top:6px">أين يوضع المحتوى؟</span>
       <label class="chk"><input type="radio" name="impMode" value="replace" checked>استبدال المحتوى الحالي</label>
       <label class="chk"><input type="radio" name="impMode" value="insert">إضافته في مكان المؤشر</label>
-      <label class="chk"><input type="checkbox" id="impBrand" checked>تحويل الألوان والتنسيق إلى تصميم الجمعية</label>
+      <label class="chk"><input type="checkbox" id="impBrand" checked>تحويل ألوان الملف إلى ألوان الجمعية</label>
       <label class="chk"><input type="checkbox" id="impOcr">قراءة ملف PDF كصورة (للملفات الممسوحة، أو إذا ظهر النص غير مرتب)</label>
     </div>
     <div class="iprog" id="impProg"></div>
-    <div class="note">ملف Word: تُنقل العناوين والفقرات والنقاط والجداول والصور كما هي.<br>ملف PDF: يُنقل النص مع العناوين والنقاط، أما الجداول فتصل نصًا.<br>الصورة (تجريبي): يُقرأ النص العربي منها آليًا، وقد تحتاج بعض الكلمات إلى تصحيح.<br>بعد النقل يمكنكِ تعديل كل شيء وتغيير التصميم والألوان.</div>
+    <div class="note"><b>Word:</b> يُنسخ المحتوى بتنسيقه: المحاذاة والأحجام والألوان وتعبئة الخلايا والجداول والصور ومربعات النص.<br><b>PDF والصورة:</b> يُنسخ شكل الصفحة (الترويسة والتذييل والإطارات والألوان) خلفيةً للصفحات، ويُقرأ النص ليصبح قابلًا للتعديل.<br>مع تفعيل «تحويل الألوان» تتحول ألوان الملف إلى العنابي والذهبي مع الإبقاء على درجاتها.<br>بعد النقل يمكنكِ تعديل كل شيء.</div>
   </div>
 </div>
 <div class="blkbar" id="blkbar">
@@ -1666,26 +1678,288 @@ async function fromImage(file) {
   await worker.terminate();
   return ocrToHtml(data);
 }
+/* ===================== نسخ تصميم الملف ===================== */
+IMP_LIBS.jszip = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+const BRAND = { main: "#8f1d2c", acc: "#b4882c" };
+function rgbHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2; let h = 0, s = 0;
+  if (mx !== mn) { const d = mx - mn; s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn);
+    h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; }
+  return [h, s, l];
+}
+function hslRgb(h, s, l) {
+  h /= 360; if (!s) return [l * 255, l * 255, l * 255];
+  const q = l < .5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+  const f = t => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < .5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+  return [f(h + 1 / 3) * 255, f(h) * 255, f(h - 1 / 3) * 255];
+}
+const toHex = (r, g, b) => "#" + [r, g, b].map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
+/* أي لون في الملف ← أقرب درجة من ألوان الجمعية (الرمادي والأسود والأبيض كما هي) */
+function brandColor(hex, bg) {
+  if (!/^#?[0-9a-f]{6}$/i.test(hex)) return hex;
+  if (bg) { const [, s2, l2] = rgbHsl(...hexRgb(hex)); if (s2 >= .18 && l2 >= .4 && l2 <= .97) { const [h2] = rgbHsl(...hexRgb(hex)); return mix(h2 >= 28 && h2 <= 70 ? BRAND.acc : BRAND.main, "#ffffff", l2 > .86 ? .88 : .72); } }
+  const [h, s, l] = rgbHsl(...hexRgb(hex));
+  if (s < .18 || l > .97 || l < .06) return hex.startsWith("#") ? hex : "#" + hex;
+  const gold = h >= 28 && h <= 70;
+  const base = gold ? BRAND.acc : BRAND.main;
+  if (l > .86) return mix(base, "#ffffff", .9);
+  if (l > .7) return mix(base, "#ffffff", .7);
+  if (l > .55) return mix(base, "#ffffff", .35);
+  if (l < .3) return mix(base, "#000000", .2);
+  return base;
+}
+function dominantColors(counts) {
+  const list = Object.entries(counts).map(([c, n]) => { const [h, s, l] = rgbHsl(...hexRgb(c)); return { c, n, h, s, l }; })
+    .filter(x => x.s > .25 && x.l > .15 && x.l < .7).sort((a, b) => b.n - a.n);
+  const main = list[0]; if (!main) return null;
+  const acc = list.find(x => Math.abs(x.h - main.h) > 30 && Math.abs(x.h - main.h) < 330);
+  return { main: main.c, acc: acc ? acc.c : null };
+}
+
+/* ---------- Word بتنسيقه ---------- */
+const HL = { yellow: "#ffff00", green: "#00ff00", cyan: "#00ffff", magenta: "#ff00ff", blue: "#0000ff", red: "#ff0000", darkBlue: "#000080", darkCyan: "#008080", darkGreen: "#008000", darkMagenta: "#800080", darkRed: "#800000", darkYellow: "#808000", darkGray: "#808080", lightGray: "#c0c0c0", black: "#000000" };
+async function docxRich(file, brand) {
+  await loadScript(IMP_LIBS.jszip, "JSZip");
+  const zip = await JSZip.loadAsync(await file.arrayBuffer());
+  const rd = async p => { const f = zip.file(p); return f ? new DOMParser().parseFromString(await f.async("string"), "application/xml") : null; };
+  const doc = await rd("word/document.xml"); if (!doc) throw new Error("no document");
+  const sty = await rd("word/styles.xml"), num = await rd("word/numbering.xml"), rels = await rd("word/_rels/document.xml.rels");
+  const kids = (el, nm) => el ? Array.from(el.childNodes).filter(n => n.nodeName === nm) : [];
+  const kid = (el, nm) => el ? Array.from(el.childNodes).find(n => n.nodeName === nm) : null;
+  const val = (el, a) => el ? el.getAttribute("w:" + (a || "val")) : null;
+  const colorCount = {};
+  const useColor = (c, bg) => { if (!c || c === "auto" || !/^[0-9A-Fa-f]{6}$/.test(c)) return null; const hx = "#" + c.toLowerCase(); colorCount[hx] = (colorCount[hx] || 0) + 1; return brand ? brandColor(hx, bg) : hx; };
+  // الأنماط
+  const styles = {};
+  if (sty) Array.from(sty.getElementsByTagName("w:style")).forEach(s => {
+    styles[val(s, "styleId")] = { name: (val(kid(s, "w:name")) || "").toLowerCase(), basedOn: val(kid(s, "w:basedOn")), pPr: kid(s, "w:pPr"), rPr: kid(s, "w:rPr") };
+  });
+  const chain = id => { const out = []; let g = 0; while (id && styles[id] && g++ < 10) { out.unshift(styles[id]); id = styles[id].basedOn; } return out; };
+  const rProps = (rPrs) => { const o = {}; rPrs.filter(Boolean).forEach(r => {
+    const b = kid(r, "w:b"); if (b) o.b = val(b) !== "0" && val(b) !== "false";
+    if (kid(r, "w:i")) o.i = true; const u = kid(r, "w:u"); if (u && val(u) !== "none") o.u = true;
+    const c = val(kid(r, "w:color")); if (c && c !== "auto") o.color = c;
+    const sz = val(kid(r, "w:sz")) || val(kid(r, "w:szCs")); if (sz) o.sz = +sz;
+    const hl = val(kid(r, "w:highlight")); if (hl && HL[hl]) o.bg = HL[hl].slice(1);
+    const shd = kid(r, "w:shd"); if (shd && val(shd, "fill") && val(shd, "fill") !== "auto") o.bg = val(shd, "fill");
+  }); return o; };
+  const pProps = p => {
+    const pPr = kid(p, "w:pPr"); const sid = val(kid(pPr, "w:pStyle"));
+    const ch = chain(sid); const o = { name: ch.length ? ch[ch.length - 1].name : "" };
+    [...ch.map(s => s.pPr), pPr].filter(Boolean).forEach(x => {
+      const jc = val(kid(x, "w:jc")); if (jc) o.jc = jc;
+      if (kid(x, "w:bidi")) o.bidi = val(kid(x, "w:bidi")) !== "0";
+      const shd = kid(x, "w:shd"); if (shd && val(shd, "fill") && val(shd, "fill") !== "auto") o.fill = val(shd, "fill");
+      if (kid(x, "w:pBdr")) o.border = true;
+      const ol = val(kid(x, "w:outlineLvl")); if (ol !== null) o.outline = +ol;
+      const np = kid(x, "w:numPr"); if (np) { o.numId = val(kid(np, "w:numId")); o.ilvl = +(val(kid(np, "w:ilvl")) || 0); }
+    });
+    o.rDef = rProps(ch.map(s => s.rPr).concat(pPr ? [kid(pPr, "w:rPr")] : []));
+    return o;
+  };
+  // الترقيم: نقاط أم أرقام
+  const numFmt = (numId, ilvl) => {
+    if (!num || !numId || numId === "0") return null;
+    const n = Array.from(num.getElementsByTagName("w:num")).find(x => val(x, "numId") === numId); if (!n) return "ul";
+    const aid = val(kid(n, "w:abstractNumId"));
+    const an = Array.from(num.getElementsByTagName("w:abstractNum")).find(x => val(x, "abstractNumId") === aid); if (!an) return "ul";
+    const lvl = Array.from(an.getElementsByTagName("w:lvl")).find(x => +val(x, "ilvl") === ilvl) || an.getElementsByTagName("w:lvl")[0];
+    return val(kid(lvl, "w:numFmt")) === "bullet" ? "ul" : "ol";
+  };
+  // الصور
+  const relMap = {}; if (rels) Array.from(rels.getElementsByTagName("Relationship")).forEach(r => relMap[r.getAttribute("Id")] = r.getAttribute("Target"));
+  const imgHtml = async dr => {
+    const blip = dr.getElementsByTagName("a:blip")[0]; if (!blip) return "";
+    const tgt = relMap[blip.getAttribute("r:embed")]; if (!tgt) return "";
+    const f = zip.file("word/" + tgt.replace(/^\.?\//, "")) || zip.file(tgt.replace(/^\//, "")); if (!f) return "";
+    const ext = (tgt.split(".").pop() || "png").toLowerCase(); if (!/png|jpe?g|gif|bmp|webp/.test(ext)) return "";
+    const b64 = await f.async("base64");
+    const ex = dr.getElementsByTagName("wp:extent")[0]; const cx = ex ? +ex.getAttribute("cx") : 0;
+    const frac = cx ? cx / 5760000 : .5; const w = frac < .37 ? "w25" : frac < .62 ? "w50" : frac < .87 ? "w75" : "w100";
+    return `<img class="pic ${w}" src="data:image/${ext === "jpg" ? "jpeg" : ext};base64,${b64}" alt="">`;
+  };
+  // جمع أحجام الخط لمعرفة الحجم الأساسي
+  const sizeCount = {};
+  // الفقرة
+  const runsOf = el => { const out = []; Array.from(el.childNodes).forEach(n => { if (n.nodeName === "w:r") out.push(n); else if (/^w:(hyperlink|ins|smartTag|sdt|sdtContent|fldSimple)$/.test(n.nodeName)) out.push(...runsOf(n)); }); return out; };
+  const boxes = [];
+  const paraHtml = async (p, pp) => {
+    let html = "", maxSz = 0, allBold = true, any = false;
+    for (const r of runsOf(p)) {
+      const rp = Object.assign({}, pp.rDef, rProps([kid(r, "w:rPr")]));
+      let t = "";
+      for (const n of Array.from(r.childNodes)) {
+        if (n.nodeName === "w:t") t += escH(n.textContent);
+        else if (n.nodeName === "w:tab") t += " ";
+        else if (n.nodeName === "w:br") t += "<br>";
+        else if (n.nodeName === "w:drawing" || n.nodeName === "mc:AlternateContent" || n.nodeName === "w:pict") {
+          const tx = n.getElementsByTagName("w:txbxContent")[0];
+          if (tx) boxes.push(tx); else if (n.getElementsByTagName("a:blip")[0]) t += await imgHtml(n);
+        }
+      }
+      if (!t) continue;
+      const plain = t.replace(/<[^>]+>/g, "").trim();
+      if (plain) { any = true; if (!rp.b) allBold = false; const sz = rp.sz || 22; maxSz = Math.max(maxSz, sz); sizeCount[sz] = (sizeCount[sz] || 0) + plain.length; }
+      if (rp.u) t = `<u>${t}</u>`; if (rp.i) t = `<i>${t}</i>`; if (rp.b) t = `<b>${t}</b>`;
+      const c = useColor(rp.color), bg = useColor(rp.bg, 1);
+      if ((c && c !== "#000000") || bg) t = `<mark style="${c ? "color:" + c + ";" : ""}${bg ? "background-color:" + bg : ""}">${t}</mark>`;
+      html += t;
+    }
+    return { html, maxSz, allBold: any && allBold, text: html.replace(/<[^>]+>/g, "").trim() };
+  };
+  const alignCls = pp => { const j = pp.jc; if (!j) return ""; if (j === "center") return "al-c"; if (j === "both" || j === "distribute") return "al-j";
+    const rtl = pp.bidi !== false; if (j === "left") return rtl ? "" : "al-l"; if (j === "right") return rtl ? "al-l" : ""; if (j === "end") return "al-l"; return ""; };
+  // المرور على المستند
+  const body = doc.getElementsByTagName("w:body")[0];
+  const items = [];   // {kind:'p'|'table', ...}
+  const walkTable = async tbl => {
+    const rows = [], spans = {};
+    for (const tr of kids(tbl, "w:tr")) {
+      const trPr = kid(tr, "w:trPr"); const isHead = !!kid(trPr, "w:tblHeader");
+      const row = { cells: [], head: isHead }; let col = 0;
+      for (const tc of kids(tr, "w:tc")) {
+        const tcPr = kid(tc, "w:tcPr"); const span = +(val(kid(tcPr, "w:gridSpan")) || 1);
+        const vm = kid(tcPr, "w:vMerge"); const shd = kid(tcPr, "w:shd");
+        const fill = shd && val(shd, "fill") && val(shd, "fill") !== "auto" ? val(shd, "fill") : null;
+        if (vm && val(vm) !== "restart") { if (spans[col]) spans[col].rows++; col += span; continue; }
+        const parts = []; let al = "", bold = true, hasText = false;
+        for (const p of kids(tc, "w:p")) { const pp = pProps(p); const r = await paraHtml(p, pp); if (r.text || /<img/.test(r.html)) { parts.push(r.html); hasText = true; if (!r.allBold) bold = false; } if (!al) al = alignCls(pp); }
+        const cell = { html: parts.join("<br>") || "<br>", span, fill: useColor(fill, 1), al, bold: hasText && bold, rows: 1 };
+        if (vm) spans[col] = cell;
+        row.cells.push(cell); col += span;
+      }
+      rows.push(row);
+    }
+    if (!rows.length) return "";
+    const first = rows[0]; const headLike = first.head || first.cells.every(c => c.bold || c.fill);
+    const cellHtml = (c, tag) => `<${tag}${c.span > 1 ? ` colspan="${c.span}"` : ""}${c.rows > 1 ? ` rowspan="${c.rows}"` : ""}${c.al ? ` class="${c.al}"` : ""}${c.fill && !(tag === "th" && brand) ? ` data-fill="" style="background-color:${c.fill}"` : ""}>${tag === "th" ? c.html.replace(/<\/?b>/g, "") : c.html}</${tag}>`;
+    let h = "<table>";
+    if (headLike && rows.length > 1) h += "<thead><tr>" + first.cells.map(c => cellHtml(c, "th")).join("") + "</tr></thead>";
+    h += "<tbody>" + rows.slice(headLike && rows.length > 1 ? 1 : 0).map(r => "<tr>" + r.cells.map(c => cellHtml(c, "td")).join("") + "</tr>").join("") + "</tbody></table>";
+    return h;
+  };
+  for (const n of Array.from(body.childNodes)) {
+    if (n.nodeName === "w:p") { const pp = pProps(n); const r = await paraHtml(n, pp); items.push({ kind: "p", pp, r }); }
+    else if (n.nodeName === "w:tbl") items.push({ kind: "html", html: await walkTable(n) });
+    else if (n.nodeName === "w:sdt") { const c = kid(n, "w:sdtContent"); if (c) for (const p of kids(c, "w:p")) { const pp = pProps(p); items.push({ kind: "p", pp, r: await paraHtml(p, pp) }); } }
+  }
+  // الحجم الأساسي = الأكثر استعمالًا
+  const base = +Object.entries(sizeCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 22;
+  let out = "", list = null, listTag = "", hadH1 = false;
+  const flushL = () => { if (list) { out += `<${listTag}>${list.join("")}</${listTag}>`; list = null; } };
+  const fsCls = sz => { const k = sz / base; return k >= 1.6 ? "fs-xxl" : k >= 1.35 ? "fs-xl" : k >= 1.12 ? "fs-l" : k <= .88 ? "fs-s" : ""; };
+  for (const it of items) {
+    if (it.kind === "html") { flushL(); out += it.html; continue; }
+    const { pp, r } = it;
+    if (!r.text && !/<img/.test(r.html)) { flushL(); continue; }
+    const al = alignCls(pp);
+    const lt = numFmt(pp.numId, pp.ilvl);
+    if (lt) { if (list && listTag !== lt) flushL(); if (!list) { list = []; listTag = lt; } list.push(`<li${al ? ` class="${al}"` : ""}>${r.html}</li>`); continue; }
+    flushL();
+    const k = r.maxSz / base, short = r.text.length < 120;
+    let tag = "p";
+    if (/title/.test(pp.name) || pp.outline === 0 && !hadH1) tag = "h1";
+    else if (/heading 1|heading 2/.test(pp.name) || pp.outline === 0 || pp.outline === 1) tag = "h2";
+    else if (/heading [3-9]/.test(pp.name) || pp.outline >= 2) tag = "h3";
+    else if (short && k >= 1.45) tag = hadH1 ? "h2" : "h1";
+    else if (short && k >= 1.15 && r.allBold) tag = "h2";
+    else if (r.text.length < 90 && r.allBold && k >= 1) tag = "h3";
+    if (tag === "h1") hadH1 = true;
+    let inner = r.html;
+    if (tag !== "p") inner = inner.replace(/<\/?b>/g, "");
+    const cls = [al, tag === "p" ? fsCls(r.maxSz) : ""].filter(Boolean).join(" ");
+    const fill = useColor(pp.fill, 1);
+    if (pp.border && tag === "p") { out += `<div class="outline"${fill ? ` data-fill="" style="background-color:${fill}"` : ""}><p${cls ? ` class="${cls}"` : ""}>${inner}</p></div>`; continue; }
+    out += `<${tag}${cls ? ` class="${cls}"` : ""}${fill ? ` data-fill="" style="background-color:${fill}"` : ""}>${inner}</${tag}>`;
+  }
+  flushL();
+  // مربعات النص في الملف
+  for (const tx of boxes) { let h = ""; for (const p of kids(tx, "w:p")) { const pp = pProps(p); const r = await paraHtml(p, pp); if (r.text) h += `<p${alignCls(pp) ? ` class="${alignCls(pp)}"` : ""}>${r.html}</p>`; } if (h) out += `<div class="outline">${h}</div>`; }
+  return { html: out, palette: dominantColors(colorCount) };
+}
+
+/* ---------- تصميم PDF أو الصورة خلفيةً للصفحات ---------- */
+async function firstPageCanvas(file) {
+  const cv = document.createElement("canvas");
+  if (/\.pdf$/i.test(file.name) || file.type === "application/pdf") {
+    await loadScript(IMP_LIBS.pdfjs, "pdfjsLib"); pdfjsLib.GlobalWorkerOptions.workerSrc = IMP_LIBS.pdfWorker;
+    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    const page = await pdf.getPage(1); const vp0 = page.getViewport({ scale: 1 }); const vp = page.getViewport({ scale: 1600 / vp0.width });
+    cv.width = vp.width; cv.height = vp.height;
+    const ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  } else {
+    const url = URL.createObjectURL(file); const im = new Image();
+    await new Promise((res, rej) => { im.onload = res; im.onerror = rej; im.src = url; });
+    const k = Math.min(1, 1600 / im.width); cv.width = im.width * k; cv.height = im.height * k;
+    const ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height); ctx.drawImage(im, 0, 0, cv.width, cv.height);
+    URL.revokeObjectURL(url);
+  }
+  return cv;
+}
+function designFromCanvas(src, brand, keepEdges, topMm, botMm) {
+  // نجعل الصورة بمقاس A4 تمامًا
+  const W = 1240, H = 1754, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H); ctx.drawImage(src, 0, 0, W, H);
+  const img = ctx.getImageData(0, 0, W, H), d = img.data, counts = {};
+  const [mh] = rgbHsl(...hexRgb(BRAND.main)), [ah] = rgbHsl(...hexRgb(BRAND.acc));
+  for (let i = 0; i < d.length; i += 4) {
+    const [h, s, l] = rgbHsl(d[i], d[i + 1], d[i + 2]);
+    if (s > .22 && l > .1 && l < .93) {
+      if (i % 64 === 0) { const key = toHex(d[i] & 0xf0, d[i + 1] & 0xf0, d[i + 2] & 0xf0); counts[key] = (counts[key] || 0) + 1; }
+      if (brand) { const t = h >= 28 && h <= 70 ? ah : mh; const [r, g, b] = hslRgb(t, Math.min(s, .78), l); d[i] = r; d[i + 1] = g; d[i + 2] = b; }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  if (keepEdges) { const y0 = Math.round(topMm / 297 * H), y1 = Math.round(H - botMm / 297 * H); ctx.fillStyle = "#fff"; ctx.fillRect(0, y0, W, Math.max(0, y1 - y0)); }
+  return { src: cv.toDataURL("image/jpeg", .9), palette: dominantColors(counts) };
+}
+
+document.querySelectorAll("input[name=impWhat]").forEach(r => r.addEventListener("change", () => { $("impBgOpts").hidden = document.querySelector("input[name=impWhat]:checked").value === "text"; }));
 async function importFile(file) {
   const name = file.name.toLowerCase();
+  const what = document.querySelector("input[name=impWhat]:checked").value, brand = $("impBrand").checked;
+  const isDocx = /\.docx$/.test(name), isPdf = /\.pdf$/.test(name) || file.type === "application/pdf", isImg = /^image\//.test(file.type);
+  if (!isDocx && !isPdf && !isImg) { prog("هذا النوع غير مدعوم. استخدمي ملف Word (docx) أو PDF أو صورة."); return; }
   try {
     prog("جارٍ قراءة الملف...");
-    let html = "";
-    if (/\.docx$/.test(name)) html = await fromDocx(file);
-    else if (/\.pdf$/.test(name) || file.type === "application/pdf") html = await fromPdf(file);
-    else if (/^image\//.test(file.type)) html = await fromImage(file);
-    else { prog("هذا النوع غير مدعوم. استخدمي ملف Word (docx) أو PDF أو صورة."); return; }
-    if (!html.trim()) { prog("لم أجد نصًا في الملف. إن كان صورة ممسوحة فجرّبي رفعها صورةً (JPG أو PNG)."); return; }
-    const box = document.createElement("div"); box.innerHTML = html; box.querySelectorAll("script,style,iframe,object").forEach(x => x.remove()); box.querySelectorAll("*").forEach(el => Array.from(el.attributes).forEach(at => { if (/^on/i.test(at.name)) el.removeAttribute(at.name); })); box.querySelectorAll("img").forEach(im => { if (!/^data:image\//.test(im.getAttribute("src") || "")) im.remove(); else im.className = "pic w50"; });
-    if ($("impBrand").checked) { state.cMain = "#8f1d2c"; state.cAcc = "#b4882c"; box.querySelectorAll("mark").forEach(unwrap); }
-    const mode = document.querySelector("input[name=impMode]:checked").value;
-    if (mode === "replace") {
-      if (editor.textContent.trim() && !confirm("سيُستبدل المحتوى الحالي بمحتوى الملف. هل تريدين المتابعة؟")) { prog(""); return; }
-      editor.innerHTML = box.innerHTML || "<p><br></p>";
-      if (!state.fname || state.fname === "مستند") state.fname = file.name.replace(/\.[^.]+$/, "");
-    } else insertBlock(box.innerHTML);
+    let html = "", palette = null, designSet = false;
+    // 1) شكل الصفحة من PDF أو الصورة
+    if ((isPdf || isImg) && what !== "text") {
+      prog("جارٍ نسخ تصميم الصفحة...");
+      const cv = await firstPageCanvas(file);
+      const top = +$("impTop").value || 0, bot = +$("impBot").value || 0;
+      const r = designFromCanvas(cv, brand, $("impKeepEdges").checked, top, bot);
+      state.lh = "custom"; state.custom = { src: r.src, kind: "full", top: Math.max(15, top + 3), bottom: Math.max(15, bot + 3) };
+      palette = r.palette; designSet = true;
+    }
+    // 2) المحتوى
+    if (what !== "design") {
+      if (isDocx) { if (what === "both") { const r = await docxRich(file, brand); html = r.html; palette = palette || r.palette; } else html = await fromDocx(file); }
+      else if (isPdf) html = await fromPdf(file);
+      else html = await fromImage(file);
+      if (!html.trim() && !designSet) { prog("لم أجد نصًا في الملف. إن كان PDF ممسوحًا ففعّلي «قراءة ملف PDF كصورة»."); return; }
+    }
+    // الألوان
+    if (brand) { state.cMain = BRAND.main; state.cAcc = BRAND.acc; }
+    else if (palette && what !== "text") { state.cMain = palette.main; if (palette.acc) state.cAcc = palette.acc; }
+    if (html.trim()) {
+      const box = document.createElement("div"); box.innerHTML = html;
+      box.querySelectorAll("script,style,iframe,object").forEach(x => x.remove());
+      box.querySelectorAll("*").forEach(el => Array.from(el.attributes).forEach(at => { if (/^on/i.test(at.name)) el.removeAttribute(at.name); }));
+      box.querySelectorAll("img").forEach(im => { if (!/^data:image\//.test(im.getAttribute("src") || "")) im.remove(); else if (!/\bpic\b/.test(im.className)) im.className = "pic w50"; });
+      if (what === "text") box.querySelectorAll("mark").forEach(unwrap);
+      const mode = document.querySelector("input[name=impMode]:checked").value;
+      if (mode === "replace") {
+        if (editor.textContent.trim() && !confirm("سيُستبدل المحتوى الحالي بمحتوى الملف. هل تريدين المتابعة؟")) { prog(""); syncUI(); changed(); return; }
+        editor.innerHTML = box.innerHTML || "<p><br></p>";
+        if (!state.fname || state.fname === "مستند") state.fname = file.name.replace(/\.[^.]+$/, "");
+      } else insertBlock(box.innerHTML);
+    }
     normalize(editor); syncUI(); changed();
     prog(""); $("impModal").classList.remove("on");
+    if (designSet) setTimeout(() => alert("نُسخ تصميم الصفحة وصار كليشة «كليشة أخرى». إن بدأ النص فوق الترويسة أو تحت التذييل فعدّلي «بداية النص من الأعلى» و«من الأسفل» في الإعدادات."), 50);
   } catch (e) {
     console.error(e);
     prog("تعذّرت قراءة الملف. تأكدي من الاتصال بالإنترنت، أو أن الملف غير محمي بكلمة مرور.");
