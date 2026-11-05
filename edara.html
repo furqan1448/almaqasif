@@ -1831,6 +1831,7 @@ function aevLinkGrades_(ev) {
   callApi('getMasoulaGrades', { term: label }).then(function (r) {
     if (!aevCurrent_ || aevCurrent_.id !== ev.id) return;
     const name = String(ev.masoula || '').trim();
+    if (r && r.ok && !r.v) { note.textContent = 'الخادم يعمل بنسخة قديمة من Code.gs، فلا يمكن ربط الدرجة بدقة. انشري «إصداراً جديداً» من Apps Script ثم أعيدي فتح التقييم.'; return; }
     const m = r && r.ok && (r.list || []).find(function (x) { return String(x.name || '').trim() === name; });
     if (!m || !m.saved) {
       note.textContent = 'لم تُحفظ بعد «درجات المسؤولات» لـ «' + name + '» في ' + label + '؛ احفظيها من أيقونة «درجات المسؤولات» لتنتقل درجتها هنا تلقائياً، أو اكتبي الدرجة يدوياً.';
@@ -4421,6 +4422,7 @@ function loadGrades_(label) {
         '<br><span style="font-size:0.8rem;color:#8a7d76;">تأكدي أنك نشرتِ إصداراً جديداً من Apps Script بعد تحديث Code.gs.</span></div>';
       return;
     }
+    const stale = !r.v;
     gradesState_ = {
       term: label,
       touched: false,
@@ -4429,6 +4431,7 @@ function loadGrades_(label) {
       })
     };
     renderGrades_();
+    if (stale) body.insertAdjacentHTML('afterbegin', '<div class="card" style="border-color:#b3261e;color:#b3261e;font-weight:700;">تنبيه: الخادم يعمل بنسخة قديمة من Code.gs، ولن تُحتسب الخصومات الجزئية. الصقي النسخة الجديدة في Apps Script وانشري «إصداراً جديداً».</div>');
   }).catch(function () {
     body.innerHTML = '<div class="card">تعذّر الاتصال بالسيرفر، حاولي مرة ثانية.</div>';
   });
@@ -4548,9 +4551,16 @@ function saveGrades_() {
   callApi('saveMasoulaGrades', { term: gradesState_.term, grades: payload }).then(function (r) {
     setBtnBusy(btn, false);
     if (r && r.ok) {
+      const stale = !r.v || gradesState_.list.some(function (m) {
+        return r.scores && r.scores[m.name] !== undefined && Math.abs(r.scores[m.name] - gradeCalc_(m).score) > 0.001;
+      });
       gradesState_.list.forEach(function (m) { m.saved = true; });
       gradesState_.touched = false;
       renderGrades_();
+      if (stale) {
+        alert('تم الحفظ، لكن الخادم احتسب الدرجات بصيغة قديمة (تظهر الدرجة كاملة رغم الخصم).\n\nالسبب أن Code.gs لم يُحدَّث: الصقي النسخة الجديدة في Apps Script ثم انشري «إصداراً جديداً» (Deploy ← Manage deployments ← Edit ← New version)، ثم احفظي الدرجات مرة أخرى.');
+        return;
+      }
       alert('تم حفظ درجات ' + gradesState_.list.length + ' مسؤولة ✅');
     } else {
       alert('صار خطأ: ' + ((r && r.error) || 'غير معروف') + '\n\nتأكدي أنك نشرتِ إصداراً جديداً من Apps Script بعد تحديث Code.gs.');

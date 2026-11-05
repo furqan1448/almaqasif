@@ -1757,7 +1757,7 @@ function getMasoulaGrades_(p) {
     };
   });
 
-  return { ok: true, term: term, total: GRADES_TOTAL_, items: GRADES_ITEMS_, list: list };
+  return { ok: true, v: 2, term: term, total: GRADES_TOTAL_, items: GRADES_ITEMS_, list: list };
 }
 
 /* p.term + p.grades: [{ name, center, items: { «تسجيل المبيعات»: 'مكتمل'|'ناقص', ... } }]
@@ -1792,11 +1792,13 @@ function saveMasoulaGrades_(p) {
   const now = nowParts_();
   const newRows = [];
   let updated = 0;
+  const scores = {};
 
   grades.forEach(function (g) {
     const name = String(g.name || '').trim();
     if (!name) return;
     const calc = computeGrade_(g.items);
+    scores[name] = calc.score;
     const fields = {
       'الفصل': term,
       'اسم المسؤولة': name,
@@ -1824,7 +1826,7 @@ function saveMasoulaGrades_(p) {
   if (newRows.length) sh.getRange(sh.getLastRow() + 1, 1, newRows.length, headers.length).setValues(newRows);
 
   invalidateCache_(GRADES_SHEET_);
-  return { ok: true, added: newRows.length, updated: updated };
+  return { ok: true, v: 2, scores: scores, added: newRows.length, updated: updated };
 }
 
 /* تسجيل دخول مكتب إشراف الداخل (eshraf.html) بالبريد الإلكتروني وكلمة المرور -
