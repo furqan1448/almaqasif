@@ -1699,17 +1699,30 @@ function getGradesSheet_() {
   return sh;
 }
 
-/* تحسب الدرجة والناقص من حالات البنود (أي قيمة غير «ناقص» تُعتبر «مكتمل») */
+/* تحوّل قيمة البند المحفوظة إلى درجة ممنوحة: «مكتمل» أو الفراغ = الدرجة كاملة، «ناقص» = صفر،
+   وأي رقم (بالأرقام العربية أو الإنجليزية) = الدرجة الممنوحة بين صفر والحد الأعلى للبند */
+function parseGradeValue_(it, v) {
+  let s = String(v === null || v === undefined ? '' : v).trim();
+  if (s === '' || s === 'مكتمل') return it.max;
+  if (s === 'ناقص') return 0;
+  s = s.replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[٫,،]/g, '.');
+  const n = parseFloat(s);
+  if (isNaN(n)) return it.max;
+  return Math.min(it.max, Math.max(0, Math.round(n * 100) / 100));
+}
+
+/* تحسب الدرجة والنقص من قيم البنود (يدعم النقص الجزئي، مثل نقص ربع الدرجة) */
 function computeGrade_(items) {
   const state = {};
   const missing = [];
-  let score = GRADES_TOTAL_;
+  let score = 0;
   GRADES_ITEMS_.forEach(function (it) {
-    const isMissing = String((items || {})[it.key] || '').trim() === 'ناقص';
-    state[it.key] = isMissing ? 'ناقص' : 'مكتمل';
-    if (isMissing) { score -= it.max; missing.push(it.key); }
+    const a = parseGradeValue_(it, (items || {})[it.key]);
+    score += a;
+    state[it.key] = a >= it.max ? 'مكتمل' : (a <= 0 ? 'ناقص' : a);
+    if (a < it.max) missing.push(a <= 0 ? it.key : it.key + ' (' + a + ' من ' + it.max + ')');
   });
-  return { state: state, missing: missing, score: score };
+  return { state: state, missing: missing, score: Math.round(score * 100) / 100 };
 }
 
 /* p.term: اسم الفصل، مثال «الفصل الدراسي الأول ١٤٤٨هـ».
