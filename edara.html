@@ -1731,8 +1731,8 @@ function initAdminHome_() {
   });
   const body = document.createElement('div');
   body.id = 'adminHomeBody';
-  body.innerHTML = '<style>.ah-sec h3{margin:18px 0 8px;font-size:0.98rem;color:var(--maroon);}#adminHomeSearch{width:100%;margin:6px 0 4px;}</style>' +
-    '<input type="search" id="adminHomeSearch" placeholder="ابحثي عن قسم..." autocomplete="off" oninput="adminHomeFilter_()" onkeydown="if(event.key===\'Enter\'){var f=document.querySelector(\'#adminHomeBody .ah-sec:not(.hidden) .icon-btn:not(.hidden)\');if(f)f.click();}">' +
+  body.innerHTML = '<style>.ah-sec h3{margin:18px 0 8px;font-size:0.98rem;color:var(--maroon);}#adminHomeSearch{width:100%;margin:6px 0 4px;text-decoration:none;}</style>' +
+    '<input type="search" id="adminHomeSearch" placeholder="ابحثي عن قسم..." autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="off" oninput="adminHomeFilter_()" onkeydown="if(event.key===\'Enter\'){var f=document.querySelector(\'#adminHomeBody .ah-sec:not(.hidden) .icon-btn:not(.hidden)\');if(f)f.click();}">' +
     '<div id="adminRecent" class="hidden"><h3 style="margin:14px 0 8px;font-size:0.98rem;color:var(--maroon);">آخر ما فتحتِه</h3><div class="icon-grid"></div></div>';
   const groups = ADMIN_GROUPS_.map(function (g) { return { t: g.t, l: g.l.slice() }; });
   const used = {};
