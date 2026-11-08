@@ -1669,7 +1669,91 @@ function showDashboard() {
 }
 
 /* -------- التبويبات -------- */
+/* ===== الرئيسية: بحث + أقسام + «الأخيرة» ===== */
+const ADMIN_GROUPS_ = [
+  { t: 'المبيعات والمالية', l: ['قائمة الأسعار', 'المبيعات', 'الفواتير', 'قائمة الدخل', 'مبالغ المقاصف', 'المرتجعات', 'طلبات المقاصف'] },
+  { t: 'الإشعارات والمتابعة', l: ['الإشعارات', 'إشعارات هامة', 'محضر اجتماع', 'متابعة التعهدات', 'متابعة اطلاع المهام', 'الحضور', 'مواعيد التسليم', 'بطاقات التحفيز'] },
+  { t: 'المراكز والمسؤولات', l: ['تقييم مسؤولات المقاصف', 'البيانات الشخصية', 'تقرير الزيارة', 'إحصائية الزيارات', 'حصر المقاصف', 'المرفقات', 'الصعوبات والمقترحات', 'ملاحظات'] },
+  { t: 'الإحصائيات والإدارة', l: ['الإحصائيات', 'إحصائيات التسجيل', 'أرشفة الفصل السابق'] }
+];
+function adminNorm_(s) {
+  return String(s || '').replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').trim();
+}
+function adminTabOf_(el) {
+  const m = /showAdminTab\('([^']+)'\)/.exec(el.getAttribute('onclick') || '');
+  return m ? m[1] : '';
+}
+function adminRecordRecent_(tabId) {
+  try {
+    let a = JSON.parse(localStorage.getItem('maqasif_admin_recent') || '[]').filter(function (x) { return x !== tabId; });
+    a.unshift(tabId);
+    localStorage.setItem('maqasif_admin_recent', JSON.stringify(a.slice(0, 4)));
+  } catch (e) {}
+}
+function renderAdminRecent_() {
+  const box = document.getElementById('adminRecent');
+  if (!box) return;
+  let a = [];
+  try { a = JSON.parse(localStorage.getItem('maqasif_admin_recent') || '[]'); } catch (e) {}
+  const grid = box.querySelector('.icon-grid');
+  grid.innerHTML = '';
+  a.forEach(function (id) {
+    const src = document.querySelector('#adminHomeBody .ah-sec .icon-btn[onclick*="\'' + id + '\'"]');
+    if (!src) return;
+    const c = src.cloneNode(true);
+    c.querySelectorAll('[id]').forEach(function (x) { x.removeAttribute('id'); });
+    c.querySelectorAll('.badge').forEach(function (x) { x.remove(); });
+    grid.appendChild(c);
+  });
+  box.classList.toggle('hidden', !grid.children.length || !!document.getElementById('adminHomeSearch').value.trim());
+}
+function adminHomeFilter_() {
+  const q = adminNorm_(document.getElementById('adminHomeSearch').value);
+  document.querySelectorAll('#adminHomeBody .ah-sec').forEach(function (sec) {
+    let any = false;
+    sec.querySelectorAll('.icon-btn').forEach(function (b) {
+      const ok = !q || adminNorm_(b.querySelector('.label').textContent).indexOf(q) !== -1;
+      b.classList.toggle('hidden', !ok);
+      if (ok) any = true;
+    });
+    sec.classList.toggle('hidden', !any);
+  });
+  renderAdminRecent_();
+}
+function initAdminHome_() {
+  const grid = document.querySelector('#adminHomeView .icon-grid');
+  if (!grid || grid.getAttribute('data-ready')) return;
+  grid.setAttribute('data-ready', '1');
+  const byLabel = {};
+  [].slice.call(grid.children).forEach(function (el) {
+    const l = el.querySelector('.label');
+    if (el.classList.contains('icon-btn') && l) byLabel[l.textContent.trim()] = el;
+  });
+  const body = document.createElement('div');
+  body.id = 'adminHomeBody';
+  body.innerHTML = '<style>.ah-sec h3{margin:18px 0 8px;font-size:0.98rem;color:var(--maroon);}#adminHomeSearch{width:100%;margin:6px 0 4px;}</style>' +
+    '<input type="search" id="adminHomeSearch" placeholder="ابحثي عن قسم..." autocomplete="off" oninput="adminHomeFilter_()" onkeydown="if(event.key===\'Enter\'){var f=document.querySelector(\'#adminHomeBody .ah-sec:not(.hidden) .icon-btn:not(.hidden)\');if(f)f.click();}">' +
+    '<div id="adminRecent" class="hidden"><h3 style="margin:14px 0 8px;font-size:0.98rem;color:var(--maroon);">آخر ما فتحتِه</h3><div class="icon-grid"></div></div>';
+  const groups = ADMIN_GROUPS_.map(function (g) { return { t: g.t, l: g.l.slice() }; });
+  const used = {};
+  groups.forEach(function (g) { g.l.forEach(function (x) { used[x] = 1; }); });
+  const rest = Object.keys(byLabel).filter(function (x) { return !used[x]; });
+  if (rest.length) groups.push({ t: 'أخرى', l: rest });
+  groups.forEach(function (g) {
+    const sec = document.createElement('div');
+    sec.className = 'ah-sec';
+    sec.innerHTML = '<h3>' + g.t + '</h3><div class="icon-grid"></div>';
+    const gg = sec.querySelector('.icon-grid');
+    g.l.forEach(function (x) { if (byLabel[x]) gg.appendChild(byLabel[x]); });
+    if (gg.children.length) body.appendChild(sec);
+  });
+  grid.parentNode.replaceChild(body, grid);
+  renderAdminRecent_();
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initAdminHome_); else initAdminHome_();
+
 function showAdminTab(tabId) {
+  if (tabId) adminRecordRecent_(tabId); else setTimeout(renderAdminRecent_, 0);
   if (tabId !== 'invoicesTab' && tabId !== 'salesTab') { ['amBackBar','amBackBar2'].forEach(function (i) { const b = document.getElementById(i); if (b) b.style.display = 'none'; }); }
   document.getElementById('adminHomeView').classList.toggle('hidden', !!tabId);
   document.getElementById('adminBackLink').classList.toggle('hidden', !tabId);
