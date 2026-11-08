@@ -3527,6 +3527,10 @@ function dlvIso_(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).
 function dlvGreg_(iso) { const d = dlvParse_(iso); return d ? new Intl.DateTimeFormat('ar-SA-u-ca-gregory', { day: 'numeric', month: 'numeric', year: 'numeric' }).format(d) + ' م' : ''; }
 function dlvParse_(s) { const p = String(s || '').split('-'); return p.length === 3 ? new Date(+p[0], +p[1] - 1, +p[2]) : null; }
 function dlvKey_(s) { return String(s).replace(/\s+/g, ' ').trim(); }
+function dlvLoose_(s) {
+  return dlvKey_(s).replace(/[\u064B-\u065F\u0670\u0640\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+    .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/^مركز\s+/, '').replace(/\s+/g, ' ').trim();
+}
 function loadDelivery_() {
   const go = function () {
     callApi('getDeliverySchedule', { _t: Date.now() }).then(function (r) {
@@ -3535,7 +3539,13 @@ function loadDelivery_() {
       const saved = {};
       Object.keys(s.map || {}).forEach(function (k) { saved[dlvKey_(k)] = s.map[k]; });
       dlvState_.map = {}; const used = {};
-      centersListCache.forEach(function (c) { const k = dlvKey_(c); if (saved[k]) { dlvState_.map[c] = saved[k]; used[k] = true; } });
+      centersListCache.forEach(function (c) {
+        const k = dlvKey_(c);
+        if (saved[k]) { dlvState_.map[c] = saved[k]; used[k] = true; return; }
+        /* مطابقة مرنة (ة/ه، الهمزات، كلمة «مركز») حتى لا يظهر المركز بلا موعد بسبب اختلاف كتابة الاسم */
+        const lk = dlvLoose_(c);
+        Object.keys(saved).forEach(function (sk) { if (!dlvState_.map[c] && !used[sk] && dlvLoose_(sk) === lk) { dlvState_.map[c] = saved[sk]; used[sk] = true; } });
+      });
       dlvState_.orphans = {};
       Object.keys(saved).forEach(function (k) { if (!used[k]) dlvState_.orphans[k] = saved[k]; });
       if (s.perDay) document.getElementById('dlvPerDay').value = s.perDay;

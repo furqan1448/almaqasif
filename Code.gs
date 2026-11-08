@@ -2363,14 +2363,24 @@ function getDeliverySchedule_() {
    فإذا غيّرت الإدارة الموعد لاحقاً عاد الإقرار «غير مؤكد» وظهر لها الموعد الجديد. */
 const DELIVERY_ACK_KEY_ = 'إقرارات مواعيد التسليم';
 function dlvNorm_(s) { return String(s === undefined || s === null ? '' : s).replace(/\s+/g, ' ').trim(); }
-function dlvDateOf_(center) {
+/* توحيد مرن لاسم المركز: يتجاهل التشكيل والتطويل والرموز المخفية واختلاف الهمزات (أ إ آ) والتاء المربوطة/الهاء والألف المقصورة وكلمة «مركز» في البداية */
+function dlvLoose_(s) {
+  return dlvNorm_(s)
+    .replace(/[\u064B-\u065F\u0670\u0640\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+    .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+    .replace(/^مركز\s+/, '').replace(/\s+/g, ' ').trim();
+}
+/* يرجع مفتاح المركز في جدول المواعيد وتاريخه: مطابقة تامة أولاً ثم مطابقة مرنة */
+function dlvMatch_(center) {
   let d = {};
   try { d = JSON.parse(getSettingValue_(DELIVERY_SCHED_KEY_) || '{}') || {}; } catch (e) { d = {}; }
-  const key = dlvNorm_(center), map = d.map || {};
-  let found = '';
-  Object.keys(map).forEach(function (k) { if (dlvNorm_(k) === key) found = map[k]; });
-  return found;
+  const map = d.map || {}, key = dlvNorm_(center), loose = dlvLoose_(center);
+  let hit = null;
+  Object.keys(map).forEach(function (k) { if (!hit && dlvNorm_(k) === key) hit = { key: dlvNorm_(k), date: map[k] }; });
+  if (!hit && loose) Object.keys(map).forEach(function (k) { if (!hit && dlvLoose_(k) === loose) hit = { key: dlvNorm_(k), date: map[k] }; });
+  return hit || { key: key, date: '' };
 }
+function dlvDateOf_(center) { return dlvMatch_(center).date; }
 function dlvReadAcks_() {
   let a = {};
   try { a = JSON.parse(getSettingValue_(DELIVERY_ACK_KEY_) || '{}') || {}; } catch (e) { a = {}; }
@@ -2379,23 +2389,23 @@ function dlvReadAcks_() {
 function getCenterDelivery_(p) {
   const center = dlvNorm_(p && p.center), role = dlvNorm_(p && p.role);
   if (!center) return { ok: true, date: '' };
-  const date = dlvDateOf_(center);
+  const m = dlvMatch_(center), date = m.date;
   if (!date) return { ok: true, date: '' };
-  const a = (dlvReadAcks_()[center] || {})[role] || null;
+  const a = (dlvReadAcks_()[m.key] || {})[role] || null;
   return { ok: true, date: date, acked: !!(a && a.date === date), ackAt: a && a.date === date ? (a.at || '') : '' };
 }
 function ackCenterDelivery_(p) {
   const center = dlvNorm_(p && p.center), role = dlvNorm_(p && p.role) === 'مسؤولة' ? 'مسؤولة' : 'مديرة';
-  const date = dlvDateOf_(center);
+  const m = dlvMatch_(center), date = m.date;
   if (!center || !date) return { ok: false, error: 'لا يوجد موعد محدد لهذا المركز' };
   if (String(p.date || '') !== date) return { ok: false, error: 'تغيّر الموعد، حدّثي الصفحة ثم أكّدي الاطلاع' };
   const lock = LockService.getScriptLock();
   lock.waitLock(15000);
   try {
     const acks = dlvReadAcks_();
-    acks[center] = acks[center] || {};
+    acks[m.key] = acks[m.key] || {};
     const n = nowParts_();
-    acks[center][role] = { date: date, at: n.date + ' ' + n.time, name: String(p.name || '').slice(0, 80) };
+    acks[m.key][role] = { date: date, at: n.date + ' ' + n.time, name: String(p.name || '').slice(0, 80) };
     setSettingValue_(DELIVERY_ACK_KEY_, JSON.stringify(acks));
   } finally { lock.releaseLock(); }
   return { ok: true };
