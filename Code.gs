@@ -1500,7 +1500,7 @@ function dispatch_(p, T0_) {
     case 'saveMasoulaProfile': return (saveMasoulaProfile_(p));
     case 'getMasoulaProfilesAdmin': return (getMasoulaProfilesAdmin_(p));
 
-    case 'ping': return ({ ok: true, serverMs: Date.now() - T0_, version: '2026-10-22-batch', batch: true, invoiceReturns: typeof cleanInvoiceReturn_ === 'function', canteenOrders: typeof submitCanteenOrder_ === 'function', lightNotices: typeof getNoticeCenterSignature_ === 'function' });
+    case 'ping': return ({ ok: true, serverMs: Date.now() - T0_, version: '2026-11-08-dlv-alias', batch: true, invoiceReturns: typeof cleanInvoiceReturn_ === 'function', canteenOrders: typeof submitCanteenOrder_ === 'function', lightNotices: typeof getNoticeCenterSignature_ === 'function' });
     case 'getPurchaseCenters': return (getPurchaseCenters_());
     case 'setPurchaseCenters': return (setPurchaseCenters_(p));
     case 'getExpenseCenters': return (getExpenseCenters_());
@@ -2372,29 +2372,43 @@ function dlvLoose_(s) {
 }
 /* الاسم الأساسي للمركز بلا لاحقة الفترة («- الفترة الصباحية/المسائية») */
 function dlvBase_(s) { return dlvLoose_(String(s === undefined || s === null ? '' : s).replace(/\s*[-–—]\s*(الفترة|فترة).*$/, '')); }
-/* يرجع مفتاح المركز في جدول المواعيد وتاريخه: مطابقة تامة، ثم مرنة، ثم بالاسم الأساسي (مع/بدون الفترة)، ثم احتواء فريد */
+/* يرجع مفتاح المركز في جدول المواعيد وتاريخه.
+   مفاتيح الجدول تُحفظ بالاسم المعروض (لأن تحويل الأسماء لا يشمل مفاتيح الكائنات)، بينما يصل طلب المسؤولة بالاسم الأصلي؛
+   لذلك نجرّب الاسم الأصلي والمعروض معاً، بمطابقة تامة ثم مرنة ثم بالاسم الأساسي ثم احتواء فريد. */
 function dlvMatch_(center) {
   let d = {};
   try { d = JSON.parse(getSettingValue_(DELIVERY_SCHED_KEY_) || '{}') || {}; } catch (e) { d = {}; }
-  const map = d.map || {}, keys = Object.keys(map), key = dlvNorm_(center), loose = dlvLoose_(center), base = dlvBase_(center);
+  const map = d.map || {}, keys = Object.keys(map);
+  const cands = [String(center === undefined || center === null ? '' : center)];
+  try {
+    const am = centerAliasMaps_(), c0 = dlvNorm_(center);
+    Object.keys(am.toDisplay).forEach(function (r) { if (dlvNorm_(r) === c0) cands.push(am.toDisplay[r]); });
+    Object.keys(am.toReal).forEach(function (sh) { if (dlvNorm_(sh) === c0) cands.push(am.toReal[sh]); });
+  } catch (e) {}
+  const norms = cands.map(dlvNorm_).filter(Boolean);
+  const looses = cands.map(dlvLoose_).filter(Boolean);
+  const bases = cands.map(dlvBase_).filter(Boolean);
+  const today = Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd');
   const pick = function (fn) {
     const hits = keys.filter(fn);
     if (!hits.length) return null;
-    hits.sort(function (a, b) { return map[a] < map[b] ? -1 : map[a] > map[b] ? 1 : 0; });   // الأقرب تاريخاً أولاً
-    const today = Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd');
-    let k = hits.filter(function (x) { return map[x] >= today; })[0] || hits[hits.length - 1];
+    hits.sort(function (x, y) { return map[x] < map[y] ? -1 : map[x] > map[y] ? 1 : 0; });
+    const k = hits.filter(function (x) { return map[x] >= today; })[0] || hits[hits.length - 1];
     return { key: dlvNorm_(k), date: map[k] };
   };
-  let hit = pick(function (k) { return dlvNorm_(k) === key; });
-  if (!hit && loose) hit = pick(function (k) { return dlvLoose_(k) === loose; });
-  if (!hit && base) hit = pick(function (k) { return dlvBase_(k) === base; });
-  if (!hit && base.length >= 4) {
-    const bases = {};
-    keys.forEach(function (k) { const b = dlvBase_(k); if (b && (b.indexOf(base) !== -1 || base.indexOf(b) !== -1)) bases[b] = true; });
-    const bk = Object.keys(bases);
-    if (bk.length === 1) hit = pick(function (k) { return dlvBase_(k) === bk[0]; });
+  let hit = pick(function (k) { return norms.indexOf(dlvNorm_(k)) !== -1; });
+  if (!hit) hit = pick(function (k) { return looses.indexOf(dlvLoose_(k)) !== -1; });
+  if (!hit) hit = pick(function (k) { return bases.indexOf(dlvBase_(k)) !== -1; });
+  if (!hit) {
+    const found = {};
+    keys.forEach(function (k) {
+      const kb = dlvBase_(k);
+      if (kb.length >= 4 && bases.some(function (b) { return b.length >= 4 && (kb.indexOf(b) !== -1 || b.indexOf(kb) !== -1); })) found[kb] = true;
+    });
+    const fk = Object.keys(found);
+    if (fk.length === 1) hit = pick(function (k) { return dlvBase_(k) === fk[0]; });
   }
-  return hit || { key: key, date: '' };
+  return hit || { key: dlvNorm_(center), date: '' };
 }
 function dlvDateOf_(center) { return dlvMatch_(center).date; }
 function dlvReadAcks_() {
