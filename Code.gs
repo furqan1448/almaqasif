@@ -2374,7 +2374,7 @@ function dlvLoose_(s) {
 function dlvBase_(s) { return dlvLoose_(String(s === undefined || s === null ? '' : s).replace(/\s*[-–—]\s*(الفترة|فترة).*$/, '')); }
 /* يرجع مفتاح المركز في جدول المواعيد وتاريخه.
    مفاتيح الجدول تُحفظ بالاسم المعروض (لأن تحويل الأسماء لا يشمل مفاتيح الكائنات)، بينما يصل طلب المسؤولة بالاسم الأصلي؛
-   لذلك نجرّب الاسم الأصلي والمعروض معاً، بمطابقة تامة ثم مرنة ثم بالاسم الأساسي ثم احتواء فريد. */
+   لذلك نجرّب الاسم الأصلي والمعروض معاً، بمطابقة تامة ثم مرنة فقط (بلا تخمين بالاحتواء حتى لا تختلط المراكز). */
 function dlvMatch_(center) {
   let d = {};
   try { d = JSON.parse(getSettingValue_(DELIVERY_SCHED_KEY_) || '{}') || {}; } catch (e) { d = {}; }
@@ -2387,7 +2387,6 @@ function dlvMatch_(center) {
   } catch (e) {}
   const norms = cands.map(dlvNorm_).filter(Boolean);
   const looses = cands.map(dlvLoose_).filter(Boolean);
-  const bases = cands.map(dlvBase_).filter(Boolean);
   const today = Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd');
   const pick = function (fn) {
     const hits = keys.filter(fn);
@@ -2398,16 +2397,6 @@ function dlvMatch_(center) {
   };
   let hit = pick(function (k) { return norms.indexOf(dlvNorm_(k)) !== -1; });
   if (!hit) hit = pick(function (k) { return looses.indexOf(dlvLoose_(k)) !== -1; });
-  if (!hit) hit = pick(function (k) { return bases.indexOf(dlvBase_(k)) !== -1; });
-  if (!hit) {
-    const found = {};
-    keys.forEach(function (k) {
-      const kb = dlvBase_(k);
-      if (kb.length >= 4 && bases.some(function (b) { return b.length >= 4 && (kb.indexOf(b) !== -1 || b.indexOf(kb) !== -1); })) found[kb] = true;
-    });
-    const fk = Object.keys(found);
-    if (fk.length === 1) hit = pick(function (k) { return dlvBase_(k) === fk[0]; });
-  }
   return hit || { key: dlvNorm_(center), date: '' };
 }
 function dlvDateOf_(center) { return dlvMatch_(center).date; }
