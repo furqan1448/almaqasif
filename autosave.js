@@ -17,7 +17,7 @@
     cardsFollowupView: 1, tasksView: 1,
     // الإدارة
     visitReportTab: 1, meetingMinutesTab: 1, attendanceTab: 1, gradesTab: 1, termTab: 1, statsTab: 1,
-    regStatsTab: 1, pledgesTab: 1, tasksStatusTab: 1, noticesTab: 1, canteenSurveyTab: 1, salesTab: 1,
+    regStatsTab: 1, pledgesTab: 1, tasksStatusTab: 1, noticesTab: 1, canteenSurveyTab: 1, salesTab: 1, visitStatsTab: 1,
     returnsTab: 1, ordersAdminTab: 1, difficultiesTab: 1
   };
 
