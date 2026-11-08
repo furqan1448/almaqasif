@@ -3529,7 +3529,7 @@ function dlvParse_(s) { const p = String(s || '').split('-'); return p.length ==
 function dlvKey_(s) { return String(s).replace(/\s+/g, ' ').trim(); }
 function dlvLoose_(s) {
   return dlvKey_(s).replace(/[\u064B-\u065F\u0670\u0640\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
-    .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/^مركز\s+/, '').replace(/\s+/g, ' ').trim();
+    .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/^(مركز|معهد|مدرسة|دار)\s+/, '').replace(/\s+/g, ' ').trim();
 }
 function loadDelivery_() {
   const go = function () {

@@ -2368,16 +2368,32 @@ function dlvLoose_(s) {
   return dlvNorm_(s)
     .replace(/[\u064B-\u065F\u0670\u0640\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
     .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
-    .replace(/^مركز\s+/, '').replace(/\s+/g, ' ').trim();
+    .replace(/^(مركز|معهد|مدرسة|دار)\s+/, '').replace(/\s+/g, ' ').trim();
 }
-/* يرجع مفتاح المركز في جدول المواعيد وتاريخه: مطابقة تامة أولاً ثم مطابقة مرنة */
+/* الاسم الأساسي للمركز بلا لاحقة الفترة («- الفترة الصباحية/المسائية») */
+function dlvBase_(s) { return dlvLoose_(String(s === undefined || s === null ? '' : s).replace(/\s*[-–—]\s*(الفترة|فترة).*$/, '')); }
+/* يرجع مفتاح المركز في جدول المواعيد وتاريخه: مطابقة تامة، ثم مرنة، ثم بالاسم الأساسي (مع/بدون الفترة)، ثم احتواء فريد */
 function dlvMatch_(center) {
   let d = {};
   try { d = JSON.parse(getSettingValue_(DELIVERY_SCHED_KEY_) || '{}') || {}; } catch (e) { d = {}; }
-  const map = d.map || {}, key = dlvNorm_(center), loose = dlvLoose_(center);
-  let hit = null;
-  Object.keys(map).forEach(function (k) { if (!hit && dlvNorm_(k) === key) hit = { key: dlvNorm_(k), date: map[k] }; });
-  if (!hit && loose) Object.keys(map).forEach(function (k) { if (!hit && dlvLoose_(k) === loose) hit = { key: dlvNorm_(k), date: map[k] }; });
+  const map = d.map || {}, keys = Object.keys(map), key = dlvNorm_(center), loose = dlvLoose_(center), base = dlvBase_(center);
+  const pick = function (fn) {
+    const hits = keys.filter(fn);
+    if (!hits.length) return null;
+    hits.sort(function (a, b) { return map[a] < map[b] ? -1 : map[a] > map[b] ? 1 : 0; });   // الأقرب تاريخاً أولاً
+    const today = Utilities.formatDate(new Date(), 'Asia/Riyadh', 'yyyy-MM-dd');
+    let k = hits.filter(function (x) { return map[x] >= today; })[0] || hits[hits.length - 1];
+    return { key: dlvNorm_(k), date: map[k] };
+  };
+  let hit = pick(function (k) { return dlvNorm_(k) === key; });
+  if (!hit && loose) hit = pick(function (k) { return dlvLoose_(k) === loose; });
+  if (!hit && base) hit = pick(function (k) { return dlvBase_(k) === base; });
+  if (!hit && base.length >= 4) {
+    const bases = {};
+    keys.forEach(function (k) { const b = dlvBase_(k); if (b && (b.indexOf(base) !== -1 || base.indexOf(b) !== -1)) bases[b] = true; });
+    const bk = Object.keys(bases);
+    if (bk.length === 1) hit = pick(function (k) { return dlvBase_(k) === bk[0]; });
+  }
   return hit || { key: key, date: '' };
 }
 function dlvDateOf_(center) { return dlvMatch_(center).date; }
