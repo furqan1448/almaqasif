@@ -4226,7 +4226,7 @@ const EVAL_SHEET_ = 'تقييم مسؤولات المقاصف';
 const EVAL_HEADERS_ = ['معرف', 'اسم المركز', 'اسم المسؤولة', 'الفترة', 'الفصل الدراسي', 'العام', 'بيانات التقييم',
   'درجة المديرة', 'درجة الوحدة', 'المجموع الكلي', 'الحالة',
   'اسم المديرة', 'توقيع المديرة', 'يوم الإرسال', 'تاريخ الإرسال', 'وقت الإرسال',
-  'اسم الرئيسة', 'توقيع الرئيسة', 'يوم الاعتماد', 'تاريخ الاعتماد', 'وقت الاعتماد'];
+  'اسم الرئيسة', 'توقيع الرئيسة', 'يوم الاعتماد', 'تاريخ الاعتماد', 'وقت الاعتماد', 'إظهار الدرجة للمديرة'];
 const EVAL_DIR_MAX_ = [2, 7, 6, 10, 5, 5, 5, 5, 5];     // بنود خاصة بمديرة المركز (المجموع ٥٠)
 const EVAL_HEAD_MAX_ = [5, 10, 10, 2, 5, 13, 5];        // بنود خاصة برئيسة وحدة المقاصف (المجموع ٥٠)؛ البند السادس (١٣) مرتبط بدرجات المسؤولات
 const EVAL_PENDING_ = 'بانتظار اعتماد الوحدة';
@@ -4240,6 +4240,12 @@ function evalSheet_() {
     sh.getRange(1, 1, 1, EVAL_HEADERS_.length).setValues([EVAL_HEADERS_]).setFontWeight('bold');
     sh.setRightToLeft(true);
     sh.getRange(2, 1, sh.getMaxRows() - 1, EVAL_HEADERS_.length).setNumberFormat('@');
+  } else if (sh.getLastColumn() >= 1) {
+    // إضافة الأعمدة الجديدة (مثل «إظهار الدرجة للمديرة») تلقائياً للشيت القديم
+    const have = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (h) { return String(h).trim(); });
+    EVAL_HEADERS_.forEach(function (h) {
+      if (have.indexOf(h) === -1) { sh.getRange(1, sh.getLastColumn() + 1).setValue(h).setFontWeight('bold'); have.push(h); }
+    });
   }
   return sh;
 }
@@ -4288,8 +4294,23 @@ function evalOut_(r) {
     dirTotal: r['درجة المديرة'], headTotal: r['درجة الوحدة'], total: r['المجموع الكلي'],
     status: r['الحالة'] || EVAL_PENDING_,
     directorName: r['اسم المديرة'] || '', sentDay: r['يوم الإرسال'] || '', sentDate: r['تاريخ الإرسال'] || '', sentTime: r['وقت الإرسال'] || '',
-    headName: r['اسم الرئيسة'] || '', signedDay: r['يوم الاعتماد'] || '', signedDate: r['تاريخ الاعتماد'] || '', signedTime: r['وقت الاعتماد'] || ''
+    headName: r['اسم الرئيسة'] || '', signedDay: r['يوم الاعتماد'] || '', signedDate: r['تاريخ الاعتماد'] || '', signedTime: r['وقت الاعتماد'] || '',
+    showGrade: String(r['إظهار الدرجة للمديرة'] || '').trim() === 'نعم'
   };
+}
+
+/* نسخة التقييم المرسلة للمديرة: إن لم تُفعَّل «إظهار الدرجة للمديرة» تُخفى درجات الوحدة والمجموع الكلي */
+function evalOutForCenter_(r) {
+  const o = evalOut_(r);
+  if (o.status === EVAL_DONE_ && !o.showGrade) {
+    o.headTotal = '';
+    o.total = '';
+    o.hideGrade = true;
+    const d = {};
+    Object.keys(o.data || {}).forEach(function (k) { if (k !== 'headScores') d[k] = o.data[k]; });
+    o.data = d;
+  }
+  return o;
 }
 
 function findEval_(id) {
@@ -4333,7 +4354,7 @@ function getMasoulaEvalsForCenter_(p) {
   const auth = evalCenterAuth_(p);
   if (!auth.ok) return auth;
   const c = String(p.center).trim();
-  return { ok: true, evals: evalRows_().filter(function (r) { return String(r['اسم المركز']).trim() === c; }).reverse().map(evalOut_) };
+  return { ok: true, evals: evalRows_().filter(function (r) { return String(r['اسم المركز']).trim() === c; }).reverse().map(evalOutForCenter_) };
 }
 
 /* إرسال تقييم جديد (بدون p.id) أو تعديل تقييم لم يُعتمد بعد (مع p.id) - من المديرة */
@@ -4502,7 +4523,8 @@ function adminSignMasoulaEval_(p) {
   const vals = {
     'بيانات التقييم': JSON.stringify(data), 'درجة الوحدة': chk.total,
     'المجموع الكلي': Math.round((dirTotal + chk.total) * 100) / 100, 'الحالة': EVAL_DONE_,
-    'اسم الرئيسة': headName, 'يوم الاعتماد': now.day, 'تاريخ الاعتماد': now.date, 'وقت الاعتماد': now.time
+    'اسم الرئيسة': headName, 'يوم الاعتماد': now.day, 'تاريخ الاعتماد': now.date, 'وقت الاعتماد': now.time,
+    'إظهار الدرجة للمديرة': p.showGrade ? 'نعم' : 'لا'
   };
   if (sig) vals['توقيع الرئيسة'] = sig;
   evalSetRow_(sh, row._row, vals);

@@ -210,10 +210,6 @@
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="7.5" cy="14" r="1"/></svg></div>
           <span class="label">بطاقات التحفيز</span>
         </div>
-        <div class="icon-btn" onclick="showAdminTab('gradesTab')">
-          <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 3.5h6v2H9z"/><path d="M9 13.5l2 2 4-4.5"/></svg></div>
-          <span class="label">درجات المسؤولات</span>
-        </div>
         <div class="icon-btn" onclick="showAdminTab('meetingMinutesTab')">
           <div class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v2M16 3v2"/><rect x="4" y="4.5" width="16" height="16" rx="1.5"/><path d="M4 9.5h16"/><path d="M8.5 13.5l2 2 4-4.5"/><path d="M8.5 17.5h4"/></svg></div>
           <span class="label">محضر اجتماع</span>
@@ -1108,6 +1104,7 @@
         <p style="font-size:0.8rem;color:#8a7d76;margin:0 0 10px;">جميع المراكز من ورقة «أرقام المديرات». علامة ✔ تعني أن بالمركز مقصفًا؛ اضغطي عليها لإزالتها إذا لم يكن به مقصف، ثم اكتبي السبب في الملاحظات واضغطي «حفظ الحصر».</p>
         <div id="csSummary" class="vs-total"></div>
         <input type="text" id="csSearch" placeholder="🔍 ابحثي عن مركز" autocomplete="off" oninput="renderCanteenSurvey_()">
+        <select id="csFilter" onchange="renderCanteenSurvey_()" style="margin-top:8px;"><option value="">عرض كل المراكز</option><option value="no">المراكز التي لا مقصف فيها فقط</option><option value="yes">المراكز التي بها مقصف فقط</option></select>
         <div id="csList" style="margin-top:10px;">جارِ التحميل...</div>
         <div class="cs-dirty hidden" id="csDirty">توجد تغييرات لم تُحفظ بعد.</div>
         <button class="btn" id="csSaveBtn" onclick="saveCanteenSurvey()">حفظ الحصر</button>
@@ -1133,7 +1130,7 @@
           <thead><tr><th>المركز</th><th>المسؤولة</th><th>الفصل</th><th>المديرة</th><th>الوحدة</th><th>الكلي</th><th>الحالة</th><th></th></tr></thead>
           <tbody id="aevTbody"><tr><td colspan="8">جارٍ التحميل...</td></tr></tbody>
         </table>
-        <div class="export-row"><button class="btn outline" onclick="exportAdminEvalsExcel_()">⬇️ Excel (مختصر)</button><button class="btn outline" onclick="exportAdminEvalsExcel_(true)">⬇️ Excel تفصيلي</button><button class="btn outline" onclick="printAdminEvals_()">⬇️ PDF</button></div>
+        <div class="export-row"><button class="btn outline" onclick="showAdminTab('gradesTab')">درجات جميع المسؤولات (من ١٣)</button><button class="btn outline" onclick="exportAdminEvalsExcel_()">⬇️ Excel (مختصر)</button><button class="btn outline" onclick="exportAdminEvalsExcel_(true)">⬇️ Excel تفصيلي</button><button class="btn outline" onclick="printAdminEvals_()">⬇️ PDF</button></div>
       </div>
 
       <div class="card hidden" id="aevDetailCard">
@@ -1145,7 +1142,11 @@
 
         <h4 style="color:var(--maroon);margin:16px 0 6px;">بنود خاصة برئيسة وحدة المقاصف</h4>
         <div id="aevHeadBox" style="overflow-x:auto;"></div>
-        <div id="aevLinkNote" class="grade-hint" style="margin-top:6px;"></div>
+        <div style="margin-top:10px;padding:12px;border:1px solid var(--gold-light);border-radius:12px;background:var(--cream);">
+          <h4 style="color:var(--maroon);margin:0 0 6px;">درجات المسؤولة (من ١٣)</h4>
+          <div id="aevLinkNote" class="grade-hint" style="margin:0 0 8px;"></div>
+          <div id="aevGradeBox"></div>
+        </div>
         <div style="margin-top:6px;font-weight:800;">المجموع: <span id="aevHeadTotal" style="color:var(--maroon);"></span></div>
 
         <label style="margin-top:14px;">الإيجابيات</label>
@@ -1170,6 +1171,8 @@
             </div>
             <div class="sig-actions"><button type="button" onclick="clearSignatureWidget('aevSig')">مسح التوقيع</button></div>
           </div>
+          <div class="checkline" style="margin-top:12px;"><input type="checkbox" id="aevShowGrade"><label for="aevShowGrade" style="margin:0;font-weight:700;">✔ إظهار الدرجة لمديرة المركز بعد الاعتماد</label></div>
+          <div style="font-size:0.78rem;color:#8a7d76;margin:2px 0 0;">إن تُركت بلا علامة تظهر للمديرة عبارة «تم الاعتماد» فقط دون درجات الوحدة أو المجموع.</div>
           <button class="btn" id="aevSignBtn" onclick="adminSignEval_()" style="margin-top:12px;">إضافة الدرجات والتوقيع والاعتماد</button>
         </div>
         <div class="export-row" style="margin-top:12px;">
@@ -1799,6 +1802,7 @@ function openAdminEval_(id) {
   document.getElementById('aevHeadBox').innerHTML = evalScoresTableHtml_(EVAL_HEAD_ITEMS, 'aevHead', evalHeadExpand_(d.headScores || []), false);
   document.querySelectorAll('#aevHeadBox .ev-score').forEach(function (el) { el.addEventListener('input', aevLiveHead_); });
   aevLiveHead_();
+  document.getElementById('aevShowGrade').checked = !!e.showGrade;
   aevLinkGrades_(e);
   document.getElementById('aevPositives').value = d.positives || '';
   document.getElementById('aevImprovements').value = d.improvements || '';
@@ -1816,43 +1820,73 @@ function openAdminEval_(id) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-/* ربط بند «تفعيل السجلات والبيانات الخاصة بالمقصف إلكترونياً» بمجموع «درجات المسؤولات» لنفس المسؤولة والفصل */
+/* درجات المسؤولة (من ١٣) داخل استمارة التقييم: تُعدَّل هنا ويُسجَّل مجموعها تلقائياً في بند «تفعيل السجلات والبيانات الخاصة بالمقصف إلكترونياً» */
+let aevGr_ = null;
+
 function aevLinkGrades_(ev) {
   const note = document.getElementById('aevLinkNote');
-  const inp = document.getElementById('aevHead' + EVAL_HEAD_LINKED_INDEX);
-  if (!note || !inp) return;
+  const box = document.getElementById('aevGradeBox');
+  aevGr_ = null;
+  box.innerHTML = '';
+  if (!note) return;
   const d = ev.data || {};
   const num = String(d.term || '').trim();
   const year = toArabicDigits(String(d.year || '').trim()).replace(/\s*هـ\s*$/, '');
   note.textContent = '';
-  if (!num || !year) { note.textContent = 'تعذّر ربط بند التفعيل الإلكتروني بدرجات المسؤولات لعدم تحديد الفصل أو العام في التقييم؛ اكتبي الدرجة يدوياً.'; return; }
+  if (!num || !year) { note.textContent = 'تعذّر ربط الدرجات لعدم تحديد الفصل أو العام في التقييم؛ اكتبي درجة بند التفعيل الإلكتروني يدوياً.'; return; }
   const label = 'الفصل الدراسي ' + num + ' ' + year + 'هـ';
-  note.textContent = 'جارٍ جلب درجة بند التفعيل الإلكتروني من «درجات المسؤولات»...';
+  note.textContent = 'جارٍ جلب درجات المسؤولة...';
   callApi('getMasoulaGrades', { term: label }).then(function (r) {
     if (!aevCurrent_ || aevCurrent_.id !== ev.id) return;
     const name = String(ev.masoula || '').trim();
-    if (r && r.ok && !r.v) { note.textContent = 'الخادم يعمل بنسخة قديمة من Code.gs، فلا يمكن ربط الدرجة بدقة. انشري «إصداراً جديداً» من Apps Script ثم أعيدي فتح التقييم.'; return; }
+    if (r && r.ok && !r.v) { note.textContent = 'الخادم يعمل بنسخة قديمة من Code.gs؛ انشري «إصداراً جديداً» من Apps Script ثم أعيدي فتح التقييم.'; return; }
     const m = r && r.ok && (r.list || []).find(function (x) { return String(x.name || '').trim() === name; });
-    if (!m || !m.saved) {
-      note.textContent = 'لم تُحفظ بعد «درجات المسؤولات» لـ «' + name + '» في ' + label + '؛ احفظيها من أيقونة «درجات المسؤولات» لتنتقل درجتها هنا تلقائياً، أو اكتبي الدرجة يدوياً.';
-      return;
-    }
-    const old = inp.value;
-    inp.value = m.score;
+    if (!m) { note.textContent = 'تعذّر العثور على «' + name + '» في شيت «المسؤولات»؛ اكتبي درجة بند التفعيل الإلكتروني يدوياً.'; return; }
+    aevGr_ = { label: label, m: { name: m.name, center: m.center, saved: !!m.saved, items: m.items } };
+    note.textContent = label + ' — كل البنود مكتملة افتراضياً؛ اكتبي مقدار الخصم لكل بند، وتُحفظ الدرجات مع الاعتماد.';
+    aevRenderGr_();
+  }).catch(function () {
+    if (aevCurrent_ && aevCurrent_.id === ev.id) note.textContent = 'تعذّر جلب درجات المسؤولة الآن؛ يمكنكِ كتابة درجة البند يدوياً.';
+  });
+}
+
+function aevRenderGr_() {
+  const box = document.getElementById('aevGradeBox');
+  if (!aevGr_ || !box) return;
+  const m = aevGr_.m;
+  const c = gradeCalc_(m);
+  box.innerHTML = GRADE_ITEMS_.map(function (it, k) {
+    const a = gradeParse_(it, m.items[it.key]);
+    const cutVal = Math.round((it.max - a) * 100) / 100;
+    return '<div class="grade-item"><div class="gi-top"><span class="gi-name">' + gradesEsc_(it.label) + '</span><span class="gi-max">من ' + gradeNum_(it.max) + '</span></div>' +
+      '<div class="gi-ctl"><span class="gi-lbl">مقدار الخصم:</span>' +
+      '<input type="number" class="gi-val" inputmode="decimal" step="0.25" min="0" max="' + it.max + '" value="' + cutVal + '" onchange="aevSetCut_(' + k + ',this.value)">' +
+      '<span class="gi-lbl">الدرجة: <b>' + gradeNum_(a) + '</b></span></div></div>';
+  }).join('') + '<div style="margin-top:8px;font-weight:800;">مجموع درجات المسؤولة: <span style="color:var(--maroon);">' + gradeNum_(c.score) + ' / ' + toArabicDigits(GRADE_TOTAL_) + '</span></div>';
+  const inp = document.getElementById('aevHead' + EVAL_HEAD_LINKED_INDEX);
+  if (inp) {
+    inp.value = c.score;
     inp.readOnly = true;
     inp.style.background = '#f4efe9';
-    inp.title = 'مرتبطة بدرجات المسؤولات';
+    inp.title = 'مرتبطة بدرجات المسؤولة';
     aevLiveHead_();
-    note.textContent = 'درجة هذا البند (' + gradeNum_(m.score) + ' من ' + gradeNum_(GRADE_TOTAL_) + ') مرتبطة تلقائياً بمجموع «درجات المسؤولات» لـ ' + label +
-      '. لتعديلها غيّري مقدار الخصم هناك.' +
-      ((old !== '' && Number(old) !== Number(m.score)) ? ' (كانت محفوظة سابقاً ' + gradeNum_(old) + '، اضغطي زر الحفظ لتحديثها.)' : '');
-  }).catch(function () {
-    if (aevCurrent_ && aevCurrent_.id === ev.id) note.textContent = 'تعذّر جلب درجات المسؤولات الآن؛ يمكنكِ كتابة درجة البند يدوياً.';
-  });
+  }
+}
+
+function aevSetCut_(k, v) {
+  if (!aevGr_) return;
+  const it = GRADE_ITEMS_[k];
+  const n = parseFloat(String(v).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[٫,،]/g, '.'));
+  const cut = isNaN(n) ? 0 : Math.min(it.max, Math.max(0, n));
+  const awarded = Math.round((it.max - cut) * 100) / 100;
+  aevGr_.m.items[it.key] = gradeStore_(it, awarded);
+  aevGr_.m.saved = false;
+  aevRenderGr_();
 }
 
 function closeAdminEval_() {
   aevCurrent_ = null;
+  aevGr_ = null;
   document.getElementById('aevDetailCard').classList.add('hidden');
   document.getElementById('aevListCard').classList.remove('hidden');
 }
@@ -1870,10 +1904,16 @@ function adminSignEval_() {
   const btn = document.getElementById('aevSignBtn');
   setBtnBusy(btn, true);
   const sigP = keepSig ? Promise.resolve('') : evalShrinkSig_(getSignatureDataUrl('aevSig'));
-  sigP.then(function (sig) {
+  const gradesP = aevGr_ ? callApi('saveMasoulaGrades', { term: aevGr_.label, grades: [{ name: aevGr_.m.name, center: aevGr_.m.center, items: aevGr_.m.items }] }).then(function (g) {
+    if (!g || !g.ok) throw new Error('تعذّر حفظ درجات المسؤولة' + (g && g.error ? ': ' + g.error : ''));
+    aevGr_.m.saved = true;
+  }) : Promise.resolve();
+  Promise.all([sigP, gradesP]).then(function (res) {
+    const sig = res[0];
     if (!keepSig && !sig) throw new Error('صورة التوقيع كبيرة جداً، يُرجى رسم التوقيع بدلاً من رفع صورة');
     return callApi('adminSignMasoulaEval', {
       adminPw: pw, id: aevCurrent_.id, headScores: sc.scores, headName: headName,
+      showGrade: document.getElementById('aevShowGrade').checked,
       positives: document.getElementById('aevPositives').value.trim(),
       improvements: document.getElementById('aevImprovements').value.trim(),
       signature: sig, keepSig: keepSig
@@ -6493,6 +6533,8 @@ function renderCanteenSurvey_() {
   let h = '';
   csItems_.forEach(function (it, i) {
     if (q && vsNorm_(it.center).indexOf(q) === -1) return;
+    const fl = document.getElementById('csFilter').value;
+    if ((fl === 'no' && it.has) || (fl === 'yes' && !it.has)) return;
     const showNote = !it.has || it._open || it.notes;
     h += '<div class="cs-row' + (it.has ? '' : ' no') + '">' +
       '<div class="cs-head">' +

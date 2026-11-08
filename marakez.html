@@ -2324,7 +2324,7 @@ function loadEvals_() {
       const tr = document.createElement('tr');
       tr.innerHTML = '<td>' + vrdEsc_(ev.masoula) + '</td>' +
         '<td>' + vrdEsc_(ev.term) + (ev.year ? ' ' + toArabicDigits(ev.year) : '') + '</td>' +
-        '<td>' + (done ? '<b>' + toArabicDigits(ev.total) + '</b> / ١٠٠' : toArabicDigits(ev.dirTotal) + ' / ٥٠') + '</td>' +
+        '<td>' + (done ? (ev.hideGrade ? '—' : '<b>' + toArabicDigits(ev.total) + '</b> / ١٠٠') : toArabicDigits(ev.dirTotal) + ' / ٥٠') + '</td>' +
         '<td>' + (done ? '<span style="color:#1f8f4e;font-weight:700;">✅ تم الاعتماد</span>' : '<span style="color:var(--maroon);font-weight:700;">⏳ بانتظار اعتماد الوحدة</span>') + '</td>' +
         '<td><div class="row-actions"><a href="#" onclick="openEvalDetail_(\'' + ev.id + '\'); return false;">عرض</a>' +
           '<a href="#" onclick="evQuick_(\'' + ev.id + '\', \'pdf\'); return false;">PDF</a>' +
@@ -2498,8 +2498,8 @@ function openEvalDetail_(id) {
     '<div><b>أرسلته:</b> ' + vrdEsc_(ev.directorName) + (ev.sentDate ? ' — ' + (ev.sentDay || '') + ' ' + toHijriStr(ev.sentDate) : '') + '</div>' +
     '<div><b>درجة بنود المديرة:</b> ' + toArabicDigits(ev.dirTotal) + ' / ٥٠</div>';
   if (done) {
-    h += '<div><b>درجة بنود الوحدة:</b> ' + toArabicDigits(ev.headTotal) + ' / ٥٠</div>' +
-      '<div style="font-size:1.1rem;"><b>المجموع الكلي:</b> <b style="color:var(--maroon);">' + toArabicDigits(ev.total) + ' / ١٠٠</b></div>' +
+    h += (ev.hideGrade ? '' : '<div><b>درجة بنود الوحدة:</b> ' + toArabicDigits(ev.headTotal) + ' / ٥٠</div>' +
+      '<div style="font-size:1.1rem;"><b>المجموع الكلي:</b> <b style="color:var(--maroon);">' + toArabicDigits(ev.total) + ' / ١٠٠</b></div>') +
       '<div style="margin-top:8px;padding:10px 14px;border:1px solid #bfe3cd;background:#f1faf4;border-radius:10px;">✅ اعتمدته رئيسة وحدة المقاصف' +
       (ev.headName ? ': <b>' + vrdEsc_(ev.headName) + '</b>' : '') + (ev.signedDate ? ' — ' + (ev.signedDay || '') + ' ' + toHijriStr(ev.signedDate) : '') + '</div>';
   } else {
