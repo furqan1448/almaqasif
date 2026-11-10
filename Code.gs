@@ -3799,8 +3799,10 @@ function getRegistrationStats_(p) {
   // كل المراكز (تشمل مراكز العرض فقط + المراكز المربوطة بمسؤولة)
   const centers = [];
   const canon = {};   // مفتاح الاسم الموحّد ← الاسم المعتمد (أول اسم ورد من شيت المراكز)
+  const aliasToReal = centerAliasMaps_().toReal;   // «الاسم المعروض» ← الاسم الأصلي (مثل: «حفصة بنت عمر - الفترة الصباحية» ← «معهد حفصة بنت عمر»)
   function addCenter(n) {
     n = String(n || '').trim(); if (!n) return '';
+    if (Object.prototype.hasOwnProperty.call(aliasToReal, n)) n = aliasToReal[n];
     const k = centerKey_(n);
     if (!canon[k]) { canon[k] = n; centers.push(n); }
     return canon[k];
