@@ -1163,9 +1163,9 @@ async function canteenOrderPdf(o, mode, btn) {
   if (mode === 'print') {
     win = window.open('', '_blank');
     if (!win) { alert('يرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع لكي تتمكّني من الطباعة'); return; }
-    try { win.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>جارٍ التجهيز</title></head><body style="font-family:sans-serif;text-align:center;padding-top:80px;">جارٍ تجهيز الطلب للطباعة...</body></html>'); } catch (e) {}
+    try { win.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>جارِ التجهيز</title></head><body style="font-family:sans-serif;text-align:center;padding-top:80px;">جارِ تجهيز الطلب للطباعة...</body></html>'); } catch (e) {}
   }
-  if (btn && typeof setBtnBusy === 'function') setBtnBusy(btn, true, 'جارٍ التجهيز...');
+  if (btn && typeof setBtnBusy === 'function') setBtnBusy(btn, true, 'جارِ التجهيز...');
   try {
     const blob = await canteenOrderPdfBlob_(o);
     const fileName = canteenOrderFileName_(o);
@@ -2451,9 +2451,9 @@ async function masoulaEvalPdf(ev, sigs, mode, btn) {
   if (mode === 'print') {
     win = window.open('', '_blank');
     if (!win) { alert('يُرجى السماح بالنوافذ المنبثقة (Popups) لهذا الموقع لكي تتمكّني من عرض الاستمارة'); return; }
-    try { win.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>جارٍ التجهيز</title></head><body style="font-family:sans-serif;text-align:center;padding-top:80px;">جارٍ تجهيز الاستمارة...</body></html>'); } catch (e) {}
+    try { win.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>جارِ التجهيز</title></head><body style="font-family:sans-serif;text-align:center;padding-top:80px;">جارِ تجهيز الاستمارة...</body></html>'); } catch (e) {}
   }
-  if (btn) setBtnBusy(btn, true, 'جارٍ التجهيز...');
+  if (btn) setBtnBusy(btn, true, 'جارِ التجهيز...');
   try {
     const blob = await masoulaEvalPdfBlob_(ev, sigs);
     const fileName = masoulaEvalFileName_(ev);
@@ -3043,7 +3043,7 @@ function renderToSignBanner_(list) {
 }
 
 
-/* ------------------- مؤشر «جارٍ التنزيل...» لكل أزرار PDF -------------------
+/* ------------------- مؤشر «جارِ التنزيل...» لكل أزرار PDF -------------------
    تجهيز ملف PDF قد يستغرق عدة ثوانٍ، فيظهر مؤشر واضح فور الضغطة ويختفي عند بدء التنزيل.
    تُغلَّف الدوال بعد اكتمال تحميل الصفحة (لأن بعضها معرَّف داخل الصفحة نفسها). */
 (function () {
@@ -3057,7 +3057,7 @@ function renderToSignBanner_(list) {
     document.head.appendChild(st);
     box = document.createElement('div');
     box.id = 'pdfBusyBox';
-    box.innerHTML = '<div class="pb"><div class="sp"></div><span id="pdfBusyTxt">جارٍ التنزيل...</span></div>';
+    box.innerHTML = '<div class="pb"><div class="sp"></div><span id="pdfBusyTxt">جارِ التنزيل...</span></div>';
     document.body.appendChild(box);
     return box;
   }
@@ -3069,7 +3069,7 @@ function renderToSignBanner_(list) {
     const w = async function () {
       const args = arguments;
       const share = Array.prototype.some.call(args, function (a) { return a === 'share'; });
-      show(share ? 'جارٍ التجهيز...' : 'جارٍ التنزيل...');
+      show(share ? 'جارِ التجهيز...' : 'جارِ التنزيل...');
       try {
         await new Promise(function (r) { requestAnimationFrame(function () { setTimeout(r, 30); }); });
         return await fn.apply(this, args);
@@ -3137,7 +3137,7 @@ function renderToSignBanner_(list) {
     const ck = document.getElementById('dlvNoticeCk'), bt = document.getElementById('dlvNoticeBtn'), er = document.getElementById('dlvNoticeErr');
     ck.onchange = function () { bt.disabled = !ck.checked; bt.style.opacity = ck.checked ? '1' : '.55'; };
     bt.onclick = function () {
-      bt.disabled = true; bt.textContent = 'جارٍ الحفظ...'; er.textContent = '';
+      bt.disabled = true; bt.textContent = 'جارِ الحفظ...'; er.textContent = '';
       callApi('ackCenterDelivery', { center: ctx.center, role: ctx.role, name: ctx.name || '', date: ctx.date }).then(function (r) {
         if (r && r.ok) { ctx.acked = true; closeModal(); renderCard(); return; }
         er.textContent = (r && r.error) || 'تعذّر الحفظ، حاولي مرة أخرى';
@@ -3207,7 +3207,7 @@ function renderToSignBanner_(list) {
     document.body.appendChild(o);
     const bt = document.getElementById('popNoticeBtn'), er = document.getElementById('popNoticeErr');
     bt.onclick = function () {
-      bt.disabled = true; bt.textContent = 'جارٍ الحفظ...'; er.textContent = '';
+      bt.disabled = true; bt.textContent = 'جارِ الحفظ...'; er.textContent = '';
       callApi('ackPopupAnnouncement', { id: n.id, center: ctx.center, role: ctx.role, name: ctx.name || '' }).then(function (r) {
         if (r && r.ok) { queue.shift(); showNext(); return; }
         er.textContent = (r && r.error) || 'تعذّر الحفظ، حاولي مرة أخرى';
