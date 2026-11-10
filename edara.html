@@ -6488,7 +6488,19 @@ let vsUnvReady_ = false;
 
 /* اسم المركز بدون كلمة الفترة (الصباحية/المسائية) للمقارنة */
 function vsBase_(s) {
-  return vsNorm_(s).replace(/(^|\s)(ال)?(صباحيه|صباحي|مسائيه|مسائي)(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim();
+  return vsNorm_(String(s || '').replace(/[\u200B-\u200F\u202A-\u202E\uFEFF\u00A0]/g, ' '))
+    .replace(/[-–—_()\[\]،,.:]/g, ' ')
+    .replace(/(^|\s)(ال)?فتره(?=\s|$)/g, ' ')
+    .replace(/(^|\s)(ال)?(صباحيه|صباحي|مسائيه|مسائي)(?=\s|$)/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+
+/* الفترة المفهومة من نص (اسم المركز أو حقل الفترة): 'صباحية' / 'مسائية' / '' */
+function vsPeriodNorm_(s) {
+  const n = vsNorm_(s).replace(/[-–—_()\[\]،,.:]/g, ' ');
+  if (/(^|\s)(ال)?(مسائيه|مسائي)(?=\s|$)/.test(n)) return 'مسائية';
+  if (/(^|\s)(ال)?(صباحيه|صباحي)(?=\s|$)/.test(n)) return 'صباحية';
+  return '';
 }
 
 function csPeriodOf_(d) {
@@ -6551,7 +6563,9 @@ function vsUnvisitedList_() {
   const visited = {};
   vsVisits_.forEach(function (v) {
     const b = vsBase_(v.center);
-    visited[b + '|' + v.period] = 1;
+    const per = vsPeriodNorm_(v.period) || vsPeriodNorm_(v.center);   // الفترة من الحقل، وإلا من اسم المركز
+    if (per) visited[b + '|' + per] = 1;
+    else { visited[b + '|صباحية'] = 1; visited[b + '|مسائية'] = 1; }   // زيارة بلا فترة محددة تُحتسب لأي فترة
     visited[b + '|'] = 1;   // أي فترة (للمراكز التي لم تُحدَّد فترتها في ورقة المديرات)
   });
   return csBuildItems_(vrDirectors_, []).filter(function (it) {
