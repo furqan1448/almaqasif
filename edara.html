@@ -807,6 +807,11 @@
         <label>نص الإشعار</label>
         <textarea id="announceText" rows="4" placeholder="اكتبي نص الإشعار هنا..."></textarea>
 
+        <label style="display:flex;align-items:flex-start;gap:8px;font-weight:normal;margin-top:14px;padding:10px 12px;border:1.5px solid var(--gold-light);border-radius:10px;background:#fffaf0;">
+          <input type="checkbox" id="announcePopupCheck" style="margin-top:4px;">
+          <span><b>إشعار منبثق</b> — يطلع لها كنافذة أول ما تدخل وتضغط «موافق»، وبعدها ما يطلع مرة ثانية (ويبقى محفوظ بأيقونة «إشعارات هامة»)</span>
+        </label>
+
         <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:14px;">
           <input type="checkbox" id="announceAllCheck" checked onchange="toggleAnnounceTargets()">
           <span>يظهر لكل المراكز والمسؤولات</span>
@@ -4131,7 +4136,7 @@ function submitAnnouncement() {
   const text = document.getElementById('announceText').value.trim();
   if (!text) { alert('اكتبي نص الإشعار'); return; }
   const all = document.getElementById('announceAllCheck').checked;
-  const payload = { text: text, all: all, from: 'الإدارة' };
+  const payload = { text: text, all: all, from: 'الإدارة', popup: document.getElementById('announcePopupCheck').checked };
   if (!all) {
     payload.centers = Array.from(document.querySelectorAll('.announce-center-check:checked')).map(function (el) { return el.value; });
     payload.masoulat = Array.from(document.querySelectorAll('.announce-masoula-check:checked')).map(function (el) { return el.value; });
@@ -4143,6 +4148,7 @@ function submitAnnouncement() {
     setBtnBusy(btn, false);
     if (r.ok) {
       document.getElementById('announceText').value = '';
+      document.getElementById('announcePopupCheck').checked = false;
       document.getElementById('announceAllCheck').checked = true;
       toggleAnnounceTargets();
       document.querySelectorAll('.announce-center-check, .announce-masoula-check').forEach(function (el) { el.checked = false; });
@@ -4182,7 +4188,7 @@ function loadAnnouncementsAdmin() {
       div.innerHTML =
         '<div>' +
           '<div>' + (a['النص'] || '') + '</div>' +
-          '<div class="meta">إلى: ' + announceTargetLabel_(a['استهداف']) + ' · ' + (a['اليوم'] || '') + ' ' + toHijriStr(a['التاريخ']) + '</div>' +
+          '<div class="meta">' + (String(a['منبثق'] || '').trim() === 'نعم' ? '🔔 منبثق · ' : '') + 'إلى: ' + announceTargetLabel_(a['استهداف']) + ' · ' + (a['اليوم'] || '') + ' ' + toHijriStr(a['التاريخ']) + '</div>' +
           '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;">' +
             '<a href="#" onclick="deleteAnnouncementRow(' + a._row + '); return false;">حذف</a>' +
           '</div>' +

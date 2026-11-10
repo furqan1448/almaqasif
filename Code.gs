@@ -50,7 +50,7 @@ function setup() {
       'اسم المستلمة', 'بيانات توقيع المركز', 'فصل الأرشفة', 'سجّل بواسطة'],
     'المرفقات': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'المالك', 'اليوم', 'التاريخ', 'الوقت'],
     'مرفقات الإشراف': ['معرف', 'العنوان', 'النوع', 'الرابط', 'اسم الملف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
-    'الإعلانات الهامة': ['معرف', 'النص', 'استهداف', 'من', 'اليوم', 'التاريخ', 'الوقت'],
+    'الإعلانات الهامة': ['معرف', 'النص', 'استهداف', 'من', 'اليوم', 'التاريخ', 'الوقت', 'منبثق'],
     // محاضر الاجتماعات: كل الحقول التي تُطبع بالمحضر + استهداف (زي الإعلانات الهامة) يحدد مين يشوفه بالمراكز/المسؤولات
     'محاضر الاجتماعات': ['معرف', 'رقم الاجتماع', 'يوم الاجتماع', 'تاريخ الاجتماع الهجري', 'طريقة الانعقاد',
       'نقاط الاجتماع', 'المشاركات', 'الروابط',
@@ -378,6 +378,7 @@ function deleteAttachment_(p) {
    (يمديها الاثنين مع بعض بنفس الإعلان). لو الاثنين فاضيين يتحول تلقائياً لـ"الكل". */
 function recordAnnouncement_(p) {
   const sh = sheet_('الإعلانات الهامة');
+  ensureNoticeCol_(sh, 'منبثق');   // للنسخ القديمة من الشيت: يضيف العمود تلقائياً أول مرة
   const id = Utilities.getUuid();
   const now = nowParts_();
   let targets = 'الكل';
@@ -389,7 +390,8 @@ function recordAnnouncement_(p) {
   }
   appendRowByHeaders_(sh, {
     'معرف': id, 'النص': p.text || '', 'استهداف': targets, 'من': p.from || 'الإدارة',
-    'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time
+    'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time,
+    'منبثق': p.popup ? 'نعم' : ''
   });
   invalidateCache_('الإعلانات الهامة');
   return { ok: true, id: id };
@@ -423,6 +425,52 @@ function deleteAnnouncement_(p) {
   const sh = sheet_('الإعلانات الهامة');
   sh.deleteRow(Number(p.row));
   invalidateCache_('الإعلانات الهامة');
+  return { ok: true };
+}
+
+/* ------------------- الإشعارات المنبثقة (نفس استهداف الإعلانات الهامة) -------------------
+   إعلان «منبثق» = إعلان عادي (يبقى محفوظاً بأيقونة «إشعارات هامة») لكنه يطلع للمديرة/المسؤولة كنافذة عند الدخول
+   إلى أن تضغط «موافق». الإقرار يُحفظ بالخادم (مو بالجهاز) لكل مركز، ولكل مسؤولة باسمها. */
+const POPUP_ACK_KEY_ = 'إقرارات الإشعارات المنبثقة';
+function popupAckKey_(role, center, name) {
+  const c = dlvNorm_(center);
+  return role === 'مسؤولة' ? ('مسؤولة:' + dlvNorm_(name) + '@' + c) : ('مركز:' + c);
+}
+function popupReadAcks_() {
+  let a = {};
+  try { a = JSON.parse(getSettingValue_(POPUP_ACK_KEY_) || '{}') || {}; } catch (e) { a = {}; }
+  return a;
+}
+function getPopupAnnouncements_(p) {
+  const role = dlvNorm_(p && p.role) === 'مسؤولة' ? 'مسؤولة' : 'مديرة';
+  const center = dlvNorm_(p && p.center), name = dlvNorm_(p && p.name);
+  if (!center) return { ok: true, popups: [] };
+  const all = getAnnouncementsFor_({ center: center, masoula: role === 'مسؤولة' ? name : '' }).announcements || [];
+  const acks = popupReadAcks_(), key = popupAckKey_(role, center, name);
+  const popups = all.filter(function (a) {
+    return String(a['منبثق'] || '').trim() === 'نعم' && !(acks[a['معرف']] && acks[a['معرف']][key]);
+  }).reverse().map(function (a) {   // الأقدم أولاً
+    return { id: a['معرف'], text: a['النص'] || '', date: a['التاريخ'] || '' };
+  });
+  return { ok: true, popups: popups };
+}
+function ackPopupAnnouncement_(p) {
+  const role = dlvNorm_(p && p.role) === 'مسؤولة' ? 'مسؤولة' : 'مديرة';
+  const center = dlvNorm_(p && p.center), name = dlvNorm_(p && p.name), id = String((p && p.id) || '').trim();
+  if (!center || !id) return { ok: false, error: 'بيانات ناقصة' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const acks = popupReadAcks_();
+    const live = {};   // ننظّف إقرارات الإعلانات المحذوفة حتى لا يكبر الحقل
+    sheetToObjects_('الإعلانات الهامة').forEach(function (a) { live[a['معرف']] = true; });
+    Object.keys(acks).forEach(function (k) { if (!live[k]) delete acks[k]; });
+    if (!live[id]) return { ok: true };
+    acks[id] = acks[id] || {};
+    const n = nowParts_();
+    acks[id][popupAckKey_(role, center, name)] = { at: n.date + ' ' + n.time, name: name.slice(0, 80) };
+    setSettingValue_(POPUP_ACK_KEY_, JSON.stringify(acks));
+  } finally { lock.releaseLock(); }
   return { ok: true };
 }
 
@@ -1477,6 +1525,8 @@ function dispatch_(p, T0_) {
     case 'getAllAnnouncements': return (getAllAnnouncements_());
     case 'getAnnouncementsFor': return (getAnnouncementsFor_(p));
     case 'deleteAnnouncement': return (deleteAnnouncement_(p));
+    case 'getPopupAnnouncements': return (getPopupAnnouncements_(p));
+    case 'ackPopupAnnouncement': return (ackPopupAnnouncement_(p));
     case 'recordMeetingMinutes': return (recordMeetingMinutes_(p));
     case 'getAllMeetingMinutes': return (getAllMeetingMinutes_());
     case 'getMeetingMinutesFor': return (getMeetingMinutesFor_(p));

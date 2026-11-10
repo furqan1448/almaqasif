@@ -143,6 +143,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
       <div class="card" id="evListCard">
         <h3 style="margin-top:0;color:var(--maroon);">تقييم مسؤولة المقصف</h3>
         <p style="font-size:0.9rem;color:#6f6467;margin-top:0;line-height:1.8;">تعبّئ مديرة المركز الاستمارة وبنودها، ثم توقّع وترسلها لوحدة المقاصف، فتضيف الوحدة درجاتها وتوقّع وتعتمدها.<br>هذه الاستمارة خاصة بمديرة المركز، ولا تظهر لمسؤولة المقصف.</p>
+        <a class="ev-guide-link" href="#" target="_blank" rel="noopener" style="display:none;margin:0 0 12px;padding:11px 14px;border:1.5px solid var(--gold-light);border-radius:10px;background:#fffaf0;color:var(--maroon);font-weight:700;text-align:center;text-decoration:none;">📘 دليل معايير تقييم مسؤولة المقصف</a>
         <button class="btn" onclick="openEvalForm_()">＋ تعبئة تقييم جديد</button>
         <table class="log-table" style="margin-top:14px;">
           <thead><tr><th>المسؤولة</th><th>الفصل</th><th>الدرجة</th><th>الحالة</th><th></th></tr></thead>
@@ -153,6 +154,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
       <div class="card hidden" id="evFormCard">
         <a class="back-link" onclick="closeEvalForm_()">⟵ قائمة التقييمات</a>
         <h3 style="margin-top:6px;color:var(--maroon);" id="evFormTitle">استمارة تقييم مسؤولة المقصف</h3>
+        <a class="ev-guide-link" href="#" target="_blank" rel="noopener" style="display:none;margin:0 0 12px;padding:9px 12px;border:1.5px solid var(--gold-light);border-radius:10px;background:#fffaf0;color:var(--maroon);font-weight:700;text-align:center;text-decoration:none;font-size:.9rem;">📘 دليل معايير التقييم</a>
         <div class="select-row">
           <div><label>الفترة</label><select id="evPeriod"><option value="صباحية">صباحية</option><option value="مسائية">مسائية</option></select></div>
           <div><label>الفصل الدراسي</label><select id="evTerm"><option value="الأول">الأول</option><option value="الثاني">الثاني</option><option value="الثالث">الثالث</option></select></div>
@@ -878,6 +880,7 @@ function doLogin() {
 
 function logout() {
   if (typeof deliveryNoticeReset_ === 'function') deliveryNoticeReset_();
+  if (typeof popupNoticeReset_ === 'function') popupNoticeReset_();
   sessionStorage.removeItem('maqasif_center');
   sessionStorage.removeItem('maqasif_center_readonly');
   try { sessionStorage.removeItem('maqasif_center_pw'); } catch (e) {}
@@ -901,6 +904,7 @@ function showDashboard() {
   initEvalTile_();
   prefetchForCenter_(currentCenter);
   deliveryNoticeInit_('مديرة', '', currentCenter);
+  if (typeof popupNoticeInit_ === 'function') popupNoticeInit_('مديرة', '', currentCenter);
 }
 
 /* لو المركز محدد كـ"وضع العرض فقط" بشيت المراكز: نخفي أيقونات الإشعارات

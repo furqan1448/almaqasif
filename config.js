@@ -1,6 +1,10 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
 const API_URL = "https://script.google.com/macros/s/AKfycbzJxEImo5ZlcJCr2AOwvo8ouwknWNHCdzDaHPz6l_S87hvGq3xEVA766tn_lLNX7oYM/exec";
 
+// 📘 رابط دليل معايير تقييم مسؤولة المقصف (رابط Google Drive). الصقيه بين علامتي التنصيص.
+// يظهر زر «دليل معايير التقييم» داخل أيقونة «تقييم مسؤولة المقصف» بصفحة المراكز. لو تركتيه فاضي ما يظهر الزر.
+const EVAL_GUIDE_URL = "";
+
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
    - أي إجراء اسمه يبدأ بـ "get" (قراءة بيانات) يُخزَّن لمدة قصيرة (45 ثانية) بنفس
@@ -3153,4 +3157,73 @@ function renderToSignBanner_(list) {
     }).catch(function () {});
   };
   window.deliveryNoticeReset_ = function () { ctx = null; closeModal(); const c = document.getElementById('dlvHomeCard'); if (c) c.remove(); };
+})();
+
+
+/* ------------------- دليل معايير تقييم مسؤولة المقصف: رابط Drive داخل أيقونة التقييم ------------------- */
+(function () {
+  function apply() {
+    const url = String(typeof EVAL_GUIDE_URL === 'string' ? EVAL_GUIDE_URL : '').trim();
+    document.querySelectorAll('.ev-guide-link').forEach(function (a) {
+      if (/^https?:\/\//i.test(url)) { a.href = url; a.style.display = 'block'; } else { a.style.display = 'none'; }
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply); else apply();
+})();
+
+/* ------------------- الإشعار المنبثق (يطلع كنافذة بزر «موافق») -------------------
+   يُنشره الإدارة من تبويب الإشعارات بخيار «إشعار منبثق». يظهر للمديرة/المسؤولة بنفس أسلوب نافذة موعد التسليم،
+   وبعد «موافق» يُحفظ الإقرار بالخادم فلا يطلع مرة ثانية، ويبقى النص محفوظاً بأيقونة «إشعارات هامة». */
+(function () {
+  let ctx = null, queue = [];
+  function esc(s) { return String(s === undefined || s === null ? '' : s).replace(/[&<>"]/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]; }); }
+  function fmt(text) {
+    return esc(text).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#8C1A2C;font-weight:700;word-break:break-all;">$1</a>').replace(/\r?\n/g, '<br>');
+  }
+  function ensureStyle() {
+    if (document.getElementById('popNoticeStyle')) return;
+    const st = document.createElement('style'); st.id = 'popNoticeStyle';
+    st.textContent = '#popNoticeOv{position:fixed;inset:0;z-index:99999;background:rgba(43,35,33,.55);display:flex;align-items:center;justify-content:center;padding:16px;direction:rtl;font-family:Tajawal,sans-serif}' +
+      '#popNoticeOv .pn{background:#fff;border-radius:18px;max-width:440px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 14px 50px rgba(0,0,0,.3)}' +
+      '#popNoticeOv .pn-h{background:linear-gradient(90deg,#8C1A2C,#a8283c);color:#fff;padding:14px 18px;font-weight:800;font-size:1.05rem}' +
+      '#popNoticeOv .pn-b{padding:18px;overflow:auto;line-height:2;color:#2b2321;font-size:1rem}' +
+      '#popNoticeOv .pn-f{padding:0 18px 18px;text-align:center}' +
+      '#popNoticeOv .pn-n{color:#8a7d76;font-size:.8rem;margin-bottom:10px}' +
+      '#popNoticeOv .pn-e{color:#b3261e;font-size:.85rem;min-height:1.2em;margin-top:6px}';
+    document.head.appendChild(st);
+  }
+  function close() { const o = document.getElementById('popNoticeOv'); if (o) o.remove(); }
+  function showNext() {
+    close();
+    if (!ctx || !queue.length) return;
+    // لا نغطي نافذة موعد التسليم: ننتظر لين تأكّد عليها ثم يطلع الإشعار
+    if (document.getElementById('dlvNoticeOv')) { setTimeout(showNext, 800); return; }
+    const n = queue[0];
+    ensureStyle();
+    const o = document.createElement('div'); o.id = 'popNoticeOv';
+    o.innerHTML = '<div class="pn"><div class="pn-h">📢 إشعار هام</div><div class="pn-b">' + fmt(n.text) + '</div>' +
+      '<div class="pn-f"><div class="pn-n">يبقى هذا الإشعار محفوظاً في أيقونة «إشعارات هامة» بالصفحة الرئيسية</div>' +
+      '<button class="btn" id="popNoticeBtn">موافق</button><div class="pn-e" id="popNoticeErr"></div></div></div>';
+    document.body.appendChild(o);
+    const bt = document.getElementById('popNoticeBtn'), er = document.getElementById('popNoticeErr');
+    bt.onclick = function () {
+      bt.disabled = true; bt.textContent = 'جارٍ الحفظ...'; er.textContent = '';
+      callApi('ackPopupAnnouncement', { id: n.id, center: ctx.center, role: ctx.role, name: ctx.name || '' }).then(function (r) {
+        if (r && r.ok) { queue.shift(); showNext(); return; }
+        er.textContent = (r && r.error) || 'تعذّر الحفظ، حاولي مرة أخرى';
+        bt.disabled = false; bt.textContent = 'موافق';
+      }).catch(function () { er.textContent = 'تعذّر الاتصال بالخادم'; bt.disabled = false; bt.textContent = 'موافق'; });
+    };
+  }
+  window.popupNoticeInit_ = function (role, name, center) {
+    center = String(center || '').trim();
+    if (!center) return Promise.resolve();
+    return callApi('getPopupAnnouncements', { center: center, role: role, name: name || '', _t: Date.now() }).then(function (r) {
+      if (!r || !r.ok || !(r.popups || []).length) return;
+      ctx = { center: center, role: role, name: name || '' };
+      queue = r.popups.slice();
+      showNext();
+    }).catch(function () {});
+  };
+  window.popupNoticeReset_ = function () { ctx = null; queue = []; close(); };
 })();
