@@ -3,7 +3,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbyRn9ClpkRI89O86IkjVQ0L
 
 // 📘 رابط دليل معايير تقييم مسؤولة المقصف (رابط Google Drive). الصقيه بين علامتي التنصيص.
 // يظهر زر «دليل معايير التقييم» داخل أيقونة «تقييم مسؤولة المقصف» بصفحة المراكز. لو تركتيه فاضي ما يظهر الزر.
-const EVAL_GUIDE_URL = "";
+const EVAL_GUIDE_URL = "https://drive.google.com/drive/folders/1n5lGGI2arz5tuIUWwJ6A3eowG_4MMPwc?usp=sharing";
 
 /* ------------------- تخزين مؤقت خفيف من جهة المتصفح لطلبات القراءة -------------------
    الهدف: تقليل عدد الطلبات لـ Apps Script بدون تغيير أي نتيجة أو سلوك ظاهر للمستخدمة.
