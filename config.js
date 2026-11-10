@@ -1,5 +1,5 @@
 // ⚠️ حطي هنا رابط الـ Web app اللي طلعلك من Google Apps Script بعد الـ Deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbzJxEImo5ZlcJCr2AOwvo8ouwknWNHCdzDaHPz6l_S87hvGq3xEVA766tn_lLNX7oYM/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyRn9ClpkRI89O86IkjVQ0L5KQdV82lfQ0_ybgN4jq0xWUVS9EgCGC2tAg3krIuYhLt/exec";
 
 // 📘 رابط دليل معايير تقييم مسؤولة المقصف (رابط Google Drive). الصقيه بين علامتي التنصيص.
 // يظهر زر «دليل معايير التقييم» داخل أيقونة «تقييم مسؤولة المقصف» بصفحة المراكز. لو تركتيه فاضي ما يظهر الزر.
