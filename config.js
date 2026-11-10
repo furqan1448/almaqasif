@@ -3203,7 +3203,7 @@ function renderToSignBanner_(list) {
     const o = document.createElement('div'); o.id = 'popNoticeOv';
     o.innerHTML = '<div class="pn"><div class="pn-h">📢 إشعار هام</div><div class="pn-b">' + fmt(n.text) + '</div>' +
       '<div class="pn-f"><div class="pn-n">يبقى هذا الإشعار محفوظاً في أيقونة «إشعارات هامة» بالصفحة الرئيسية</div>' +
-      '<button class="btn" id="popNoticeBtn">موافق</button><div class="pn-e" id="popNoticeErr"></div></div></div>';
+      '<button class="btn" id="popNoticeBtn">تم الاطلاع </button><div class="pn-e" id="popNoticeErr"></div></div></div>';
     document.body.appendChild(o);
     const bt = document.getElementById('popNoticeBtn'), er = document.getElementById('popNoticeErr');
     bt.onclick = function () {
