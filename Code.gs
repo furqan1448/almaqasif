@@ -3763,6 +3763,17 @@ function visitPeriodOfName_(s) {
   return '';
 }
 
+/* مفتاح توحيد اسم المركز: يتجاهل الهمزات والتشكيل والمسافات والرموز وكلمة «الفترة» ويوحّد صباحي/مسائي،
+   فيُحتسب «حفصة بنت عمر - الفترة الصباحية» و«حفصة بنت عمر الصباحية» مركزاً واحداً. */
+function centerKey_(s) {
+  let n = visitNormName_(String(s || '').replace(/[\u200B-\u200F\u202A-\u202E\uFEFF\u00A0]/g, ' '))
+    .replace(/[-–—_()\[\]،,.:]/g, ' ');
+  n = n.replace(/(^|\s)(ال)?فتره(?=\s|$)/g, ' ')
+    .replace(/(^|\s)(ال)?(صباحيه|صباحي)(?=\s|$)/g, ' #ص ')
+    .replace(/(^|\s)(ال)?(مسائيه|مسائي)(?=\s|$)/g, ' #م ');
+  return n.replace(/\s+/g, ' ').trim();
+}
+
 function getRegistrationStats_(p) {
   p = p || {};
   const period = String(p.period || 'term');
@@ -3787,16 +3798,21 @@ function getRegistrationStats_(p) {
 
   // كل المراكز (تشمل مراكز العرض فقط + المراكز المربوطة بمسؤولة)
   const centers = [];
-  function addCenter(n) { n = String(n || '').trim(); if (n && centers.indexOf(n) === -1) centers.push(n); }
+  const canon = {};   // مفتاح الاسم الموحّد ← الاسم المعتمد (أول اسم ورد من شيت المراكز)
+  function addCenter(n) {
+    n = String(n || '').trim(); if (!n) return '';
+    const k = centerKey_(n);
+    if (!canon[k]) { canon[k] = n; centers.push(n); }
+    return canon[k];
+  }
   sheetToObjects_('المراكز', CACHE_SECONDS_LONG).forEach(function (r) { addCenter(r['اسم المركز']); });
   sheetToObjects_('المسؤولات', CACHE_SECONDS_LONG).forEach(function (r) { addCenter(r['اسم المركز']); });
 
   const st = {};
   function S(c) {
-    c = String(c || '').trim();
+    c = addCenter(c);
     if (!c) return null;
     if (!st[c]) {
-      addCenter(c);
       st[c] = { center: c, receive: 0, reward: 0, fee: 0, other: 0, pending: 0,
         receiveAmt: 0, rewardAmt: 0, feeAmt: 0, otherAmt: 0,
         invoices: 0, capital: 0, profit: 0, salesEntries: 0, salesDays: {}, salesTotal: 0 };
