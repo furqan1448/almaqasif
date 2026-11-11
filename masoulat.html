@@ -1074,6 +1074,16 @@ function sortSalesNewestFirst_(list) {
   }).map(function (x) { return x.s; });
 }
 
+/* ترتيب بيان الفواتير للعرض: الأحدث أولاً (حسب التاريخ ثم ترتيب الإدخال) */
+function sortInvoicesNewestFirst_(list) {
+  return (list || []).map(function (s, i) { return { s: s, i: i }; }).sort(function (a, b) {
+    const da = new Date(a.s['التاريخ']).getTime() || 0, db = new Date(b.s['التاريخ']).getTime() || 0;
+    if (db !== da) return db - da;
+    const ra = Number(a.s._row) || a.i, rb = Number(b.s._row) || b.i;
+    return rb - ra;
+  }).map(function (x) { return x.s; });
+}
+
 function loadSales() {
   const tbody = document.getElementById('salesTbody');
   tbody.innerHTML = '<tr><td colspan="6">جاري التحميل...</td></tr>';
@@ -1488,7 +1498,7 @@ function loadInvoices() {
   const term = document.getElementById('invoicesTermFilter').value;
   callApi('getInvoices', { center: currentCenter, term: term }).then(function (r) {
     if (r.ok) { purchasesEnabled_ = !!r.purchasesEnabled; expensesEnabled_ = !!r.expensesEnabled; if (!editingInvoiceRow) setEntryTypesEnabled_(purchasesEnabled_, expensesEnabled_); }
-    currentInvoicesData = r.invoices || [];
+    currentInvoicesData = sortInvoicesNewestFirst_(r.invoices || []);
     const summaryBox = document.getElementById('invoicesSummary');
     if (!r.ok || !currentInvoicesData.length) {
       tbody.innerHTML = '<tr><td colspan="11">لا توجد فواتير بعد</td></tr>';

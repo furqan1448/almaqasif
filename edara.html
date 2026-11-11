@@ -3946,6 +3946,16 @@ function invoiceRewardHtml_(center, s) {
     '<span>قيمة مكافأة المتعاونة (١٠٪ من المطلوب تسليمه)</span><span dir="ltr">' + invoiceRewardAmount_(s).toFixed(2) + ' ريال</span></div></div>';
 }
 
+/* ترتيب بيان الفواتير للعرض: الأحدث أولاً (حسب التاريخ ثم ترتيب الإدخال) */
+function sortInvoicesNewestFirst_(list) {
+  return (list || []).map(function (s, i) { return { s: s, i: i }; }).sort(function (a, b) {
+    const da = new Date(a.s['التاريخ']).getTime() || 0, db = new Date(b.s['التاريخ']).getTime() || 0;
+    if (db !== da) return db - da;
+    const ra = Number(a.s._row) || a.i, rb = Number(b.s._row) || b.i;
+    return rb - ra;
+  }).map(function (x) { return x.s; });
+}
+
 function loadCenterInvoices() {
   const center = document.getElementById('invoicesCenterSelect').value;
   const tbody = document.getElementById('invoicesTbody');
@@ -3953,7 +3963,7 @@ function loadCenterInvoices() {
   populateTermFilter_('invoicesTermFilter');
   const term = document.getElementById('invoicesTermFilter').value;
   callApi('getInvoices', { center: center, term: term }).then(function (r) {
-    allCenterInvoices_ = (r && r.ok && r.invoices) || [];
+    allCenterInvoices_ = sortInvoicesNewestFirst_((r && r.ok && r.invoices) || []);
     renderCenterInvoices_();
   });
 }
@@ -7075,7 +7085,7 @@ function caLoad_() {
   const wait = function (id, n) { document.getElementById(id).innerHTML = '<tr><td colspan="' + n + '">جاري التحميل...</td></tr>'; };
   wait('caNtBody', 6); wait('caInvBody', 8); wait('caSalesBody', 5);
   callApi('getCenterNotices', { center: c, term: term }).then(function (r) { caNt_ = (r && r.notices) || []; caRenderNt_(); });
-  callApi('getInvoices', { center: c, term: term }).then(function (r) { caInv_ = (r && r.invoices) || []; caRenderInv_(); });
+  callApi('getInvoices', { center: c, term: term }).then(function (r) { caInv_ = sortInvoicesNewestFirst_((r && r.invoices) || []); caRenderInv_(); });
   callApi('getSales', { center: c, term: term }).then(function (r) { caSales_ = (r && r.sales) || []; caRenderSales_(); });
 }
 function caEmpty_(n, t) { return '<tr><td colspan="' + n + '" style="color:#8a7d76;">' + t + '</td></tr>'; }
