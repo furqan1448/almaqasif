@@ -601,8 +601,8 @@ tr.am-done td { background:#eaf6ee; }
           </div>
         </div>
         <div class="table-scroll"><table class="log-table" id="invoicesTable">
-          <thead><tr><th>المركز</th><th>النوع</th><th>رقم الفاتورة</th><th>مصدر الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>رأس المال</th><th>الربح</th><th>المبلغ الإجمالي</th><th>المرتجعات</th><th>ملاحظات</th></tr></thead>
-          <tbody id="invoicesTbody"><tr><td colspan="11">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
+          <thead><tr><th>المركز</th><th>النوع</th><th>رقم الفاتورة</th><th>مصدر الفاتورة</th><th>اليوم</th><th>التاريخ</th><th>رأس المال</th><th>الربح</th><th>المبلغ الإجمالي</th><th>المرتجعات</th><th>ملاحظات</th><th>إجراء</th></tr></thead>
+          <tbody id="invoicesTbody"><tr><td colspan="12">اختاري مركز أو "عرض جميع المراكز"</td></tr></tbody>
         </table></div>
         <div id="invoicesSummary"></div>
         <div class="export-row">
@@ -3949,7 +3949,7 @@ function invoiceRewardHtml_(center, s) {
 function loadCenterInvoices() {
   const center = document.getElementById('invoicesCenterSelect').value;
   const tbody = document.getElementById('invoicesTbody');
-  tbody.innerHTML = '<tr><td colspan="10">جاري التحميل...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="12">جاري التحميل...</td></tr>';
   populateTermFilter_('invoicesTermFilter');
   const term = document.getElementById('invoicesTermFilter').value;
   callApi('getInvoices', { center: center, term: term }).then(function (r) {
@@ -3976,20 +3976,20 @@ function renderCenterInvoices_() {
   const f = document.getElementById('invoicesReturnFilter').value;
   currentInvoices = allCenterInvoices_.filter(function (inv) { return invoiceMatchesReturnFilter_(inv, f); });
   if (!allCenterInvoices_.length) {
-    tbody.innerHTML = '<tr><td colspan="11">لا توجد فواتير بعد</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12">لا توجد فواتير بعد</td></tr>';
     summaryBox.innerHTML = '';
     return;
   }
   if (!currentInvoices.length) {
-    tbody.innerHTML = '<tr><td colspan="11">لا توجد قيود مطابقة للفرز المختار</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12">لا توجد قيود مطابقة للفرز المختار</td></tr>';
     summaryBox.innerHTML = '';
     return;
   }
   tbody.innerHTML = '';
-  currentInvoices.forEach(function (inv) {
+  currentInvoices.forEach(function (inv, idx) {
     const tr = document.createElement('tr');
     const p = invoiceRowParts_(inv);
-    tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (invoiceReturnHtml_(inv) || '—') + '</td><td>' + invoiceNotesText_(inv) + '</td>';
+    tr.innerHTML = '<td>' + (inv['اسم المركز'] || '') + '</td><td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (invoiceReturnHtml_(inv) || '—') + '</td><td>' + invoiceNotesText_(inv) + '</td><td><div class="row-actions"><a href="#" onclick="editInvoiceFromStatement_(' + idx + '); return false;">تعديل</a></div></td>';
     tbody.appendChild(tr);
   });
   const invCenter_ = document.getElementById('invoicesCenterSelect').value;
@@ -7105,7 +7105,7 @@ function caRenderSales_() {
   }).join('') : caEmpty_(5, 'لا توجد مبيعات');
 }
 function caModalClose_() { document.getElementById('caModalOv').style.display = 'none'; }
-function caModal_(title, fields, onSave) {
+function caModal_(title, fields, onSave, afterSave) {
   document.getElementById('caModalTitle').textContent = title;
   document.getElementById('caModalFields').innerHTML = fields.map(function (f) {
     return '<label>' + f.label + '</label><input id="caF_' + f.id + '" type="' + (f.type || 'text') + '"' + (f.type === 'number' ? ' step="0.01" inputmode="decimal" class="no-spin"' : '') + ' value="' + caEsc_(f.value) + '">';
@@ -7116,7 +7116,7 @@ function caModal_(title, fields, onSave) {
     const btn = this; btn.disabled = true;
     onSave(vals).then(function (r) {
       btn.disabled = false;
-      if (r && r.ok) { caModalClose_(); caLoad_(); } else { err.textContent = (r && r.error) || 'تعذّر الحفظ'; err.style.display = 'block'; }
+      if (r && r.ok) { caModalClose_(); (afterSave || caLoad_)(); } else { err.textContent = (r && r.error) || 'تعذّر الحفظ'; err.style.display = 'block'; }
     }).catch(function () { btn.disabled = false; err.textContent = 'تعذّر الاتصال بالخادم'; err.style.display = 'block'; });
   };
   document.getElementById('caModalOv').style.display = 'flex';
@@ -7159,6 +7159,34 @@ function caEdit_(kind, i) {
     });
   }
 }
+/* تعديل قيد من «بيان الفواتير» بالإدارة (نفس نافذة تعديل حساب المركز) */
+function editInvoiceFromStatement_(i) {
+  const v = currentInvoices[i];
+  if (!v) return;
+  const t = invoiceRowParts_(v);
+  const fl = [
+    { id: 'no', label: 'رقم الفاتورة', value: v['رقم الفاتورة'] || '' },
+    { id: 'src', label: 'مصدر الفاتورة', value: v['مصدر الفاتورة'] || '' },
+    { id: 'date', label: 'التاريخ', type: 'date', value: caDate_(v['التاريخ']) },
+    { id: 'amt', label: t.type === 'فاتورة' ? 'رأس المال (ريال)' : 'المبلغ (ريال)', type: 'number', value: t.amount }
+  ];
+  if (t.type !== 'مصروفات') fl.push({ id: 'prf', label: 'الربح (ريال)', type: 'number', value: t.profit });
+  fl.push({ id: 'notes', label: 'ملاحظات', value: v['ملاحظات'] || '' });
+  caModal_('تعديل ' + t.type + ' — ' + (v['اسم المركز'] || ''), fl, function (f) {
+    if (f.amt === '' || !(Number(f.amt) >= 0)) return Promise.resolve({ ok: false, error: 'أدخلي مبلغًا صحيحًا' });
+    const amt = Number(f.amt), prf = f.prf === undefined || f.prf === '' ? 0 : Number(f.prf);
+    if (t.type === 'فاتورة') {   // الرجيع المخصوم ما يتجاوز رأس المال/الربح بعد التعديل
+      let rc = 0, rp = 0;
+      invoiceReturnItems_(v).forEach(function (it) { rc += it.cap || 0; rp += it.profit || 0; });
+      if (rc > amt + 0.005) return Promise.resolve({ ok: false, error: 'رأس المال أقل من الرجيع المخصوم من هذي الفاتورة (' + rc.toFixed(2) + ')' });
+      if (rp > prf + 0.005) return Promise.resolve({ ok: false, error: 'الربح أقل من الرجيع المخصوم من هذي الفاتورة (' + rp.toFixed(2) + ')' });
+    }
+    const d = { row: v._row, invoiceNumber: f.no, invoiceSource: f.src, date: f.date, totalAmount: f.amt, notes: f.notes };
+    if (f.prf !== undefined) d.profit = f.prf === '' ? 0 : f.prf;
+    return callApi('updateInvoice', d);
+  }, loadCenterInvoices);
+}
+
 function caDel_(kind, i) {
   const map = { sale: ['deleteSale', caSales_, 'سجل المبيعات'], inv: ['deleteInvoice', caInv_, 'الفاتورة'], nt: ['deleteNotice', caNt_, 'الإشعار'] };
   const m = map[kind], v = m[1][i];
