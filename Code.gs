@@ -376,18 +376,19 @@ function deleteAttachment_(p) {
 /* p.text: نص الإعلان. p.all: true لو يُنشر لكل المراكز والمسؤولات.
    لو p.all غير موجود/false: p.centers مصفوفة أسماء مراكز مستهدفة، p.masoulat مصفوفة أسماء مسؤولات مستهدفات
    (يمديها الاثنين مع بعض بنفس الإعلان). لو الاثنين فاضيين يتحول تلقائياً لـ"الكل". */
+function announceTargets_(p) {
+  if (p.all) return 'الكل';
+  const list = [];
+  (p.centers || []).forEach(function (c) { if (c) list.push('مركز:' + c); });
+  (p.masoulat || []).forEach(function (m) { if (m) list.push('مسؤولة:' + m); });
+  return list.length ? list.join('|') : 'الكل';
+}
 function recordAnnouncement_(p) {
   const sh = sheet_('الإعلانات الهامة');
   ensureNoticeCol_(sh, 'منبثق');   // للنسخ القديمة من الشيت: يضيف العمود تلقائياً أول مرة
   const id = Utilities.getUuid();
   const now = nowParts_();
-  let targets = 'الكل';
-  if (!p.all) {
-    const list = [];
-    (p.centers || []).forEach(function (c) { if (c) list.push('مركز:' + c); });
-    (p.masoulat || []).forEach(function (m) { if (m) list.push('مسؤولة:' + m); });
-    targets = list.length ? list.join('|') : 'الكل';
-  }
+  const targets = announceTargets_(p);
   appendRowByHeaders_(sh, {
     'معرف': id, 'النص': p.text || '', 'استهداف': targets, 'من': p.from || 'الإدارة',
     'اليوم': now.day, 'التاريخ': now.date, 'الوقت': now.time,
@@ -400,7 +401,36 @@ function recordAnnouncement_(p) {
 /* لوحة الإدارة: ترجع كل الإعلانات (بدون فلترة) لعرضها وحذفها. */
 function getAllAnnouncements_() {
   const rows = sheetToObjects_('الإعلانات الهامة');
-  return { ok: true, announcements: rows.reverse() };
+  return { ok: true, announcements: rows.reverse(), acks: popupReadAcks_() };   // acks = من ضغطت «موافق» لكل إشعار منبثق
+}
+
+/* تعديل إشعار منشور (النص / الاستهداف / منبثق). p.resetAcks = يرجّع إظهاره لمن سبق واطّلعت عليه. */
+function updateAnnouncement_(p) {
+  const id = String((p && p.id) || '').trim();
+  if (!id) return { ok: false, error: 'معرف الإشعار ناقص' };
+  const text = String(p.text || '').trim();
+  if (!text) return { ok: false, error: 'نص الإشعار فاضي' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const sh = sheet_('الإعلانات الهامة');
+    ensureNoticeCol_(sh, 'منبثق');
+    const idCol = colIndex_(sh, 'معرف'), last = sh.getLastRow();
+    if (idCol < 1 || last < 2) return { ok: false, error: 'الإشعار غير موجود' };
+    const ids = sh.getRange(2, idCol, last - 1, 1).getValues();
+    let row = 0;
+    for (let i = 0; i < ids.length; i++) { if (String(ids[i][0]).trim() === id) { row = i + 2; break; } }
+    if (!row) return { ok: false, error: 'الإشعار غير موجود (ربما انحذف)' };
+    sh.getRange(row, colIndex_(sh, 'النص')).setValue(text);
+    sh.getRange(row, colIndex_(sh, 'استهداف')).setValue(announceTargets_(p));
+    sh.getRange(row, colIndex_(sh, 'منبثق')).setValue(p.popup ? 'نعم' : '');
+    invalidateCache_('الإعلانات الهامة');
+    if (p.resetAcks || !p.popup) {
+      const acks = popupReadAcks_();
+      if (acks[id]) { delete acks[id]; setSettingValue_(POPUP_ACK_KEY_, JSON.stringify(acks)); }
+    }
+  } finally { lock.releaseLock(); }
+  return { ok: true };
 }
 
 /* p.center و/أو p.masoula: ترجع بس الإعلانات اللي تخص هذا المركز/المسؤولة، أو اللي استهدافها "الكل". */
@@ -1525,6 +1555,7 @@ function dispatch_(p, T0_) {
     case 'getAllAnnouncements': return (getAllAnnouncements_());
     case 'getAnnouncementsFor': return (getAnnouncementsFor_(p));
     case 'deleteAnnouncement': return (deleteAnnouncement_(p));
+    case 'updateAnnouncement': return (updateAnnouncement_(p));
     case 'getPopupAnnouncements': return (getPopupAnnouncements_(p));
     case 'ackPopupAnnouncement': return (ackPopupAnnouncement_(p));
     case 'recordMeetingMinutes': return (recordMeetingMinutes_(p));

@@ -803,13 +803,21 @@
     <!-- ===== تبويب: إشعارات هامة ===== -->
     <div id="announcementsTab" class="admin-tab-panel hidden">
       <div class="card">
-        <h3 style="margin-top:0;color:var(--maroon);">نشر إشعار هام</h3>
+        <h3 style="margin-top:0;color:var(--maroon);" id="announceFormTitle">نشر إشعار هام</h3>
+        <div id="announceEditBar" class="hidden" style="background:#fff4d6;border:1.5px solid #e3c36a;border-radius:10px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <span>✏️ أنتِ الحين تعدّلين إشعاراً منشوراً</span>
+          <a href="#" onclick="cancelEditAnnouncement(); return false;" style="font-weight:700;">إلغاء التعديل</a>
+        </div>
         <label>نص الإشعار</label>
         <textarea id="announceText" rows="4" placeholder="اكتبي نص الإشعار هنا..."></textarea>
 
         <label style="display:flex;align-items:flex-start;gap:8px;font-weight:normal;margin-top:14px;padding:10px 12px;border:1.5px solid var(--gold-light);border-radius:10px;background:#fffaf0;">
           <input type="checkbox" id="announcePopupCheck" style="margin-top:4px;">
           <span><b>إشعار منبثق</b> — يطلع لها كنافذة أول ما تدخل وتضغط «موافق»، وبعدها ما يطلع مرة ثانية (ويبقى محفوظ بأيقونة «إشعارات هامة»)</span>
+        </label>
+        <label id="announceResetAckWrap" class="hidden" style="display:flex;align-items:flex-start;gap:8px;font-weight:normal;margin-top:8px;padding:10px 12px;border:1.5px dashed var(--gold-light);border-radius:10px;">
+          <input type="checkbox" id="announceResetAck" style="margin-top:4px;">
+          <span>إعادة إظهار الإشعار لمن سبق وضغطت «موافق» (مفيد لو غيّرتِ النص وتبين الكل يشوفه من جديد)</span>
         </label>
 
         <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:14px;">
@@ -824,6 +832,8 @@
               <input type="checkbox" id="announceCentersAllCheck" onchange="toggleAnnounceGroupAll('center')"> تحديد الكل
             </span>
           </label>
+          <input type="text" id="announceCentersSearch" placeholder="🔍 ابحثي عن مركز..." oninput="filterAnnounceList_('center')" style="margin-bottom:6px;">
+          <div id="announceCentersCount" style="font-size:.82rem;color:#8a7d76;margin-bottom:6px;"></div>
           <div id="announceCentersList" style="max-height:160px;overflow-y:auto;border:1.5px solid var(--gold-light);border-radius:8px;padding:8px 10px;margin-bottom:12px;">جاري التحميل...</div>
           <label style="display:flex;align-items:center;justify-content:space-between;">
             <span>مسؤولات محددات</span>
@@ -831,6 +841,8 @@
               <input type="checkbox" id="announceMasoulatAllCheck" onchange="toggleAnnounceGroupAll('masoula')"> تحديد الكل
             </span>
           </label>
+          <input type="text" id="announceMasoulatSearch" placeholder="🔍 ابحثي عن مسؤولة..." oninput="filterAnnounceList_('masoula')" style="margin-bottom:6px;">
+          <div id="announceMasoulatCount" style="font-size:.82rem;color:#8a7d76;margin-bottom:6px;"></div>
           <div id="announceMasoulatList" style="max-height:160px;overflow-y:auto;border:1.5px solid var(--gold-light);border-radius:8px;padding:8px 10px;">جاري التحميل...</div>
         </div>
 
@@ -4086,19 +4098,54 @@ function toggleAnnounceTargets() {
   document.getElementById('announceTargetsBox').classList.toggle('hidden', all);
 }
 
-function toggleAnnounceGroupAll(type) {
+function annVisibleBoxes_(type) {
   const selector = type === 'center' ? '.announce-center-check' : '.announce-masoula-check';
+  return Array.from(document.querySelectorAll(selector)).filter(function (el) { return el.closest('label').style.display !== 'none'; });
+}
+
+/* «تحديد الكل» يطبّق على الظاهر بالقائمة فقط (يعني لو بحثتي عن كلمة يحدد نتائج البحث بس) */
+function toggleAnnounceGroupAll(type) {
   const allCheckId = type === 'center' ? 'announceCentersAllCheck' : 'announceMasoulatAllCheck';
   const checked = document.getElementById(allCheckId).checked;
-  document.querySelectorAll(selector).forEach(function (el) { el.checked = checked; });
+  annVisibleBoxes_(type).forEach(function (el) { el.checked = checked; });
+  updateAnnounceCount_(type);
 }
 
 function syncAnnounceGroupAllCheck_(type) {
-  const selector = type === 'center' ? '.announce-center-check' : '.announce-masoula-check';
   const allCheckId = type === 'center' ? 'announceCentersAllCheck' : 'announceMasoulatAllCheck';
-  const boxes = Array.from(document.querySelectorAll(selector));
+  const boxes = annVisibleBoxes_(type);
   const allChecked = boxes.length > 0 && boxes.every(function (el) { return el.checked; });
   document.getElementById(allCheckId).checked = allChecked;
+  updateAnnounceCount_(type);
+}
+
+function updateAnnounceCount_(type) {
+  const selector = type === 'center' ? '.announce-center-check' : '.announce-masoula-check';
+  const n = document.querySelectorAll(selector + ':checked').length;
+  const el = document.getElementById(type === 'center' ? 'announceCentersCount' : 'announceMasoulatCount');
+  if (el) el.textContent = n ? ('✅ المحدد: ' + n + (type === 'center' ? ' مركز' : ' مسؤولة')) : '';
+}
+
+function annNormAr_(s) {
+  return String(s || '').replace(/[\u064B-\u065F\u0670\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function filterAnnounceList_(type) {
+  const q = annNormAr_(document.getElementById(type === 'center' ? 'announceCentersSearch' : 'announceMasoulatSearch').value);
+  const selector = type === 'center' ? '.announce-center-check' : '.announce-masoula-check';
+  let shown = 0;
+  document.querySelectorAll(selector).forEach(function (el) {
+    const lbl = el.closest('label');
+    const ok = !q || annNormAr_(el.value).indexOf(q) !== -1;
+    lbl.style.display = ok ? 'flex' : 'none';
+    if (ok) shown++;
+  });
+  const box = document.getElementById(type === 'center' ? 'announceCentersList' : 'announceMasoulatList');
+  let none = box.querySelector('.ann-none');
+  if (!shown && q) {
+    if (!none) { none = document.createElement('div'); none.className = 'ann-none'; none.style.color = '#8a7d76'; none.textContent = 'ما فيه نتائج'; box.appendChild(none); }
+  } else if (none) none.remove();
+  syncAnnounceGroupAllCheck_(type);
 }
 
 function renderAnnounceTargetLists() {
@@ -4122,13 +4169,68 @@ function renderAnnounceTargetLists() {
     });
     document.getElementById('announceCentersAllCheck').checked = false;
     document.getElementById('announceMasoulatAllCheck').checked = false;
+    document.getElementById('announceCentersSearch').value = '';
+    document.getElementById('announceMasoulatSearch').value = '';
+    updateAnnounceCount_('center');
+    updateAnnounceCount_('masoula');
   }
 
-  if (centersListCache.length || masoulatListCache.length) { render(); return; }
-  Promise.all([callApi('getCenters'), callApi('getMasoulat')]).then(function (results) {
+  if (centersListCache.length || masoulatListCache.length) { render(); return Promise.resolve(); }
+  return Promise.all([callApi('getCenters'), callApi('getMasoulat')]).then(function (results) {
     centersListCache = results[0].centers || [];
     masoulatListCache = results[1].masoulat || [];
     render();
+  });
+}
+
+let editingAnnounceId_ = null;
+let adminAnnouncementsById_ = {};
+
+function resetAnnounceForm_() {
+  editingAnnounceId_ = null;
+  document.getElementById('announceText').value = '';
+  document.getElementById('announcePopupCheck').checked = false;
+  document.getElementById('announceResetAck').checked = false;
+  document.getElementById('announceResetAckWrap').classList.add('hidden');
+  document.getElementById('announceEditBar').classList.add('hidden');
+  document.getElementById('announceFormTitle').textContent = 'نشر إشعار هام';
+  document.getElementById('announceSubmitBtn').textContent = 'نشر الإشعار';
+  document.getElementById('announceAllCheck').checked = true;
+  toggleAnnounceTargets();
+  document.querySelectorAll('.announce-center-check, .announce-masoula-check').forEach(function (el) { el.checked = false; });
+  document.getElementById('announceCentersAllCheck').checked = false;
+  document.getElementById('announceMasoulatAllCheck').checked = false;
+  document.getElementById('announceCentersSearch').value = '';
+  document.getElementById('announceMasoulatSearch').value = '';
+  filterAnnounceList_('center');
+  filterAnnounceList_('masoula');
+}
+
+function cancelEditAnnouncement() { resetAnnounceForm_(); }
+
+function startEditAnnouncement(id) {
+  const a = adminAnnouncementsById_[id];
+  if (!a) return;
+  renderAnnounceTargetLists().then(function () {
+    resetAnnounceForm_();
+    editingAnnounceId_ = id;
+    document.getElementById('announceText').value = a['النص'] || '';
+    document.getElementById('announcePopupCheck').checked = String(a['منبثق'] || '').trim() === 'نعم';
+    const target = String(a['استهداف'] || '').trim();
+    const all = !target || target === 'الكل';
+    document.getElementById('announceAllCheck').checked = all;
+    toggleAnnounceTargets();
+    if (!all) {
+      const tokens = target.split('|');
+      document.querySelectorAll('.announce-center-check').forEach(function (el) { el.checked = tokens.indexOf('مركز:' + el.value) !== -1; });
+      document.querySelectorAll('.announce-masoula-check').forEach(function (el) { el.checked = tokens.indexOf('مسؤولة:' + el.value) !== -1; });
+      syncAnnounceGroupAllCheck_('center'); syncAnnounceGroupAllCheck_('masoula');
+    }
+    document.getElementById('announceResetAckWrap').classList.remove('hidden');
+    document.getElementById('announceEditBar').classList.remove('hidden');
+    document.getElementById('announceFormTitle').textContent = 'تعديل إشعار هام';
+    document.getElementById('announceSubmitBtn').textContent = 'حفظ التعديل';
+    document.getElementById('announceText').scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
 }
 
@@ -4143,18 +4245,15 @@ function submitAnnouncement() {
     if (!payload.centers.length && !payload.masoulat.length) { alert('اختاري مركز أو مسؤولة واحدة على الأقل، أو فعّلي "يظهر لكل المراكز والمسؤولات"'); return; }
   }
   const btn = document.getElementById('announceSubmitBtn');
+  const isEdit = !!editingAnnounceId_;
+  if (isEdit) { payload.id = editingAnnounceId_; payload.resetAcks = document.getElementById('announceResetAck').checked; }
   setBtnBusy(btn, true);
-  callApi('recordAnnouncement', payload).then(function (r) {
+  callApi(isEdit ? 'updateAnnouncement' : 'recordAnnouncement', payload).then(function (r) {
     setBtnBusy(btn, false);
     if (r.ok) {
-      document.getElementById('announceText').value = '';
-      document.getElementById('announcePopupCheck').checked = false;
-      document.getElementById('announceAllCheck').checked = true;
-      toggleAnnounceTargets();
-      document.querySelectorAll('.announce-center-check, .announce-masoula-check').forEach(function (el) { el.checked = false; });
-      document.getElementById('announceCentersAllCheck').checked = false;
-      document.getElementById('announceMasoulatAllCheck').checked = false;
+      resetAnnounceForm_();
       const s = document.getElementById('announceSuccess');
+      s.textContent = isEdit ? 'تم حفظ التعديل ✅' : 'تم نشر الإشعار بنجاح ✅';
       s.style.display = 'block';
       setTimeout(function () { s.style.display = 'none'; }, 2500);
       loadAnnouncementsAdmin();
@@ -4175,27 +4274,85 @@ function announceTargetLabel_(target) {
 function loadAnnouncementsAdmin() {
   const box = document.getElementById('announcementsList');
   box.innerHTML = 'جاري التحميل...';
-  callApi('getAllAnnouncements', {}).then(function (r) {
+  Promise.all([callApi('getAllAnnouncements', { _t: Date.now() }), (centersListCache.length ? Promise.resolve({ centers: centersListCache }) : callApi('getCenters'))]).then(function (res) {
+    const r = res[0];
+    if (!centersListCache.length && res[1] && res[1].centers) centersListCache = res[1].centers;
     const list = r.announcements || [];
+    const acks = r.acks || {};
     if (!r.ok || !list.length) {
       box.innerHTML = 'لا توجد إشعارات بعد';
       return;
     }
     box.innerHTML = '';
+    adminAnnouncementsById_ = {};
     list.forEach(function (a) {
+      adminAnnouncementsById_[a['معرف']] = a;
+      const isPopup = String(a['منبثق'] || '').trim() === 'نعم';
       const div = document.createElement('div');
       div.className = 'notice-item';
       div.innerHTML =
-        '<div>' +
+        '<div style="width:100%;">' +
           '<div>' + (a['النص'] || '') + '</div>' +
-          '<div class="meta">' + (String(a['منبثق'] || '').trim() === 'نعم' ? '🔔 منبثق · ' : '') + 'إلى: ' + announceTargetLabel_(a['استهداف']) + ' · ' + (a['اليوم'] || '') + ' ' + toHijriStr(a['التاريخ']) + '</div>' +
-          '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;">' +
+          '<div class="meta">' + (isPopup ? '🔔 منبثق · ' : '') + 'إلى: ' + announceTargetLabel_(a['استهداف']) + ' · ' + (a['اليوم'] || '') + ' ' + toHijriStr(a['التاريخ']) + '</div>' +
+          (isPopup ? '<div class="ann-seen" data-id="' + a['معرف'] + '"></div>' : '') +
+          '<div class="row-actions" style="margin-top:6px;justify-content:flex-start;gap:14px;">' +
+            '<a href="#" onclick="startEditAnnouncement(\'' + a['معرف'] + '\'); return false;">تعديل</a>' +
             '<a href="#" onclick="deleteAnnouncementRow(' + a._row + '); return false;">حذف</a>' +
           '</div>' +
         '</div>';
       box.appendChild(div);
+      if (isPopup) renderAnnounceSeen_(div.querySelector('.ann-seen'), a, acks[a['معرف']] || {});
     });
   });
+}
+
+/* حالة «تم الاطلاع» للإشعار المنبثق: من ضغطت «موافق» ومن لا. */
+function renderAnnounceSeen_(host, a, ackMap) {
+  const norm = annNormAr_;
+  const target = String(a['استهداف'] || '').trim();
+  const all = !target || target === 'الكل';
+  const tokens = all ? [] : target.split('|');
+  const targetCenters = all ? centersListCache.slice() : tokens.filter(function (t) { return t.indexOf('مركز:') === 0; }).map(function (t) { return t.slice(5); });
+  const seenCenters = [], seenMasoulat = [];
+  Object.keys(ackMap).forEach(function (k) {
+    const info = ackMap[k] || {};
+    if (k.indexOf('مركز:') === 0) seenCenters.push({ name: k.slice(5), at: info.at || '' });
+    else if (k.indexOf('مسؤولة:') === 0) {
+      const body = k.slice(7), i = body.lastIndexOf('@');
+      seenMasoulat.push({ name: i >= 0 ? body.slice(0, i) : body, center: i >= 0 ? body.slice(i + 1) : '', at: info.at || '' });
+    }
+  });
+  const seenSet = {};
+  seenCenters.forEach(function (s) { seenSet[norm(s.name)] = true; });
+  const pending = targetCenters.filter(function (c) { return !seenSet[norm(c)]; });
+  function when(at) {
+    const sp = String(at || '').split(' ');
+    return (sp[0] ? toHijriStr(sp[0]) : '') + (sp[1] ? ' ' + sp.slice(1).join(' ') : '');
+  }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]; }); }
+  const total = targetCenters.length;
+  const doneCount = targetCenters.length - pending.length;
+  const summary = total
+    ? ('👁 تم الاطلاع: ' + doneCount + ' من ' + total + ' مركز' + (seenMasoulat.length ? ' · ' + seenMasoulat.length + ' مسؤولة' : ''))
+    : ('👁 تم الاطلاع: ' + seenMasoulat.length + ' مسؤولة');
+  const rows = function (arr, fn) { return arr.length ? arr.map(fn).join('') : '<div style="color:#8a7d76;">—</div>'; };
+  host.innerHTML =
+    '<a href="#" class="ann-seen-toggle" style="display:inline-block;margin-top:8px;font-weight:700;color:var(--maroon);">' + summary + ' ▾</a>' +
+    '<div class="ann-seen-panel hidden" style="margin-top:8px;border:1.5px solid var(--gold-light);border-radius:10px;padding:10px 12px;font-size:.88rem;">' +
+      '<input type="text" class="ann-seen-search" placeholder="🔍 ابحثي باسم المركز..." style="margin-bottom:8px;">' +
+      '<div style="font-weight:700;color:#2e7d32;margin-bottom:4px;">✅ اطّلعت (' + seenCenters.length + ')</div>' +
+      rows(seenCenters, function (s) { return '<div class="ann-seen-row">' + esc(s.name) + ' <span style="color:#8a7d76;">· ' + esc(when(s.at)) + '</span></div>'; }) +
+      (seenMasoulat.length ? '<div style="font-weight:700;color:#2e7d32;margin:8px 0 4px;">✅ مسؤولات اطّلعن (' + seenMasoulat.length + ')</div>' +
+        rows(seenMasoulat, function (s) { return '<div class="ann-seen-row">' + esc(s.name) + (s.center ? ' (' + esc(s.center) + ')' : '') + ' <span style="color:#8a7d76;">· ' + esc(when(s.at)) + '</span></div>'; }) : '') +
+      (total ? '<div style="font-weight:700;color:#b26a00;margin:8px 0 4px;">⏳ لم تطّلع بعد (' + pending.length + ')</div>' +
+        rows(pending, function (c) { return '<div class="ann-seen-row">' + esc(c) + '</div>'; }) : '') +
+    '</div>';
+  const panel = host.querySelector('.ann-seen-panel');
+  host.querySelector('.ann-seen-toggle').onclick = function (ev) { ev.preventDefault(); panel.classList.toggle('hidden'); };
+  host.querySelector('.ann-seen-search').oninput = function () {
+    const q = norm(this.value);
+    panel.querySelectorAll('.ann-seen-row').forEach(function (row) { row.style.display = (!q || norm(row.textContent).indexOf(q) !== -1) ? '' : 'none'; });
+  };
 }
 
 function deleteAnnouncementRow(row) {
