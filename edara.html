@@ -7105,11 +7105,12 @@ function caRenderSales_() {
   }).join('') : caEmpty_(5, 'لا توجد مبيعات');
 }
 function caModalClose_() { document.getElementById('caModalOv').style.display = 'none'; }
-function caModal_(title, fields, onSave, afterSave) {
+function caModal_(title, fields, onSave, afterSave, setup) {
   document.getElementById('caModalTitle').textContent = title;
   document.getElementById('caModalFields').innerHTML = fields.map(function (f) {
     return '<label>' + f.label + '</label><input id="caF_' + f.id + '" type="' + (f.type || 'text') + '"' + (f.type === 'number' ? ' step="0.01" inputmode="decimal" class="no-spin"' : '') + ' value="' + caEsc_(f.value) + '">';
   }).join('');
+  document.getElementById('caModalExtra').innerHTML = '';
   const err = document.getElementById('caModalErr'); err.style.display = 'none';
   document.getElementById('caModalSave').onclick = function () {
     const vals = {}; fields.forEach(function (f) { vals[f.id] = document.getElementById('caF_' + f.id).value; });
@@ -7120,6 +7121,7 @@ function caModal_(title, fields, onSave, afterSave) {
     }).catch(function () { btn.disabled = false; err.textContent = 'تعذّر الاتصال بالخادم'; err.style.display = 'block'; });
   };
   document.getElementById('caModalOv').style.display = 'flex';
+  if (setup) setup();
 }
 function caEdit_(kind, i) {
   if (kind === 'sale') {
@@ -7159,32 +7161,137 @@ function caEdit_(kind, i) {
     });
   }
 }
-/* تعديل قيد من «بيان الفواتير» بالإدارة (نفس نافذة تعديل حساب المركز) */
+/* ---- رجيع داخل نافذة تعديل الفاتورة (نفس نموذج المراكز: أكثر من صنف، خصم أو إثبات فقط) ---- */
+function irAddRow_(item) {
+  const list = document.getElementById('irList');
+  const it = item || {};
+  const box = document.createElement('div');
+  box.className = 'ir-row';
+  box.style.cssText = 'border:1px dashed var(--gold,#C2AA85);border-radius:10px;padding:10px;margin-top:8px;';
+  box.innerHTML =
+    '<label>وصف الصنف</label><input type="text" class="ret-desc" placeholder="مثال: بطاطس ليز - كرتون" oninput="irPreview_()">' +
+    '<label>الكمية</label><input type="number" class="ret-qty no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0" step="1">' +
+    '<label>طريقة الخصم</label><select class="ret-mode" onchange="irMode_(this)">' +
+      '<option value="split">تم جرد الفاتورة بالكامل مسبقًا — يُخصم ما أكتبه أدناه من رأس المال والربح</option>' +
+      '<option value="proof">إثبات فقط: الرجيع لم أكتب مبلغه في سجل الفواتير</option></select>' +
+    '<div class="ret-split-wrap">' +
+      '<label>خصم من رأس المال (ريال)</label><input type="number" class="ret-cap no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01" oninput="irPreview_()">' +
+      '<label>خصم من الربح (ريال)</label><input type="number" class="ret-profit no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01" oninput="irPreview_()">' +
+    '</div>' +
+    '<div class="ret-proof-wrap hidden"><label>القيمة (ريال)</label><input type="number" class="ret-proof no-spin" inputmode="decimal" onwheel="this.blur()" placeholder="0.00" step="0.01" oninput="irPreview_()">' +
+      '<div style="font-size:0.8rem;color:#8a7d76;margin-top:4px;">يُسجَّل للإثبات فقط، ولا يُخصم من رأس المال ولا الربح.</div></div>' +
+    '<a href="#" class="ret-remove" onclick="irRemove_(this); return false;" style="display:inline-block;margin-top:8px;">حذف هذا الرجيع</a>';
+  list.appendChild(box);
+  box.querySelector('.ret-desc').value = it.desc || '';
+  box.querySelector('.ret-qty').value = it.qty || '';
+  box.querySelector('.ret-mode').value = Number(it.proof) > 0 ? 'proof' : 'split';
+  box.querySelector('.ret-cap').value = it.cap || '';
+  box.querySelector('.ret-profit').value = it.profit || '';
+  box.querySelector('.ret-proof').value = it.proof || '';
+  irMode_(box.querySelector('.ret-mode'));
+  irLinks_();
+}
+function irMode_(sel) {
+  const box = sel.closest('.ir-row'), proof = sel.value === 'proof';
+  box.querySelector('.ret-split-wrap').classList.toggle('hidden', proof);
+  box.querySelector('.ret-proof-wrap').classList.toggle('hidden', !proof);
+  irPreview_();
+}
+function irRemove_(a) { const b = a.closest('.ir-row'); b.parentNode.removeChild(b); irLinks_(); irPreview_(); }
+function irLinks_() {
+  const rows = document.querySelectorAll('#irList .ir-row');
+  rows.forEach(function (r) { r.querySelector('.ret-remove').style.display = rows.length > 1 ? 'inline-block' : 'none'; });
+}
+function irToggle_() {
+  const on = document.getElementById('irHas').checked;
+  document.getElementById('irWrap').classList.toggle('hidden', !on);
+  if (on && !document.querySelectorAll('#irList .ir-row').length) irAddRow_();
+  irPreview_();
+}
+function irRead_() {
+  if (!document.getElementById('irHas') || !document.getElementById('irHas').checked) return [];
+  const out = [];
+  document.querySelectorAll('#irList .ir-row').forEach(function (box) {
+    const proofMode = box.querySelector('.ret-mode').value === 'proof';
+    const it = {
+      desc: box.querySelector('.ret-desc').value.trim(), qty: box.querySelector('.ret-qty').value.trim(),
+      cap: proofMode ? 0 : (Number(box.querySelector('.ret-cap').value) || 0),
+      profit: proofMode ? 0 : (Number(box.querySelector('.ret-profit').value) || 0),
+      proof: proofMode ? (Number(box.querySelector('.ret-proof').value) || 0) : 0
+    };
+    if (!it.desc && it.cap <= 0 && it.profit <= 0 && it.proof <= 0) return;
+    out.push(it);
+  });
+  return out;
+}
+function irPreview_() {
+  const box = document.getElementById('irPreview'); if (!box) return;
+  const items = irRead_();
+  let cap = 0, prf = 0, proof = 0;
+  items.forEach(function (it) { cap += it.cap; prf += it.profit; proof += it.proof; });
+  if (cap <= 0 && prf <= 0 && proof <= 0) { box.textContent = ''; return; }
+  let txt = '';
+  if (cap > 0 || prf > 0) {
+    const a = document.getElementById('caF_amt'), q = document.getElementById('caF_prf');
+    const capital = (Number(a && a.value) || 0) - cap, profit = (Number(q && q.value) || 0) - prf;
+    txt = 'بعد الرجيع: رأس المال ' + capital.toFixed(2) + ' + الربح ' + profit.toFixed(2) + ' = ' + (capital + profit).toFixed(2) + ' ريال';
+  }
+  if (proof > 0) txt += (txt ? ' — ' : '') + 'رجيع للإثبات فقط بقيمة ' + proof.toFixed(2) + ' ريال (لا يتغير المبلغ)';
+  box.textContent = txt;
+}
+function irSetup_(v) {
+  document.getElementById('caModalExtra').innerHTML =
+    '<label style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-top:10px;"><input type="checkbox" id="irHas" onchange="irToggle_()"> <span>يوجد رجيع</span></label>' +
+    '<div id="irWrap" class="hidden" style="margin-top:6px;"><div id="irList"></div>' +
+    '<button type="button" class="btn secondary" onclick="irAddRow_()" style="margin-top:6px;">+ إضافة رجيع آخر</button>' +
+    '<div id="irPreview" style="margin-top:8px;font-weight:bold;color:var(--maroon,#8C1A2C);"></div></div>';
+  const items = invoiceReturnItems_(v);
+  if (items.length) {
+    document.getElementById('irHas').checked = true;
+    document.getElementById('irWrap').classList.remove('hidden');
+    items.forEach(function (it) { irAddRow_(it); });
+    irPreview_();
+  }
+  ['caF_amt', 'caF_prf'].forEach(function (id) { const e = document.getElementById(id); if (e) e.addEventListener('input', irPreview_); });
+}
+
+/* تعديل قيد من «بيان الفواتير» بالإدارة (نفس نافذة تعديل حساب المركز + الرجيع) */
 function editInvoiceFromStatement_(i) {
   const v = currentInvoices[i];
   if (!v) return;
-  const t = invoiceRowParts_(v);
+  const t = invoiceRowParts_(v), isInv = t.type === 'فاتورة';
   const fl = [
     { id: 'no', label: 'رقم الفاتورة', value: v['رقم الفاتورة'] || '' },
     { id: 'src', label: 'مصدر الفاتورة', value: v['مصدر الفاتورة'] || '' },
     { id: 'date', label: 'التاريخ', type: 'date', value: caDate_(v['التاريخ']) },
-    { id: 'amt', label: t.type === 'فاتورة' ? 'رأس المال (ريال)' : 'المبلغ (ريال)', type: 'number', value: t.amount }
+    { id: 'amt', label: isInv ? 'رأس المال (ريال)' : 'المبلغ (ريال)', type: 'number', value: t.amount }
   ];
   if (t.type !== 'مصروفات') fl.push({ id: 'prf', label: 'الربح (ريال)', type: 'number', value: t.profit });
   fl.push({ id: 'notes', label: 'ملاحظات', value: v['ملاحظات'] || '' });
   caModal_('تعديل ' + t.type + ' — ' + (v['اسم المركز'] || ''), fl, function (f) {
     if (f.amt === '' || !(Number(f.amt) >= 0)) return Promise.resolve({ ok: false, error: 'أدخلي مبلغًا صحيحًا' });
     const amt = Number(f.amt), prf = f.prf === undefined || f.prf === '' ? 0 : Number(f.prf);
-    if (t.type === 'فاتورة') {   // الرجيع المخصوم ما يتجاوز رأس المال/الربح بعد التعديل
-      let rc = 0, rp = 0;
-      invoiceReturnItems_(v).forEach(function (it) { rc += it.cap || 0; rp += it.profit || 0; });
-      if (rc > amt + 0.005) return Promise.resolve({ ok: false, error: 'رأس المال أقل من الرجيع المخصوم من هذي الفاتورة (' + rc.toFixed(2) + ')' });
-      if (rp > prf + 0.005) return Promise.resolve({ ok: false, error: 'الربح أقل من الرجيع المخصوم من هذي الفاتورة (' + rp.toFixed(2) + ')' });
-    }
     const d = { row: v._row, invoiceNumber: f.no, invoiceSource: f.src, date: f.date, totalAmount: f.amt, notes: f.notes };
     if (f.prf !== undefined) d.profit = f.prf === '' ? 0 : f.prf;
-    return callApi('updateInvoice', d);
-  }, loadCenterInvoices);
+    let items = [];
+    if (isInv) {
+      items = irRead_();
+      let rc = 0, rp = 0;
+      for (let k = 0; k < items.length; k++) {
+        const it = items[k];
+        if (!it.desc) return Promise.resolve({ ok: false, error: 'اكتبي وصف الصنف المرتجع' });
+        if (it.cap <= 0 && it.profit <= 0 && it.proof <= 0) return Promise.resolve({ ok: false, error: 'اكتبي قيمة الرجيع للصنف: ' + it.desc });
+        rc += it.cap; rp += it.profit;
+      }
+      if (rc > amt + 0.005) return Promise.resolve({ ok: false, error: 'مجموع خصم الرجيع من رأس المال أكبر من رأس المال' });
+      if (rp > prf + 0.005) return Promise.resolve({ ok: false, error: 'مجموع خصم الرجيع من الربح أكبر من الربح' });
+      d.returns = items;
+    }
+    return callApi('updateInvoice', d).then(function (r) {
+      if (r && r.ok && items.length && !r.returnSaved) alert('تنبيه: حُفظت الفاتورة لكن لم يُحفظ الرجيع، لأن نسخة الـ Web App المنشورة قديمة. انشري إصدارًا جديدًا من Code.gs (نشر ← إدارة عمليات النشر ← تعديل ← إصدار جديد).');
+      return r;
+    });
+  }, loadCenterInvoices, isInv ? function () { irSetup_(v); } : null);
 }
 
 function caDel_(kind, i) {
@@ -7957,6 +8064,7 @@ function printRegStats() {
   <div style="background:#fff;border-radius:14px;max-width:420px;width:100%;padding:18px;max-height:90vh;overflow:auto;">
     <h3 id="caModalTitle" style="margin:0 0 10px;color:var(--maroon);"></h3>
     <div id="caModalFields"></div>
+    <div id="caModalExtra"></div>
     <div class="error-msg" id="caModalErr" style="display:none;"></div>
     <div style="display:flex;gap:8px;margin-top:12px;">
       <button class="btn" id="caModalSave" style="flex:1;">حفظ</button>
