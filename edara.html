@@ -313,6 +313,7 @@
             <div id="rewardCheckBody" style="padding:10px 14px;line-height:1.9;font-size:0.95rem;"></div>
           </div>
           <img id="detailNoticeImg" class="notice-preview">
+          <button class="btn outline" id="deleteNoticeBtn" onclick="deleteCurrentNotice_()" style="margin-top:14px;color:#b3261e;border-color:#b3261e;">🗑️ حذف الإشعار</button>
         </div>
 
         <div class="card" id="signCard">
@@ -2900,6 +2901,20 @@ function renderAwaitingNotices_(list) {
       '<span class="status-pill pending">بانتظار توقيع المركز</span>';
     box.appendChild(div);
   });
+}
+
+/* حذف الإشعار من شاشة الاطلاع (بانتظار الاطلاع أو تم الاطلاع) */
+function deleteCurrentNotice_() {
+  const n = currentNotice;
+  if (!n || !n._row) { alert('تعذّر تحديد الإشعار'); return; }
+  if (!confirm('هل تريدين حذف إشعار ' + (n['النوع'] || '') + ' الخاص بمركز «' + (n['اسم المركز'] || '') + '» بمبلغ ' + (Number(n['المبلغ']) || 0).toFixed(2) + ' ريال؟ لا يمكن التراجع عن الحذف.')) return;
+  const btn = document.getElementById('deleteNoticeBtn');
+  setBtnBusy(btn, true, 'جارٍ الحذف...');
+  callApi('deleteNotice', { row: n._row }).then(function (r) {
+    setBtnBusy(btn, false);
+    if (r && r.ok) { currentNotice = null; backToList(); loadPending(); }
+    else alert((r && r.error) || 'تعذّر الحذف');
+  }).catch(function () { setBtnBusy(btn, false); alert('تعذّر الاتصال بالخادم'); });
 }
 
 function deleteAwaitingNotice_(row) {
