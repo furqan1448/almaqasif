@@ -443,8 +443,9 @@ function getAnnouncementsFor_(p) {
     if (target === 'الكل' || !target) return true;
     const tokens = target.split('|');
     return tokens.some(function (t) {
+      // صفحة المسؤولة (تمرّر masoula): تشوف بس اللي استُهدفت باسمها، والإشعار الموجّه «لمركز» يخص مديرة المركز فقط
+      if (masoula) return t === 'مسؤولة:' + masoula;
       if (center && t === 'مركز:' + center) return true;
-      if (masoula && t === 'مسؤولة:' + masoula) return true;
       return false;
     });
   });
