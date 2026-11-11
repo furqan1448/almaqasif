@@ -6938,6 +6938,8 @@ function loadAmounts_(force) {
     setBtnBusy(btn, false);
     if (!r || !r.ok) { out.innerHTML = '<div class="card">تعذّر تحميل المبالغ' + (r && r.error ? ': ' + rsEsc_(r.error) : '') + '</div>'; return; }
     amData_ = r;
+    // الخادم القديم ما يرسل «المبلغ الإجمالي»: نرجع لرأس المال مؤقتاً لين يتحدّث Code.gs
+    (r.centers || []).forEach(function (m) { if (m.deliverable === undefined) m.deliverable = m.capital; });
     renderAmounts_();
   }).catch(function () {
     setBtnBusy(btn, false);
@@ -6949,7 +6951,7 @@ const AM_COLS_ = [
   { key: 'receiveAmt', label: 'إشعار الاستلام' },
   { key: 'rewardAmt',  label: 'المكافأة' },
   { key: 'feeAmt',     label: 'الرسوم' },
-  { key: 'capital',    label: 'بيان الفواتير' },
+  { key: 'deliverable', label: 'بيان الفواتير' },
   { key: 'salesTotal', label: 'المبيعات' }
 ];
 
@@ -6982,7 +6984,7 @@ function renderAmounts_() {
     '<div class="rs-search-wrap"><input type="search" id="amSearch" class="rs-search" placeholder="🔍 ابحثي باسم المركز..." value="' + rsEsc_(amQuery_) + '" oninput="onAmSearch(this.value)"></div>' +
     '<div class="rs-scroll"><table class="log-table rs-table am-table" style="min-width:0;width:100%;font-size:0.78rem;"><thead><tr><th style="padding:8px 4px;">المركز</th>' +
     AM_COLS_.map(function (c) { return '<th style="padding:8px 3px;font-size:0.74rem;">' + c.label + '</th>'; }).join('') + '</tr></thead><tbody id="amBody">' + body + '</tbody></table></div>' +
-    '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;line-height:1.8;">كل الأرقام بالريال. «بيان الفواتير» = مبلغ الفواتير (رأس المال) بعد خصم الرجيع، و«المبيعات» = مجموع سجل البيع اليومي.' +
+    '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;line-height:1.8;">كل الأرقام بالريال. «بيان الفواتير» = المبلغ الإجمالي (المطلوب تسليمه = رأس المال + الأرباح − المصروفات) بعد خصم الرجيع، و«المبيعات» = مجموع سجل البيع اليومي.' +
     (hidden.length ? ' أُخفي ' + hidden.length + ' مركز لا مقصف فيه حسب «حصر المقاصف».' : '') + '</p>' +
     '<div class="export-row" style="margin-top:12px;">' +
       '<button class="btn outline" onclick="exportAmountsExcel_()">⬇️ Excel</button>' +

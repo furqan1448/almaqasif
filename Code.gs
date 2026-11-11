@@ -3899,7 +3899,7 @@ function getRegistrationStats_(p) {
     if (!st[c]) {
       st[c] = { center: c, receive: 0, reward: 0, fee: 0, other: 0, pending: 0,
         receiveAmt: 0, rewardAmt: 0, feeAmt: 0, otherAmt: 0,
-        invoices: 0, capital: 0, profit: 0, salesEntries: 0, salesDays: {}, salesTotal: 0 };
+        invoices: 0, capital: 0, profit: 0, expenses: 0, salesEntries: 0, salesDays: {}, salesTotal: 0 };
     }
     return st[c];
   }
@@ -3922,6 +3922,7 @@ function getRegistrationStats_(p) {
       m.capital += (Number(r['المبلغ الإجمالي']) || 0) - invoiceReturnOf_(r).cap;   // عمود «المبلغ الإجمالي» بالشيت = رأس المال (بعد خصم الرجيع)
     }
     if (et !== 'مصروفات') m.profit += (Number(r['الربح']) || 0) - (et === 'فاتورة' ? invoiceReturnOf_(r).profit : 0);  // الربح = أرباح الفواتير + أرباح المشتريات
+    else m.expenses += Number(r['المبلغ الإجمالي']) || 0;   // المصروفات (تُخصم من المبلغ الإجمالي)
   });
   sales.forEach(function (r) {
     if (!inRange(r['التاريخ'])) return;
@@ -3994,6 +3995,8 @@ function getRegistrationStats_(p) {
       invoices: m.invoices,
       capital: Math.round(m.capital * 100) / 100,
       profit: Math.round(m.profit * 100) / 100,
+      // المبلغ الإجمالي لبيان الفواتير = المطلوب تسليمه = رأس المال + أرباح الفواتير + أرباح المشتريات − المصروفات (بعد خصم الرجيع)
+      deliverable: Math.round((m.capital + m.profit - m.expenses) * 100) / 100,
       salesEntries: m.salesEntries,
       salesDays: days,
       salesTotal: Math.round(m.salesTotal * 100) / 100,
@@ -4009,11 +4012,11 @@ function getRegistrationStats_(p) {
   });
 
   const totals = { receive: 0, reward: 0, fee: 0, other: 0, pending: 0, invoices: 0, salesEntries: 0, salesTotal: 0, salesDays: 0,
-    receiveAmt: 0, rewardAmt: 0, feeAmt: 0, capital: 0 };
+    receiveAmt: 0, rewardAmt: 0, feeAmt: 0, capital: 0, deliverable: 0 };
   list.forEach(function (m) {
     Object.keys(totals).forEach(function (k) { totals[k] += m[k]; });
   });
-  ['salesTotal', 'receiveAmt', 'rewardAmt', 'feeAmt', 'capital'].forEach(function (k) { totals[k] = Math.round(totals[k] * 100) / 100; });
+  ['salesTotal', 'receiveAmt', 'rewardAmt', 'feeAmt', 'capital', 'deliverable'].forEach(function (k) { totals[k] = Math.round(totals[k] * 100) / 100; });
 
   return { ok: true, period: useDates ? 'range' : (period === 'all' ? 'all' : 'term'),
     from: useDates ? from : '', to: useDates ? to : '', centers: list, totals: totals, hiddenNoCanteen: hiddenNoCanteen,
