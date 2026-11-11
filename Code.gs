@@ -1518,6 +1518,7 @@ function dispatch_(p, T0_) {
     case 'getStats': return (getStats_());
     case 'getRegistrationStats': return (getRegistrationStats_(p));
     case 'setRegistrationVerified': return (setRegistrationVerified_(p));
+    case 'setAmountFollow': return (setAmountFollow_(p));
 
     case 'archiveCurrentTerm': return (archiveCurrentTerm_(p));
     case 'getTermsList': return (getTermsList_());
@@ -3782,6 +3783,30 @@ function regVerifySheet_() {
   return sh;
 }
 
+/* متابعة جدول «مبالغ المقاصف» بالإدارة: ملاحظة + علامة «اكتمل» لكل مركز (تُحفظ كـ JSON في شيت «الإعدادات») */
+const AM_FOLLOW_KEY_ = 'متابعة مبالغ المقاصف';
+function getAmFollowMap_() {
+  try { const m = JSON.parse(getSettingValue_(AM_FOLLOW_KEY_) || '{}'); return (m && typeof m === 'object') ? m : {}; }
+  catch (e) { return {}; }
+}
+
+/* p.center + (p.note و/أو p.done) */
+function setAmountFollow_(p) {
+  const center = String(p.center || '').trim();
+  if (!center) return { ok: false, error: 'اسم المركز مطلوب' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const map = getAmFollowMap_();
+    const e = map[center] || {};
+    if (p.note !== undefined) e.note = String(p.note || '').trim().slice(0, 300);
+    if (p.done !== undefined) e.done = (p.done === true || p.done === 'true');
+    if (!e.note && !e.done) delete map[center]; else map[center] = { note: e.note || '', done: !!e.done };
+    setSettingValue_(AM_FOLLOW_KEY_, JSON.stringify(map));
+  } finally { lock.releaseLock(); }
+  return { ok: true, center: center };
+}
+
 function getRegistrationVerifiedMap_() {
   const map = {};
   if (!sheet_(REG_VERIFY_SHEET_)) return map;
@@ -3934,6 +3959,7 @@ function getRegistrationStats_(p) {
   });
 
   const verified = getRegistrationVerifiedMap_();
+  const amFollow = getAmFollowMap_();
   // المراكز التي لا يوجد فيها مقصف حسب «حصر المقاصف» لا تظهر في الإحصائيات.
   // أسماء المراكز قد تحوي الفترة (مثل «... - الفترة المسائية»)، فنقارن الاسم دون كلمة الفترة + الفترة المفهومة من الاسم (نفس منطق شاشة الحصر).
   const surveyBy = {};
@@ -4002,7 +4028,9 @@ function getRegistrationStats_(p) {
       salesTotal: Math.round(m.salesTotal * 100) / 100,
       issues: issues,
       deliveryDate: dlvDate,
-      verified: !!verified[c]
+      verified: !!verified[c],
+      amNote: (amFollow[c] && amFollow[c].note) || '',
+      amDone: !!(amFollow[c] && amFollow[c].done)
     };
   });
 

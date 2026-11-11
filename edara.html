@@ -47,6 +47,7 @@
 .grade-foot .miss { color:#b3261e; }
 .grade-foot .unsaved { color:#8a7d76; font-weight:500; font-size:0.75rem; margin-right:8px; }
 .am-link{color:var(--maroon);text-decoration:underline;text-underline-offset:3px;cursor:pointer;}
+tr.am-done td { background:#eaf6ee; }
 </style>
 <style id="canteenSurveyStyles">
 .vs-unv-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 4px; border-bottom: 1px dashed var(--gold-light); font-size: 0.88rem; }
@@ -757,7 +758,7 @@
     <div id="amountsTab" class="admin-tab-panel hidden">
       <div class="card">
         <h3 style="margin-top:0;color:var(--maroon);">مبالغ المقاصف</h3>
-        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;line-height:1.8;">مبالغ كل مقصف بالريال: إشعارات الاستلام، المكافأة، رسوم حفل تحفيظ الصغار، بيان الفواتير، والمبيعات. لا تظهر المراكز التي لا مقصف فيها.</p>
+        <p style="color:#8a7d76;font-size:0.85rem;margin-top:0;line-height:1.8;">مبالغ كل مقصف بالريال: إشعارات الاستلام، المكافأة، رسوم حفل تحفيظ الصغار، بيان الفواتير، والمبيعات، والمكافأة المفترضة، مع خانة للملاحظات وعلامة «اكتمل». لا تظهر المراكز التي لا مقصف فيها.</p>
         <div class="select-row">
           <div>
             <label>الفترة</label>
@@ -6953,8 +6954,7 @@ function loadAmounts_(force) {
     setBtnBusy(btn, false);
     if (!r || !r.ok) { out.innerHTML = '<div class="card">تعذّر تحميل المبالغ' + (r && r.error ? ': ' + rsEsc_(r.error) : '') + '</div>'; return; }
     amData_ = r;
-    // الخادم القديم ما يرسل «المبلغ الإجمالي»: نرجع لرأس المال مؤقتاً لين يتحدّث Code.gs
-    (r.centers || []).forEach(function (m) { if (m.deliverable === undefined) m.deliverable = m.capital; });
+    amPrepare_(r);   // المبلغ الإجمالي (احتياطاً للخادم القديم) + المكافأة المفترضة
     renderAmounts_();
   }).catch(function () {
     setBtnBusy(btn, false);
@@ -6967,7 +6967,8 @@ const AM_COLS_ = [
   { key: 'rewardAmt',  label: 'المكافأة' },
   { key: 'feeAmt',     label: 'الرسوم' },
   { key: 'deliverable', label: 'بيان الفواتير' },
-  { key: 'salesTotal', label: 'المبيعات' }
+  { key: 'salesTotal', label: 'المبيعات' },
+  { key: 'rewardDue',  label: 'المكافأة المفترضة' }
 ];
 
 function amRows_() {
@@ -6975,7 +6976,57 @@ function amRows_() {
   return ((amData_ && amData_.centers) || []).filter(function (m) { return !q || rsNorm_(m.center).indexOf(q) !== -1; });
 }
 
-function amCell_(v) { return v ? rsMoney_(v) : '<span class="rs-zero">0</span>'; }
+function amCell_(v) { return v === null ? '<span class="rs-zero">—</span>' : (v ? rsMoney_(v) : '<span class="rs-zero">0</span>'); }
+
+/* المكافأة المفترضة = ١٠٪ من مبيعات الفترة المختارة مقرّبة لأقرب ريال (نفس أساس جدول المكافآت ومطابقة الإشعار)، وما تنحسب للمراكز التي فيها مسؤولة مقصف */
+function amPrepare_(r) {
+  (r.centers || []).forEach(function (m) {
+    if (m.deliverable === undefined) m.deliverable = m.capital;
+    m.rewardDue = hasMasoula_(m.center) ? null : Math.round((Number(m.salesTotal) || 0) * REWARD_RATE_);
+  });
+}
+
+function amRowHtml_(m) {
+  const c = rsEsc_(m.center);
+  return '<tr class="' + (m.amDone ? 'am-done' : '') + '"><td style="text-align:right;font-weight:700;"><a href="#" class="am-link" data-c="' + c + '" onclick="return amOpenCenter_(this)">' + c + '</a></td>' +
+    AM_COLS_.map(function (col) { return '<td>' + amCell_(m[col.key]) + '</td>'; }).join('') +
+    '<td><input type="text" class="am-note" maxlength="300" data-c="' + c + '" value="' + rsEsc_(m.amNote || '') + '" placeholder="ملاحظة..." onchange="amSaveNote_(this)" style="width:130px;min-width:100px;padding:5px 6px;font-size:0.76rem;margin:0;"></td>' +
+    '<td><input type="checkbox" data-c="' + c + '" ' + (m.amDone ? 'checked' : '') + ' onchange="amToggleDone_(this)" style="width:20px;height:20px;margin:0;accent-color:#1f6b40;"></td></tr>';
+}
+
+function amFindCenter_(name) {
+  return ((amData_ && amData_.centers) || []).filter(function (m) { return m.center === name; })[0] || null;
+}
+
+function amSaveNote_(inp) {
+  const m = amFindCenter_(inp.getAttribute('data-c')); if (!m) return;
+  const prev = m.amNote || '';
+  m.amNote = inp.value.trim();
+  inp.disabled = true;
+  callApi('setAmountFollow', { center: m.center, note: m.amNote }).then(function (r) {
+    inp.disabled = false;
+    if (!r || !r.ok) throw new Error((r && r.error) || '');
+  }).catch(function () {
+    inp.disabled = false; m.amNote = prev; inp.value = prev;
+    alert('تعذّر حفظ الملاحظة، حاولي مرة أخرى.');
+  });
+}
+
+function amToggleDone_(box) {
+  const m = amFindCenter_(box.getAttribute('data-c')); if (!m) return;
+  const want = box.checked;
+  m.amDone = want;
+  const tr = box.closest('tr'); if (tr) tr.classList.toggle('am-done', want);
+  box.disabled = true;
+  callApi('setAmountFollow', { center: m.center, done: want }).then(function (r) {
+    box.disabled = false;
+    if (!r || !r.ok) throw new Error((r && r.error) || '');
+  }).catch(function () {
+    box.disabled = false; m.amDone = !want; box.checked = !want;
+    if (tr) tr.classList.toggle('am-done', !want);
+    alert('تعذّر حفظ العلامة، حاولي مرة أخرى.');
+  });
+}
 
 function renderAmounts_() {
   const out = document.getElementById('amResult');
@@ -6986,20 +7037,19 @@ function renderAmounts_() {
   let body = '';
   rows.forEach(function (m) {
     AM_COLS_.forEach(function (c) { tot[c.key] += Number(m[c.key]) || 0; });
-    body += '<tr><td style="text-align:right;font-weight:700;"><a href="#" class="am-link" data-c="' + rsEsc_(m.center) + '" onclick="return amOpenCenter_(this)">' + rsEsc_(m.center) + '</a></td>' +
-      AM_COLS_.map(function (c) { return '<td>' + amCell_(m[c.key]) + '</td>'; }).join('') + '</tr>';
+    body += amRowHtml_(m);
   });
-  if (!rows.length) body = '<tr><td colspan="6" style="color:#8a7d76;padding:18px;">لا توجد مراكز مطابقة للبحث</td></tr>';
+  if (!rows.length) body = '<tr><td colspan="9" style="color:#8a7d76;padding:18px;">لا توجد مراكز مطابقة للبحث</td></tr>';
   else body += '<tr style="background:var(--cream);font-weight:700;"><td style="text-align:right;">الإجمالي (' + rows.length + ')</td>' +
-    AM_COLS_.map(function (c) { return '<td>' + rsMoney_(tot[c.key]) + '</td>'; }).join('') + '</tr>';
+    AM_COLS_.map(function (c) { return '<td>' + rsMoney_(tot[c.key]) + '</td>'; }).join('') + '<td></td><td>' + rows.filter(function (m) { return m.amDone; }).length + '/' + rows.length + '</td></tr>';
   const hidden = amData_.hiddenNoCanteen || [];
   // الخادم القديم لا يرسل مبالغ الإشعارات: نبيّن ذلك بدل عرض أصفار مضلّلة
   const stale = amData_.centers[0].receiveAmt === undefined;
   out.innerHTML = (stale ? '<div class="card" style="border:1.5px solid #b3261e;color:#b3261e;line-height:1.9;">⚠️ مبالغ «إشعار الاستلام» و«المكافأة» و«الرسوم» لا تظهر لأن الخادم لم يُحدَّث بعد. الصقي ملف <b>Code.gs</b> الجديد في Apps Script ثم انشري إصدارًا جديدًا (نشر ← إدارة عمليات النشر ← تعديل ← إصدار جديد ← نشر)، ثم اضغطي «تحديث».</div>' : '') + '<div class="card">' +
     '<div class="rs-search-wrap"><input type="search" id="amSearch" class="rs-search" placeholder="🔍 ابحثي باسم المركز..." value="' + rsEsc_(amQuery_) + '" oninput="onAmSearch(this.value)"></div>' +
     '<div class="rs-scroll"><table class="log-table rs-table am-table" style="min-width:0;width:100%;font-size:0.78rem;"><thead><tr><th style="padding:8px 4px;">المركز</th>' +
-    AM_COLS_.map(function (c) { return '<th style="padding:8px 3px;font-size:0.74rem;">' + c.label + '</th>'; }).join('') + '</tr></thead><tbody id="amBody">' + body + '</tbody></table></div>' +
-    '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;line-height:1.8;">كل الأرقام بالريال. «بيان الفواتير» = المبلغ الإجمالي (المطلوب تسليمه = رأس المال + الأرباح − المصروفات) بعد خصم الرجيع، و«المبيعات» = مجموع سجل البيع اليومي.' +
+    AM_COLS_.map(function (c) { return '<th style="padding:8px 3px;font-size:0.74rem;">' + c.label + '</th>'; }).join('') + '<th style="padding:8px 3px;font-size:0.74rem;">ملاحظات</th><th style="padding:8px 3px;font-size:0.74rem;">اكتمل ✔</th></tr></thead><tbody id="amBody">' + body + '</tbody></table></div>' +
+    '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;line-height:1.8;">كل الأرقام بالريال. «بيان الفواتير» = المبلغ الإجمالي (المطلوب تسليمه = رأس المال + الأرباح − المصروفات) بعد خصم الرجيع، و«المبيعات» = مجموع سجل البيع اليومي، و«المكافأة المفترضة» = ١٠٪ من مبيعات الفترة المختارة مقرّبة لأقرب ريال (وما تظهر للمراكز التي فيها مسؤولة مقصف). «ملاحظات» و«اكتمل» تُحفظ تلقائياً.' +
     (hidden.length ? ' أُخفي ' + hidden.length + ' مركز لا مقصف فيه حسب «حصر المقاصف».' : '') + '</p>' +
     '<div class="export-row" style="margin-top:12px;">' +
       '<button class="btn outline" onclick="exportAmountsExcel_()">⬇️ Excel</button>' +
@@ -7148,23 +7198,25 @@ function onAmSearch(v) {
   let body = '';
   rows.forEach(function (m) {
     AM_COLS_.forEach(function (c) { tot[c.key] += Number(m[c.key]) || 0; });
-    body += '<tr><td style="text-align:right;font-weight:700;"><a href="#" class="am-link" data-c="' + rsEsc_(m.center) + '" onclick="return amOpenCenter_(this)">' + rsEsc_(m.center) + '</a></td>' +
-      AM_COLS_.map(function (c) { return '<td>' + amCell_(m[c.key]) + '</td>'; }).join('') + '</tr>';
+    body += amRowHtml_(m);
   });
-  if (!rows.length) body = '<tr><td colspan="6" style="color:#8a7d76;padding:18px;">لا توجد مراكز مطابقة للبحث</td></tr>';
+  if (!rows.length) body = '<tr><td colspan="9" style="color:#8a7d76;padding:18px;">لا توجد مراكز مطابقة للبحث</td></tr>';
   else body += '<tr style="background:var(--cream);font-weight:700;"><td style="text-align:right;">الإجمالي (' + rows.length + ')</td>' +
-    AM_COLS_.map(function (c) { return '<td>' + rsMoney_(tot[c.key]) + '</td>'; }).join('') + '</tr>';
+    AM_COLS_.map(function (c) { return '<td>' + rsMoney_(tot[c.key]) + '</td>'; }).join('') + '<td></td><td>' + rows.filter(function (m) { return m.amDone; }).length + '/' + rows.length + '</td></tr>';
   document.getElementById('amBody').innerHTML = body;
 }
 
 function amExportRows_() {
   const rows = amRows_().map(function (m, i) {
     const o = { 'م': i + 1, 'المركز': m.center };
-    AM_COLS_.forEach(function (c) { o[c.label] = Number(m[c.key]) || 0; });
+    AM_COLS_.forEach(function (c) { o[c.label] = m[c.key] === null ? '—' : (Number(m[c.key]) || 0); });
+    o['ملاحظات'] = m.amNote || '';
+    o['اكتمل'] = m.amDone ? '✔' : '';
     return o;
   });
   const tot = { 'م': '', 'المركز': 'الإجمالي' };
-  AM_COLS_.forEach(function (c) { tot[c.label] = rows.reduce(function (s, r) { return s + r[c.label]; }, 0); });
+  AM_COLS_.forEach(function (c) { tot[c.label] = rows.reduce(function (s, r) { return s + (Number(r[c.label]) || 0); }, 0); });
+  tot['ملاحظات'] = ''; tot['اكتمل'] = rows.filter(function (r) { return r['اكتمل']; }).length + '/' + rows.length;
   rows.push(tot);
   return rows;
 }
@@ -7178,11 +7230,12 @@ function printAmounts_() {
   if (!amData_) return;
   const rows = amExportRows_().map(function (r) {
     const o = { n: r['م'] === '' ? '' : toArabicDigits(r['م']), center: r['المركز'] };
-    AM_COLS_.forEach(function (c) { o[c.key] = rsMoney_(r[c.label]); });
+    AM_COLS_.forEach(function (c) { o[c.key] = r[c.label] === '—' ? '—' : rsMoney_(r[c.label]); });
+    o.note = r['ملاحظات']; o.done = r['اكتمل'];
     return o;
   });
   printReport('مبالغ المقاصف', amPeriodLabel_() + ' — المبالغ بالريال',
-    [{ key: 'n', label: 'م' }, { key: 'center', label: 'المركز' }].concat(AM_COLS_.map(function (c) { return { key: c.key, label: c.label }; })), rows);
+    [{ key: 'n', label: 'م' }, { key: 'center', label: 'المركز' }].concat(AM_COLS_.map(function (c) { return { key: c.key, label: c.label }; })).concat([{ key: 'note', label: 'ملاحظات' }, { key: 'done', label: 'اكتمل' }]), rows);
 }
 
 /* ==================== مبالغ المقاصف (نهاية) ==================== */
