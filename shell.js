@@ -49,7 +49,7 @@
     var b = $('shellHome'); if (b) return b;
     var host = $('adminHomeView') ? document.querySelector('#adminHomeView .wrap') : $('homeView');
     if (!host) return null;
-    b = el('div'); b.id = 'shellHome'; b.appendChild(el('h3', '', 'ما يحتاج انتباهكِ الآن'));
+    b = el('div'); b.id = 'shellHome'; b.appendChild(el('h3', '', 'بانتظار اطلاعك'));
     b.appendChild(el('div', 'sh-m')); b.appendChild(el('div', 'sh-at')); b.appendChild(el('div', 'sh-em'));
     var ref = $('announceBanner') || host.querySelector('h2');
     if (ref && ref.parentNode === host) host.insertBefore(b, ref.nextSibling); else host.insertBefore(b, host.firstChild);
@@ -68,7 +68,7 @@
     var b = $('shellHome'); if (!b) return;
     var has = b.querySelector('.sh-mc') || b.querySelector('.sh-ac') || ($('toSignBanner') && $('toSignBanner').children.length);
     var em = b.querySelector('.sh-em'); em.innerHTML = '';
-    if (!has) em.appendChild(el('div', 'sh-empty', 'لا يوجد ما يحتاج انتباهكِ الآن. اختاري قسماً من القائمة.'));
+    if (!has) em.appendChild(el('div', 'sh-empty', 'لا يوجد . اختاري قسماً من القائمة.'));
   }
   function loadAttention() {
     if (!$('adminHomeView') || typeof callApi !== 'function' || Date.now() - lastLoad < 30000) return;
