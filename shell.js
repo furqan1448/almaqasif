@@ -1,7 +1,14 @@
-/* القائمة الجانبية + صفحة «ما يحتاج انتباهكِ الآن»: تُبنى تلقائياً من أيقونات كل صفحة ولا تغيّر أي منطق قائم */
+/* القائمة الجانبية + صفحة «بانتظار اطلاعك»: تُبنى تلقائياً من أيقونات كل صفحة ولا تغيّر أي منطق قائم */
 (function () {
   var MQ = window.matchMedia('(min-width:900px)'), sig = '', active = 'home', timer = null, lastLoad = 0, q = '';
-  var CENTER_FIN = /أسعار|مبيعات|فواتير|إشعار|بضائع|مرتجع|طلبات|دخل|مبالغ/;
+  var PREF = ['المبيعات والمالية', 'الإشعارات', 'بطاقات التحفيز', 'المتابعة والمراسلات', 'حسابي'];
+  function centerGroup(k) {
+    if (/^إشعار/.test(k)) return 'الإشعارات';
+    if (/بطاقات التحفيز/.test(k)) return 'بطاقات التحفيز';
+    if (/الأسعار|البيع|الفواتير|المرتجعة|طلبات/.test(k)) return 'المبيعات والمالية';
+    if (/بياناتي|الأسئلة/.test(k)) return 'حسابي';
+    return 'المتابعة والمراسلات';
+  }
   var HOME_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg>';
   function $(id) { return document.getElementById(id); }
   function norm(s) { return String(s || '').replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').trim(); }
@@ -91,7 +98,7 @@
     var items = [].slice.call(dash.querySelectorAll('.icon-btn')).filter(function (b) { return !hid(b, home.parentElement) && !b.closest('#shellHome'); }).map(function (b) {
       var bd = b.querySelector('.badge'), ic = b.querySelector('.ic'), lb = b.querySelector('.label'), k = lb ? lb.textContent.trim() : '';
       var sec = b.closest('.ah-sec'), gh = sec && sec.querySelector('h3');
-      return { b: b, k: k, svg: ic ? ic.innerHTML : '', n: bd && !bd.classList.contains('hidden') ? bd.textContent.trim() : '', g: gh ? gh.textContent.trim() : (CENTER_FIN.test(k) ? 'المالية والمقاصف' : 'المتابعة والتواصل') };
+      return { b: b, k: k, svg: ic ? ic.innerHTML : '', n: bd && !bd.classList.contains('hidden') ? bd.textContent.trim() : '', g: gh ? gh.textContent.trim() : centerGroup(k) };
     });
     var s = items.map(function (i) { return i.k + ':' + i.n + ':' + i.g; }).join(',');
     var side = frame(dash);
@@ -107,6 +114,7 @@
       add('home', HOME_SVG, '', goHome);
       var order = [], by = {};
       items.forEach(function (i) { if (!by[i.g]) { by[i.g] = []; order.push(i.g); } by[i.g].push(i); });
+      if (!$('adminHomeView')) order.sort(function (a, b) { return PREF.indexOf(a) - PREF.indexOf(b); });
       order.forEach(function (g) { nav.appendChild(el('div', 'sh-g', g)); by[g].forEach(function (i) { add(i.k, i.svg, i.n, function () { i.b.click(); }); }); });
       filter(); renderHome(items);
     }
