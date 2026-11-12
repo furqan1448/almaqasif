@@ -555,6 +555,14 @@ function clearActionAck_(key) {
   const acks = actionAcksRead_();
   if (acks[key]) { delete acks[key]; setSettingValue_(ACTION_ACK_KEY_, JSON.stringify(acks)); }
 }
+/* خفيفة لصفحة الإدارة الرئيسية: ما بانتظار توقيع المراكز مع حالة الاطلاع (بدون تواقيع ولا بيانات ثقيلة) */
+function getAdminAttention_(p) {
+  const acks = actionAcksRead_();
+  const items = actionAlertItems_('', 'مديرة').map(function (it) {
+    return { kind: it.kind, title: it.title.replace('بانتظار توقيعكِ', 'بانتظار توقيع المركز'), center: it.center, date: it.date, seen: actionSeenOf_(acks, it.key) };
+  });
+  return { ok: true, items: items.slice(0, 30), total: items.length };
+}
 function getActionAlerts_(p) {
   const role = dlvNorm_(p && p.role) === 'مسؤولة' ? 'مسؤولة' : 'مديرة';
   const center = dlvNorm_(p && p.center), name = dlvNorm_(p && p.name);
@@ -1644,6 +1652,7 @@ function dispatch_(p, T0_) {
     case 'getPopupAnnouncements': return (getPopupAnnouncements_(p));
     case 'ackPopupAnnouncement': return (ackPopupAnnouncement_(p));
     case 'getActionAlerts': return (getActionAlerts_(p));
+    case 'getAdminAttention': return (getAdminAttention_(p));
     case 'ackActionAlerts': return (ackActionAlerts_(p));
     case 'recordMeetingMinutes': return (recordMeetingMinutes_(p));
     case 'getAllMeetingMinutes': return (getAllMeetingMinutes_());
