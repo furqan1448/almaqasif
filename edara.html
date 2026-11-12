@@ -2882,6 +2882,17 @@ function createAdminNotice_() {
   }).catch(function () { setBtnBusy(btn, false); fail('تعذّر الاتصال بالخادم'); });
 }
 
+/* حالة اطلاع المركز على التنبيه التلقائي (بانتظار التوقيع): «اطّلعت فلانة» أو «لم يُطَّلع عليه بعد» */
+function seenStatusHtml_(seen) {
+  seen = seen || [];
+  if (!seen.length) return '<div class="meta" style="color:#b8321f;font-weight:700;">👁 لم يتم الاطلاع على التنبيه بعد</div>';
+  return seen.map(function (x) {
+    const parts = String(x.at || '').split(' ');
+    return '<div class="meta" style="color:#1f8f4e;font-weight:700;">👁 تم الاطلاع: ' + x.who +
+      (parts[0] ? ' · ' + toHijriStr(parts[0]) + (parts[1] ? ' ' + parts[1] : '') : '') + '</div>';
+  }).join('');
+}
+
 function renderAwaitingNotices_(list) {
   const card = document.getElementById('awaitingCard');
   const box = document.getElementById('awaitingList');
@@ -2897,6 +2908,7 @@ function renderAwaitingNotices_(list) {
         '<div><strong>' + n['اسم المركز'] + '</strong> - إشعار ' + n['النوع'] + reason + '</div>' +
         '<div class="meta">' + Number(n['المبلغ']).toFixed(2) + ' ريال · المسلّمة: ' + (n['اسم المسلّمة'] || '') + '</div>' +
         (n['الشهر'] ? '<div class="meta">مبيعات ' + n['الشهر'] + ' · الفصل ' + n['الفصل الدراسي'] + ' · ' + n['العام'] + '</div>' : '') +
+        seenStatusHtml_(n.seen) +
         '<div class="row-actions" style="margin-top:6px;"><a href="#" onclick="deleteAwaitingNotice_(' + n._row + '); return false;">حذف</a></div>' +
       '</div>' +
       '<span class="status-pill pending">بانتظار توقيع المركز</span>';
@@ -5842,7 +5854,7 @@ function vrStatusHtml_(rep) {
       (rep.signerName ? '<div style="font-size:0.75rem;color:#8a7d76;">' + rep.signerName + '</div>' : '') +
       (rep.signedDate ? '<div style="font-size:0.75rem;color:#8a7d76;">' + toHijriStr(rep.signedDate) + '</div>' : '');
   }
-  return '<span style="color:var(--maroon);font-weight:700;">⏳ بانتظار توقيع المديرة</span>';
+  return '<span style="color:var(--maroon);font-weight:700;">⏳ بانتظار توقيع المديرة</span>' + seenStatusHtml_(rep.seen);
 }
 
 function renderVrSaved_() {

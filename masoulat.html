@@ -850,6 +850,7 @@ function doLogin() {
 function logout() {
   if (typeof deliveryNoticeReset_ === 'function') deliveryNoticeReset_();
   if (typeof popupNoticeReset_ === 'function') popupNoticeReset_();
+  if (typeof actionAlertReset_ === 'function') actionAlertReset_();
   sessionStorage.removeItem('maqasif_masoula');
   sessionStorage.removeItem('maqasif_masoula_email');
   sessionStorage.removeItem('maqasif_masoula_center');
@@ -883,6 +884,7 @@ function showDashboard() {
   prefetchForCenter_(currentCenter);
   deliveryNoticeInit_('مسؤولة', currentName, currentCenter);
   if (typeof popupNoticeInit_ === 'function') popupNoticeInit_('مسؤولة', currentName, currentCenter);
+  if (typeof actionAlertInit_ === 'function') actionAlertInit_('مسؤولة', currentName, currentCenter);
 }
 
 /* تجيب كل بيانات اللوحة (الحضور + التعهد + المهام + عدد الإشعارات المعلّقة) بطلب واحد

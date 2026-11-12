@@ -3227,3 +3227,65 @@ function renderToSignBanner_(list) {
   };
   window.popupNoticeReset_ = function () { ctx = null; queue = []; close(); };
 })();
+
+
+/* ------------------- التنبيه التلقائي لما ينتظر توقيع المركز -------------------
+   يظهر عند الدخول (مديرة/مسؤولة) كنافذة واحدة تجمع كل ما ينتظر توقيعها: إشعارات أنشأتها الإدارة، وتقارير الزيارة.
+   بعد «تم الاطلاع» يُحفظ الإقرار بالخادم (اسمها + الوقت) فيظهر للإدارة، ولا يتكرر التنبيه لنفس العنصر.
+   ويتوقف تلقائياً بمجرد التوقيع. ينتظر انتهاء نافذة موعد التسليم والإشعارات المنبثقة حتى لا تتراكب النوافذ. */
+(function () {
+  let ctx = null, items = [];
+  function esc(s) { return String(s === undefined || s === null ? '' : s).replace(/[&<>"]/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]; }); }
+  function ensureStyle() {
+    if (document.getElementById('actAlertStyle')) return;
+    const st = document.createElement('style'); st.id = 'actAlertStyle';
+    st.textContent = '#actAlertOv{position:fixed;inset:0;z-index:99998;background:rgba(43,35,33,.55);display:flex;align-items:center;justify-content:center;padding:16px;direction:rtl;font-family:Tajawal,sans-serif}' +
+      '#actAlertOv .aa{background:#fff;border-radius:18px;max-width:460px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 14px 50px rgba(0,0,0,.3)}' +
+      '#actAlertOv .aa-h{background:linear-gradient(90deg,#8C1A2C,#a8283c);color:#fff;padding:14px 18px;font-weight:800;font-size:1.05rem}' +
+      '#actAlertOv .aa-b{padding:16px 18px;overflow:auto;color:#2b2321;font-size:1rem;line-height:1.9}' +
+      '#actAlertOv .aa-i{border:1.5px solid #ecd9a8;background:#fff8ec;border-radius:12px;padding:10px 14px;margin-bottom:10px}' +
+      '#actAlertOv .aa-t{font-weight:800;color:#8C1A2C}' +
+      '#actAlertOv .aa-m{font-size:.88rem;color:#5a4d48}' +
+      '#actAlertOv .aa-f{padding:0 18px 18px;text-align:center}' +
+      '#actAlertOv .aa-n{color:#8a7d76;font-size:.8rem;margin-bottom:10px}' +
+      '#actAlertOv .aa-e{color:#b3261e;font-size:.85rem;min-height:1.2em;margin-top:6px}';
+    document.head.appendChild(st);
+  }
+  function close() { const o = document.getElementById('actAlertOv'); if (o) o.remove(); }
+  function show() {
+    close();
+    if (!ctx || !items.length) return;
+    if (document.getElementById('dlvNoticeOv') || document.getElementById('popNoticeOv')) { setTimeout(show, 800); return; }
+    ensureStyle();
+    const o = document.createElement('div'); o.id = 'actAlertOv';
+    const list = items.map(function (it) {
+      return '<div class="aa-i"><div class="aa-t">' + esc(it.title) + '</div>' +
+        (it.text ? '<div class="aa-m">' + esc(it.text) + '</div>' : '') + '</div>';
+    }).join('');
+    o.innerHTML = '<div class="aa"><div class="aa-h">🔔 تنبيه: ' + (items.length === 1 ? 'لديكِ أمر بانتظار توقيعكِ' : 'لديكِ ' + items.length + ' أمور بانتظار توقيعكِ') + '</div>' +
+      '<div class="aa-b">' + list + '</div>' +
+      '<div class="aa-f"><div class="aa-n">سيبقى التنبيه ظاهراً في الصفحة الرئيسية إلى حين التوقيع، وسيظهر للإدارة أنكِ اطّلعتِ عليه</div>' +
+      '<button class="btn" id="actAlertBtn">تم الاطلاع</button><div class="aa-e" id="actAlertErr"></div></div></div>';
+    document.body.appendChild(o);
+    const bt = document.getElementById('actAlertBtn'), er = document.getElementById('actAlertErr');
+    bt.onclick = function () {
+      bt.disabled = true; bt.textContent = 'جارِ الحفظ...'; er.textContent = '';
+      callApi('ackActionAlerts', { keys: items.map(function (it) { return it.key; }), center: ctx.center, role: ctx.role, name: ctx.name || '' }).then(function (r) {
+        if (r && r.ok) { items = []; close(); return; }
+        er.textContent = (r && r.error) || 'تعذّر الحفظ، حاولي مرة أخرى';
+        bt.disabled = false; bt.textContent = 'تم الاطلاع';
+      }).catch(function () { er.textContent = 'تعذّر الاتصال بالخادم'; bt.disabled = false; bt.textContent = 'تم الاطلاع'; });
+    };
+  }
+  window.actionAlertInit_ = function (role, name, center) {
+    center = String(center || '').trim();
+    if (!center) return Promise.resolve();
+    return callApi('getActionAlerts', { center: center, role: role, name: name || '', _t: Date.now() }).then(function (r) {
+      if (!r || !r.ok || !(r.alerts || []).length) return;
+      ctx = { center: center, role: role, name: name || '' };
+      items = r.alerts.slice();
+      setTimeout(show, 600);   // مهلة قصيرة ليظهر أولاً ما سبقه من نوافذ
+    }).catch(function () {});
+  };
+  window.actionAlertReset_ = function () { ctx = null; items = []; close(); };
+})();

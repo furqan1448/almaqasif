@@ -881,6 +881,7 @@ function doLogin() {
 function logout() {
   if (typeof deliveryNoticeReset_ === 'function') deliveryNoticeReset_();
   if (typeof popupNoticeReset_ === 'function') popupNoticeReset_();
+  if (typeof actionAlertReset_ === 'function') actionAlertReset_();
   sessionStorage.removeItem('maqasif_center');
   sessionStorage.removeItem('maqasif_center_readonly');
   try { sessionStorage.removeItem('maqasif_center_pw'); } catch (e) {}
@@ -905,6 +906,7 @@ function showDashboard() {
   prefetchForCenter_(currentCenter);
   deliveryNoticeInit_('مديرة', '', currentCenter);
   if (typeof popupNoticeInit_ === 'function') popupNoticeInit_('مديرة', '', currentCenter);
+  if (typeof actionAlertInit_ === 'function') actionAlertInit_('مديرة', '', currentCenter);
 }
 
 /* لو المركز محدد كـ"وضع العرض فقط" بشيت المراكز: نخفي أيقونات الإشعارات

@@ -505,6 +505,89 @@ function ackPopupAnnouncement_(p) {
   return { ok: true };
 }
 
+/* ------------------- التنبيهات التلقائية لما ينتظر توقيع المركز -------------------
+   تلقائية بالكامل (لا تحتاج نشراً من الإدارة): عند دخول المديرة/المسؤولة تظهر لها نافذة بكل ما ينتظر توقيعها
+   (إشعارات أنشأتها الإدارة، وتقارير الزيارة للمديرة)، وبعد «تم الاطلاع» يُحفظ الإقرار بالخادم باسم المُطّلِعة ووقته،
+   ويظهر للإدارة بجانب كل عنصر بانتظار التوقيع. يتوقف التنبيه تلقائياً بمجرد التوقيع. */
+const ACTION_ACK_KEY_ = 'إقرارات التنبيهات التلقائية';
+function actionAcksRead_() {
+  let a = {};
+  try { a = JSON.parse(getSettingValue_(ACTION_ACK_KEY_) || '{}') || {}; } catch (e) { a = {}; }
+  return a;
+}
+/* كل العناصر الحالية بانتظار توقيع مركز (لكل المراكز). p.center لتصفية مركز واحد، p.role لتحديد ما يخص المسؤولة */
+function actionAlertItems_(center, role) {
+  const c = dlvNorm_(center);
+  const out = [];
+  sheetToObjects_('الإشعارات').forEach(function (r) {
+    if (r['الحالة'] !== NOTICE_AWAIT_CENTER_) return;
+    if (c && dlvNorm_(r['اسم المركز']) !== c) return;
+    const reason = r['بيان مخصص'] ? ' (' + String(r['بيان مخصص']).replace(/^قيمة\s*/, '') + ')' : '';
+    out.push({
+      key: 'إشعار:' + r['معرف'], kind: 'notice', center: dlvNorm_(r['اسم المركز']),
+      title: 'إشعار ' + (r['النوع'] || '') + reason + ' بانتظار توقيعكِ',
+      text: 'المبلغ: ' + Number(r['المبلغ'] || 0).toFixed(2) + ' ريال' + (r['اسم المسلّمة'] ? ' — المسلِّمة: ' + r['اسم المسلّمة'] : ''),
+      date: r['تاريخ الإرسال'] || ''
+    });
+  });
+  if (role !== 'مسؤولة') {   // تقارير الزيارة توقّعها مديرة المركز فقط
+    visitReportRows_().forEach(function (r) {
+      if ((r['الحالة'] || VR_PENDING_) !== VR_PENDING_) return;
+      if (c && dlvNorm_(r['اسم المركز']) !== c) return;
+      out.push({
+        key: 'تقرير زيارة:' + r['معرف'], kind: 'visit', center: dlvNorm_(r['اسم المركز']),
+        title: 'تقرير زيارة بانتظار توقيعكِ', text: 'تجدينه في أيقونة «تقارير الزيارة» بالصفحة الرئيسية.',
+        date: r['تاريخ الإرسال'] || ''
+      });
+    });
+  }
+  return out;
+}
+/* قائمة «من اطّلعت» لعنصر معيّن، تُعرض بلوحة الإدارة */
+function actionSeenOf_(acks, key) {
+  const m = (acks && acks[key]) || {};
+  return Object.keys(m).map(function (k) {
+    const v = m[k] || {};
+    return { who: (v.role === 'مسؤولة' ? 'مسؤولة المقصف' : 'مديرة المركز') + (v.name ? ' (' + v.name + ')' : ''), at: v.at || '' };
+  });
+}
+function clearActionAck_(key) {
+  const acks = actionAcksRead_();
+  if (acks[key]) { delete acks[key]; setSettingValue_(ACTION_ACK_KEY_, JSON.stringify(acks)); }
+}
+function getActionAlerts_(p) {
+  const role = dlvNorm_(p && p.role) === 'مسؤولة' ? 'مسؤولة' : 'مديرة';
+  const center = dlvNorm_(p && p.center), name = dlvNorm_(p && p.name);
+  if (!center) return { ok: true, alerts: [] };
+  const acks = actionAcksRead_(), ak = popupAckKey_(role, center, name);
+  const alerts = actionAlertItems_(center, role).filter(function (it) {
+    return !(acks[it.key] && acks[it.key][ak]);
+  }).map(function (it) { return { key: it.key, kind: it.kind, title: it.title, text: it.text, date: it.date }; });
+  return { ok: true, alerts: alerts };
+}
+function ackActionAlerts_(p) {
+  const role = dlvNorm_(p && p.role) === 'مسؤولة' ? 'مسؤولة' : 'مديرة';
+  const center = dlvNorm_(p && p.center), name = dlvNorm_(p && p.name);
+  const keys = (Array.isArray(p && p.keys) ? p.keys : []).map(function (k) { return String(k || '').trim(); }).filter(Boolean);
+  if (!center || !keys.length) return { ok: false, error: 'بيانات ناقصة' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const acks = actionAcksRead_();
+    const live = {};   // ننظّف إقرارات ما تم توقيعه/حذفه حتى لا يكبر الحقل
+    actionAlertItems_('', 'مديرة').forEach(function (it) { live[it.key] = true; });
+    Object.keys(acks).forEach(function (k) { if (!live[k]) delete acks[k]; });
+    const n = nowParts_(), ak = popupAckKey_(role, center, name);
+    keys.forEach(function (k) {
+      if (!live[k]) return;
+      acks[k] = acks[k] || {};
+      acks[k][ak] = { at: n.date + ' ' + n.time, name: name.slice(0, 80), role: role };
+    });
+    setSettingValue_(ACTION_ACK_KEY_, JSON.stringify(acks));
+  } finally { lock.releaseLock(); }
+  return { ok: true };
+}
+
 /* ------------------- محاضر الاجتماعات (إدارة → مراكز/مسؤولات) -------------------
    نفس منطق استهداف الإعلانات الهامة بالضبط (p.all أو p.centers/p.masoulat).
    نقاط الاجتماع والمشاركات والروابط تُحفظ كنص JSON بعمود واحد، وتُفكّ بالواجهة عند العرض/الطباعة. */
@@ -1560,6 +1643,8 @@ function dispatch_(p, T0_) {
     case 'updateAnnouncement': return (updateAnnouncement_(p));
     case 'getPopupAnnouncements': return (getPopupAnnouncements_(p));
     case 'ackPopupAnnouncement': return (ackPopupAnnouncement_(p));
+    case 'getActionAlerts': return (getActionAlerts_(p));
+    case 'ackActionAlerts': return (ackActionAlerts_(p));
     case 'recordMeetingMinutes': return (recordMeetingMinutes_(p));
     case 'getAllMeetingMinutes': return (getAllMeetingMinutes_());
     case 'getMeetingMinutesFor': return (getMeetingMinutesFor_(p));
@@ -3113,7 +3198,10 @@ function getCenterPendingCount_(p) {
 function getAllNotices_(p) {
   const rows = getRowsForTerm_('الإشعارات', p && p.term, 'فصل الأرشفة').slice().reverse();
   const pending = rows.filter(function (r) { return r['الحالة'] === 'بانتظار الاطلاع'; });
-  const awaiting = rows.filter(function (r) { return r['الحالة'] === NOTICE_AWAIT_CENTER_; });
+  const acksSeen = actionAcksRead_();
+  const awaiting = rows.filter(function (r) { return r['الحالة'] === NOTICE_AWAIT_CENTER_; }).map(function (r) {
+    return Object.assign({}, r, { seen: actionSeenOf_(acksSeen, 'إشعار:' + r['معرف']) });   // حالة اطلاع المركز على التنبيه
+  });
   const done = rows.filter(function (r) { return r['الحالة'] !== 'بانتظار الاطلاع' && r['الحالة'] !== NOTICE_AWAIT_CENTER_; });
   return { ok: true, pending: pending, awaiting: awaiting, done: done };
 }
@@ -3493,6 +3581,7 @@ function saveVisitReport_(p) {
     set('توقيع المديرة', ''); set('اسم الموقّعة', '');
     set('يوم التوقيع', ''); set('تاريخ التوقيع', ''); set('وقت التوقيع', '');
     invalidateCache_(VISIT_REPORT_SHEET_);
+    clearActionAck_('تقرير زيارة:' + p.id);   // عاد لحالة الانتظار فيُنبَّه المركز من جديد
     return { ok: true, id: p.id, updated: true };
   }
   const id = Utilities.getUuid();
@@ -3550,7 +3639,12 @@ function amendVisitReport_(p) {
 }
 
 function getVisitReportsAdmin_(p) {
-  return { ok: true, reports: visitReportRows_().slice().reverse().map(visitReportOut_) };
+  const acksSeen = actionAcksRead_();
+  return { ok: true, reports: visitReportRows_().slice().reverse().map(function (r) {
+    const o = visitReportOut_(r);
+    o.seen = o.status === VR_PENDING_ ? actionSeenOf_(acksSeen, 'تقرير زيارة:' + o.id) : [];
+    return o;
+  }) };
 }
 
 function getVisitReportsForCenter_(p) {
