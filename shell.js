@@ -46,11 +46,10 @@
     var sb = el('div', 'sh-q'), inp = el('input'); inp.type = 'search'; inp.placeholder = 'ابحثي عن قسم...'; inp.autocomplete = 'off';
     inp.oninput = function () { q = inp.value; filter(); }; sb.appendChild(inp); side.appendChild(sb);
     side.appendChild(el('nav'));
-    var ft = el('div', 'sh-foot'), hl = el('button', 'sh-hidelink'), ob = el('button', 'sh-out', 'تسجيل الخروج');
+    var ft = el('div', 'sh-foot'), hl = el('button', 'sh-hidelink');
     hl.type = 'button'; hl.innerHTML = HIDE_SVG; hl.appendChild(el('span', '', 'إخفاء القائمة')); hl.onclick = function () { setCollapsed(true); };
     ft.appendChild(hl);
-    ob.onclick = function () { closeDrawer(); var l = dash.querySelector('.topbar .logout'); if (l) l.click(); };
-    ft.appendChild(ob); side.appendChild(ft); document.body.appendChild(side);
+    side.appendChild(ft); document.body.appendChild(side);
     var ov = el('div'); ov.id = 'shellOv'; ov.onclick = closeDrawer; document.body.appendChild(ov); return side;
   }
   function closeDrawer() { document.body.classList.remove('shell-open'); }

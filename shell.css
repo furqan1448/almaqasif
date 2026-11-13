@@ -1,6 +1,6 @@
 /* ===== القائمة الجانبية + الصفحة الرئيسية الهادئة (بألوان نظام المقاصف الأصلية، دون تغيير ألوان البطاقات) ===== */
 #shellSide, #shellHome, #shellShow, #shellOv, #shellBurger { display: none; }
-#shellSide .sh-hidelink { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 8px; margin-bottom: 8px; border: none; border-radius: 10px; background: transparent; color: #8a7d76; font: 700 .85rem 'Tajawal', sans-serif; cursor: pointer; }
+#shellSide .sh-hidelink { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 8px; margin-bottom: 0; border: none; border-radius: 10px; background: transparent; color: #8a7d76; font: 700 .85rem 'Tajawal', sans-serif; cursor: pointer; }
 #shellSide .sh-hidelink:hover { background: var(--cream); color: var(--maroon); }
 #shellSide .sh-brand { display: flex; align-items: center; gap: 10px; padding: 16px 16px 10px; color: var(--maroon); font-weight: 800; font-size: .98rem; line-height: 1.4; }
 #shellSide .sh-brand img { height: 38px; width: auto; max-width: 54px; object-fit: contain; }
@@ -63,10 +63,7 @@
   body.shell-mob #shellOv { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 1000; opacity: 0; pointer-events: none; transition: opacity .25s ease; }
   body.shell-mob.shell-open #shellOv { opacity: 1; pointer-events: auto; }
   body.shell-mob.shell-open { overflow: hidden; }
-  body.shell-mob #shellSide .sh-hidelink { display: none; }
+  body.shell-mob #shellSide .sh-foot { display: none; }
   body.shell-mob #shellSide .sh-i { padding: 9px 8px; }
 }
 
-/* زر الخروج العلوي يختفي حين تظهر القائمة الجانبية (الخروج من أسفل القائمة) */
-body.shell-on .topbar .logout,
-body.shell-mob .topbar .logout { display: none !important; }
