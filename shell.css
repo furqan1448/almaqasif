@@ -66,3 +66,7 @@
   body.shell-mob #shellSide .sh-hidelink { display: none; }
   body.shell-mob #shellSide .sh-i { padding: 9px 8px; }
 }
+
+/* زر الخروج العلوي يختفي حين تظهر القائمة الجانبية (الخروج من أسفل القائمة) */
+body.shell-on .topbar .logout,
+body.shell-mob .topbar .logout { display: none !important; }
