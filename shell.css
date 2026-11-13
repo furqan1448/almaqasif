@@ -11,16 +11,15 @@
     display: flex; flex-direction: column; position: fixed; top: 0; right: 0; bottom: 0; width: 270px;
     background: #fff; border-left: 1px solid var(--gold-light); z-index: 30; direction: rtl; font-family: 'Tajawal', sans-serif;
   }
-  #shellSide .sh-top { display: flex; justify-content: flex-end; padding: 10px 12px 0; }
-  #shellSide .sh-hide { display: flex; align-items: center; gap: 3px; padding: 4px 10px 4px 8px; border: 1px solid var(--gold-light); border-radius: 999px; background: var(--cream); color: var(--maroon); font: 700 .78rem 'Tajawal', sans-serif; cursor: pointer; }
-  #shellSide .sh-hide:hover { background: var(--maroon); color: #fff; border-color: var(--maroon); }
+  #shellSide .sh-hidelink { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 8px; margin-bottom: 8px; border: none; border-radius: 10px; background: transparent; color: #8a7d76; font: 700 .85rem 'Tajawal', sans-serif; cursor: pointer; }
+  #shellSide .sh-hidelink:hover { background: var(--cream); color: var(--maroon); }
   body.shell-off #shellShow {
     display: flex; align-items: center; gap: 6px; position: fixed; top: 76px; right: 14px; z-index: 30;
     padding: 8px 14px; border: 1.5px solid var(--gold-light); border-radius: 999px; background: #fff; color: var(--maroon);
     font: 700 .88rem 'Tajawal', sans-serif; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.08);
   }
   body.shell-off #shellShow:hover { border-color: var(--maroon); }
-  #shellSide .sh-brand { display: flex; align-items: center; gap: 10px; padding: 6px 16px 10px; color: var(--maroon); font-weight: 800; font-size: .98rem; line-height: 1.4; }
+  #shellSide .sh-brand { display: flex; align-items: center; gap: 10px; padding: 16px 16px 10px; color: var(--maroon); font-weight: 800; font-size: .98rem; line-height: 1.4; }
   #shellSide .sh-brand img { height: 38px; width: auto; max-width: 54px; object-fit: contain; }
   #shellSide .sh-q { margin: 0 14px 6px; position: relative; }
   #shellSide .sh-q input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--gold-light); border-radius: 12px; background: var(--cream); font: 500 .9rem 'Tajawal', sans-serif; color: var(--ink); }

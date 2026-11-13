@@ -4,6 +4,7 @@
   var collapsed = false; try { collapsed = localStorage.getItem('shellCollapsed') === '1'; } catch (e) {}
   function setCollapsed(v) { collapsed = v; try { localStorage.setItem('shellCollapsed', v ? '1' : '0'); } catch (e) {} build(); }
   var CHEV_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+  var HIDE_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/><path d="M8 9l3 3-3 3"/></svg>';
   var MENU_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
   var PREF = ['المبيعات والمالية', 'الإشعارات', 'بطاقات التحفيز', 'المهام والوثائق', 'البيانات والإرشادات'];
   function centerGroup(k) {
@@ -39,16 +40,15 @@
   function frame(dash) {
     var side = $('shellSide'); if (side) return side;
     side = el('aside'); side.id = 'shellSide';
-    var top = el('div', 'sh-top'), hb = el('button', 'sh-hide'); hb.type = 'button'; hb.title = 'إخفاء القائمة الجانبية';
-    hb.innerHTML = CHEV_SVG; hb.appendChild(el('span', '', 'إخفاء')); hb.onclick = function () { setCollapsed(true); };
-    top.appendChild(hb); side.appendChild(top);
     var br = el('div', 'sh-brand'), logo = $('brandLogo');
     if (logo && logo.src) { var im = el('img'); im.src = logo.src; im.alt = ''; br.appendChild(im); }
     br.appendChild(el('span', '', ((dash.querySelector('.topbar .brand') || {}).textContent || '').trim())); side.appendChild(br);
     var sb = el('div', 'sh-q'), inp = el('input'); inp.type = 'search'; inp.placeholder = 'ابحثي عن قسم...'; inp.autocomplete = 'off';
     inp.oninput = function () { q = inp.value; filter(); }; sb.appendChild(inp); side.appendChild(sb);
     side.appendChild(el('nav'));
-    var ft = el('div', 'sh-foot'), ob = el('button', 'sh-out', 'تسجيل الخروج');
+    var ft = el('div', 'sh-foot'), hl = el('button', 'sh-hidelink'), ob = el('button', 'sh-out', 'تسجيل الخروج');
+    hl.type = 'button'; hl.innerHTML = HIDE_SVG; hl.appendChild(el('span', '', 'إخفاء القائمة')); hl.onclick = function () { setCollapsed(true); };
+    ft.appendChild(hl);
     ob.onclick = function () { var l = dash.querySelector('.topbar .logout'); if (l) l.click(); };
     ft.appendChild(ob); side.appendChild(ft); document.body.appendChild(side); return side;
   }
