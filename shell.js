@@ -1,6 +1,10 @@
 /* القائمة الجانبية + صفحة «بانتظار اطلاعك»: تُبنى تلقائياً من أيقونات كل صفحة ولا تغيّر أي منطق قائم */
 (function () {
   var MQ = window.matchMedia('(min-width:900px)'), sig = '', active = 'home', timer = null, lastLoad = 0, q = '';
+  var collapsed = false; try { collapsed = localStorage.getItem('shellCollapsed') === '1'; } catch (e) {}
+  function setCollapsed(v) { collapsed = v; try { localStorage.setItem('shellCollapsed', v ? '1' : '0'); } catch (e) {} build(); }
+  var CHEV_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+  var MENU_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
   var PREF = ['المبيعات والمالية', 'الإشعارات', 'بطاقات التحفيز', 'المهام والوثائق', 'البيانات والإرشادات'];
   function centerGroup(k) {
     if (/^إشعار/.test(k)) return 'الإشعارات';
@@ -35,6 +39,9 @@
   function frame(dash) {
     var side = $('shellSide'); if (side) return side;
     side = el('aside'); side.id = 'shellSide';
+    var top = el('div', 'sh-top'), hb = el('button', 'sh-hide'); hb.type = 'button'; hb.title = 'إخفاء القائمة الجانبية';
+    hb.innerHTML = CHEV_SVG; hb.appendChild(el('span', '', 'إخفاء')); hb.onclick = function () { setCollapsed(true); };
+    top.appendChild(hb); side.appendChild(top);
     var br = el('div', 'sh-brand'), logo = $('brandLogo');
     if (logo && logo.src) { var im = el('img'); im.src = logo.src; im.alt = ''; br.appendChild(im); }
     br.appendChild(el('span', '', ((dash.querySelector('.topbar .brand') || {}).textContent || '').trim())); side.appendChild(br);
@@ -44,6 +51,12 @@
     var ft = el('div', 'sh-foot'), ob = el('button', 'sh-out', 'تسجيل الخروج');
     ob.onclick = function () { var l = dash.querySelector('.topbar .logout'); if (l) l.click(); };
     ft.appendChild(ob); side.appendChild(ft); document.body.appendChild(side); return side;
+  }
+  function showBtn() {
+    var b = $('shellShow'); if (b) return b;
+    b = el('button', 'sh-show'); b.id = 'shellShow'; b.type = 'button'; b.title = 'إظهار القائمة الجانبية';
+    b.innerHTML = MENU_SVG; b.appendChild(el('span', '', 'القائمة')); b.onclick = function () { setCollapsed(false); };
+    document.body.appendChild(b); return b;
   }
   function homeBox() {
     var b = $('shellHome'); if (b) return b;
@@ -91,11 +104,13 @@
   }
   function build() {
     timer = null;
-    var dash = $('dashScreen'), on = !!dash && !dash.classList.contains('hidden') && MQ.matches;
+    var dash = $('dashScreen'), vis = !!dash && !dash.classList.contains('hidden') && MQ.matches, on = vis && !collapsed;
     document.body.classList.toggle('shell-on', on);
+    document.body.classList.toggle('shell-off', vis && collapsed);
+    if (vis && collapsed) showBtn();
     if (!on) return;
     var home = homeEl(); if (!home) return;
-    var items = [].slice.call(dash.querySelectorAll('.icon-btn')).filter(function (b) { return !hid(b, home.parentElement) && !b.closest('#shellHome'); }).map(function (b) {
+    var items = [].slice.call(dash.querySelectorAll('.icon-btn')).filter(function (b) { return !hid(b, home) && !b.closest('#shellHome'); }).map(function (b) {
       var bd = b.querySelector('.badge'), ic = b.querySelector('.ic'), lb = b.querySelector('.label'), k = lb ? lb.textContent.trim() : '';
       var sec = b.closest('.ah-sec'), gh = sec && sec.querySelector('h3');
       return { b: b, k: k, svg: ic ? ic.innerHTML : '', n: bd && !bd.classList.contains('hidden') ? bd.textContent.trim() : '', g: gh ? gh.textContent.trim() : centerGroup(k) };
