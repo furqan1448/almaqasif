@@ -1,13 +1,13 @@
-/* القائمة الجانبية + صفحة «ما يحتاج انتباهكِ الآن»: تُبنى تلقائياً من أيقونات كل صفحة ولا تغيّر أي منطق قائم */
+/* القائمة الجانبية + صفحة «بانتظار اطلاعك»: تُبنى تلقائياً من أيقونات كل صفحة ولا تغيّر أي منطق قائم */
 (function () {
   var MQ = window.matchMedia('(min-width:900px)'), sig = '', active = 'home', timer = null, lastLoad = 0, q = '';
-  var PREF = ['المبيعات والمالية', 'الإشعارات', 'بطاقات التحفيز', 'المتابعة والمراسلات', 'حسابي'];
+  var PREF = ['المبيعات والمالية', 'الإشعارات', 'بطاقات التحفيز', 'المهام والوثائق', 'البيانات والإرشادات'];
   function centerGroup(k) {
     if (/^إشعار/.test(k)) return 'الإشعارات';
     if (/بطاقات التحفيز/.test(k)) return 'بطاقات التحفيز';
     if (/الأسعار|البيع|الفواتير|المرتجعة|طلبات/.test(k)) return 'المبيعات والمالية';
-    if (/بياناتي|الأسئلة/.test(k)) return 'حسابي';
-    return 'المتابعة والمراسلات';
+    if (/بياناتي|الأسئلة/.test(k)) return 'البيانات والإرشادات';
+    return 'المهام والوثائق';
   }
   var HOME_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg>';
   function $(id) { return document.getElementById(id); }
@@ -49,7 +49,7 @@
     var b = $('shellHome'); if (b) return b;
     var host = $('adminHomeView') ? document.querySelector('#adminHomeView .wrap') : $('homeView');
     if (!host) return null;
-    b = el('div'); b.id = 'shellHome'; b.appendChild(el('h3', '', 'ما يحتاج انتباهكِ الآن'));
+    b = el('div'); b.id = 'shellHome'; b.appendChild(el('h3', '', 'بانتظار اطلاعك'));
     b.appendChild(el('div', 'sh-m')); b.appendChild(el('div', 'sh-at')); b.appendChild(el('div', 'sh-em'));
     var ref = $('announceBanner') || host.querySelector('h2');
     if (ref && ref.parentNode === host) host.insertBefore(b, ref.nextSibling); else host.insertBefore(b, host.firstChild);
@@ -68,7 +68,7 @@
     var b = $('shellHome'); if (!b) return;
     var has = b.querySelector('.sh-mc') || b.querySelector('.sh-ac') || ($('toSignBanner') && $('toSignBanner').children.length);
     var em = b.querySelector('.sh-em'); em.innerHTML = '';
-    if (!has) em.appendChild(el('div', 'sh-empty', 'لا يوجد ما يحتاج انتباهكِ الآن. اختاري قسماً من القائمة.'));
+    if (!has) em.appendChild(el('div', 'sh-empty', 'لا يوجد.'));
   }
   function loadAttention() {
     if (!$('adminHomeView') || typeof callApi !== 'function' || Date.now() - lastLoad < 30000) return;
