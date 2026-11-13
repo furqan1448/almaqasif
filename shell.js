@@ -49,8 +49,16 @@
     var ft = el('div', 'sh-foot'), hl = el('button', 'sh-hidelink'), ob = el('button', 'sh-out', 'تسجيل الخروج');
     hl.type = 'button'; hl.innerHTML = HIDE_SVG; hl.appendChild(el('span', '', 'إخفاء القائمة')); hl.onclick = function () { setCollapsed(true); };
     ft.appendChild(hl);
-    ob.onclick = function () { var l = dash.querySelector('.topbar .logout'); if (l) l.click(); };
-    ft.appendChild(ob); side.appendChild(ft); document.body.appendChild(side); return side;
+    ob.onclick = function () { closeDrawer(); var l = dash.querySelector('.topbar .logout'); if (l) l.click(); };
+    ft.appendChild(ob); side.appendChild(ft); document.body.appendChild(side);
+    var ov = el('div'); ov.id = 'shellOv'; ov.onclick = closeDrawer; document.body.appendChild(ov); return side;
+  }
+  function closeDrawer() { document.body.classList.remove('shell-open'); }
+  function burger(dash) {
+    var br = dash.querySelector('.topbar .brand'); if (!br || $('shellBurger')) return;
+    var b = el('button'); b.id = 'shellBurger'; b.type = 'button'; b.setAttribute('aria-label', 'القائمة'); b.innerHTML = MENU_SVG;
+    b.onclick = function (e) { e.preventDefault(); e.stopPropagation(); document.body.classList.toggle('shell-open'); };
+    br.insertBefore(b, br.firstChild);
   }
   function showBtn() {
     var b = $('shellShow'); if (b) return b;
@@ -104,11 +112,15 @@
   }
   function build() {
     timer = null;
-    var dash = $('dashScreen'), vis = !!dash && !dash.classList.contains('hidden') && MQ.matches, on = vis && !collapsed;
+    var dash = $('dashScreen'), vis = !!dash && !dash.classList.contains('hidden'), desk = MQ.matches;
+    var on = vis && desk && !collapsed, mob = vis && !desk;
     document.body.classList.toggle('shell-on', on);
-    document.body.classList.toggle('shell-off', vis && collapsed);
-    if (vis && collapsed) showBtn();
-    if (!on) return;
+    document.body.classList.toggle('shell-off', vis && desk && collapsed);
+    document.body.classList.toggle('shell-mob', mob);
+    if (!mob) closeDrawer();
+    if (vis && desk && collapsed) showBtn();
+    if (mob) burger(dash);
+    if (!on && !mob) return;
     var home = homeEl(); if (!home) return;
     var items = [].slice.call(dash.querySelectorAll('.icon-btn')).filter(function (b) { return !hid(b, home) && !b.closest('#shellHome'); }).map(function (b) {
       var bd = b.querySelector('.badge'), ic = b.querySelector('.ic'), lb = b.querySelector('.label'), k = lb ? lb.textContent.trim() : '';
@@ -124,7 +136,7 @@
         var d = el('div', 'sh-i'); d.dataset.k = k;
         var c = el('span', 'sh-c'); c.innerHTML = svg; d.appendChild(c); d.appendChild(el('span', '', k === 'home' ? 'الرئيسية' : k));
         if (n) d.appendChild(el('em', 'sh-b', n));
-        d.onclick = function () { active = k; fn(); mark(); window.scrollTo(0, 0); }; nav.appendChild(d);
+        d.onclick = function () { active = k; closeDrawer(); fn(); mark(); window.scrollTo(0, 0); }; nav.appendChild(d);
       };
       add('home', HOME_SVG, '', goHome);
       var order = [], by = {};
@@ -133,7 +145,7 @@
       order.forEach(function (g) { nav.appendChild(el('div', 'sh-g', g)); by[g].forEach(function (i) { add(i.k, i.svg, i.n, function () { i.b.click(); }); }); });
       filter(); renderHome(items);
     }
-    mark(); if (isHome()) loadAttention();
+    mark(); if (on && isHome()) loadAttention();
   }
   function later() { if (!timer) timer = setTimeout(build, 200); }
   document.addEventListener('DOMContentLoaded', function () {
