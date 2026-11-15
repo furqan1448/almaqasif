@@ -555,7 +555,7 @@ input.no-spin { -moz-appearance: textfield; appearance: textfield; }
         <label>اسم المسلّمة</label>
         <input type="text" id="senderName" placeholder="اكتبي اسمك">
 
-        <!-- إشعار تسليم المكافأة: المبلغ المفترض تسليمه لمتعاونة المقصف = ١٠٪ من مبيعات الأشهر المختارة (يُحسب تلقائياً من سجل البيع اليومي) -->
+        <!-- إشعار تسليم المكافأة: المبلغ المفترض تسليمه لمتعاونة المقصف = ١٠٪ من «المطلوب تسليمه» في بيان الفواتير (يُحسب تلقائياً) -->
         <div id="rewardCalcBox" class="hidden" style="margin-top:12px;border:1px solid var(--gold-light);border-radius:12px;overflow:hidden;background:#fff;">
           <div style="padding:9px 14px;background:var(--gold-light);color:var(--maroon);font-weight:700;">المبلغ المفترض تسليمه</div>
           <div id="rewardCalcBody" style="padding:10px 14px;line-height:1.9;font-size:0.95rem;"></div>
@@ -1423,7 +1423,7 @@ function loadInvoices() {
       tr.innerHTML = actions + '<td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (invoiceReturnHtml_(inv) || '—') + '</td><td>' + invoiceNotesText_(inv) + '</td>';
       tbody.appendChild(tr);
     });
-    summaryBox.innerHTML = invoiceSummaryHtml_(invoiceSummary_(currentInvoicesData));
+    { const sm_ = invoiceSummary_(currentInvoicesData); summaryBox.innerHTML = invoiceSummaryHtml_(sm_) + (isReadOnlyCenter ? '' : '<div style="margin-top:10px;padding:12px 14px;border:1px solid var(--maroon,#8C1A2C);border-radius:10px;background:#fff;display:flex;justify-content:space-between;gap:12px;font-weight:800;color:var(--maroon,#8C1A2C);"><span>المكافأة المفترضة (١٠٪ من المطلوب تسليمه)</span><span dir="ltr">' + Math.max(0, Math.round((sm_.deliverable || 0) * REWARD_RATE_)) + ' ريال</span></div>'); }
   });
 }
 
@@ -1618,9 +1618,9 @@ function openNoticeForm(type, reason) {
   initRewardCalc_(type === 'تسليم' && !reason);
 }
 
-/* -------- مكافأة متعاونة المقصف: ١٠٪ من مبيعات الفصل الحالي --------
-   تظهر في «إشعار تسليم المكافأة» فقط: تُجمع كل مبالغ سجل البيع اليومي للمركز في الفصل الحالي،
-   ثم يُحسب ١٠٪ منها ويُكتب في خانة المبلغ تلقائياً (ويمكن تعديله يدوياً). */
+/* -------- مكافأة متعاونة المقصف: ١٠٪ من «المطلوب تسليمه» في بيان الفواتير (الفصل الحالي) --------
+   تظهر في «إشعار تسليم المكافأة» فقط: يُؤخذ «المطلوب تسليمه» من بيان الفواتير للمركز،
+   ثم يُحسب ١٠٪ منه ويُكتب في خانة المبلغ تلقائياً (ويمكن تعديله يدوياً). */
 const REWARD_RATE_ = 0.10;
 let rewardWired_ = false, rewardAmountManual_ = false;
 
@@ -1634,19 +1634,19 @@ function initRewardCalc_(active) {
     rewardWired_ = true;
     document.getElementById('noticeAmount').addEventListener('input', function (e) { if (e.isTrusted) rewardAmountManual_ = true; });
   }
-  body.textContent = 'جارِ حساب المبلغ من سجل البيع اليومي...';
+  body.textContent = 'جارِ حساب المبلغ من بيان الفواتير...';
   const center = currentCenter;
-  callApi('getSales', { center: center, term: 'current' }).then(function (r) {
+  callApi('getInvoices', { center: center, term: 'current' }).then(function (r) {
     if (center !== currentCenter) return;
-    const sales = (r && r.ok && r.sales) || [];
-    const total = sales.reduce(function (sum, x) { return sum + (Number(x['المبلغ']) || 0); }, 0);
-    const reward = Math.round(total * REWARD_RATE_)   /* تقريب لأقرب ريال: 11.3 ← 11، و11.6 ← 12 */;
-    body.innerHTML = 'مجموع مبيعات الفصل الحالي في سجل البيع اليومي: <b>' + total.toFixed(2) + ' ريال</b>' +
-      (sales.length ? ' (' + toArabicDigits(sales.length) + ' ' + (sales.length === 1 ? 'يوم' : 'أيام') + ')' : ' (لا توجد مبيعات مسجّلة بعد)') +
+    const list = (r && r.ok && r.invoices) || [];
+    const due = list.length ? invoiceSummary_(list).deliverable : 0;
+    const reward = Math.max(0, Math.round(due * REWARD_RATE_))   /* تقريب لأقرب ريال: 11.3 ← 11، و11.6 ← 12 */;
+    body.innerHTML = 'المطلوب تسليمه في بيان الفواتير للفصل الحالي: <b>' + due.toFixed(2) + ' ريال</b>' +
+      (list.length ? '' : ' (لا توجد فواتير مسجّلة بعد)') +
       '<br>المبلغ المفترض تسليمه لمتعاونة المقصف (١٠٪ مقرّبة لأقرب ريال): <b style="color:var(--maroon);font-size:1.05rem;">' + reward + ' ريال</b>';
     if (!rewardAmountManual_) document.getElementById('noticeAmount').value = reward ? String(reward) : '';
   }).catch(function () {
-    body.textContent = 'تعذّر تحميل سجل البيع لحساب المبلغ، اكتبي المبلغ يدوياً.';
+    body.textContent = 'تعذّر تحميل بيان الفواتير لحساب المبلغ، اكتبي المبلغ يدوياً.';
   });
 }
 
