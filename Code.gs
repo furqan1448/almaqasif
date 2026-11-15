@@ -1609,6 +1609,7 @@ function dispatch_(p, T0_) {
     case 'getStats': return (getStats_());
     case 'getRegistrationStats': return (getRegistrationStats_(p));
     case 'setRegistrationVerified': return (setRegistrationVerified_(p));
+    case 'setRegistrationSent': return (setRegistrationSent_(p));
     case 'setAmountFollow': return (setAmountFollow_(p));
 
     case 'archiveCurrentTerm': return (archiveCurrentTerm_(p));
@@ -3446,6 +3447,7 @@ function archiveCurrentTerm_(p) {
 
   // اعتماد اكتمال التسجيل خاص بالفصل الحالي - يتفرّغ مع بداية الفصل الجديد
   clearRegistrationVerified_();
+  try { setSettingValue_(REG_SENT_KEY_, '{}'); } catch (e) {}
 
   return { ok: true, counts: counts };
 }
@@ -3910,6 +3912,28 @@ function setAmountFollow_(p) {
   return { ok: true, center: center };
 }
 
+/* علامة «تم الإرسال»: أي مركز أُرسل له تنبيه النقص (تُحفظ كـ JSON في شيت «الإعدادات») وتتفرّغ مع أرشفة الفصل */
+const REG_SENT_KEY_ = 'تم إرسال تنبيه النقص';
+function getRegistrationSentMap_() {
+  try { const m = JSON.parse(getSettingValue_(REG_SENT_KEY_) || '{}'); return (m && typeof m === 'object') ? m : {}; }
+  catch (e) { return {}; }
+}
+
+/* p.center + p.sent (true = تم الإرسال، false = إزالة العلامة) */
+function setRegistrationSent_(p) {
+  const center = String(p.center || '').trim();
+  if (!center) return { ok: false, error: 'اسم المركز مطلوب' };
+  const on = !(p.sent === false || p.sent === 'false');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const map = getRegistrationSentMap_();
+    if (on) map[center] = true; else delete map[center];
+    setSettingValue_(REG_SENT_KEY_, JSON.stringify(map));
+  } finally { lock.releaseLock(); }
+  return { ok: true, center: center, sent: on };
+}
+
 function getRegistrationVerifiedMap_() {
   const map = {};
   if (!sheet_(REG_VERIFY_SHEET_)) return map;
@@ -4062,6 +4086,7 @@ function getRegistrationStats_(p) {
   });
 
   const verified = getRegistrationVerifiedMap_();
+  const sentMap = getRegistrationSentMap_();
   const amFollow = getAmFollowMap_();
   // المراكز التي لا يوجد فيها مقصف حسب «حصر المقاصف» لا تظهر في الإحصائيات.
   // أسماء المراكز قد تحوي الفترة (مثل «... - الفترة المسائية»)، فنقارن الاسم دون كلمة الفترة + الفترة المفهومة من الاسم (نفس منطق شاشة الحصر).
@@ -4132,6 +4157,7 @@ function getRegistrationStats_(p) {
       issues: issues,
       deliveryDate: dlvDate,
       verified: !!verified[c],
+      sent: !!sentMap[c],
       amNote: (amFollow[c] && amFollow[c].note) || '',
       amDone: !!(amFollow[c] && amFollow[c].done)
     };

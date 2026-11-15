@@ -7063,7 +7063,7 @@ function renderAmounts_() {
     AM_COLS_.forEach(function (c) { tot[c.key] += Number(m[c.key]) || 0; });
     body += amRowHtml_(m);
   });
-  if (!rows.length) body = '<tr><td colspan="9" style="color:#8a7d76;padding:18px;">لا توجد مراكز مطابقة للبحث</td></tr>';
+  if (!rows.length) body = '<tr><td colspan="10" style="color:#8a7d76;padding:18px;">لا توجد مراكز مطابقة للبحث</td></tr>';
   else body += '<tr style="background:var(--cream);font-weight:700;"><td style="text-align:right;">الإجمالي (' + rows.length + ')</td>' +
     AM_COLS_.map(function (c) { return '<td>' + rsMoney_(tot[c.key]) + '</td>'; }).join('') + '<td></td><td>' + rows.filter(function (m) { return m.amDone; }).length + '/' + rows.length + '</td></tr>';
   const hidden = amData_.hiddenNoCanteen || [];
@@ -7648,6 +7648,9 @@ function renderRegStats_(r) {
   }
   html += '</div>';
 
+  // ---- تنبيه: مراكز فيها نقص ولم يُرسل لها ----
+  html += '<div id="rsUnsentAlert"></div>';
+
   // ---- الجدول ----
   let rows = '';
   r.centers.forEach(function (m, i) {
@@ -7662,6 +7665,8 @@ function renderRegStats_(r) {
       '<td><label class="rs-verify"><input type="checkbox"' + (m.verified ? ' checked' : '') +
         ' onchange="toggleRegVerified(' + i + ', this)"><span></span></label></td>' +
       '<td>' + (m.issues.length ? '<button type="button" class="rs-msg-btn" onclick="openRsMsg(' + i + ')" title="مراسلة مديرة المركز بالنقص">💬 مراسلة</button>' : '') + '</td>' +
+      '<td>' + ((m.issues.length || m.sent) ? '<label class="rs-verify" title="تم إرسال تنبيه النقص لمديرة المركز"><input type="checkbox"' + (m.sent ? ' checked' : '') +
+        ' onchange="toggleRegSent(' + i + ', this)"><span></span></label>' : '') + '</td>' +
       '</tr>';
   });
   html += '<div class="card"><h3 style="margin-top:0;color:var(--maroon);font-size:1rem;">تفصيل المراكز</h3>' +
@@ -7677,7 +7682,7 @@ function renderRegStats_(r) {
     }).join('') + '</div>' +
     '<div class="rs-shown" id="rsShown"></div>' +
     '<div class="rs-scroll"><table class="log-table rs-table"><thead><tr>' +
-      '<th>المركز</th><th>استلام</th><th>تسليم المكافأة</th><th>رسوم الحفل</th><th>الفواتير</th><th>أيام المبيعات</th><th>الحالة</th><th>اعتماد</th><th>مراسلة</th>' +
+      '<th>المركز</th><th>استلام</th><th>تسليم المكافأة</th><th>رسوم الحفل</th><th>الفواتير</th><th>أيام المبيعات</th><th>الحالة</th><th>اعتماد</th><th>مراسلة</th><th>تم الإرسال</th>' +
     '</tr></thead><tbody>' + rows + '<tr id="rsNoMatch" class="hidden"><td colspan="9" style="color:#8a7d76;padding:18px;">لا توجد مراكز مطابقة للبحث</td></tr></tbody></table></div>' +
     '<p style="color:#8a7d76;font-size:0.76rem;margin:10px 0 0;line-height:1.8;">«أيام المبيعات» = عدد الأيام المسجّل فيها مبالغ بسجل البيع اليومي. «مبالغ بدون فواتير» = المركز سجّل مبيعات ولم يُدخل أي فاتورة في نفس الفترة، و«فواتير بدون مبالغ» العكس. «لا نقص» = ما فيه نقص ظاهر بالأرقام، ولا تصير «مكتمل» إلا بعد ما تحطين ✔ في خانة «اعتماد» (الاعتماد خاص بالفصل الحالي ويتفرّغ عند أرشفة الفصل).</p>' +
     '<div class="export-row" style="margin-top:12px;">' +
@@ -7685,6 +7690,7 @@ function renderRegStats_(r) {
       '<button class="btn outline" onclick="printRegStats()">⬇️ PDF</button>' +
     '</div></div>';
   out.innerHTML = html;
+  rsRenderUnsent_();
   applyRsFilter_();
 }
 
@@ -7717,6 +7723,7 @@ const RS_FILTERS_ = [
   { key: 'all',        label: 'الكل',           test: function (m) { return true; } },
   { key: 'missing',    label: 'فيه نقص',        test: function (m) { return !m.verified && m.issues.length > 0; } },
   { key: 'nothing',    label: 'لا فواتير ولا مبالغ',  test: function (m) { return !m.verified && m.issues.indexOf('nothing') !== -1; } },
+  { key: 'unsent',     label: 'لم يُرسل لها',   test: function (m) { return rsNeedsSend_(m); } },
   { key: 'done',       label: 'مكتمل',          test: function (m) { return !!m.verified; } },
   { key: 'unverified', label: 'غير معتمد',      test: function (m) { return !m.verified; } }
 ];
@@ -7758,7 +7765,7 @@ function applyRsFilter_() {
   const missingF = RS_FILTERS_.filter(function (f) { return f.key === 'missing'; })[0];
   let shown = 0;
   rsData_.centers.forEach(function (m, i) {
-    const hay = rsNorm_(m.center + ' ' + rsStatusText_(m) + (m.verified ? ' معتمد' : ' غير معتمد'));
+    const hay = rsNorm_(m.center + ' ' + rsStatusText_(m) + (m.verified ? ' معتمد' : ' غير معتمد') + (m.sent ? ' تم الارسال' : ''));
     const textOk = words.every(function (w) { return hay.indexOf(w) !== -1; });
     if (textOk) RS_FILTERS_.forEach(function (f) { if (f.test(m)) counts[f.key]++; });
     if (textOk && missingF && missingF.test(m)) RS_SUBFILTERS_.forEach(function (f) {
@@ -8025,6 +8032,44 @@ function closeRsMsg() {
   rsMsgCtx_ = null;
 }
 
+/* مركز فيه نقص (غير معتمد) ولم تُعلَّم له «تم الإرسال» */
+function rsNeedsSend_(m) { return !m.verified && m.issues.length > 0 && !m.sent; }
+
+/* تنبيه أعلى الجدول بالمراكز التي فيها نقص ولم يُرسل لها بعد */
+function rsRenderUnsent_() {
+  const el = document.getElementById('rsUnsentAlert');
+  if (!el || !rsData_) return;
+  const list = (rsData_.centers || []).filter(rsNeedsSend_);
+  if (!list.length) {
+    el.innerHTML = '';
+    return;
+  }
+  el.innerHTML = '<div class="card"><div class="rs-group bad"><div class="rs-group-title">⚠️ تنبيه: لم يُرسل تنبيه النقص لهذه المراكز بعد <span class="rs-count">' + list.length + '</span></div>' +
+    '<div class="rs-chips">' + list.map(function (m) { return '<span class="rs-chip">' + rsEsc_(m.center) + '</span>'; }).join('') + '</div>' +
+    '<div style="color:#8a7d76;font-size:0.78rem;margin-top:8px;">ضعي ✔ في عمود «تم الإرسال» بعد مراسلة المديرة لتختفي من هذا التنبيه.</div></div></div>';
+}
+
+function toggleRegSent(i, box) {
+  const m = rsData_ && rsData_.centers[i];
+  if (!m) return;
+  const want = box.checked;
+  box.disabled = true;
+  m.sent = want;
+  rsRenderUnsent_();
+  applyRsFilter_();
+  callApi('setRegistrationSent', { center: m.center, sent: want }).then(function (r) {
+    box.disabled = false;
+    if (!r || !r.ok) throw new Error((r && r.error) || '');
+  }).catch(function (err) {
+    box.disabled = false;
+    m.sent = !want;
+    box.checked = !want;
+    rsRenderUnsent_();
+    applyRsFilter_();
+    alert('تعذّر حفظ علامة الإرسال' + (err && err.message ? ': ' + err.message : '') + '، حاولي مرة أخرى.');
+  });
+}
+
 function toggleRegVerified(i, box) {
   const m = rsData_ && rsData_.centers[i];
   if (!m) return;
@@ -8062,7 +8107,8 @@ function rsExportRows_() {
       'أيام المبيعات': m.salesDays,
       'إجمالي المبيعات': m.salesTotal,
       'الحالة': rsStatusText_(m),
-      'اعتماد': m.verified ? '✔' : ''
+      'اعتماد': m.verified ? '✔' : '',
+      'تم الإرسال': m.sent ? '✔' : ''
     };
   });
 }
@@ -8075,7 +8121,7 @@ function exportRegStatsExcel() {
 function printRegStats() {
   if (!rsData_) return;
   const rows = rsExportRows_();
-  const cols = ['المركز', 'إشعار استلام', 'إشعار تسليم المكافأة', 'إشعار تسليم رسوم الحفل', 'عدد الفواتير', 'أيام المبيعات', 'الحالة', 'اعتماد'];
+  const cols = ['المركز', 'إشعار استلام', 'إشعار تسليم المكافأة', 'إشعار تسليم رسوم الحفل', 'عدد الفواتير', 'أيام المبيعات', 'الحالة', 'اعتماد', 'تم الإرسال'];
   const t = rsData_.totals;
   printReport('إحصائيات التسجيل', rsEsc_(rsPeriodLabel_()) +
     ' — استلام: ' + t.receive + ' · تسليم المكافأة: ' + t.reward + ' · رسوم الحفل: ' + t.fee + ' · الفواتير: ' + t.invoices,
