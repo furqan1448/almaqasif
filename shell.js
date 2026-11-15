@@ -103,6 +103,37 @@
     var em = b.querySelector('.sh-em'); em.innerHTML = '';
     if (!has) em.appendChild(el('div', 'sh-empty', 'لا يوجد.'));
   }
+  var REM_KEY = 'shellRemindedAt';
+  function remMap() { try { return JSON.parse(localStorage.getItem(REM_KEY) || '{}') || {}; } catch (e) { return {}; } }
+  function remMark(k) { var m = remMap(); m[k] = Date.now(); try { localStorage.setItem(REM_KEY, JSON.stringify(m)); } catch (e) {} }
+  function remLabel(btn, done) { btn.className = 'sh-rem' + (done ? ' done' : ''); btn.textContent = done ? '✔ أُرسل' : '📲 تذكير'; }
+  function remText(it, name) {
+    var what = it.kind === 'visit' ? 'تقرير الزيارة' : 'الإشعار';
+    return 'السلام عليكم ورحمة الله وبركاته\n' + (name ? 'الأستاذة/ ' + name + ' — ' : '') + 'مديرة ' + it.center + '\n\n' +
+      'نفيدكم بأن ' + what + ' بانتظار توقيعكم في نظام وحدة المقاصف، ونأمل التكرم بالدخول إلى النظام وتوقيعه في أقرب وقت ممكن.\n\nشاكرين لكم تعاونكم.';
+  }
+  function remindBtn(it) {
+    var btn = el('button'), k = it.key || (it.kind + ':' + it.center + ':' + (it.date || ''));
+    btn.type = 'button'; remLabel(btn, !!remMap()[k]);
+    btn.onclick = function () {
+      var win = window.open('', '_blank');
+      btn.disabled = true;
+      Promise.resolve(rsLoadDirectors_()).then(function (list) {
+        var dirs = rsMatchDirectors_(it.center, list || []), d = dirs[0] || null;
+        var phone = vrWaPhone_(d && d.phone ? d.phone : '');
+        if (!phone) {
+          var typed = prompt('لم يُعثر على رقم مديرة ' + it.center + '، اكتبي رقم جوالها (05xxxxxxxx):') || '';
+          phone = vrWaPhone_(typed);
+        }
+        if (!phone) { if (win) win.close(); alert('لم يُرسل التذكير: رقم الجوال غير صحيح.'); return; }
+        var url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(remText(it, d && d.name));
+        if (win) win.location.href = url; else window.open(url, '_blank');
+        remMark(k); remLabel(btn, true);
+      }).catch(function () { if (win) win.close(); alert('تعذّر تجهيز التذكير، حاولي مرة أخرى.'); })
+        .then(function () { btn.disabled = false; });
+    };
+    return btn;
+  }
   function loadAttention() {
     if (!$('adminHomeView') || typeof callApi !== 'function' || Date.now() - lastLoad < 30000) return;
     lastLoad = Date.now();
@@ -111,13 +142,16 @@
       visitN = Number(r.visitTotal) || 0; addVisitCard(b.querySelector('.sh-m'));
       var at = b.querySelector('.sh-at'); at.innerHTML = '';
       (r.items || []).forEach(function (it) {
-        var c = el('div', 'sh-ac'); c.appendChild(el('div', 't', it.title + (it.center ? ' — ' + it.center : '')));
+        var c = el('div', 'sh-ac'), body = el('div', 'sh-ab');
+        body.appendChild(el('div', 't', it.title + (it.center ? ' — ' + it.center : '')));
         var sn = it.seen || [];
-        if (!sn.length) c.appendChild(el('div', 's sh-no', '👁 لم يتم الاطلاع على التنبيه بعد'));
+        if (!sn.length) body.appendChild(el('div', 's sh-no', '👁 لم يتم الاطلاع على التنبيه بعد'));
         else sn.forEach(function (x) {
           var p = String(x.at || '').split(' '), d = p[0] && typeof toHijriStr === 'function' ? toHijriStr(p[0]) + (p[1] ? ' ' + p[1] : '') : '';
-          c.appendChild(el('div', 's sh-ok', '👁 تم الاطلاع: ' + x.who + (d ? ' · ' + d : '')));
+          body.appendChild(el('div', 's sh-ok', '👁 تم الاطلاع: ' + x.who + (d ? ' · ' + d : '')));
         });
+        c.appendChild(body);
+        if (it.center && typeof rsLoadDirectors_ === 'function' && typeof rsMatchDirectors_ === 'function' && typeof vrWaPhone_ === 'function') c.appendChild(remindBtn(it));
         at.appendChild(c);
       });
       updEmpty();

@@ -45,7 +45,12 @@
   #shellHome .sh-mc small { display: block; color: rgba(255,255,255,.9); font-size: .8rem; }
   #shellHome .sh-mc b { font-size: 1.6rem; color: #fff; font-weight: 800; }
   #shellHome .sh-mc.new { background: var(--maroon-dark); box-shadow: inset 0 0 0 2px var(--gold); }
-  #shellHome .sh-ac { border-right: 4px solid var(--maroon); }
+  #shellHome .sh-ac { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  #shellHome .sh-ab { flex: 1; min-width: 0; }
+  #shellHome .sh-rem { flex: none; border: 1.5px solid var(--maroon); background: #fff; color: var(--maroon); border-radius: 999px; padding: 5px 14px; font: 700 .82rem 'Tajawal', sans-serif; cursor: pointer; white-space: nowrap; }
+  #shellHome .sh-rem:hover { background: var(--maroon); color: #fff; }
+  #shellHome .sh-rem.done { border-color: #1f8f4e; color: #1f8f4e; }
+  #shellHome .sh-rem.done:hover { background: #1f8f4e; color: #fff; }
   #shellHome .sh-ac { margin-bottom: 8px; }
   #shellHome .sh-ac .t { font-weight: 800; color: var(--maroon-dark); font-size: .95rem; }
   #shellHome .sh-ac .s { font-size: .82rem; font-weight: 700; margin-top: 3px; }

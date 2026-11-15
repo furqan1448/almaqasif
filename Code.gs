@@ -559,7 +559,7 @@ function clearActionAck_(key) {
 function getAdminAttention_(p) {
   const acks = actionAcksRead_();
   const items = actionAlertItems_('', 'مديرة').map(function (it) {
-    return { kind: it.kind, title: it.title.replace('بانتظار توقيعكِ', 'بانتظار توقيع المركز'), center: it.center, date: it.date, seen: actionSeenOf_(acks, it.key) };
+    return { key: it.key, kind: it.kind, title: it.title.replace('بانتظار توقيعكِ', 'بانتظار توقيع المركز'), center: it.center, date: it.date, seen: actionSeenOf_(acks, it.key) };
   });
   const visitTotal = items.filter(function (it) { return it.kind === 'visit'; }).length;
   return { ok: true, items: items.slice(0, 30), total: items.length, visitTotal: visitTotal };
