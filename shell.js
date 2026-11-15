@@ -1,7 +1,7 @@
 /* القائمة الجانبية + صفحة «بانتظار اطلاعك»: تُبنى تلقائياً من أيقونات كل صفحة ولا تغيّر أي منطق قائم */
 (function () {
   var MQ = window.matchMedia('(min-width:900px)'), sig = '', active = 'home', timer = null, lastLoad = 0, q = '';
-  var collapsed = false; try { collapsed = localStorage.getItem('shellCollapsed') === '1'; } catch (e) {}
+  var visitN = 0, collapsed = false; try { collapsed = localStorage.getItem('shellCollapsed') === '1'; } catch (e) {}
   function setCollapsed(v) { collapsed = v; try { localStorage.setItem('shellCollapsed', v ? '1' : '0'); } catch (e) {} build(); }
   var CHEV_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
   var HIDE_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/><path d="M8 9l3 3-3 3"/></svg>';
@@ -82,7 +82,20 @@
       var c = el('div', 'sh-mc'), s = el('small', '', i.k), n = el('b', '', i.n); c.appendChild(s); c.appendChild(n);
       c.onclick = function () { active = i.k; i.b.click(); mark(); }; m.appendChild(c);
     });
+    addVisitCard(m);
     updEmpty();
+  }
+  function addVisitCard(m) {
+    var old = m.querySelector('.sh-mc.new'); if (old) old.remove();
+    if (!visitN) return;
+    var c = el('div', 'sh-mc new'), s = el('small', '', 'تقارير بانتظار التوقيع'), n = el('b', '', visitN);
+    c.appendChild(s); c.appendChild(n);
+    c.onclick = function () {
+      var btn = [].slice.call(document.querySelectorAll('#dashScreen .icon-btn')).filter(function (b) { var l = b.querySelector('.label'); return l && /تقرير الزيارة|تقارير الزيارة/.test(l.textContent); })[0];
+      if (btn) { active = 'تقرير الزيارة'; btn.click(); mark(); }
+      else { var at = document.querySelector('#shellHome .sh-at'); if (at) at.scrollIntoView({ behavior: 'smooth' }); }
+    };
+    m.appendChild(c);
   }
   function updEmpty() {
     var b = $('shellHome'); if (!b) return;
@@ -95,6 +108,7 @@
     lastLoad = Date.now();
     callApi('getAdminAttention', { _t: Date.now() }).then(function (r) {
       var b = $('shellHome'); if (!b || !r || !r.ok) return;
+      visitN = Number(r.visitTotal) || 0; addVisitCard(b.querySelector('.sh-m'));
       var at = b.querySelector('.sh-at'); at.innerHTML = '';
       (r.items || []).forEach(function (it) {
         var c = el('div', 'sh-ac'); c.appendChild(el('div', 't', it.title + (it.center ? ' — ' + it.center : '')));

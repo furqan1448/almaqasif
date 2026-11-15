@@ -561,7 +561,8 @@ function getAdminAttention_(p) {
   const items = actionAlertItems_('', 'مديرة').map(function (it) {
     return { kind: it.kind, title: it.title.replace('بانتظار توقيعكِ', 'بانتظار توقيع المركز'), center: it.center, date: it.date, seen: actionSeenOf_(acks, it.key) };
   });
-  return { ok: true, items: items.slice(0, 30), total: items.length };
+  const visitTotal = items.filter(function (it) { return it.kind === 'visit'; }).length;
+  return { ok: true, items: items.slice(0, 30), total: items.length, visitTotal: visitTotal };
 }
 function getActionAlerts_(p) {
   const role = dlvNorm_(p && p.role) === 'مسؤولة' ? 'مسؤولة' : 'مديرة';
