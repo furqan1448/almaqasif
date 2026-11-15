@@ -1423,7 +1423,7 @@ function loadInvoices() {
       tr.innerHTML = actions + '<td>' + p.type + '</td><td>' + (inv['رقم الفاتورة'] || '—') + '</td><td>' + (inv['مصدر الفاتورة'] || '—') + '</td><td>' + (inv['اليوم'] || '') + '</td><td>' + toHijriStr(inv['التاريخ']) + '</td><td>' + p.amount.toFixed(2) + '</td><td>' + (p.type === 'مصروفات' ? '—' : p.profit.toFixed(2)) + '</td><td dir="ltr">' + p.effect.toFixed(2) + '</td><td>' + (invoiceReturnHtml_(inv) || '—') + '</td><td>' + invoiceNotesText_(inv) + '</td>';
       tbody.appendChild(tr);
     });
-    { const sm_ = invoiceSummary_(currentInvoicesData); summaryBox.innerHTML = invoiceSummaryHtml_(sm_) + (isReadOnlyCenter ? '' : '<div style="margin-top:10px;padding:12px 14px;border:1px solid var(--maroon,#8C1A2C);border-radius:10px;background:#fff;display:flex;justify-content:space-between;gap:12px;font-weight:800;color:var(--maroon,#8C1A2C);"><span>المكافأة المفترضة (١٠٪ من المطلوب تسليمه)</span><span dir="ltr">' + Math.max(0, Math.round((sm_.deliverable || 0) * REWARD_RATE_)) + ' ريال</span></div>'); }
+    { const sm_ = invoiceSummary_(currentInvoicesData); summaryBox.innerHTML = invoiceSummaryHtml_(sm_) + (isReadOnlyCenter ? '' : '<div style="margin-top:10px;padding:12px 14px;border:1px solid var(--maroon,#8C1A2C);border-radius:10px;background:#fff;display:flex;justify-content:space-between;gap:12px;font-weight:800;color:var(--maroon,#8C1A2C);"><span>المكافأة المفترضة لمتعاونة المقصف</span><span dir="ltr">' + Math.max(0, Math.round((sm_.deliverable || 0) * REWARD_RATE_)) + ' ريال</span></div>'); }
   });
 }
 
