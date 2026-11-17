@@ -1,6 +1,7 @@
 /* ===== الخطة المقترحة لاستلام المبالغ والبضائع (قابلة للتعبئة والتحرير) =====
-   تظهر داخل تبويب «مواعيد التسليم» في edara.html. كل نص قابل للتحرير، والمركز والفترة قوائم منسدلة،
-   ولكل مركز تاريخ استلام يُختار من التقويم (يظهر هجري + ميلادي). تُحفظ في الخادم وتُصدَّر PDF بنفس تصميم الملف الأصلي. */
+   تظهر داخل تبويب «مواعيد التسليم» في edara.html. كل نص قابل للتحرير، والمركز والفترة قوائم منسدلة.
+   جداول البضائع: لكل مركز تاريخ استلام. جداول المبالغ: اليوم والتاريخ يُكتبان مرة واحدة أعلى كل جدول.
+   تُحفظ في الخادم وتُصدَّر PDF بنفس تصميم الملف الأصلي (خطوط أكبر وأوضح وألوان مطابقة). */
 (function () {
   'use strict';
   var S = null, centers = [], dirty = false, saving = Promise.resolve();
@@ -51,22 +52,30 @@
     };
     o.amts = conv(o.days); delete o.days; return o;
   }
+  /* نقل التاريخ من الصفوف إلى الجدول: النسخ المحفوظة سابقًا كان فيها تاريخ لكل صف، والآن التاريخ مرة واحدة لكل يوم */
+  function migrateAmts(P) {
+    if (P && P.amts) P.amts.forEach(function (g) {
+      if (g.d === undefined) { g.d = ''; (g.rows || []).forEach(function (r) { if (!g.d && r.d) g.d = r.d; }); }
+      (g.rows || []).forEach(function (r) { r.d = ''; });
+    });
+    return P;
+  }
   /* إصلاح نسخ محفوظة سابقًا فيها أسماء مراكز المبالغ مقطوعة (حرف واحد): نعيد الأسماء الصحيحة ونبقي التواريخ */
   function fixAmts(P) {
     if (P && P.amts && P.amts.some(function (g) { return g.rows.some(function (r) { return r.c && r.c.length === 1; }); })) {
       var fresh = seed().amts;
-      fresh.forEach(function (g, gi) { var o = P.amts[gi]; if (o) { g.rows.forEach(function (r, ri) { if (o.rows[ri] && o.rows[ri].d) r.d = o.rows[ri].d; }); if (o.t) g.t = o.t; } });
+      fresh.forEach(function (g, gi) { var o = P.amts[gi]; if (o) { if (o.d) g.d = o.d; if (o.t) g.t = o.t; } });
       P.amts = fresh;
     }
     return P;
   }
-  /* تحويل الجدول القديم (حسب اليوم) إلى جداول: مركز + فترة + تاريخ */
+  /* تحويل الجدول القديم (حسب اليوم) إلى جداول: مركز + فترة، والتاريخ على مستوى الجدول */
   function conv(days) {
     return days.map(function (d) {
       var rows = [];
-      d.am.forEach(function (x) { rows.push({ c: x.c, p: x.both ? PERIODS[2] : PERIODS[0], d: d.date || '' }); });
-      d.pm.forEach(function (x) { rows.push({ c: x.c, p: PERIODS[1], d: d.date || '' }); });
-      return { t: d.day, n: '', rows: rows };
+      d.am.forEach(function (x) { rows.push({ c: x.c, p: x.both ? PERIODS[2] : PERIODS[0], d: '' }); });
+      d.pm.forEach(function (x) { rows.push({ c: x.c, p: PERIODS[1], d: '' }); });
+      return { t: d.day, n: '', d: d.date || '', rows: rows };
     });
   }
 
@@ -108,14 +117,26 @@
     /* جداول البضائع */
     B.push({ brk: 1, html: '<h2 class="h2">' + ed('goodsT', S.goodsT) + '</h2>' });
     var tables = function (key) { S[key].forEach(function (g, gi) {
-      var gp = key + '.' + gi;
-      B.push({ open: '<div class="bx"><div class="band"><span>' + ed(gp + '.t', g.t) + '</span><span class="nt">' + ed(gp + '.n', g.n) + '</span>' + (E ? '<span class="bk">تاريخ لكل الصفوف <input type="date" class="dt" data-act="bulk" data-p="' + gp + '"></span>' + btn('del', gp, '🗑 حذف الجدول', undefined, 'x w') : '') + '<span class="cnt">' + cnt(g.rows.length) + '</span></div><table><thead><tr><th style="width:7%">م</th><th>المركز</th><th style="width:29%">الفترة</th><th style="width:28%">تاريخ الاستلام</th>' + (E ? '<th style="width:5%"></th>' : '') + '</tr></thead><tbody>',
+      var gp = key + '.' + gi, isA = key === 'amts';
+      /* في جداول المبالغ: اليوم (عنوان الجدول) والتاريخ يُكتبان مرة واحدة في الشريط العلوي، ولا عمود تاريخ في الصفوف */
+      var band = '<span>' + ed(gp + '.t', g.t) + '</span><span class="nt">' + ed(gp + '.n', g.n) + '</span>';
+      if (isA) {
+        if (E) band += '<span class="bk">التاريخ <input type="date" class="dt" data-p="' + gp + '.d" value="' + esc(g.d || '') + '"><span class="hj">' + (g.d ? toHijriStr(g.d) : '') + '</span></span>' + btn('del', gp, '🗑 حذف الجدول', undefined, 'x w');
+        else if (g.d) band += '<span class="gdt">' + toHijriStr(g.d) + ' <span class="gm">(' + greg(g.d) + ')</span></span>';
+      } else if (E) {
+        band += '<span class="bk">تاريخ لكل الصفوف <input type="date" class="dt" data-act="bulk" data-p="' + gp + '"></span>' + btn('del', gp, '🗑 حذف الجدول', undefined, 'x w');
+      }
+      band += '<span class="cnt">' + cnt(g.rows.length) + '</span>';
+      var thead = isA
+        ? '<th style="width:8%">م</th><th>المركز</th><th style="width:32%">الفترة</th>'
+        : '<th style="width:7%">م</th><th>المركز</th><th style="width:29%">الفترة</th><th style="width:28%">تاريخ الاستلام</th>';
+      B.push({ open: '<div class="bx"><div class="band">' + band + '</div><table><thead><tr>' + thead + (E ? '<th style="width:5%"></th>' : '') + '</tr></thead><tbody>',
         close: '</tbody></table>' + (E ? btn('add', gp + '.rows', '+ إضافة مركز', { c: '', p: PERIODS[1], d: '' }, 'ad') : '') + '</div>',
-        rows: g.rows.map(function (r, i) { var p = gp + '.rows.' + i; return '<tr><td>' + ad(i + 1) + '</td><td class="nm">' + sel(p + '.c', r.c, centers) + '</td><td class="pd">' + sel(p + '.p', r.p, PERIODS) + '</td><td>' + date(p + '.d', r.d) + '</td>' + (E ? '<td>' + btn('del', p, '✕', undefined, 'x') + '</td>' : '') + '</tr>'; }) });
+        rows: g.rows.map(function (r, i) { var p = gp + '.rows.' + i; return '<tr><td>' + ad(i + 1) + '</td><td class="nm">' + sel(p + '.c', r.c, centers) + '</td><td class="pd">' + sel(p + '.p', r.p, PERIODS) + '</td>' + (isA ? '' : '<td>' + date(p + '.d', r.d) + '</td>') + (E ? '<td>' + btn('del', p, '✕', undefined, 'x') + '</td>' : '') + '</tr>'; }) });
     });
-    if (E) B.push({ html: btn('add', key, '+ إضافة جدول جديد', { t: 'جدول جديد', n: '', rows: [] }, 'ad big') }); };
+    if (E) B.push({ html: btn('add', key, key === 'amts' ? '+ إضافة يوم جديد' : '+ إضافة جدول جديد', { t: key === 'amts' ? 'يوم جديد' : 'جدول جديد', n: '', d: '', rows: [] }, 'ad big') }); };
     tables('goods');
-    /* جداول المبالغ: جدول لكل يوم، نفس فكرة البضائع (مركز + فترة + تاريخ) */
+    /* جداول المبالغ: جدول لكل يوم، اليوم والتاريخ مرة واحدة أعلى الجدول */
     B.push({ brk: 1, html: '<h2 class="h2">' + ed('amT', S.amT) + '</h2>' });
     tables('amts');
     /* المراكز التي لا مقصف بها */
@@ -129,27 +150,28 @@
   }
 
   /* ---------- التنسيق (مشترك بين المحرر والـ PDF) ---------- */
-  /* الألوان والأحجام مأخوذة من ملف الـPDF الأصلي: العنابي #8f1d2c، الخلفية الوردية #f8eef0، الصف الزوجي #fbf8f6، رأس الجدول #f0e6e7، الحدود #e2cfd2، النص #211b1d */
+  /* الألوان مأخوذة من ملف الـPDF الأصلي: العنابي #8f1d2c، الخلفية الوردية #f8eef0، الصف الزوجي #fbf8f6، رأس الجدول #f0e6e7، الحدود #e2cfd2، النص #211b1d */
   var ARROW = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%238f1d2c' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>\")";
-  var CSS = '.rpx{direction:rtl;font-family:"Tajawal",sans-serif;color:#211b1d;font-size:15px;line-height:1.7;font-weight:400}' +
-    '.rpx .ttl{border-right:9px solid #8f1d2c;padding:4px 22px 4px 0;margin:0 0 24px}.rpx .kick{color:#8f1d2c;font-weight:700;font-size:13.5px}.rpx h1{margin:4px 0 10px;font-size:27px;line-height:1.55;font-weight:800;color:#211b1d}.rpx .sub{color:#8f1d2c;font-weight:700;font-size:15.5px}' +
-    '.rpx .goal{background:#f8eef0;border-radius:14px;border-right:5px solid #8f1d2c;padding:14px 22px 16px;margin-bottom:24px}.rpx .goal h3{margin:0 0 4px;color:#8f1d2c;font-size:15.5px;font-weight:700}.rpx .goal h4{margin:12px 0 2px;color:#211b1d;font-size:15px;font-weight:700}.rpx .goal p{margin:0;font-size:15px;line-height:2}' +
-    '.rpx .h2{margin:0 0 20px;padding-bottom:10px;border-bottom:2px solid #e8dcdd;color:#8f1d2c;font-size:22px;font-weight:800;line-height:1.5}' +
-    '.rpx .bx{border:1px solid #e2cfd2;border-radius:6px;overflow:hidden;margin-bottom:22px;background:#fff}.rpx .band{background:#8f1d2c;color:#fff;padding:0 22px;min-height:48px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-weight:700;font-size:17px}.rpx .band .nt{font-weight:400;font-size:13px;opacity:.9}.rpx .band .cnt{margin-right:auto;background:rgba(255,255,255,.22);border-radius:14px;padding:2px 14px;font-size:12px;font-weight:700}' +
-    '.rpx table{width:100%;border-collapse:collapse}.rpx th{background:#f0e6e7;color:#5b4a4d;font-size:13px;font-weight:700;padding:8px 12px;text-align:right;height:18px}.rpx td{padding:3px 12px;border-bottom:1px solid #eee2e3;vertical-align:middle;text-align:right;font-size:14px;line-height:1.45;height:21px}.rpx td:first-child{color:#8a7d76;font-size:12px}.rpx tbody tr:nth-child(even) td{background:#fbf8f6}.rpx tbody tr:last-child td{border-bottom:0}.rpx td.nm{color:#211b1d}.rpx td.pd{color:#6b6163}' +
-    '.rpx .hj{font-size:11px;color:#8a7d76;line-height:1.3}.rpx .em{color:#8a7d76}' +
-    '.rpx table.pr td{padding:10px 20px;border-bottom:1px solid #e2cfd2;background:#fff!important;font-size:15px;color:#211b1d;height:auto}.rpx table.pr td.lb{width:27%;background:#f8eef0!important;color:#8f1d2c;font-weight:700;font-size:16px;white-space:nowrap}.rpx table.pr tbody tr:last-child td{border-bottom:0}.rpx .num{display:inline-flex;width:22px;height:22px;border-radius:50%;background:#8f1d2c;color:#fff;font-size:11px;align-items:center;justify-content:center;margin-left:10px;vertical-align:middle}' +
+  var CSS = '.rpx{direction:rtl;font-family:"Tajawal",sans-serif;color:#211b1d;font-size:16px;line-height:1.7;font-weight:500;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}' +
+    '.rpx .ttl{border-right:9px solid #8f1d2c;padding:4px 22px 4px 0;margin:0 0 24px}.rpx .kick{color:#8f1d2c;font-weight:700;font-size:14.5px}.rpx h1{margin:4px 0 10px;font-size:28px;line-height:1.55;font-weight:800;color:#211b1d}.rpx .sub{color:#8f1d2c;font-weight:700;font-size:16.5px}' +
+    '.rpx .goal{background:#f8eef0;border-radius:14px;border-right:5px solid #8f1d2c;padding:14px 22px 16px;margin-bottom:24px}.rpx .goal h3{margin:0 0 4px;color:#8f1d2c;font-size:16.5px;font-weight:800}.rpx .goal h4{margin:12px 0 2px;color:#211b1d;font-size:16px;font-weight:700}.rpx .goal p{margin:0;font-size:16px;line-height:2}' +
+    '.rpx .h2{margin:0 0 20px;padding-bottom:10px;border-bottom:2px solid #e8dcdd;color:#8f1d2c;font-size:23px;font-weight:800;line-height:1.5}' +
+    '.rpx .bx{border:1px solid #e2cfd2;border-radius:6px;overflow:hidden;margin-bottom:22px;background:#fff}.rpx .band{background:#8f1d2c;color:#fff;padding:0 22px;min-height:50px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-weight:800;font-size:18px}.rpx .band .nt{font-weight:500;font-size:14px;opacity:.92}.rpx .band .cnt{margin-right:auto;background:rgba(255,255,255,.22);border-radius:14px;padding:2px 14px;font-size:13px;font-weight:700}' +
+    '.rpx .band .gdt{font-weight:600;font-size:14.5px;background:rgba(255,255,255,.2);border-radius:14px;padding:2px 14px;white-space:nowrap}.rpx .band .gdt .gm{font-weight:500;font-size:13px;opacity:.9}' +
+    '.rpx table{width:100%;border-collapse:collapse}.rpx th{background:#f0e6e7;color:#8f1d2c;font-size:14.5px;font-weight:800;padding:9px 12px;text-align:right;height:20px}.rpx td{padding:3px 12px;border-bottom:1px solid #eee2e3;vertical-align:middle;text-align:right;font-size:15.5px;font-weight:500;line-height:1.45;height:27px}.rpx td:first-child{color:#8a7d76;font-size:13.5px}.rpx tbody tr:nth-child(even) td{background:#fbf8f6}.rpx tbody tr:last-child td{border-bottom:0}.rpx td.nm{color:#211b1d}.rpx td.pd{color:#5b4a4d}' +
+    '.rpx .hj{font-size:12px;color:#8a7d76;line-height:1.3}.rpx .band .hj{color:#fff;opacity:.92;font-size:13px;font-weight:500}.rpx .em{color:#8a7d76}' +
+    '.rpx table.pr td{padding:10px 20px;border-bottom:1px solid #e2cfd2;background:#fff!important;font-size:16px;color:#211b1d;height:auto}.rpx table.pr td.lb{width:27%;background:#f8eef0!important;color:#8f1d2c;font-weight:800;font-size:17px;white-space:nowrap}.rpx table.pr tbody tr:last-child td{border-bottom:0}.rpx .num{display:inline-flex;width:23px;height:23px;border-radius:50%;background:#8f1d2c;color:#fff;font-size:12px;align-items:center;justify-content:center;margin-left:10px;vertical-align:middle}' +
     '.rpx ul.bl{list-style:none;margin:0;padding:0}.rpx ul.bl li{position:relative;padding:2px 20px 2px 0;line-height:2}.rpx ul.bl li::before{content:"";position:absolute;right:0;top:1em;width:6px;height:6px;background:#8f1d2c;border-radius:2px}.rpx ul.two{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}.rpx .ib{padding:8px 22px}.rpx .ib li{padding:9px 20px 9px 0;border-bottom:1px solid #eee2e3}.rpx .ib li:last-child{border:0}.rpx .ib li::before{top:1.25em}' +
     '.dp{width:794px;height:1123px;background:#fff;position:relative;overflow:hidden}.dp .lh{width:794px;height:139px;display:block}.dp .ct{padding:30px 54px 0}.dp .pn{position:absolute;bottom:30px;left:0;right:0;text-align:center;font-size:12px;color:#8a7d76}' +
     '.rpm{position:fixed;left:-20000px;top:0;width:686px;visibility:hidden}' +
     /* عناصر المحرر فقط: الصفحة تظهر كورقة A4 بنفس مقاسات الـPDF، وأدوات التحرير تظهر خفيفة عند المرور/الضغط فقط */
     '.rp-stage{background:#e6e1de;padding:16px 10px;border-radius:12px;overflow:hidden}.rp-doc{width:794px;margin:0 auto;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.22);padding:0 0 40px;min-height:600px}.rp-doc .lh{width:794px;display:block}.rp-doc .ct{padding:30px 54px 0}' +
     '.rpx .ed{outline:0;border-radius:5px;padding:0 3px;margin:0 -3px;cursor:text}.rpx .ed:hover{background:rgba(224,195,106,.28)}.rpx .ed:focus{background:#fffbe6;color:#211b1d;box-shadow:0 0 0 2px #e0c36a}' +
-    '.rpx .sl,.rpx .dt{font-family:"Tajawal",sans-serif;font-size:14px;line-height:1.4;padding:2px 8px;height:26px;border:1px solid transparent;border-radius:6px;background-color:transparent;color:inherit;width:100%;margin:0;box-sizing:border-box;cursor:pointer}' +
+    '.rpx .sl,.rpx .dt{font-family:"Tajawal",sans-serif;font-size:15px;line-height:1.4;padding:2px 8px;height:26px;border:1px solid transparent;border-radius:6px;background-color:transparent;color:inherit;width:100%;margin:0;box-sizing:border-box;cursor:pointer}' +
     '.rpx .sl{-webkit-appearance:none;appearance:none;background-repeat:no-repeat;background-position:left 8px center;padding-left:26px;text-overflow:ellipsis}.rpx .sl:hover,.rpx .sl:focus{background-image:'+ARROW+'}' +
     '.rpx .sl:hover,.rpx .dt:hover,.rpx .sl:focus,.rpx .dt:focus{border-color:#e2cfd2;background-color:#fff;outline:0}.rpx .sl:focus,.rpx .dt:focus{border-color:#8f1d2c}.rpx .dt{direction:ltr;text-align:right}' +
-    '.rpx .pd .sl{color:#6b6163}.rpx .em{opacity:.6}' +
-    '.rpx .band .dt{width:auto;background:#fff;border-color:#fff;color:#211b1d}.rpx .bk{font-weight:400;font-size:12px;display:flex;align-items:center;gap:6px}' +
+    '.rpx .pd .sl{color:#5b4a4d}.rpx .em{opacity:.6}' +
+    '.rpx .band .dt{width:auto;background:#fff;border-color:#fff;color:#211b1d}.rpx .bk{font-weight:500;font-size:13px;display:flex;align-items:center;gap:6px}' +
     '.rpx .rb{font-family:inherit;font-size:12px;cursor:pointer;border:1px dashed #c9a9ae;background:#fff;color:#8f1d2c;border-radius:14px;padding:1px 10px;margin:4px 0 0;line-height:1.7}.rpx .rb.ad{opacity:.7}.rpx .rb.ad:hover{opacity:1;border-color:#8f1d2c}' +
     '.rpx .rb.x{border:0;background:transparent;color:#b3261e;padding:0 6px;margin:0;opacity:0;transition:opacity .15s}.rpx tr:hover .rb.x,.rpx li:hover .rb.x,.rpx h4:hover .rb.x,.rpx .lb:hover .rb.x{opacity:1}.rpx .rb.x.w{color:#fff;border:1px solid rgba(255,255,255,.5);padding:1px 8px;opacity:.85}' +
     '.rpx .rb.big{display:block;margin:0 0 22px;padding:7px 16px}.rpx .bx>.rb.ad{margin:8px 22px}.rpx .goal .rb.ad{margin-top:6px}' +
@@ -184,7 +206,11 @@
       if (t.getAttribute('data-act') === 'bulk') { if (!t.value) return; getP(p).rows.forEach(function (r) { r.d = t.value; }); mark(); render(); return; }
       if (!p) return;
       setP(p, t.type === 'checkbox' ? t.checked : t.value); mark();
-      if (t.type === 'date') render();   /* لتحديث اسم اليوم والتاريخ الهجري */
+      if (t.type === 'date') {
+        /* عند اختيار تاريخ جدول مبالغ يُكتب اسم اليوم تلقائيًا في عنوان الجدول */
+        if (/^amts\.\d+\.d$/.test(p)) { var dd = pd(t.value); if (dd) { getP(p.split('.').slice(0, 2).join('.')).t = DAYS[dd.getDay()]; mark(); } }
+        render();   /* لتحديث اسم اليوم والتاريخ الهجري */
+      }
     });
     host.addEventListener('click', function (e) {
       var b = e.target.closest('[data-act]'); if (!b || b.type === 'date') return;
@@ -206,7 +232,7 @@
     tab.insertBefore(sw, main);
     var v = document.createElement('div'); v.id = 'rcvView'; v.className = 'card hidden'; v.setAttribute('data-noad', '');
     v.innerHTML = '<h3 style="margin-top:0;color:var(--maroon);">الخطة المقترحة لاستلام المبالغ والبضائع</h3>' +
-      '<p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">كل النصوص قابلة للتعديل بالضغط عليها (حتى العنوان). المركز والفترة من قوائم منسدلة، ولكل مركز تاريخ استلام من التقويم. يمكنك إضافة أو حذف أي صف أو جدول، ثم اضغطي «حفظ الخطة».</p>' +
+      '<p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">كل النصوص قابلة للتعديل بالضغط عليها (حتى العنوان). المركز والفترة من قوائم منسدلة. في جداول البضائع لكل مركز تاريخ استلام، وفي جداول المبالغ يُكتب اليوم والتاريخ مرة واحدة أعلى كل جدول. يمكنك إضافة أو حذف أي صف أو جدول، ثم اضغطي «حفظ الخطة».</p>' +
       '<div class="export-row" style="margin:8px 0 12px;gap:8px;flex-wrap:wrap;"><button class="btn" id="rcvSaveBtn" style="' + BAR_BTN + '" onclick="rcvSave_()">حفظ الخطة</button><button class="btn outline" style="' + BAR_BTN + '" onclick="rcvPdf_(this)">⬇️ PDF</button><button class="btn outline" style="' + BAR_BTN + '" onclick="rcvReset_()">↺ إعادة النموذج الأصلي</button></div>' +
       '<div class="success-msg" id="rcvOk">تم حفظ الخطة ✅</div><div id="rcvDraftNote" class="hidden" style="border:1px solid #e0c36a;background:#fff8e1;border-radius:10px;padding:8px 12px;font-size:.85rem;margin-bottom:10px;"></div>' +
       '<div class="rpx rp-stage" id="rcvStage"><div class="rp-doc" id="rcvDoc">جاري التحميل...</div></div>';
@@ -224,14 +250,14 @@
   function load() {
     var go = function () {
       buildCenters();
-      var pw = ''; callApi('getReceiptPlan', { _t: Date.now() }).then(function (r) {
+      callApi('getReceiptPlan', { _t: Date.now() }).then(function (r) {
         var srv = r && r.plan && r.plan.title ? r.plan : null, loc = null;
         try { loc = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) {}
         S = srv || seed();
         if (S.days && !S.amts) { S.amts = conv(S.days); delete S.days; }
-        S = fixAmts(S);
+        S = fixAmts(migrateAmts(S));
         if (loc && loc.days && !loc.amts) { loc.amts = conv(loc.days); delete loc.days; }
-        if (loc) loc = fixAmts(loc);
+        if (loc) loc = fixAmts(migrateAmts(loc));
         if (loc && loc.title && (!srv || (loc._ts || 0) > (srv._ts || 0))) { S = loc; var n = document.getElementById('rcvDraftNote'); n.classList.remove('hidden'); n.textContent = 'تم استرجاع مسودة غير محفوظة من هذا الجهاز — اضغطي «حفظ الخطة» لاعتمادها.'; dirty = true; }
         canonAll(); render(); mark(dirty);
       });
@@ -288,17 +314,19 @@
     if (btn) setBtnBusy(btn, true, 'جارٍ التجهيز...');
     var host = document.createElement('div');
     try {
+      /* ننتظر تحميل خط تجوال بكل أوزانه قبل القياس والتصوير ليظهر النص واضحًا */
+      try { if (document.fonts) { await Promise.all(['500 16px Tajawal', '700 16px Tajawal', '800 16px Tajawal'].map(function (f) { return document.fonts.load(f, 'أبجد هوز'); })); await document.fonts.ready; } } catch (fe) {}
       var lh = lhUrl(), pages = paginate(), html = '';
       pages.forEach(function (pg, pi) { html += '<div class="rpx dp">' + (lh ? '<img class="lh" crossorigin="anonymous" src="' + lh + '" alt="">' : '<div style="height:139px"></div>') + '<div class="ct">' + pg.join('') + '</div><div class="pn">صفحة ' + ad(pi + 1) + ' من ' + ad(pages.length) + '</div></div>'; });
       host.style.cssText = 'position:fixed;left:-20000px;top:0;width:794px;pointer-events:none;'; host.innerHTML = html; document.body.appendChild(host);
       await Promise.all(Array.from(host.querySelectorAll('img')).map(function (im) { return im.complete ? Promise.resolve() : new Promise(function (res) { im.onload = im.onerror = res; }); }));
-      var io = { pixelRatio: 2, backgroundColor: '#ffffff', width: 794, height: 1123, style: { margin: '0' }, imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' };
+      var io = { pixelRatio: 3, backgroundColor: '#ffffff', width: 794, height: 1123, style: { margin: '0' }, imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' };
       if (typeof vrFontEmbedCss_ === 'function') { var fc = await vrFontEmbedCss_(); if (fc) io.fontEmbedCSS = fc; }
       var els = Array.prototype.slice.call(host.querySelectorAll('.dp')), cv = [];
-      for (var i = 0; i < els.length; i++) cv.push(typeof htmlToImage !== 'undefined' ? await htmlToImage.toCanvas(els[i], io) : await html2pdf().set({ html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 794 } }).from(els[i]).toCanvas().get('canvas'));
-      var pdf = await html2pdf().set({ margin: 0, image: { type: 'jpeg', quality: 0.97 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(cv[0], 'canvas').toPdf().get('pdf');
+      for (var i = 0; i < els.length; i++) cv.push(typeof htmlToImage !== 'undefined' ? await htmlToImage.toCanvas(els[i], io) : await html2pdf().set({ html2canvas: { scale: 3, useCORS: true, scrollX: 0, scrollY: 0, windowWidth: 794 } }).from(els[i]).toCanvas().get('canvas'));
+      var pdf = await html2pdf().set({ margin: 0, image: { type: 'jpeg', quality: 0.98 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(cv[0], 'canvas').toPdf().get('pdf');
       while (pdf.getNumberOfPages() > 1) pdf.deletePage(pdf.getNumberOfPages());
-      for (var k = 1; k < cv.length; k++) { pdf.addPage('a4', 'portrait'); pdf.addImage(cv[k].toDataURL('image/jpeg', 0.97), 'JPEG', 0, 0, 210, 297); }
+      for (var k = 1; k < cv.length; k++) { pdf.addPage('a4', 'portrait'); pdf.addImage(cv[k].toDataURL('image/jpeg', 0.98), 'JPEG', 0, 0, 210, 297); }
       vrDownloadBlob_(pdf.output('blob'), 'الخطة-المقترحة-لاستلام-المبالغ-والبضائع.pdf');
     } catch (err) { console.error(err); alert('تعذّر إنشاء ملف PDF، حاولي مرة أخرى'); }
     finally { host.remove(); if (btn) setBtnBusy(btn, false); }
