@@ -1,6 +1,6 @@
 /* ===== الخطة المقترحة لاستلام المبالغ والبضائع (قابلة للتعبئة والتحرير) =====
    تظهر داخل تبويب «مواعيد التسليم» في edara.html. كل نص قابل للتحرير، والمركز والفترة قوائم منسدلة.
-   جداول البضائع: لكل مركز تاريخ استلام. جدول المبالغ: اليوم والتاريخ يُكتبان مرة واحدة في خانة اليوم.
+   جداول البضائع: لكل مركز تاريخ استلام. جداول المبالغ: جدول لكل يوم بنفس تصميم البضائع، واليوم والتاريخ مرة واحدة في الشريط العلوي.
    تُحفظ في الخادم وتُصدَّر PDF بنفس تصميم الملف الأصلي (خطوط أكبر وأوضح وألوان مطابقة). */
 (function () {
   'use strict';
@@ -117,35 +117,28 @@
     /* جداول البضائع */
     B.push({ brk: 1, html: '<h2 class="h2">' + ed('goodsT', S.goodsT) + '</h2>' });
     var tables = function (key) { S[key].forEach(function (g, gi) {
-      var gp = key + '.' + gi;
-      B.push({ open: '<div class="bx"><div class="band"><span>' + ed(gp + '.t', g.t) + '</span><span class="nt">' + ed(gp + '.n', g.n) + '</span>' + (E ? '<span class="bk">تاريخ لكل الصفوف <input type="date" class="dt" data-act="bulk" data-p="' + gp + '"></span>' + btn('del', gp, '🗑 حذف الجدول', undefined, 'x w') : '') + '<span class="cnt">' + cnt(g.rows.length) + '</span></div><table><thead><tr><th style="width:7%">م</th><th>المركز</th><th style="width:29%">الفترة</th><th style="width:28%">تاريخ الاستلام</th>' + (E ? '<th style="width:5%"></th>' : '') + '</tr></thead><tbody>',
-        close: '</tbody></table>' + (E ? btn('add', gp + '.rows', '+ إضافة مركز', { c: '', p: PERIODS[1], d: '' }, 'ad') : '') + '</div>',
-        rows: g.rows.map(function (r, i) { var p = gp + '.rows.' + i; return '<tr><td>' + ad(i + 1) + '</td><td class="nm">' + sel(p + '.c', r.c, centers) + '</td><td class="pd">' + sel(p + '.p', r.p, PERIODS) + '</td><td>' + date(p + '.d', r.d) + '</td>' + (E ? '<td>' + btn('del', p, '✕', undefined, 'x') + '</td>' : '') + '</tr>'; }) });
+      var gp = key + '.' + gi, isA = key === 'amts';
+      /* جداول المبالغ: اليوم والتاريخ مرة واحدة في الشريط العلوي ولا عمود تاريخ في الصفوف */
+      var band = '<span>' + ed(gp + '.t', g.t) + '</span><span class="nt">' + ed(gp + '.n', g.n) + '</span>';
+      if (isA) {
+        if (E) band += '<span class="bk">التاريخ <input type="date" class="dt" data-p="' + gp + '.d" value="' + esc(g.d || '') + '"><span class="hj">' + (g.d ? toHijriStr(g.d) : '') + '</span></span>' + btn('del', gp, '🗑 حذف اليوم', undefined, 'x w');
+        else if (g.d) band += '<span class="gdt">' + toHijriStr(g.d) + ' <span class="gm">(' + greg(g.d) + ')</span></span>';
+      } else if (E) {
+        band += '<span class="bk">تاريخ لكل الصفوف <input type="date" class="dt" data-act="bulk" data-p="' + gp + '"></span>' + btn('del', gp, '🗑 حذف الجدول', undefined, 'x w');
+      }
+      band += '<span class="cnt">' + cnt(g.rows.length) + '</span>';
+      var thead = isA
+        ? '<th style="width:8%">م</th><th>المركز</th><th style="width:32%">الفترة</th>'
+        : '<th style="width:7%">م</th><th>المركز</th><th style="width:29%">الفترة</th><th style="width:28%">تاريخ الاستلام</th>';
+      B.push({ open: '<div class="bx"><div class="band">' + band + '</div><table><thead><tr>' + thead + (E ? '<th style="width:5%"></th>' : '') + '</tr></thead><tbody>',
+        close: '</tbody></table>' + (E ? btn('add', gp + '.rows', '+ إضافة مركز', { c: '', p: PERIODS[isA ? 0 : 1], d: '' }, 'ad') : '') + '</div>',
+        rows: g.rows.map(function (r, i) { var p = gp + '.rows.' + i; return '<tr><td>' + ad(i + 1) + '</td><td class="nm">' + sel(p + '.c', r.c, centers) + '</td><td class="pd">' + sel(p + '.p', r.p, PERIODS) + '</td>' + (isA ? '' : '<td>' + date(p + '.d', r.d) + '</td>') + (E ? '<td>' + btn('del', p, '✕', undefined, 'x') + '</td>' : '') + '</tr>'; }) });
     });
-    if (E) B.push({ html: btn('add', key, '+ إضافة جدول جديد', { t: 'جدول جديد', n: '', rows: [] }, 'ad big') }); };
+    if (E) B.push({ html: btn('add', key, key === 'amts' ? '+ إضافة يوم جديد' : '+ إضافة جدول جديد', { t: key === 'amts' ? 'يوم جديد' : 'جدول جديد', n: '', d: '', rows: [] }, 'ad big') }); };
     tables('goods');
-    /* جدول المبالغ بنفس تصميم الملف الأصلي: جدول واحد، اليوم والتاريخ يُكتبان مرة واحدة في خانة اليوم، والمراكز في عمودي الصباحية والمسائية */
-    var perOpt = function (v) { return [[PERIODS[0], 'صباحي'], [PERIODS[1], 'مسائي'], [PERIODS[2], 'معًا']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === v ? ' selected' : '') + '>' + o[1] + '</option>'; }).join(''); };
-    var dayRows = S.amts.map(function (g, gi) {
-      var gp = 'amts.' + gi, am = [], pm = [];
-      g.rows.forEach(function (r, ri) { (r.p === PERIODS[1] ? pm : am).push({ r: r, ri: ri }); });
-      var item = function (o) {
-        var p = gp + '.rows.' + o.ri;
-        if (E) return '<li class="en">' + sel(p + '.c', o.r.c, centers) + '<select class="sl ps" data-p="' + p + '.p">' + perOpt(o.r.p) + '</select>' + btn('del', p, '✕', undefined, 'x') + '</li>';
-        return '<li>' + esc(o.r.c) + (o.r.p === PERIODS[2] ? ' <span class="bt">(الفترتان معًا)</span>' : '') + '</li>';
-      };
-      var list = function (a) { return '<ul>' + a.map(item).join('') + '</ul>'; };
-      var none = function (w) { return !E && g.rows.length ? '<span class="em">لا يوجد استلام خلال الفترة ' + w + '</span>' : ''; };
-      var amH = am.length ? list(am) : none('الصباحية'), pmH;
-      if (!pm.length) pmH = none('المسائية');
-      else if (E) pmH = list(pm);
-      else { var k = Math.ceil(pm.length / 2); pmH = '<div class="two-c">' + list(pm.slice(0, k)) + list(pm.slice(k)) + '</div>'; }
-      var dayH = E
-        ? ed(gp + '.t', g.t) + '<input type="date" class="dt" data-p="' + gp + '.d" value="' + esc(g.d || '') + '"><div class="hj">' + (g.d ? toHijriStr(g.d) : '') + '</div>' + btn('del', gp, '🗑 حذف اليوم', undefined, 'x')
-        : esc(g.t) + (g.d ? '<div class="dd">' + toHijriStr(g.d) + '</div><div class="hj">(' + greg(g.d) + ')</div>' : '');
-      return '<tr><td class="dy">' + dayH + '</td><td>' + amH + (E ? btn('add', gp + '.rows', '+ مركز صباحي', { c: '', p: PERIODS[0], d: '' }, 'ad') : '') + '</td><td>' + pmH + (E ? btn('add', gp + '.rows', '+ مركز مسائي', { c: '', p: PERIODS[1], d: '' }, 'ad') : '') + '</td></tr>';
-    });
-    B.push({ brk: 1, open: '<div class="bx"><div class="band"><span>' + ed('amT', S.amT) + '</span></div><table class="am-t"><thead><tr><th style="width:18%">اليوم</th><th style="width:30%">الفترة الصباحية</th><th>الفترة المسائية</th></tr></thead><tbody>', close: '</tbody></table>' + (E ? btn('add', 'amts', '+ إضافة يوم جديد', { t: 'يوم جديد', n: '', d: '', rows: [] }, 'ad') : '') + '</div>', rows: dayRows });
+    /* جداول المبالغ: جدول لكل يوم بنفس تصميم جداول البضائع (م، المركز، الفترة) */
+    B.push({ brk: 1, html: '<h2 class="h2">' + ed('amT', S.amT) + '</h2>' });
+    tables('amts');
     /* المراكز التي لا مقصف بها */
     B.push({ html: '<div class="goal nc"><h3>' + ed('noT', S.noT) + '</h3>' + S.no.map(function (g, gi) {
       var gp = 'no.' + gi;
@@ -246,7 +239,7 @@
     tab.insertBefore(sw, main);
     var v = document.createElement('div'); v.id = 'rcvView'; v.className = 'card hidden'; v.setAttribute('data-noad', '');
     v.innerHTML = '<h3 style="margin-top:0;color:var(--maroon);">الخطة المقترحة لاستلام المبالغ والبضائع</h3>' +
-      '<p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">كل النصوص قابلة للتعديل بالضغط عليها (حتى العنوان). المركز والفترة من قوائم منسدلة. في جداول البضائع لكل مركز تاريخ استلام، وفي جدول المبالغ يُكتب اليوم والتاريخ مرة واحدة في خانة اليوم، ثم تُضاف مراكز الفترتين تحته. يمكنك إضافة أو حذف أي صف أو جدول، ثم اضغطي «حفظ الخطة».</p>' +
+      '<p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">كل النصوص قابلة للتعديل بالضغط عليها (حتى العنوان). المركز والفترة من قوائم منسدلة. في جداول البضائع لكل مركز تاريخ استلام، وفي جداول المبالغ (جدول لكل يوم) يُكتب اليوم والتاريخ مرة واحدة في الشريط العلوي. يمكنك إضافة أو حذف أي صف أو جدول، ثم اضغطي «حفظ الخطة».</p>' +
       '<div class="export-row" style="margin:8px 0 12px;gap:8px;flex-wrap:wrap;"><button class="btn" id="rcvSaveBtn" style="' + BAR_BTN + '" onclick="rcvSave_()">حفظ الخطة</button><button class="btn outline" style="' + BAR_BTN + '" onclick="rcvPdf_(this)">⬇️ PDF</button><button class="btn outline" style="' + BAR_BTN + '" onclick="rcvReset_()">↺ إعادة النموذج الأصلي</button></div>' +
       '<div class="success-msg" id="rcvOk">تم حفظ الخطة ✅</div><div id="rcvDraftNote" class="hidden" style="border:1px solid #e0c36a;background:#fff8e1;border-radius:10px;padding:8px 12px;font-size:.85rem;margin-bottom:10px;"></div>' +
       '<div class="rpx rp-stage" id="rcvStage"><div class="rp-doc" id="rcvDoc">جاري التحميل...</div></div>';
