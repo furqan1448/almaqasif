@@ -1670,6 +1670,8 @@ function dispatch_(p, T0_) {
 
     case 'getDeliverySchedule': return (getDeliverySchedule_());
     case 'setDeliverySchedule': return (setDeliverySchedule_(p));
+    case 'getReceiptPlan': return (getReceiptPlan_());
+    case 'setReceiptPlan': return (setReceiptPlan_(p));
     case 'getCenterDelivery': return (getCenterDelivery_(p));
     case 'ackCenterDelivery': return (ackCenterDelivery_(p));
     case 'getDeliveryAcksAdmin': return (getDeliveryAcksAdmin_(p));
@@ -2625,6 +2627,22 @@ function setDeliverySchedule_(p) {
   const out = { perDay: Math.max(1, Math.min(100, Number(s.perDay) || 10)), skipWeekend: s.skipWeekend !== false,
                 startH: String(s.startH || '').slice(0, 20), map: map };
   setSettingValue_(DELIVERY_SCHED_KEY_, JSON.stringify(out));
+  return { ok: true };
+}
+
+/* الخطة المقترحة لاستلام المبالغ والبضائع (تحرّرها الإدارة/رئيسة الوحدة) */
+const RECEIPT_PLAN_KEY_ = 'خطة استلام المبالغ والبضائع';
+function getReceiptPlan_() {
+  let d = null;
+  try { d = JSON.parse(getSettingValue_(RECEIPT_PLAN_KEY_) || 'null'); } catch (e) { d = null; }
+  return { ok: true, plan: d };
+}
+function setReceiptPlan_(p) {
+  const a = loginAdmin_({ password: p && p.adminPw });
+  if (!a.ok) return { ok: false, auth: true, error: a.error };
+  const s = JSON.stringify(p.plan || {});
+  if (s.length > 45000) return { ok: false, error: 'حجم الخطة كبير جداً، قلّلي عدد الصفوف' };
+  setSettingValue_(RECEIPT_PLAN_KEY_, s);
   return { ok: true };
 }
 

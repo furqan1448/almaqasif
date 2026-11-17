@@ -1624,6 +1624,7 @@ tr.am-done td { background:#eaf6ee; }
 <script src="config.js"></script>
 <script src="shell.js?v=9" defer></script>
 <script src="price-menu.js"></script>
+<script src="receipt-plan.js"></script>
 <script src="autosave.js"></script>
 <script>
 let isLoggedIn = sessionStorage.getItem('maqasif_admin') === 'yes';
@@ -1787,7 +1788,7 @@ function showAdminTab(tabId) {
   if (tabId === 'notesTab') loadAdminNotes_();
   if (tabId === 'noticesTab') loadPending();
   if (tabId === 'attendanceTab') loadAttendanceChecklist();
-  if (tabId === 'deliveryTab') loadDelivery_();
+  if (tabId === 'deliveryTab') { if (typeof rcvInit_ === 'function') rcvInit_(); loadDelivery_(); }
   if (tabId === 'profilesTab') loadProfilesAdmin_();
   if (tabId === 'salesTab') { loadCenterSales(); loadRewardSummary_(); }
   if (tabId === 'returnsTab') loadCenterReturns();
