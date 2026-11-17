@@ -109,7 +109,7 @@
     B.push({ brk: 1, html: '<h2 class="h2">' + ed('goodsT', S.goodsT) + '</h2>' });
     var tables = function (key) { S[key].forEach(function (g, gi) {
       var gp = key + '.' + gi;
-      B.push({ open: '<div class="bx"><div class="band"><span>' + ed(gp + '.t', g.t) + '</span><span class="nt">' + ed(gp + '.n', g.n) + '</span>' + (E ? '<span class="bk">تاريخ لكل الصفوف <input type="date" class="dt" data-act="bulk" data-p="' + gp + '"></span>' + btn('del', gp, '🗑 حذف الجدول', undefined, 'x w') : '') + '<span class="cnt">' + cnt(g.rows.length) + '</span></div><table><thead><tr><th style="width:7%">م</th><th>المركز</th><th style="width:25%">الفترة</th><th style="width:30%">تاريخ الاستلام</th>' + (E ? '<th style="width:5%"></th>' : '') + '</tr></thead><tbody>',
+      B.push({ open: '<div class="bx"><div class="band"><span>' + ed(gp + '.t', g.t) + '</span><span class="nt">' + ed(gp + '.n', g.n) + '</span>' + (E ? '<span class="bk">تاريخ لكل الصفوف <input type="date" class="dt" data-act="bulk" data-p="' + gp + '"></span>' + btn('del', gp, '🗑 حذف الجدول', undefined, 'x w') : '') + '<span class="cnt">' + cnt(g.rows.length) + '</span></div><table><thead><tr><th style="width:7%">م</th><th>المركز</th><th style="width:29%">الفترة</th><th style="width:28%">تاريخ الاستلام</th>' + (E ? '<th style="width:5%"></th>' : '') + '</tr></thead><tbody>',
         close: '</tbody></table>' + (E ? btn('add', gp + '.rows', '+ إضافة مركز', { c: '', p: PERIODS[1], d: '' }, 'ad') : '') + '</div>',
         rows: g.rows.map(function (r, i) { var p = gp + '.rows.' + i; return '<tr><td>' + ad(i + 1) + '</td><td class="nm">' + sel(p + '.c', r.c, centers) + '</td><td class="pd">' + sel(p + '.p', r.p, PERIODS) + '</td><td>' + date(p + '.d', r.d) + '</td>' + (E ? '<td>' + btn('del', p, '✕', undefined, 'x') + '</td>' : '') + '</tr>'; }) });
     });
@@ -142,12 +142,19 @@
     '.rpx ul.bl{list-style:none;margin:0;padding:0}.rpx ul.bl li{position:relative;padding:2px 20px 2px 0;line-height:2}.rpx ul.bl li::before{content:"";position:absolute;right:0;top:1em;width:6px;height:6px;background:#8f1d2c;border-radius:2px}.rpx ul.two{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}.rpx .ib{padding:8px 22px}.rpx .ib li{padding:9px 20px 9px 0;border-bottom:1px solid #eee2e3}.rpx .ib li:last-child{border:0}.rpx .ib li::before{top:1.25em}' +
     '.dp{width:794px;height:1123px;background:#fff;position:relative;overflow:hidden}.dp .lh{width:794px;height:139px;display:block}.dp .ct{padding:30px 54px 0}.dp .pn{position:absolute;bottom:30px;left:0;right:0;text-align:center;font-size:12px;color:#8a7d76}' +
     '.rpm{position:fixed;left:-20000px;top:0;width:686px;visibility:hidden}' +
-    /* عناصر المحرر فقط */
-    '.rp-doc{background:#fff;border:1px solid #e3d3c9;border-radius:12px;padding:0 0 18px;overflow:hidden}.rp-doc .lh{width:100%;display:block}.rp-doc .ct{padding:26px 36px 0}' +
-    '.rpx .ed{outline:0;border-radius:5px;padding:0 3px;cursor:text;border-bottom:1px dashed rgba(143,29,44,.35)}.rpx .band .ed{border-bottom-color:rgba(255,255,255,.5)}.rpx .ed:hover{background:rgba(224,195,106,.25)}.rpx .ed:focus{background:#fffbe6;color:#211b1d;box-shadow:0 0 0 2px #e0c36a}' +
-    '.rpx .sl,.rpx .dt{font-family:"Tajawal",sans-serif;font-size:13.5px;line-height:1.5;padding:3px 10px;height:30px;border:1px solid #e2cfd2;border-radius:8px;background-color:#fff;color:#211b1d;width:100%;margin:0;box-sizing:border-box}.rpx .sl{-webkit-appearance:none;appearance:none;background-image:'+ARROW+';background-repeat:no-repeat;background-position:left 10px center;padding-left:30px;text-overflow:ellipsis}.rpx .sl:focus,.rpx .dt:focus{border-color:#8f1d2c;outline:0}.rpx .dt{direction:ltr;text-align:right}.rpx .band .dt{width:auto}.rpx .bk{font-weight:400;font-size:12px;display:flex;align-items:center;gap:6px}' +
-    '.rpx .rb{font:inherit;font-size:12px;cursor:pointer;border:1px dashed #8f1d2c;background:#fff;color:#8f1d2c;border-radius:14px;padding:2px 10px;margin:4px 0 0}.rpx .rb.x{border:0;background:transparent;color:#b3261e;padding:0 6px;margin:0}.rpx .rb.x.w{color:#fff;border:1px solid rgba(255,255,255,.5);padding:1px 8px}.rpx .rb.big{margin:0 0 14px;padding:8px 16px}.rpx .ce{display:flex;gap:6px;align-items:center}.rpx .bo{font-size:11.5px;white-space:nowrap;display:flex;gap:3px;align-items:center;color:#a97c00}.rpx .bx>.rb.ad{margin:8px 14px}' +
-    '.rpx table.pr td.lb .ed{font-size:15px}';
+    /* عناصر المحرر فقط: الصفحة تظهر كورقة A4 بنفس مقاسات الـPDF، وأدوات التحرير تظهر خفيفة عند المرور/الضغط فقط */
+    '.rp-stage{background:#e6e1de;padding:16px 10px;border-radius:12px;overflow:hidden}.rp-doc{width:794px;margin:0 auto;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.22);padding:0 0 40px;min-height:600px}.rp-doc .lh{width:794px;display:block}.rp-doc .ct{padding:30px 54px 0}' +
+    '.rpx .ed{outline:0;border-radius:5px;padding:0 3px;margin:0 -3px;cursor:text}.rpx .ed:hover{background:rgba(224,195,106,.28)}.rpx .ed:focus{background:#fffbe6;color:#211b1d;box-shadow:0 0 0 2px #e0c36a}' +
+    '.rpx .sl,.rpx .dt{font-family:"Tajawal",sans-serif;font-size:14px;line-height:1.4;padding:2px 8px;height:26px;border:1px solid transparent;border-radius:6px;background-color:transparent;color:inherit;width:100%;margin:0;box-sizing:border-box;cursor:pointer}' +
+    '.rpx .sl{-webkit-appearance:none;appearance:none;background-repeat:no-repeat;background-position:left 8px center;padding-left:26px;text-overflow:ellipsis}.rpx .sl:hover,.rpx .sl:focus{background-image:'+ARROW+'}' +
+    '.rpx .sl:hover,.rpx .dt:hover,.rpx .sl:focus,.rpx .dt:focus{border-color:#e2cfd2;background-color:#fff;outline:0}.rpx .sl:focus,.rpx .dt:focus{border-color:#8f1d2c}.rpx .dt{direction:ltr;text-align:right}' +
+    '.rpx .pd .sl{color:#6b6163}.rpx .em{opacity:.6}' +
+    '.rpx .band .dt{width:auto;background:#fff;border-color:#fff;color:#211b1d}.rpx .bk{font-weight:400;font-size:12px;display:flex;align-items:center;gap:6px}' +
+    '.rpx .rb{font-family:inherit;font-size:12px;cursor:pointer;border:1px dashed #c9a9ae;background:#fff;color:#8f1d2c;border-radius:14px;padding:1px 10px;margin:4px 0 0;line-height:1.7}.rpx .rb.ad{opacity:.7}.rpx .rb.ad:hover{opacity:1;border-color:#8f1d2c}' +
+    '.rpx .rb.x{border:0;background:transparent;color:#b3261e;padding:0 6px;margin:0;opacity:0;transition:opacity .15s}.rpx tr:hover .rb.x,.rpx li:hover .rb.x,.rpx h4:hover .rb.x,.rpx .lb:hover .rb.x{opacity:1}.rpx .rb.x.w{color:#fff;border:1px solid rgba(255,255,255,.5);padding:1px 8px;opacity:.85}' +
+    '.rpx .rb.big{display:block;margin:0 0 22px;padding:7px 16px}.rpx .bx>.rb.ad{margin:8px 22px}.rpx .goal .rb.ad{margin-top:6px}' +
+    '@media (hover:none){.rpx .rb.x{opacity:.8}}' +
+    '.rpx td .sl{display:block}.rpx .dt[value=""]{color:#b8a9ab}';
 
   /* ---------- المحرر ---------- */
   var BAR_BTN = 'width:auto;padding:9px 18px;margin:0;';
@@ -159,8 +166,11 @@
     build(true).forEach(function (b) { h += b.html != null ? b.html : b.open + b.rows.join('') + b.close; });
     var u = lhUrl();
     host.innerHTML = (u ? '<img class="lh" src="' + u + '" alt="">' : '') + '<div class="ct">' + h + '</div>';
-    window.scrollTo(0, y);
+    window.scrollTo(0, y); fit();
   }
+  /* تصغير الورقة تلقائيًا في الشاشات الضيقة (الجوال) مع بقاء نفس الشكل */
+  function fit() { var st = document.getElementById('rcvStage'), d = document.getElementById('rcvDoc'); if (!st || !d || !st.clientWidth) return; d.style.zoom = Math.min(1, (st.clientWidth - 20) / 794); }
+  window.addEventListener('resize', fit);
   function mark(d) { dirty = d !== false; var b = document.getElementById('rcvSaveBtn'); if (b) b.textContent = dirty ? 'حفظ الخطة (توجد تعديلات غير محفوظة)' : 'حفظ الخطة'; if (dirty) { S._ts = Date.now(); try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} } }
   function setP(p, v) { var a = p.split('.'), o = S; for (var i = 0; i < a.length - 1; i++) o = o[a[i]]; o[a[a.length - 1]] = v; }
   function getP(p) { var a = p.split('.'), o = S; for (var i = 0; i < a.length; i++) o = o[a[i]]; return o; }
@@ -199,7 +209,7 @@
       '<p style="color:#8a7d76;font-size:0.85rem;margin-top:0;">كل النصوص قابلة للتعديل بالضغط عليها (حتى العنوان). المركز والفترة من قوائم منسدلة، ولكل مركز تاريخ استلام من التقويم. يمكنك إضافة أو حذف أي صف أو جدول، ثم اضغطي «حفظ الخطة».</p>' +
       '<div class="export-row" style="margin:8px 0 12px;gap:8px;flex-wrap:wrap;"><button class="btn" id="rcvSaveBtn" style="' + BAR_BTN + '" onclick="rcvSave_()">حفظ الخطة</button><button class="btn outline" style="' + BAR_BTN + '" onclick="rcvPdf_(this)">⬇️ PDF</button><button class="btn outline" style="' + BAR_BTN + '" onclick="rcvReset_()">↺ إعادة النموذج الأصلي</button></div>' +
       '<div class="success-msg" id="rcvOk">تم حفظ الخطة ✅</div><div id="rcvDraftNote" class="hidden" style="border:1px solid #e0c36a;background:#fff8e1;border-radius:10px;padding:8px 12px;font-size:.85rem;margin-bottom:10px;"></div>' +
-      '<div class="rpx"><div class="rp-doc" id="rcvDoc">جاري التحميل...</div></div>';
+      '<div class="rpx rp-stage" id="rcvStage"><div class="rp-doc" id="rcvDoc">جاري التحميل...</div></div>';
     tab.appendChild(v); wire();
   }
   window.rcvSwitch_ = function (w) {
