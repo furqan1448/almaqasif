@@ -20,7 +20,7 @@
     var am = function (a) { return a.map(function (x) { return { c: x[0] || x, both: !!x[1] }; }); };
     var t1 = ['أروى بنت أبي العاص', 'الربيع بنت معوذ', 'أم خالد القرشية', 'أم ذر الغفارية', 'أم سلمة', 'أم عمار', 'أم عمارة', 'صفية بنت حيي', 'فاطمة بنت أسد', 'مليكة بنت ملحان', 'هالة بنت خويلد', 'هند بنت عتبة', 'أسماء بنت أبي بكر', 'أسماء بنت عميس', 'الشفاء بنت عبد الله', 'أم الخير', 'أم حرام بنت ملحان', 'أم هاني', 'خولة بنت حكيم', 'رفيدة الأنصارية', 'فاطمة بنت عبد الملك', 'جمانة بنت أبي طالب', 'سفانة بنت حاتم الطائي', 'سودة بنت زمعة'];
     var B = PERIODS[2], M = PERIODS[0], E = PERIODS[1];
-    return {
+    var o = {
       kicker: 'وحدة المقاصف', title: 'الخطة المقترحة لاستلام المبالغ والتعامل مع البضائع المتبقية', sub: 'في حال استمرار الدراسة عن بُعد',
       goalT: 'الهدف من الخطة', goal: 'تحديد الإجراءات اللازمة لتنظيم استلام المبالغ وحصر البضائع المتبقية والتعامل معها في حال استمرار الدراسة عن بُعد.',
       procT: 'الإجراءات المتخذة',
@@ -36,7 +36,7 @@
         { t: 'مراكز تُستلم من قبل رئيسة الوحدة', n: '', rows: [['أروى بنت عبد المطلب', E], ['أم حكيم', B], ['عائشة بنت الصديق', B], ['عاتكة بنت عبد المطلب', B], ['ميمونة بنت الحارث', B], ['الخنساء بنت عمرو', B], ['زينب بنت جحش', B], ['صفية بنت عبد المطلب', E]].map(function (x) { return { c: x[0], p: x[1], d: '' }; }) },
         { t: 'مراكز تُستلم من قبل المندوب', n: '', rows: [['خولة بنت ثعلبة', B], ['آسية بنت مزاحم', B], ['أم كلثوم بنت أبي بكر', E], ['زينب بنت رسول الله', B], ['خديجة بنت خويلد', B], ['خولة بنت الأزور', B], ['لبابة بنت الحارث', B], ['فاطمة بنت رسول الله', B], ['مريم بنت عمران', B], ['حفصة بنت عمر', M]].map(function (x) { return { c: x[0], p: x[1], d: '' }; }) }
       ],
-      amT: 'جدول مواعيد استلام المبالغ', amH: ['اليوم', 'الفترة الصباحية', 'الفترة المسائية'], bothT: 'الفترتان معًا', noPm: 'لا يوجد استلام خلال الفترة المسائية',
+      amT: 'جدول مواعيد استلام المبالغ',
       days: [
         { day: 'الأحد', date: '', am: am(['خولة بنت ثعلبة', 'آسية بنت مزاحم', 'أم حكيم']), pm: am(['أروى بنت أبي العاص', 'الربيع بنت معوذ', 'أم خالد القرشية', 'أم ذر الغفارية', 'أم سلمة', 'أم عمار', 'أم عمارة', 'صفية بنت حيي', 'فاطمة بنت أسد']) },
         { day: 'الاثنين', date: '', am: am([['زينب بنت رسول الله', 1], 'عائشة بنت الصديق', 'عاتكة بنت عبد المطلب']), pm: am(['مليكة بنت ملحان', 'هالة بنت خويلد', 'هند بنت عتبة', 'أسماء بنت أبي بكر', 'أسماء بنت عميس', 'الشفاء بنت عبد الله', 'أم الخير', 'أم حرام بنت ملحان', 'أم هاني']) },
@@ -49,6 +49,16 @@
       impT: 'الأثر المتوقع من تطبيق الخطة',
       imp: ['انتظام تسليم المبالغ واستلامها وفق المواعيد المحددة.', 'حصر البضائع المتبقية وتحديد كمياتها وأصنافها.', 'الحد من تراكم البضائع.', 'وضوح الأدوار والمسؤوليات بين الوحدة والمراكز.']
     };
+    o.amts = conv(o.days); delete o.days; return o;
+  }
+  /* تحويل الجدول القديم (حسب اليوم) إلى جداول: مركز + فترة + تاريخ */
+  function conv(days) {
+    return days.map(function (d) {
+      var rows = [];
+      d.am.forEach(function (x) { rows.push({ c: x.c, p: x.both ? PERIODS[2] : PERIODS[0], d: d.date || '' }); });
+      d.pm.forEach(function (x) { rows.push({ c: x.c, p: PERIODS[1], d: d.date || '' }); });
+      return { t: d.day, n: '', rows: rows };
+    });
   }
 
   /* ---------- قوائم المراكز (بدون لاحقة الفترة) ---------- */
@@ -58,14 +68,14 @@
     (typeof centersListCache !== 'undefined' ? centersListCache : []).forEach(function (c) { add(String(c).replace(/\s*[-–]\s*(الفترة.*)$/, '')); });
     var tmp = seed(); /* أسماء الملف الأصلي كاحتياط إن لم تتطابق أسماء النظام */
     tmp.goods.forEach(function (g) { g.rows.forEach(function (r) { add(r.c); }); });
-    tmp.days.forEach(function (d) { d.am.concat(d.pm).forEach(function (x) { add(x.c); }); });
+    tmp.amts.forEach(function (g) { g.rows.forEach(function (r) { add(r.c); }); });
     tmp.no.forEach(function (g) { g.c.forEach(add); });
     centers = out; centers._k = seen;
   }
   function canon(n) { return (centers._k && centers._k[loose(n)]) || n; }
   function canonAll() {
     S.goods.forEach(function (g) { g.rows.forEach(function (r) { r.c = canon(r.c); }); });
-    S.days.forEach(function (d) { d.am.concat(d.pm).forEach(function (x) { x.c = canon(x.c); }); });
+    S.amts.forEach(function (g) { g.rows.forEach(function (r) { r.c = canon(r.c); }); });
     S.no.forEach(function (g) { g.c = g.c.map(canon); });
   }
 
@@ -88,25 +98,17 @@
       rows: S.proc.map(function (r, i) { return '<tr><td class="lb"><span class="num">' + ad(i + 1) + '</span>' + ed('proc.' + i + '.l', r.l) + (E ? btn('del', 'proc.' + i, '🗑', undefined, 'x') : '') + '</td><td>' + bullets(r.b, 'proc.' + i + '.b') + '</td></tr>'; }) });
     /* جداول البضائع */
     B.push({ brk: 1, html: '<h2 class="h2">' + ed('goodsT', S.goodsT) + '</h2>' });
-    S.goods.forEach(function (g, gi) {
-      var gp = 'goods.' + gi;
+    var tables = function (key) { S[key].forEach(function (g, gi) {
+      var gp = key + '.' + gi;
       B.push({ open: '<div class="bx"><div class="band"><span>' + ed(gp + '.t', g.t) + '</span><span class="nt">' + ed(gp + '.n', g.n) + '</span>' + (E ? '<span class="bk">تاريخ لكل الصفوف <input type="date" class="dt" data-act="bulk" data-p="' + gp + '"></span>' + btn('del', gp, '🗑 حذف الجدول', undefined, 'x w') : '') + '<span class="cnt">' + cnt(g.rows.length) + '</span></div><table><thead><tr><th style="width:7%">م</th><th>المركز</th><th style="width:26%">الفترة</th><th style="width:25%">تاريخ الاستلام</th>' + (E ? '<th style="width:5%"></th>' : '') + '</tr></thead><tbody>',
         close: '</tbody></table>' + (E ? btn('add', gp + '.rows', '+ إضافة مركز', { c: '', p: PERIODS[1], d: '' }, 'ad') : '') + '</div>',
         rows: g.rows.map(function (r, i) { var p = gp + '.rows.' + i; return '<tr><td>' + ad(i + 1) + '</td><td class="nm">' + sel(p + '.c', r.c, centers) + '</td><td>' + sel(p + '.p', r.p, PERIODS) + '</td><td>' + date(p + '.d', r.d) + '</td>' + (E ? '<td>' + btn('del', p, '✕', undefined, 'x') + '</td>' : '') + '</tr>'; }) });
     });
-    if (E) B.push({ html: btn('add', 'goods', '+ إضافة جدول بضائع جديد', { t: 'جدول جديد', n: '', rows: [] }, 'ad big') });
-    /* جدول المبالغ */
-    B.push({ brk: 1, open: '<div class="bx"><div class="band"><span>' + ed('amT', S.amT) + '</span></div><table class="am"><thead><tr><th style="width:17%">' + ed('amH.0', S.amH[0]) + '</th><th>' + ed('amH.1', S.amH[1]) + '</th><th>' + ed('amH.2', S.amH[2]) + '</th></tr></thead><tbody>',
-      close: '</tbody></table>' + (E ? btn('add', 'days', '+ إضافة يوم', { day: '', date: '', am: [], pm: [] }, 'ad') : '') + '</div>',
-      rows: S.days.map(function (d, di) {
-        var dp = 'days.' + di;
-        var list = function (arr, k) {
-          var h = arr.map(function (x, i) { var p = dp + '.' + k + '.' + i; return '<div class="ce">' + sel(p + '.c', x.c, centers) + (k === 'am' ? (E ? '<label class="bo"><input type="checkbox" data-p="' + p + '.both"' + (x.both ? ' checked' : '') + '>' + esc(S.bothT) + '</label>' : (x.both ? ' <small class="bt">(' + esc(S.bothT) + ')</small>' : '')) : '') + btn('del', p, '✕', undefined, 'x') + '</div>'; }).join('');
-          if (!arr.length) h = E ? '<div class="em">' + ed('noPm', S.noPm) + '</div>' : '<div class="em">' + esc(S.noPm) + '</div>';
-          return h + btn('add', dp + '.' + k, '+ مركز', { c: '', both: false }, 'ad');
-        };
-        return '<tr><td class="dy">' + (E ? '<select class="sl" data-p="' + dp + '.day">' + opt(DAYS, d.day) + '</select>' : '<b>' + esc(d.day) + '</b>') + '<div class="dd">' + date(dp + '.date', d.date) + '</div>' + (E ? btn('del', dp, '🗑 حذف اليوم', undefined, 'x') : '') + '</td><td>' + list(d.am, 'am') + '</td><td>' + list(d.pm, 'pm') + '</td></tr>';
-      }) });
+    if (E) B.push({ html: btn('add', key, '+ إضافة جدول جديد', { t: 'جدول جديد', n: '', rows: [] }, 'ad big') }); };
+    tables('goods');
+    /* جداول المبالغ: جدول لكل يوم، نفس فكرة البضائع (مركز + فترة + تاريخ) */
+    B.push({ brk: 1, html: '<h2 class="h2">' + ed('amT', S.amT) + '</h2>' });
+    tables('amts');
     /* المراكز التي لا مقصف بها */
     B.push({ html: '<div class="goal nc"><h3>' + ed('noT', S.noT) + '</h3>' + S.no.map(function (g, gi) {
       var gp = 'no.' + gi;
@@ -169,7 +171,7 @@
       var act = b.getAttribute('data-act'), p = b.getAttribute('data-p'), a = p.split('.');
       if (act === 'add') { var seedV = b.hasAttribute('data-seed') ? JSON.parse(b.getAttribute('data-seed')) : ''; getP(p).push(seedV); }
       else if (act === 'del') {
-        if (a.length === 2 && (a[0] === 'goods' || a[0] === 'days' || a[0] === 'proc' || a[0] === 'no') && !confirm('حذف هذا العنصر بكل محتواه؟')) return;
+        if (a.length === 2 && (a[0] === 'goods' || a[0] === 'amts' || a[0] === 'proc' || a[0] === 'no') && !confirm('حذف هذا العنصر بكل محتواه؟')) return;
         getP(a.slice(0, -1).join('.')).splice(+a[a.length - 1], 1);
       } else return;
       mark(); render();
@@ -206,6 +208,8 @@
         var srv = r && r.plan && r.plan.title ? r.plan : null, loc = null;
         try { loc = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) {}
         S = srv || seed();
+        if (S.days && !S.amts) { S.amts = conv(S.days); delete S.days; }
+        if (loc && loc.days && !loc.amts) { loc.amts = conv(loc.days); delete loc.days; }
         if (loc && loc.title && (!srv || (loc._ts || 0) > (srv._ts || 0))) { S = loc; var n = document.getElementById('rcvDraftNote'); n.classList.remove('hidden'); n.textContent = 'تم استرجاع مسودة غير محفوظة من هذا الجهاز — اضغطي «حفظ الخطة» لاعتمادها.'; dirty = true; }
         canonAll(); render(); mark(dirty);
       });
